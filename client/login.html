@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Login | Inventory System</title>
+<link rel="stylesheet" href="CSS/style.css"/> 
+</head>
+<body>
+  <div class="login-container">
+    <h2 id="formTitle">🔐 Admin Login</h2>
+
+    <div id="loginForm">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="Enter username" />
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter password" />
+      <button id="loginBtn" type="button" class="primary-btn">Login</button>
+      <p class="info">Forgot password? Contact the admin: <b id="contactPhone"></b></p>
+      <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
+      <p id="loginMessage"></p>
+    </div>
+
+    <div id="registerForm" style="display:none;">
+      <label for="newUsername">New Username</label>
+      <input type="text" id="newUsername" placeholder="Enter username" />
+      <label for="newPassword">New Password</label>
+      <input type="password" id="newPassword" placeholder="Enter password" />
+      <label for="securityCode">Security Code</label>
+      <input type="text" id="securityCode" placeholder="Enter company security code" />
+      <button id="registerBtn" type="button" class="success-btn">Register Account</button>
+      <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
+      <p id="registerMessage"></p>
+    </div>
+  </div>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+</body>
+</html>

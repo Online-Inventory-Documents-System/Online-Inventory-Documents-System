@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard | Inventory System</title>
+<link rel="stylesheet" href="CSS/style.css"/>
+</head>
+<body>
+<header>
+  <h1>🏠 Home Dashboard</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
+
+<section class="dashboard-grid">
+    <div class="dashboard-info">
+        <h2>Welcome to the Inventory & Document Management System</h2>
+        <p>This dashboard provides quick access to your inventory, document uploads, and activity log.</p>
+        
+        <div class="clock" id="clock"></div>
+
+        <ul>
+            <li>📦 Manage inventory with SKU tracking.</li>
+            <li>📄 Upload and manage important documents.</li>
+            <li>🕒 Review all actions in your activity log.</li>
+        </ul>
+
+        <div class="info-card" style="margin-top: 20px;">
+            <p style="margin:0; font-size: 0.9rem;">
+                🛠️ The website was developed by **Brendan Jong & Leong Jia Wei**
+                <br>
+                ⚙️ Render Cloud database was established and managed by **Leong Jia Wei**
+            </p>
+        </div>
+    </div>
+    
+    <div class="dashboard-card-container">
+        <a href="inventory.html" id="btn-inventory" class="quick-access-btn">📦 View Inventory</a>
+        <a href="documents.html" id="btn-documents" class="quick-access-btn">📄 Manage Documents</a>
+        
+        <div class="info-card">
+            <h3>🧑‍🧑 Recent Users</h3>
+            <p>Users logged in today (Simulated): <span id="totalUsers">0</span></p>
+        </div>
+    </div>
+    
+    <div style="grid-column: 1 / -1;" class="info-card">
+        <h3>🕒 Recent Activity Log</h3>
+        <table>
+          <thead><tr><th>User</th><th>Action</th><th>Time</th></tr></thead>
+          <tbody id="recentActivities"></tbody>
+        </table>
+    </div>
+</section>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>
+  // realtime clock
+  function updateClock() {
+    const now = new Date();
+    const options = { weekday: "short", year: "numeric", month: "short", day: "numeric" };
+    const dateStr = now.toLocaleDateString(undefined, options);
+    const timeStr = now.toLocaleTimeString();
+    document.getElementById("clock").textContent = `📅 ${dateStr} ⏰ ${timeStr}`;
+  }
+  setInterval(updateClock, 1000); updateClock();
+</script>
+</body>
+</html>
