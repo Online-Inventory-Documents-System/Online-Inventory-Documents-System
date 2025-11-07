@@ -1,6 +1,6 @@
 // client/script.js
 // API base: relative so same-origin works on Render
-const API_BASE = "https://online-inventory-documents-system.onrender.com/api"; // ⚠️ REPLACE with your actual Render URL later!
+const API_BASE = "https://online-inventory-documents-system-1.onrender.com"; // ⚠️ actual Render URL 
 
 // ====== Utilities ======
 function qs(sel){ return document.querySelector(sel); }
