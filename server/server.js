@@ -23,7 +23,7 @@ function loadUsersDB() {
     } catch (err) {
         console.error("Error reading users DB:", err);
     }
-    return [{ username: 'admin', password: 'password' }]; // default admin
+    return [{ username: 'admin', password: 'password' }];
 }
 
 function saveUsersDB() {
@@ -39,7 +39,7 @@ let users = loadUsersDB();
 let inventory = [];
 let documents = [];
 let activityLog = [{ user: 'System', action: 'Server started', time: new Date().toLocaleString() }];
-const SECURITY_CODE = '1234'; // Must match client CONFIG.SECURITY_CODE
+const SECURITY_CODE = '1234';
 
 // ===== Middleware =====
 app.use(cors());
@@ -49,12 +49,12 @@ app.use(bodyParser.json());
 function logActivity(user, action) {
     const time = new Date().toLocaleString();
     activityLog.push({ user: user || 'Unknown', action, time });
-    activityLog = activityLog.slice(-100); // Keep last 100 logs
+    activityLog = activityLog.slice(-100);
 }
 
-// ===== Auth Routes =====
+// ===== API Routes =====
 
-// Login
+// Auth Routes
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
@@ -66,7 +66,6 @@ app.post('/api/login', (req, res) => {
     }
 });
 
-// Register
 app.post('/api/register', (req, res) => {
     const { username, password, securityCode } = req.body;
     if (securityCode !== SECURITY_CODE) return res.status(403).json({ success: false, message: 'Invalid security code' });
@@ -78,7 +77,6 @@ app.post('/api/register', (req, res) => {
     res.json({ success: true, message: 'Registration successful' });
 });
 
-// Change Password
 app.put('/api/account/password', (req, res) => {
     const { username, newPassword, securityCode } = req.body;
     if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
@@ -92,7 +90,6 @@ app.put('/api/account/password', (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
 });
 
-// Delete Account
 app.delete('/api/account', (req, res) => {
     const { username, securityCode } = req.body;
     if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
@@ -106,12 +103,9 @@ app.delete('/api/account', (req, res) => {
     res.json({ success: true, message: 'Account deleted successfully' });
 });
 
-// ===== Inventory Routes =====
-
-// Get Inventory
+// Inventory Routes
 app.get('/api/inventory', (req, res) => res.json(inventory));
 
-// Add Item
 app.post('/api/inventory', (req, res) => {
     const item = { id: Date.now().toString(), ...req.body };
     inventory.push(item);
@@ -119,7 +113,6 @@ app.post('/api/inventory', (req, res) => {
     res.status(201).json(item);
 });
 
-// Update Item
 app.put('/api/inventory/:id', (req, res) => {
     const { id } = req.params;
     const index = inventory.findIndex(item => item.id === id);
@@ -130,7 +123,6 @@ app.put('/api/inventory/:id', (req, res) => {
     res.json(inventory[index]);
 });
 
-// Delete Item
 app.delete('/api/inventory/:id', (req, res) => {
     const { id } = req.params;
     const index = inventory.findIndex(item => item.id === id);
@@ -141,7 +133,6 @@ app.delete('/api/inventory/:id', (req, res) => {
     res.status(204).send();
 });
 
-// Inventory Report
 app.get('/api/inventory/report', (req, res) => {
     try {
         const ws_data = [
@@ -187,7 +178,7 @@ app.get('/api/inventory/report', (req, res) => {
     }
 });
 
-// ===== Document Routes =====
+// Document Routes
 app.get('/api/documents', (req, res) => res.json(documents));
 
 app.post('/api/documents', (req, res) => {
@@ -206,8 +197,16 @@ app.get("/api/documents/download/:filename", (req, res) => {
     res.status(404).json({ message: "File not found or download unavailable on this mock server." });
 });
 
-// ===== Activity Log =====
+// Activity Log
 app.get('/api/logs', (req, res) => res.json(activityLog.slice().reverse()));
+
+// ===== Serve Frontend (public folder) =====
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Catch-all route for SPA
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // ===== Start Server =====
 app.listen(PORT, () => {
