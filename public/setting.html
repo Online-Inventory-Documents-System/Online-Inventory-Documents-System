@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Settings | Inventory System</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<header>
+  <h1>⚙️ Account Settings</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
+
+<section>
+  <h2>Manager Account</h2>
+  <div class="info-card">
+    <p>Logged-in User: <strong id="currentUser"></strong></p>
+  </div>
+
+  <form id="passwordForm" style="margin-top: 20px;">
+    <h3>Change Password</h3>
+    <label for="newPassword">New Password</label>
+    <input id="newPassword" type="password" required /><br/>
+    
+    <label for="confirmPassword">Confirm New Password</label>
+    <input id="confirmPassword" type="password" required /><br/>
+    
+    <label for="securityCode">Admin Security Code</label>
+    <input id="securityCode" type="password" placeholder="Required to confirm change" required /><br/>
+    
+    <button id="changePasswordBtn" type="button" class="primary-btn" style="margin-top: 15px;">🔒 Confirm Change Password</button>
+    <p id="passwordMessage" style="margin-top: 10px;"></p>
+  </form>
+
+  <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+    <h3>Account Actions</h3>
+    <button id="logoutBtn" type="button" class="secondary-btn" onclick="logout()">🚪 Logout</button>
+    <button id="deleteAccountBtn" type="button" class="danger-btn" style="margin-left: 10px;">🗑️ Delete Account</button>
+  </div>
+</section>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>
+  // Tell script.js we are on the settings page so it can bind the password & delete account logic
+  document.documentElement.dataset.page = 'setting';
+
+  // Pre-fill current user
+  document.addEventListener('DOMContentLoaded', () => {
+    const adminName = sessionStorage.getItem('adminName') || 'Guest';
+    if (document.getElementById('adminName')) document.getElementById('adminName').textContent = adminName;
+    if (document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
+  });
+</script>
+</body>
+</html>
