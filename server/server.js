@@ -1,161 +1,215 @@
 // server/server.js
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const xlsx = require('xlsx');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000; 
+const PORT = process.env.PORT || 3000;
 
-// === Middleware ===
-app.use(cors()); 
-app.use(bodyParser.json());
+// ===== Database / File Paths =====
+const USERS_DB_PATH = path.join(__dirname, 'users.json');
 
-// === In-Memory Database ===
+// ===== Helper Functions =====
+function loadUsersDB() {
+    try {
+        if (fs.existsSync(USERS_DB_PATH)) {
+            const data = fs.readFileSync(USERS_DB_PATH, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (err) {
+        console.error("Error reading users DB:", err);
+    }
+    return [{ username: 'admin', password: 'password' }]; // default admin
+}
+
+function saveUsersDB() {
+    try {
+        fs.writeFileSync(USERS_DB_PATH, JSON.stringify(users, null, 2), 'utf8');
+    } catch (err) {
+        console.error("Error writing users DB:", err);
+    }
+}
+
+// ===== In-Memory DB =====
+let users = loadUsersDB();
 let inventory = [];
 let documents = [];
 let activityLog = [{ user: 'System', action: 'Server started', time: new Date().toLocaleString() }];
-let users = [{ username: 'admin', password: 'password' }];
-const SECURITY_CODE = '1234';
-const COMPANY_NAME = 'L&B Company';
+const SECURITY_CODE = '1234'; // Must match client CONFIG.SECURITY_CODE
 
-// === Helper Functions ===
-function getUsernameFromHeader(req) {
-    return req.headers['x-username'] || 'Unknown';
-}
+// ===== Middleware =====
+app.use(cors());
+app.use(bodyParser.json());
 
+// ===== Utility Functions =====
 function logActivity(user, action) {
     const time = new Date().toLocaleString();
     activityLog.push({ user: user || 'Unknown', action, time });
-    activityLog = activityLog.slice(-100); 
+    activityLog = activityLog.slice(-100); // Keep last 100 logs
 }
 
-// === API ROUTES ===
+// ===== Auth Routes =====
 
-// --- Auth & Inventory Routes (Simplified for brevity, assumes standard implementation) ---
+// Login
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
-        logActivity(username, `Logged in`);
+        logActivity(username, 'Logged in');
         res.json({ success: true, user: username });
     } else {
         res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 });
+
+// Register
 app.post('/api/register', (req, res) => {
     const { username, password, securityCode } = req.body;
     if (securityCode !== SECURITY_CODE) return res.status(403).json({ success: false, message: 'Invalid security code' });
     if (users.some(u => u.username === username)) return res.status(409).json({ success: false, message: 'Username already exists' });
+
     users.push({ username, password });
+    saveUsersDB();
     logActivity('System', `Registered new user: ${username}`);
     res.json({ success: true, message: 'Registration successful' });
 });
+
+// Change Password
+app.put('/api/account/password', (req, res) => {
+    const { username, newPassword, securityCode } = req.body;
+    if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
+
+    const userIndex = users.findIndex(u => u.username === username);
+    if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
+
+    users[userIndex].password = newPassword;
+    saveUsersDB();
+    logActivity(username, 'Changed account password');
+    res.json({ success: true, message: 'Password updated successfully' });
+});
+
+// Delete Account
+app.delete('/api/account', (req, res) => {
+    const { username, securityCode } = req.body;
+    if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
+
+    const initialLength = users.length;
+    users = users.filter(u => u.username !== username);
+    if (users.length === initialLength) return res.status(404).json({ message: 'User not found' });
+
+    saveUsersDB();
+    logActivity('System', `Deleted account for user: ${username}`);
+    res.json({ success: true, message: 'Account deleted successfully' });
+});
+
+// ===== Inventory Routes =====
+
+// Get Inventory
 app.get('/api/inventory', (req, res) => res.json(inventory));
+
+// Add Item
 app.post('/api/inventory', (req, res) => {
     const item = { id: Date.now().toString(), ...req.body };
     inventory.push(item);
-    logActivity(getUsernameFromHeader(req), `Added product: ${item.name}`);
+    logActivity(req.headers['x-username'], `Added product: ${item.name}`);
     res.status(201).json(item);
 });
+
+// Update Item
 app.put('/api/inventory/:id', (req, res) => {
     const { id } = req.params;
     const index = inventory.findIndex(item => item.id === id);
     if (index === -1) return res.status(404).send('Item not found');
-    inventory[index] = { ...inventory[index], ...req.body };
-    logActivity(getUsernameFromHeader(req), `Updated product: ${inventory[index].name}`);
+
+    inventory[index] = { ...inventory[index], id, ...req.body };
+    logActivity(req.headers['x-username'], `Updated product: ${inventory[index].name}`);
     res.json(inventory[index]);
 });
+
+// Delete Item
 app.delete('/api/inventory/:id', (req, res) => {
     const { id } = req.params;
     const index = inventory.findIndex(item => item.id === id);
     if (index === -1) return res.status(404).send('Item not found');
+
     const [deletedItem] = inventory.splice(index, 1);
-    logActivity(getUsernameFromHeader(req), `Deleted product: ${deletedItem.name}`);
+    logActivity(req.headers['x-username'], `Deleted product: ${deletedItem.name}`);
     res.status(204).send();
 });
 
-// --- Report Route (Excel Generation) ---
-app.get('/api/report/excel', (req, res) => {
-    const reportTime = new Date();
-    const user = getUsernameFromHeader(req);
-    const dateString = reportTime.toLocaleString();
-    const timestamp = reportTime.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    const filename = `${COMPANY_NAME}_Inventory_Report_${timestamp}.xlsx`;
+// Inventory Report
+app.get('/api/inventory/report', (req, res) => {
+    try {
+        const ws_data = [
+            ["L&B Company - Inventory Report"],
+            ["Date:", new Date().toISOString()],
+            [],
+            ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", "Total Inventory Value", "Total Potential Revenue"]
+        ];
 
-    // 1. Prepare Worksheet Data with Header
-    const ws_data = [
-        [`${COMPANY_NAME} - Inventory Report`], // Company Name Header
-        [`Generated On: ${dateString}`],        // Date and Time Header
-        [],
-        ['SKU', 'Name', 'Category', 'Quantity', 'Unit Cost', 'Unit Price', 'Total Value', 'Potential Revenue']
-    ];
-    
-    inventory.forEach(item => {
-        const qty = Number(item.quantity || 0);
-        const uc = Number(item.unitCost || 0);
-        const up = Number(item.unitPrice || 0);
-        ws_data.push([
-            item.sku, item.name, item.category, qty, 
-            uc.toFixed(2), up.toFixed(2), 
-            (qty * uc).toFixed(2), (qty * up).toFixed(2)
-        ]);
-    });
+        let totalValue = 0, totalRevenue = 0;
 
-    const ws = xlsx.utils.aoa_to_sheet(ws_data);
-    
-    // Merge the title cells for cleanliness
-    if(ws['!merges']) { 
-        ws['!merges'].push(xlsx.utils.decode_range('A1:H1')); 
-        ws['!merges'].push(xlsx.utils.decode_range('A2:H2')); 
-    } else {
-        ws['!merges'] = [xlsx.utils.decode_range('A1:H1'), xlsx.utils.decode_range('A2:H2')];
+        inventory.forEach(it => {
+            const qty = Number(it.quantity || 0);
+            const uc = Number(it.unitCost || 0);
+            const up = Number(it.unitPrice || 0);
+            const invVal = qty * uc;
+            const rev = qty * up;
+            totalValue += invVal;
+            totalRevenue += rev;
+            ws_data.push([it.sku, it.name, it.category, qty, uc.toFixed(2), up.toFixed(2), invVal.toFixed(2), rev.toFixed(2)]);
+        });
+
+        ws_data.push([]);
+        ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+
+        const ws = xlsx.utils.aoa_to_sheet(ws_data);
+        const wb = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
+        const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+        const filename = `Inventory_Report_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+        documents.unshift({ id: Date.now().toString(), name: filename, size: wb_out.length, date: new Date().toISOString() });
+        documents = documents.slice(0, 50);
+
+        logActivity(req.headers['x-username'], `Generated Inventory Report: ${filename}`);
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.send(wb_out);
+
+    } catch (err) {
+        console.error("Inventory report generation failed:", err);
+        res.status(500).json({ message: "Report generation failed" });
     }
-    
-    const wb = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(wb, ws, "Inventory_Report");
-
-    // Generate Excel file buffer
-    const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
-
-    // 2. Log Activity and Add Document Entry
-    logActivity(user, `Generated Inventory Report (Excel): ${filename}`);
-    
-    // Add the report metadata to the documents list
-    documents.push({ 
-        id: Date.now().toString(), 
-        name: filename, 
-        date: dateString,
-        type: 'Report',
-        // In a real system, you'd save the file content, but here we save metadata
-        simulated: true 
-    });
-
-    // 3. Send the file for download
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-    res.send(wb_out);
 });
 
-
-// --- Document & Log Routes ---
+// ===== Document Routes =====
 app.get('/api/documents', (req, res) => res.json(documents));
+
 app.post('/api/documents', (req, res) => {
-    // This is for manual uploads - keeping it simple for the in-memory database
-    const doc = { 
-        id: Date.now().toString(), 
-        name: req.body.name, 
-        date: new Date().toLocaleDateString(),
-        type: 'Manual'
-    };
-    documents.push(doc);
-    logActivity(getUsernameFromHeader(req), `Uploaded document metadata: ${doc.name}`);
+    const doc = { id: Date.now().toString(), date: new Date().toISOString(), ...req.body };
+    documents.unshift(doc);
+    documents = documents.slice(0, 50);
+    logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
     res.status(201).json(doc);
 });
+
+app.get("/api/documents/download/:filename", (req, res) => {
+    if (req.params.filename.startsWith("Inventory_Report")) {
+        logActivity(req.headers['x-username'], `Re-downloaded Inventory Report`);
+        return res.redirect('/api/inventory/report');
+    }
+    res.status(404).json({ message: "File not found or download unavailable on this mock server." });
+});
+
+// ===== Activity Log =====
 app.get('/api/logs', (req, res) => res.json(activityLog.slice().reverse()));
 
-
-// --- Start Server ---
+// ===== Start Server =====
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });

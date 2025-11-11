@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dashboard | Inventory System</title>
-<link rel="stylesheet" href="CSS/style.css"/>
+<link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
 <header>
@@ -14,6 +14,7 @@
     <a href="inventory.html">Inventory</a>
     <a href="documents.html">Documents</a>
     <a href="log.html">Activity Log</a>
+    <a href="setting.html"><button>⚙️ Setting</button></a>
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
     <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
@@ -35,9 +36,8 @@
 
         <div class="info-card" style="margin-top: 20px;">
             <p style="margin:0; font-size: 0.9rem;">
-                🛠️ The website was developed by **Brendan Jong & Leong Jia Wei**
-                <br>
-                ⚙️ Render Cloud database was established and managed by **Leong Jia Wei**
+                🛠️ The website was developed by <b>Brendan Jong & Leong Jia Wei</b><br>
+                ⚙️ Render Cloud database managed by <b>Leong Jia Wei</b>
             </p>
         </div>
     </div>
@@ -47,15 +47,26 @@
         <a href="documents.html" id="btn-documents" class="quick-access-btn">📄 Manage Documents</a>
         
         <div class="info-card">
-            <h3>🧑‍🧑 Recent Users</h3>
-            <p>Users logged in today (Simulated): <span id="totalUsers">0</span></p>
+            <h3>📦 Inventory Summary</h3>
+            <ul>
+                <li>Total Items: <span id="dash_totalItems">0</span></li>
+                <li>Total Value: RM <span id="dash_totalValue">0.00</span></li>
+                <li>Total Revenue: RM <span id="dash_totalRevenue">0.00</span></li>
+                <li>Total Stock Qty: <span id="dash_totalStock">0</span></li>
+            </ul>
         </div>
     </div>
     
     <div style="grid-column: 1 / -1;" class="info-card">
         <h3>🕒 Recent Activity Log</h3>
         <table>
-          <thead><tr><th>User</th><th>Action</th><th>Time</th></tr></thead>
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Action</th>
+              <th>Time</th>
+            </tr>
+          </thead>
           <tbody id="recentActivities"></tbody>
         </table>
     </div>
@@ -64,7 +75,7 @@
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 <script>
-  // realtime clock
+  // Realtime clock
   function updateClock() {
     const now = new Date();
     const options = { weekday: "short", year: "numeric", month: "short", day: "numeric" };
@@ -72,7 +83,8 @@
     const timeStr = now.toLocaleTimeString();
     document.getElementById("clock").textContent = `📅 ${dateStr} ⏰ ${timeStr}`;
   }
-  setInterval(updateClock, 1000); updateClock();
+  setInterval(updateClock, 1000);
+  updateClock();
 </script>
 </body>
 </html>
