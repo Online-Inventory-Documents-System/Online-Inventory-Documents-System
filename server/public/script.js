@@ -3,7 +3,7 @@
 // ⚠️ Automatically set API_BASE depending on environment
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
-  : "https://YOUR-RENDER-APP.onrender.com/api"; // <- Replace with your Render app
+  : "https://online-inventory-documents-system-olzt.onrender.com/api/test"; // <- Replace with your Render app
 
 // ====== Utilities ======
 function qs(sel){ return document.querySelector(sel); }
