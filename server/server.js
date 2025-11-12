@@ -1,207 +1,279 @@
-// server.js
-require('dotenv').config();
+// server/server.js
+// MongoDB (Mongoose) based server for Online Inventory & Documents System
+
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcryptjs');
+const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
-const bodyParser = require('body-parser');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
+const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || '1234';
 
-// ================= MONGODB CONNECTION =================
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://leongjiawei357:pass360@cluster0.2ykgu86.mongodb.net/?appName=Cluster0';
-
-mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(()=> console.log('MongoDB connected'))
-  .catch(err=> console.error('MongoDB connection error:', err));
-
-// ================= MIDDLEWARE =================
+// ===== Middleware =====
 app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ================= MODELS =================
-const userSchema = new mongoose.Schema({
-  username: { type: String, required:true, unique:true },
-  passwordHash: { type:String, required:true }
+// ===== Mongoose / Models =====
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set. Set MONGODB_URI environment variable.');
+  process.exit(1);
+}
+
+mongoose.set('strictQuery', false);
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(()=> console.log('Connected to MongoDB Atlas'))
+  .catch(err => { console.error('MongoDB connect error:', err); process.exit(1); });
+
+const { Schema } = mongoose;
+
+const UserSchema = new Schema({
+  username: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
 });
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model('User', UserSchema);
 
-const inventorySchema = new mongoose.Schema({
+const InventorySchema = new Schema({
   sku: String,
   name: String,
   category: String,
-  quantity: Number,
-  unitCost: Number,
-  unitPrice: Number
+  quantity: { type: Number, default: 0 },
+  unitCost: { type: Number, default: 0 },
+  unitPrice: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
 });
-const Inventory = mongoose.model('Inventory', inventorySchema);
+const Inventory = mongoose.model('Inventory', InventorySchema);
 
-const documentSchema = new mongoose.Schema({
+const DocumentSchema = new Schema({
   name: String,
-  type: String,
-  sizeBytes: Number,
+  size: Number,
   date: { type: Date, default: Date.now }
 });
-const Document = mongoose.model('Document', documentSchema);
+const Doc = mongoose.model('Document', DocumentSchema);
 
-const logSchema = new mongoose.Schema({
+const LogSchema = new Schema({
   user: String,
   action: String,
   time: { type: Date, default: Date.now }
 });
-const Log = mongoose.model('Log', logSchema);
+const ActivityLog = mongoose.model('ActivityLog', LogSchema);
 
-// ================= HELPERS =================
+// utility to log
 async function logActivity(user, action){
-  const log = new Log({ user, action });
-  await log.save();
+  try {
+    await ActivityLog.create({ user: user || 'Unknown', action, time: new Date() });
+  } catch(e) {
+    console.error('logActivity error:', e);
+  }
 }
 
-// ================= ROUTES =================
+// ===== Health check =====
+app.get('/api/test', (req, res) => res.json({ success:true, message:'API is up', time: new Date().toISOString() }));
 
-// Health check
-app.get('/api/_health', async (req,res)=>{
-  const state = mongoose.connection.readyState;
-  res.json({ success:true, time:new Date(), mongoose_state: state });
-});
+// ===== Auth =====
+app.post('/api/register', async (req, res) => {
+  const { username, password, securityCode } = req.body || {};
+  if (securityCode !== SECURITY_CODE) return res.status(403).json({ success:false, message:'Invalid security code' });
+  if (!username || !password) return res.status(400).json({ success:false, message:'Missing username or password' });
 
-// LOGIN
-app.post('/api/login', async (req,res)=>{
-  try{
-    const { username, password } = req.body;
-    if(!username || !password) return res.status(400).json({ message:'Missing credentials' });
-    const user = await User.findOne({ username });
-    if(!user) return res.status(401).json({ message:'Invalid username or password' });
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if(!ok) return res.status(401).json({ message:'Invalid username or password' });
-    await logActivity(username, 'Logged in');
-    res.json({ message:'Login success', user: username });
-  } catch(e){
-    console.error(e);
-    res.status(500).json({ message:'Internal server error' });
-  }
-});
+  try {
+    const exists = await User.findOne({ username }).lean();
+    if (exists) return res.status(409).json({ success:false, message:'Username already exists' });
 
-// REGISTER
-app.post('/api/register', async (req,res)=>{
-  try{
-    const { username, password, securityCode } = req.body;
-    if(securityCode !== (process.env.SECURITY_CODE || '1234')) 
-      return res.status(403).json({ message:'Invalid security code' });
-
-    if(!username || !password) return res.status(400).json({ message:'Missing fields' });
-    const exists = await User.findOne({ username });
-    if(exists) return res.status(409).json({ message:'Username exists' });
-
-    const hash = await bcrypt.hash(password,10);
-    await User.create({ username, passwordHash: hash });
+    await User.create({ username, password });
     await logActivity('System', `Registered new user: ${username}`);
-    res.json({ message:'Registration successful' });
-  } catch(e){
-    console.error(e);
-    res.status(500).json({ message:'Internal server error' });
+    return res.json({ success:true, message:'Registration successful' });
+  } catch (err) {
+    console.error('register error', err);
+    return res.status(500).json({ success:false, message:'Server error' });
   }
 });
 
-// ================= INVENTORY =================
-app.get('/api/inventory', async (req,res)=>{
-  try{
-    const items = await Inventory.find({});
-    res.json(items);
-  } catch(e){ res.status(500).json({ message:'Failed to get inventory' }); }
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ success:false, message:'Missing credentials' });
+
+  try {
+    const user = await User.findOne({ username, password }).lean();
+    if (!user) return res.status(401).json({ success:false, message:'Invalid credentials' });
+    await logActivity(username, 'Logged in');
+    return res.json({ success:true, user: username });
+  } catch(err){
+    console.error('login error', err);
+    return res.status(500).json({ success:false, message:'Server error' });
+  }
 });
 
-app.post('/api/inventory', async (req,res)=>{
-  try{
-    const newItem = req.body;
-    const item = new Inventory(newItem);
-    await item.save();
-    await logActivity(req.headers['x-username'] || 'Admin', `Added item: ${newItem.name}`);
-    res.json({ message:'Item added' });
-  } catch(e){ res.status(500).json({ message:'Failed to add item' }); }
+app.put('/api/account/password', async (req, res) => {
+  const { username, newPassword, securityCode } = req.body || {};
+  if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.password = newPassword;
+    await user.save();
+    await logActivity(username, 'Changed account password');
+    return res.json({ success:true, message:'Password updated successfully' });
+  } catch (err) {
+    console.error('change password error', err);
+    return res.status(500).json({ message:'Server error' });
+  }
 });
 
-app.put('/api/inventory/:id', async (req,res)=>{
-  try{
-    const { id } = req.params;
-    const updated = req.body;
-    await Inventory.findByIdAndUpdate(id, updated);
-    await logActivity(req.headers['x-username'] || 'Admin', `Updated item: ${updated.name}`);
-    res.json({ message:'Item updated' });
-  } catch(e){ res.status(500).json({ message:'Failed to update item' }); }
+app.delete('/api/account', async (req, res) => {
+  const { username, securityCode } = req.body || {};
+  if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
+
+  try {
+    const result = await User.deleteOne({ username });
+    if (result.deletedCount === 0) return res.status(404).json({ message: 'User not found' });
+    await logActivity('System', `Deleted account for user: ${username}`);
+    return res.json({ success:true, message:'Account deleted successfully' });
+  } catch (err) {
+    console.error('delete account error', err);
+    return res.status(500).json({ message:'Server error' });
+  }
 });
 
-app.delete('/api/inventory/:id', async (req,res)=>{
-  try{
-    const { id } = req.params;
-    await Inventory.findByIdAndDelete(id);
-    await logActivity(req.headers['x-username'] || 'Admin', `Deleted item id: ${id}`);
-    res.status(204).end();
-  } catch(e){ res.status(500).json({ message:'Failed to delete item' }); }
+// ===== Inventory CRUD =====
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+    return res.json(items);
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ================= DOCUMENTS =================
-app.get('/api/documents', async (req,res)=>{
-  try{
-    const docs = await Document.find({});
-    res.json(docs);
-  } catch(e){ res.status(500).json({ message:'Failed to get documents' }); }
+app.post('/api/inventory', async (req, res) => {
+  try {
+    const item = await Inventory.create(req.body);
+    await logActivity(req.headers['x-username'], `Added product: ${item.name}`);
+    return res.status(201).json(item);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-app.post('/api/documents', async (req,res)=>{
-  try{
-    const doc = new Document(req.body);
-    await doc.save();
-    await logActivity(req.headers['x-username'] || 'Admin', `Added document: ${doc.name}`);
-    res.json({ message:'Document added' });
-  } catch(e){ res.status(500).json({ message:'Failed to add document' }); }
+app.put('/api/inventory/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const item = await Inventory.findByIdAndUpdate(id, req.body, { new:true });
+    if (!item) return res.status(404).json({ message:'Item not found' });
+    await logActivity(req.headers['x-username'], `Updated product: ${item.name}`);
+    return res.json(item);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-app.delete('/api/documents/:id', async (req,res)=>{
-  try{
-    const { id } = req.params;
-    await Document.findByIdAndDelete(id);
-    await logActivity(req.headers['x-username'] || 'Admin', `Deleted document id: ${id}`);
-    res.status(204).end();
-  } catch(e){ res.status(500).json({ message:'Failed to delete document' }); }
+app.delete('/api/inventory/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const item = await Inventory.findByIdAndDelete(id);
+    if (!item) return res.status(404).json({ message:'Item not found' });
+    await logActivity(req.headers['x-username'], `Deleted product: ${item.name}`);
+    return res.status(204).send();
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ================= LOGS =================
-app.get('/api/logs', async (req,res)=>{
-  try{
-    const logs = await Log.find({}).sort({ time: -1 });
-    res.json(logs);
-  } catch(e){ res.status(500).json({ message:'Failed to get logs' }); }
+// ===== Inventory Report (same behavior: generate XLSX and return) =====
+app.get('/api/inventory/report', async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+    const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0,10)}`;
+    const filename = `${filenameBase}.xlsx`;
+    const dateNow = new Date().toISOString();
+
+    const ws_data = [
+      ["L&B Company - Inventory Report"],
+      ["Date:", dateNow],
+      [],
+      ["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]
+    ];
+
+    let totalValue = 0, totalRevenue = 0;
+    items.forEach(it => {
+      const qty = Number(it.quantity || 0);
+      const uc = Number(it.unitCost || 0);
+      const up = Number(it.unitPrice || 0);
+      const invVal = qty * uc;
+      const rev = qty * up;
+      totalValue += invVal;
+      totalRevenue += rev;
+      ws_data.push([it.sku||'', it.name||'', it.category||'', qty, uc.toFixed(2), up.toFixed(2), invVal.toFixed(2), rev.toFixed(2)]);
+    });
+    ws_data.push([]);
+    ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+
+    // Persist document record
+    const doc = await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    await logActivity(req.headers['x-username'], `Generated and saved Inventory Report: ${filename}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(wb_out);
+  } catch (err) {
+    console.error('report error', err);
+    return res.status(500).json({ message:'Report generation failed' });
+  }
 });
 
-// ================= SETTINGS =================
-app.put('/api/account/password', async (req,res)=>{
-  try{
-    const { username, newPassword, securityCode } = req.body;
-    if(securityCode !== (process.env.SECURITY_CODE || '1234')) 
-      return res.status(403).json({ message:'Invalid security code' });
-
-    const hash = await bcrypt.hash(newPassword,10);
-    await User.findOneAndUpdate({ username }, { passwordHash: hash });
-    await logActivity(username, 'Changed password');
-    res.json({ message:'Password updated' });
-  } catch(e){ res.status(500).json({ message:'Failed to change password' }); }
+// ===== Documents =====
+app.get('/api/documents', async (req, res) => {
+  try {
+    const docs = await Doc.find({}).sort({ date: -1 }).lean();
+    return res.json(docs);
+  } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-app.delete('/api/account', async (req,res)=>{
-  try{
-    const { username, securityCode } = req.body;
-    if(securityCode !== (process.env.SECURITY_CODE || '1234')) 
-      return res.status(403).json({ message:'Invalid security code' });
-    await User.findOneAndDelete({ username });
-    await logActivity('System', `Deleted account: ${username}`);
-    res.json({ message:'Account deleted' });
-  } catch(e){ res.status(500).json({ message:'Failed to delete account' }); }
+app.post('/api/documents', async (req, res) => {
+  try {
+    const doc = await Doc.create({ ...req.body, date: new Date() });
+    await logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
+    return res.status(201).json(doc);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ================= START SERVER =================
-app.listen(PORT, ()=> console.log(`Server running on port ${PORT}`));
+app.delete('/api/documents/:id', async (req, res) => {
+  try {
+    const doc = await Doc.findByIdAndDelete(req.params.id);
+    if (!doc) return res.status(404).json({ message: 'Document not found' });
+    await logActivity(req.headers['x-username'], `Deleted document metadata: ${doc.name}`);
+    return res.status(204).send();
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.get('/api/documents/download/:filename', async (req, res) => {
+  const filename = req.params.filename || '';
+  if (filename.startsWith('Inventory_Report')) {
+    return res.redirect('/api/inventory/report');
+  }
+  return res.status(404).json({ message: "File not found or download unavailable on this mock server." });
+});
+
+// ===== Logs =====
+app.get('/api/logs', async (req, res) => {
+  try {
+    const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
+    // Return newest-first for the client expectation
+    return res.json(logs.map(l => ({ user: l.user, action: l.action, time: new Date(l.time).toLocaleString() })));
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+// ===== Serve frontend =====
+app.use(express.static(path.join(__dirname, '../public')));
+
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ message:'API route not found' });
+  return res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// ===== Start =====
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
