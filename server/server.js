@@ -265,13 +265,28 @@ app.get('/api/logs', async (req, res) => {
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Serve frontend =====
-app.use(express.static(path.join(__dirname, '../public')));
+// ===== Logs =====
+app.get('/api/logs', async (req, res) => {
+  try {
+    const logs = await ActivityLog.find({})
+      .sort({ time: -1 })
+      .limit(500)
+      .lean();
 
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ message:'API route not found' });
-  return res.sendFile(path.join(__dirname, '../public/index.html'));
+    // Return raw ISO timestamps; let frontend format for local timezone
+    const formattedLogs = logs.map(l => ({
+      user: l.user,
+      action: l.action,
+      time: l.time ? new Date(l.time).toISOString() : new Date().toISOString()
+    }));
+
+    return res.json(formattedLogs);
+  } catch (err) {
+    console.error('Error fetching logs:', err);
+    return res.status(500).json({ message: 'Server error while fetching logs' });
+  }
 });
+
 
 // ===== Start =====
 app.listen(PORT, () => {
