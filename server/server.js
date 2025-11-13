@@ -1,5 +1,6 @@
 // server/server.js
 // MongoDB (Mongoose) based server for Online Inventory & Documents System
+// Updated: always return `id` (string) and ISO timestamps for logs
 
 const express = require('express');
 const cors = require('cors');
@@ -62,6 +63,22 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', LogSchema);
 
+// ===== Helpers =====
+function docToPublic(obj) {
+  // Accept Mongoose doc or plain object
+  if (!obj) return obj;
+  const plain = (typeof obj.toObject === 'function') ? obj.toObject() : { ...obj };
+  // Ensure id string exists
+  plain.id = String(plain._id ?? plain.id ?? '');
+  delete plain._id;
+  delete plain.__v;
+  return plain;
+}
+
+function docsToPublic(arr) {
+  return (arr || []).map(docToPublic);
+}
+
 // utility to log
 async function logActivity(user, action){
   try {
@@ -84,9 +101,9 @@ app.post('/api/register', async (req, res) => {
     const exists = await User.findOne({ username }).lean();
     if (exists) return res.status(409).json({ success:false, message:'Username already exists' });
 
-    await User.create({ username, password });
+    const user = await User.create({ username, password });
     await logActivity('System', `Registered new user: ${username}`);
-    return res.json({ success:true, message:'Registration successful' });
+    return res.json({ success:true, message:'Registration successful', user: { id: String(user._id), username: user.username } });
   } catch (err) {
     console.error('register error', err);
     return res.status(500).json({ success:false, message:'Server error' });
@@ -101,7 +118,7 @@ app.post('/api/login', async (req, res) => {
     const user = await User.findOne({ username, password }).lean();
     if (!user) return res.status(401).json({ success:false, message:'Invalid credentials' });
     await logActivity(username, 'Logged in');
-    return res.json({ success:true, user: username });
+    return res.json({ success:true, user: { id: String(user._id), username: user.username } });
   } catch(err){
     console.error('login error', err);
     return res.status(500).json({ success:false, message:'Server error' });
@@ -144,7 +161,7 @@ app.delete('/api/account', async (req, res) => {
 app.get('/api/inventory', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
-    return res.json(items);
+    return res.json(docsToPublic(items));
   } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -152,18 +169,22 @@ app.post('/api/inventory', async (req, res) => {
   try {
     const item = await Inventory.create(req.body);
     await logActivity(req.headers['x-username'], `Added product: ${item.name}`);
-    return res.status(201).json(item);
+    return res.status(201).json(docToPublic(item));
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.put('/api/inventory/:id', async (req, res) => {
   try {
     const id = req.params.id;
+    // findByIdAndUpdate accepts string id; Mongoose will cast if valid ObjectId
     const item = await Inventory.findByIdAndUpdate(id, req.body, { new:true });
     if (!item) return res.status(404).json({ message:'Item not found' });
     await logActivity(req.headers['x-username'], `Updated product: ${item.name}`);
-    return res.json(item);
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+    return res.json(docToPublic(item));
+  } catch(err){ 
+    console.error('inventory update error', err); 
+    return res.status(500).json({ message:'Server error' }); 
+  }
 });
 
 app.delete('/api/inventory/:id', async (req, res) => {
@@ -176,7 +197,7 @@ app.delete('/api/inventory/:id', async (req, res) => {
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Inventory Report (same behavior: generate XLSX and return) =====
+// ===== Inventory Report (generate XLSX and return) =====
 app.get('/api/inventory/report', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
@@ -227,7 +248,7 @@ app.get('/api/inventory/report', async (req, res) => {
 app.get('/api/documents', async (req, res) => {
   try {
     const docs = await Doc.find({}).sort({ date: -1 }).lean();
-    return res.json(docs);
+    return res.json(docsToPublic(docs));
   } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -235,7 +256,7 @@ app.post('/api/documents', async (req, res) => {
   try {
     const doc = await Doc.create({ ...req.body, date: new Date() });
     await logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
-    return res.status(201).json(doc);
+    return res.status(201).json(docToPublic(doc));
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -260,8 +281,14 @@ app.get('/api/documents/download/:filename', async (req, res) => {
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
-    // Return newest-first for the client expectation
-    return res.json(logs.map(l => ({ user: l.user, action: l.action, time: new Date(l.time).toLocaleString() })));
+    // return ISO timestamps so frontend can format for user's timezone
+    const result = logs.map(l => ({
+      id: String(l._id),
+      user: l.user,
+      action: l.action,
+      time: l.time ? new Date(l.time).toISOString() : new Date().toISOString()
+    }));
+    return res.json(result);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
