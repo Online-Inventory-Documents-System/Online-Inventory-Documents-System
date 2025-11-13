@@ -1,6 +1,6 @@
 // server/server.js
 // MongoDB (Mongoose) based server for Online Inventory & Documents System
-// Paste into server/server.js
+// Paste this complete file into server/server.js (replacing the old file)
 
 const express = require('express');
 const cors = require('cors');
@@ -54,7 +54,7 @@ const DocumentSchema = new Schema({
   size: Number,
   date: { type: Date, default: Date.now }
 });
-const Doc = mongoose.model('Document', DocumentSchema);
+const Doc = mongoose.model('Doc', DocumentSchema);
 
 const LogSchema = new Schema({
   user: String,
@@ -163,7 +163,7 @@ app.get('/api/inventory', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     // normalize id for client (id instead of _id)
-    const normalized = items.map(i => ({ ...i, id: i._id }));
+    const normalized = items.map(i => ({ ...i, id: i._id.toString() }));
     return res.json(normalized);
   } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -172,7 +172,7 @@ app.post('/api/inventory', async (req, res) => {
   try {
     const item = await Inventory.create(req.body);
     await logActivity(req.headers['x-username'], `Added product: ${item.name}`);
-    const normalized = { ...item.toObject(), id: item._id };
+    const normalized = { ...item.toObject(), id: item._id.toString() };
     return res.status(201).json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -183,7 +183,7 @@ app.put('/api/inventory/:id', async (req, res) => {
     const item = await Inventory.findByIdAndUpdate(id, req.body, { new:true });
     if (!item) return res.status(404).json({ message:'Item not found' });
     await logActivity(req.headers['x-username'], `Updated product: ${item.name}`);
-    const normalized = { ...item.toObject(), id: item._id };
+    const normalized = { ...item.toObject(), id: item._id.toString() };
     return res.json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -198,17 +198,18 @@ app.delete('/api/inventory/:id', async (req, res) => {
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Inventory Report (generate XLSX) =====
+// ===== Inventory Report (generate XLSX - date only in header) =====
 app.get('/api/inventory/report', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0,10)}`;
     const filename = `${filenameBase}.xlsx`;
-    const dateNow = new Date().toISOString();
+    // Use date-only (YYYY-MM-DD) for report header (no time)
+    const dateOnly = new Date().toISOString().slice(0,10);
 
     const ws_data = [
       ["L&B Company - Inventory Report"],
-      ["Date:", dateNow],
+      ["Date:", dateOnly],
       [],
       ["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]
     ];
@@ -249,7 +250,7 @@ app.get('/api/inventory/report', async (req, res) => {
 app.get('/api/documents', async (req, res) => {
   try {
     const docs = await Doc.find({}).sort({ date: -1 }).lean();
-    const normalized = docs.map(d => ({ ...d, id: d._id }));
+    const normalized = docs.map(d => ({ ...d, id: d._id.toString() }));
     return res.json(normalized);
   } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -258,7 +259,7 @@ app.post('/api/documents', async (req, res) => {
   try {
     const doc = await Doc.create({ ...req.body, date: new Date() });
     await logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
-    const normalized = { ...doc.toObject(), id: doc._id };
+    const normalized = { ...doc.toObject(), id: doc._id.toString() };
     return res.status(201).json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -298,8 +299,27 @@ app.get('*', (req, res) => {
   return res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
+// ===== Startup helpers: create default admin if none, single system start log =====
+async function ensureDefaultAdminAndStartupLog() {
+  try {
+    const count = await User.countDocuments({}).exec();
+    if (count === 0) {
+      await User.create({ username: 'admin', password: 'password' });
+      await logActivity('System', 'Default admin user created.');
+      console.log('Default admin user created.');
+    }
+    // Write a single "server live" message (logActivity suppresses near-duplicates)
+    await logActivity('System', `Server is live and listening on port ${PORT}`);
+  } catch (err) {
+    console.error('Startup helper error:', err);
+  }
+}
+
 // ===== Start =====
-console.log(`Starting server (no DB startup log written to ActivityLog)`);
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+(async () => {
+  await ensureDefaultAdminAndStartupLog();
+  console.log(`Starting server (no DB startup log written to ActivityLog)`);
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+})();
