@@ -1,6 +1,6 @@
 // server/server.js
 // MongoDB (Mongoose) based server for Online Inventory & Documents System
-// Updated: always return `id` (string) and ISO timestamps for logs
+// Paste into server/server.js
 
 const express = require('express');
 const cors = require('cors');
@@ -63,28 +63,29 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', LogSchema);
 
-// ===== Helpers =====
-function docToPublic(obj) {
-  // Accept Mongoose doc or plain object
-  if (!obj) return obj;
-  const plain = (typeof obj.toObject === 'function') ? obj.toObject() : { ...obj };
-  // Ensure id string exists
-  plain.id = String(plain._id ?? plain.id ?? '');
-  delete plain._id;
-  delete plain.__v;
-  return plain;
-}
+// ===== safer logActivity: suppress near-duplicate entries =====
+const DUPLICATE_WINDOW_MS = 30 * 1000; // 30 seconds
 
-function docsToPublic(arr) {
-  return (arr || []).map(docToPublic);
-}
-
-// utility to log
 async function logActivity(user, action){
   try {
-    await ActivityLog.create({ user: user || 'Unknown', action, time: new Date() });
-  } catch(e) {
-    console.error('logActivity error:', e);
+    const safeUser = (user || 'Unknown').toString();
+    const safeAction = (action || '').toString();
+    const now = Date.now();
+
+    const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean().exec();
+    if (last) {
+      const lastUser = last.user || 'Unknown';
+      const lastAction = last.action || '';
+      const lastTime = last.time ? new Date(last.time).getTime() : 0;
+      if (lastUser === safeUser && lastAction === safeAction && (now - lastTime) <= DUPLICATE_WINDOW_MS) {
+        // skip noisy duplicate
+        return;
+      }
+    }
+
+    await ActivityLog.create({ user: safeUser, action: safeAction, time: new Date() });
+  } catch (err) {
+    console.error('logActivity error:', err);
   }
 }
 
@@ -101,9 +102,9 @@ app.post('/api/register', async (req, res) => {
     const exists = await User.findOne({ username }).lean();
     if (exists) return res.status(409).json({ success:false, message:'Username already exists' });
 
-    const user = await User.create({ username, password });
+    await User.create({ username, password });
     await logActivity('System', `Registered new user: ${username}`);
-    return res.json({ success:true, message:'Registration successful', user: { id: String(user._id), username: user.username } });
+    return res.json({ success:true, message:'Registration successful' });
   } catch (err) {
     console.error('register error', err);
     return res.status(500).json({ success:false, message:'Server error' });
@@ -118,7 +119,7 @@ app.post('/api/login', async (req, res) => {
     const user = await User.findOne({ username, password }).lean();
     if (!user) return res.status(401).json({ success:false, message:'Invalid credentials' });
     await logActivity(username, 'Logged in');
-    return res.json({ success:true, user: { id: String(user._id), username: user.username } });
+    return res.json({ success:true, user: username });
   } catch(err){
     console.error('login error', err);
     return res.status(500).json({ success:false, message:'Server error' });
@@ -161,7 +162,9 @@ app.delete('/api/account', async (req, res) => {
 app.get('/api/inventory', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
-    return res.json(docsToPublic(items));
+    // normalize id for client (id instead of _id)
+    const normalized = items.map(i => ({ ...i, id: i._id }));
+    return res.json(normalized);
   } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -169,22 +172,20 @@ app.post('/api/inventory', async (req, res) => {
   try {
     const item = await Inventory.create(req.body);
     await logActivity(req.headers['x-username'], `Added product: ${item.name}`);
-    return res.status(201).json(docToPublic(item));
+    const normalized = { ...item.toObject(), id: item._id };
+    return res.status(201).json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.put('/api/inventory/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    // findByIdAndUpdate accepts string id; Mongoose will cast if valid ObjectId
     const item = await Inventory.findByIdAndUpdate(id, req.body, { new:true });
     if (!item) return res.status(404).json({ message:'Item not found' });
     await logActivity(req.headers['x-username'], `Updated product: ${item.name}`);
-    return res.json(docToPublic(item));
-  } catch(err){ 
-    console.error('inventory update error', err); 
-    return res.status(500).json({ message:'Server error' }); 
-  }
+    const normalized = { ...item.toObject(), id: item._id };
+    return res.json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.delete('/api/inventory/:id', async (req, res) => {
@@ -197,7 +198,7 @@ app.delete('/api/inventory/:id', async (req, res) => {
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Inventory Report (generate XLSX and return) =====
+// ===== Inventory Report (generate XLSX) =====
 app.get('/api/inventory/report', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
@@ -248,7 +249,8 @@ app.get('/api/inventory/report', async (req, res) => {
 app.get('/api/documents', async (req, res) => {
   try {
     const docs = await Doc.find({}).sort({ date: -1 }).lean();
-    return res.json(docsToPublic(docs));
+    const normalized = docs.map(d => ({ ...d, id: d._id }));
+    return res.json(normalized);
   } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -256,7 +258,8 @@ app.post('/api/documents', async (req, res) => {
   try {
     const doc = await Doc.create({ ...req.body, date: new Date() });
     await logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
-    return res.status(201).json(docToPublic(doc));
+    const normalized = { ...doc.toObject(), id: doc._id };
+    return res.status(201).json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -281,14 +284,9 @@ app.get('/api/documents/download/:filename', async (req, res) => {
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
-    // return ISO timestamps so frontend can format for user's timezone
-    const result = logs.map(l => ({
-      id: String(l._id),
-      user: l.user,
-      action: l.action,
-      time: l.time ? new Date(l.time).toISOString() : new Date().toISOString()
-    }));
-    return res.json(result);
+    // return ISO timestamps so client formats to local timezone
+    const formatted = logs.map(l => ({ user: l.user, action: l.action, time: l.time ? new Date(l.time).toISOString() : new Date().toISOString() }));
+    return res.json(formatted);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
@@ -301,6 +299,7 @@ app.get('*', (req, res) => {
 });
 
 // ===== Start =====
+console.log(`Starting server (no DB startup log written to ActivityLog)`);
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
