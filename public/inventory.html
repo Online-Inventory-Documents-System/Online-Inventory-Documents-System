@@ -2,71 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inventory | Inventory System</title>
-  <link rel="stylesheet" href="CSS/style.css" />
+  <link rel="stylesheet" href="css/style.css" />
 </head>
+
 <body>
-  <header>
-    <h1>📦 Inventory Management</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="inventory.html">Inventory</a>
-      <a href="documents.html">Documents</a>
-      <a href="log.html">Activity Log</a>
-      <a href="sales.html">Sales</a>
-      <a href="orders.html">Orders</a>
-      <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
-      <button id="downloadSalesXLSXBtn">⬇️ Sales Report</button>
-      <button id="downloadOrdersXLSXBtn">⬇️ Orders Report</button>
-      <button onclick="toggleTheme()">🌓 Mode</button>
-      <button onclick="logout()">🚪 Logout</button>
-      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-    </nav>
-  </header>
+<header>
+  <h1>📦 Inventory</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html" class="active">Inventory</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="sales.html">Sales</a>
+    <a href="orders.html">Orders</a>
+    <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
 
+    <!-- Inventory Only Buttons -->
+    <button onclick="window.open('/api/inventory/report/excel','_blank')">⬇️ Excel</button>
+    <button onclick="window.open('/api/inventory/report/pdf','_blank')">⬇️ PDF</button>
+
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
+
+<main>
   <section>
-    <h2>Add New Product</h2>
+    <h2>Manage Inventory</h2>
+
+    <!-- Add Item Bar -->
     <div class="product-bar">
-      <input id="p_sku" placeholder="Item ID / SKU" type="text" />
-      <input id="p_name" placeholder="Item Name" type="text" />
-      <input id="p_category" placeholder="Category" type="text" />
-      <input id="p_quantity" placeholder="Quantity" type="number" min="0" />
-      <input id="p_unitCost" placeholder="Unit Cost" type="number" step="0.01" />
-      <input id="p_unitPrice" placeholder="Unit Price" type="number" step="0.01" />
-      <button id="addProductBtn" class="primary-btn">+ Add Product</button>
+      <input type="text" id="productName" placeholder="Product Name">
+      <input type="number" id="productQty" placeholder="Quantity">
+      <input type="number" id="productPrice" placeholder="Price (RM)">
+      <button class="primary-btn" onclick="addItem()">➕ Add Item</button>
     </div>
 
-    <div class="controls" style="margin-top:12px;">
-      <div><button id="reportBtn" class="success-btn">⬇️ Download Inventory Report (Excel)</button></div>
+    <!-- Search + Filters -->
+    <div class="controls">
       <div class="search-controls">
-        <input id="searchInput" placeholder="Search SKU or name..." type="text" />
-        <button id="clearSearchBtn" class="secondary-btn">Clear</button>
+        <input type="text" id="searchInput" placeholder="Search products...">
+        <button class="secondary-btn" onclick="searchInventory()">🔍 Search</button>
       </div>
+
+      <button class="danger-btn" onclick="clearInventory()">🗑 Clear All</button>
     </div>
 
-    <h2 style="margin-top:16px;">Current Inventory List</h2>
+    <!-- Inventory Table -->
     <div class="table-container">
       <table id="inventoryTable">
         <thead>
           <tr>
-            <th>SKU</th><th>Name</th><th>Category</th><th>Quantity</th>
-            <th class="money">Unit Cost</th><th class="money">Unit Price</th><th class="money">Inventory Value</th><th class="actions">Actions</th>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Price (RM)</th>
+            <th>Total Value</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="inventoryList"></tbody>
       </table>
     </div>
-
-    <div class="totals" id="inventoryTotals" style="margin-top:12px;">
-      <div>Total Inventory Value: RM <span id="totalValue">0.00</span></div>
-      <div>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></div>
-      <div>Total Stock Quantity: <span id="totalStock">0</span></div>
-    </div>
   </section>
+</main>
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
-  <script>document.documentElement.dataset.page = 'inventory';</script>
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+
+<script>
+  document.documentElement.dataset.page = 'inventory';
+</script>
 </body>
 </html>
