@@ -1,19 +1,16 @@
 {
   "name": "online-inventory-documents-system",
   "version": "1.0.0",
-  "description": "Online Inventory & Documents System - Ready for Render",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js"
   },
-  "engines": {
-    "node": ">=18"
-  },
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "mongoose": "^7.0.0",
+    "cors": "^2.8.5",
+    "mongoose": "^7.6.0",
+    "xlsx": "^0.18.5",
     "pdfkit": "^0.13.0",
-    "xlsx": "^0.18.5"
+    "archiver": "^5.3.1"
   }
 }
