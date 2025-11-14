@@ -1,12 +1,17 @@
 // server/server.js
-// MongoDB (Mongoose) based server for Online Inventory & Documents System
-// Paste this complete file into server/server.js (replacing the old file)
+// Full production-ready server for Online Inventory & Documents System
+// - Uses MongoDB (Mongoose)
+// - XLSX report generation (xlsx)
+// - Simple PDF reports (pdfkit) generated in-memory
+// - Serves frontend from ../public
+// Make sure `MONGODB_URI` and `SECRET_SECURITY_CODE` are set in env.
 
 const express = require('express');
 const cors = require('cors');
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,9 +23,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ===== Mongoose / Models =====
+// ===== Mongoose connection =====
 if (!MONGODB_URI) {
-  console.error('MONGODB_URI is not set. Set MONGODB_URI environment variable.');
+  console.error('MONGODB_URI is not set. Set it in environment variables.');
   process.exit(1);
 }
 
@@ -31,6 +36,7 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
 
 const { Schema } = mongoose;
 
+// ===== Schemas & Models =====
 const UserSchema = new Schema({
   username: { type: String, unique: true, required: true },
   password: { type: String, required: true },
@@ -63,10 +69,33 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', LogSchema);
 
-// ===== safer logActivity: suppress near-duplicate entries =====
-const DUPLICATE_WINDOW_MS = 30 * 1000; // 30 seconds
+// Sales & Orders
+const SalesSchema = new Schema({
+  invoice: String,
+  product: String,
+  quantity: { type: Number, default: 0 },
+  total: { type: Number, default: 0 },
+  date: { type: Date, default: Date.now },
+  note: String,
+  createdAt: { type: Date, default: Date.now }
+});
+const Sale = mongoose.model('Sale', SalesSchema);
 
-async function logActivity(user, action){
+const OrderSchema = new Schema({
+  orderNumber: String,
+  customer: String,
+  items: [{ name: String, qty: Number, price: Number }],
+  total: { type: Number, default: 0 },
+  status: { type: String, default: 'pending' },
+  date: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
+});
+const Order = mongoose.model('Order', OrderSchema);
+
+// ===== Safer logActivity: suppress immediate duplicate noise =====
+const DUPLICATE_WINDOW_MS = 30 * 1000; // 30s
+
+async function logActivity(user, action) {
   try {
     const safeUser = (user || 'Unknown').toString();
     const safeAction = (action || '').toString();
@@ -74,8 +103,8 @@ async function logActivity(user, action){
 
     const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean().exec();
     if (last) {
-      const lastUser = last.user || 'Unknown';
-      const lastAction = last.action || '';
+      const lastUser = (last.user || 'Unknown').toString();
+      const lastAction = (last.action || '').toString();
       const lastTime = last.time ? new Date(last.time).getTime() : 0;
       if (lastUser === safeUser && lastAction === safeAction && (now - lastTime) <= DUPLICATE_WINDOW_MS) {
         // skip noisy duplicate
@@ -90,7 +119,7 @@ async function logActivity(user, action){
 }
 
 // ===== Health check =====
-app.get('/api/test', (req, res) => res.json({ success:true, message:'API is up', time: new Date().toISOString() }));
+app.get('/api/test', (req, res) => res.json({ success: true, message: 'API is up', time: new Date().toISOString() }));
 
 // ===== Auth =====
 app.post('/api/register', async (req, res) => {
@@ -162,8 +191,7 @@ app.delete('/api/account', async (req, res) => {
 app.get('/api/inventory', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
-    // normalize id for client (id instead of _id)
-    const normalized = items.map(i => ({ ...i, id: i._id.toString() }));
+    const normalized = items.map(i => ({ ...i, id: String(i._id) }));
     return res.json(normalized);
   } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -172,7 +200,7 @@ app.post('/api/inventory', async (req, res) => {
   try {
     const item = await Inventory.create(req.body);
     await logActivity(req.headers['x-username'], `Added product: ${item.name}`);
-    const normalized = { ...item.toObject(), id: item._id.toString() };
+    const normalized = { ...item.toObject(), id: String(item._id) };
     return res.status(201).json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -183,7 +211,7 @@ app.put('/api/inventory/:id', async (req, res) => {
     const item = await Inventory.findByIdAndUpdate(id, req.body, { new:true });
     if (!item) return res.status(404).json({ message:'Item not found' });
     await logActivity(req.headers['x-username'], `Updated product: ${item.name}`);
-    const normalized = { ...item.toObject(), id: item._id.toString() };
+    const normalized = { ...item.toObject(), id: String(item._id) };
     return res.json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -198,14 +226,13 @@ app.delete('/api/inventory/:id', async (req, res) => {
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Inventory Report (generate XLSX - date only in header) =====
+// ===== Inventory Report (XLSX) - Date (no time) in header =====
 app.get('/api/inventory/report', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0,10)}`;
     const filename = `${filenameBase}.xlsx`;
-    // Use date-only (YYYY-MM-DD) for report header (no time)
-    const dateOnly = new Date().toISOString().slice(0,10);
+    const dateOnly = new Date().toISOString().slice(0,10); // yyyy-mm-dd (no time)
 
     const ws_data = [
       ["L&B Company - Inventory Report"],
@@ -233,8 +260,8 @@ app.get('/api/inventory/report', async (req, res) => {
     xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
     const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
 
-    // Persist document record
-    const doc = await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    // persist document record
+    await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
     await logActivity(req.headers['x-username'], `Generated and saved Inventory Report: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -250,7 +277,7 @@ app.get('/api/inventory/report', async (req, res) => {
 app.get('/api/documents', async (req, res) => {
   try {
     const docs = await Doc.find({}).sort({ date: -1 }).lean();
-    const normalized = docs.map(d => ({ ...d, id: d._id.toString() }));
+    const normalized = docs.map(d => ({ ...d, id: String(d._id) }));
     return res.json(normalized);
   } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -259,7 +286,7 @@ app.post('/api/documents', async (req, res) => {
   try {
     const doc = await Doc.create({ ...req.body, date: new Date() });
     await logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
-    const normalized = { ...doc.toObject(), id: doc._id.toString() };
+    const normalized = { ...doc.toObject(), id: String(doc._id) };
     return res.status(201).json(normalized);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
@@ -281,45 +308,180 @@ app.get('/api/documents/download/:filename', async (req, res) => {
   return res.status(404).json({ message: "File not found or download unavailable on this mock server." });
 });
 
+// ===== Sales & Orders =====
+// Sales routes
+app.get('/api/sales', async (req, res) => {
+  try {
+    const rows = await Sale.find({}).sort({ date: -1 }).lean();
+    const normalized = rows.map(r => ({ ...r, id: String(r._id) }));
+    return res.json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.post('/api/sales', async (req, res) => {
+  try {
+    const s = await Sale.create({ ...req.body, date: req.body.date ? new Date(req.body.date) : new Date() });
+    await logActivity(req.headers['x-username'], `Recorded sale: ${s.product || s.invoice || s._id}`);
+    const normalized = { ...s.toObject(), id: String(s._id) };
+    return res.status(201).json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+// Sales XLSX
+app.get('/api/sales/report', async (req, res) => {
+  try {
+    const rows = await Sale.find({}).sort({ date: -1 }).lean();
+    const filenameBase = `Sales_Report_${new Date().toISOString().slice(0,10)}`;
+    const filename = `${filenameBase}.xlsx`;
+    const ws_data = [
+      ['L&B Company - Sales Report'],
+      ['Date:', new Date().toISOString().slice(0,10)],
+      [],
+      ['Invoice','Product','Quantity','Total','Date','Note']
+    ];
+    let totalAll = 0;
+    rows.forEach(r => {
+      const qty = Number(r.quantity || 0);
+      const tot = Number(r.total || 0);
+      totalAll += tot;
+      ws_data.push([r.invoice||'', r.product||'', qty, tot.toFixed(2), r.date ? new Date(r.date).toISOString().slice(0,10) : '', r.note||'']);
+    });
+    ws_data.push([]);
+    ws_data.push(['', '', '', 'Grand Total', totalAll.toFixed(2), '']);
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new(); xlsx.utils.book_append_sheet(wb, ws, 'Sales Report');
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+    await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    await logActivity(req.headers['x-username'], `Generated Sales Report: ${filename}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    return res.send(wb_out);
+  } catch (err) { console.error(err); return res.status(500).json({ message:'Report generation failed' }); }
+});
+
+// Sales PDF (simple)
+app.get('/api/sales/report/pdf', async (req, res) => {
+  try {
+    const rows = await Sale.find({}).sort({ date: -1 }).lean();
+    const doc = new PDFDocument({ size:'A4', margin:40 });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', async () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      const filename = `Sales_Report_${new Date().toISOString().slice(0,10)}.pdf`;
+      await Doc.create({ name: filename, size: pdfBuffer.length, date: new Date() });
+      await logActivity(req.headers['x-username'], `Generated Sales PDF: ${filename}`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(pdfBuffer);
+    });
+    // PDF content
+    doc.fontSize(16).text('L&B - Sales Report', { align:'center' }).moveDown(0.5);
+    doc.fontSize(10).text(`Generated: ${new Date().toLocaleDateString()}`, { align:'right' }).moveDown(0.5);
+    rows.forEach(r => {
+      doc.fontSize(10).text(`${r.invoice||'-'}  |  ${r.product||'-'}  |  QTY: ${r.quantity||0}  |  RM ${Number(r.total||0).toFixed(2)}  |  ${r.date? new Date(r.date).toLocaleDateString() : ''}`);
+      doc.moveDown(0.2);
+    });
+    doc.end();
+  } catch (err) { console.error(err); return res.status(500).json({ message:'PDF generation failed' }); }
+});
+
+// Orders routes
+app.get('/api/orders', async (req, res) => {
+  try {
+    const rows = await Order.find({}).sort({ date: -1 }).lean();
+    const normalized = rows.map(r => ({ ...r, id: String(r._id) }));
+    return res.json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.post('/api/orders', async (req, res) => {
+  try {
+    const o = await Order.create({ ...req.body, date: req.body.date ? new Date(req.body.date) : new Date() });
+    await logActivity(req.headers['x-username'], `Created order: ${o.orderNumber || o._id}`);
+    const normalized = { ...o.toObject(), id: String(o._id) };
+    return res.status(201).json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+// Orders XLSX
+app.get('/api/orders/report', async (req, res) => {
+  try {
+    const rows = await Order.find({}).sort({ date: -1 }).lean();
+    const filenameBase = `Orders_Report_${new Date().toISOString().slice(0,10)}`;
+    const filename = `${filenameBase}.xlsx`;
+    const ws_data = [
+      ['L&B Company - Orders Report'],
+      ['Date:', new Date().toISOString().slice(0,10)],
+      [],
+      ['Order #','Customer','Items','Total','Status','Date']
+    ];
+    let totalAll = 0;
+    rows.forEach(r => {
+      const itemsText = (r.items || []).map(it => `${it.name||''} x${it.qty||0}`).join('; ');
+      totalAll += Number(r.total || 0);
+      ws_data.push([r.orderNumber||'', r.customer||'', itemsText, Number(r.total||0).toFixed(2), r.status||'', r.date? new Date(r.date).toISOString().slice(0,10):'']);
+    });
+    ws_data.push([]);
+    ws_data.push(['', '', '', 'Grand Total', totalAll.toFixed(2), '']);
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new(); xlsx.utils.book_append_sheet(wb, ws, 'Orders Report');
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+    await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    await logActivity(req.headers['x-username'], `Generated Orders Report: ${filename}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    return res.send(wb_out);
+  } catch (err) { console.error(err); return res.status(500).json({ message:'Report generation failed' }); }
+});
+
+app.get('/api/orders/report/pdf', async (req, res) => {
+  try {
+    const rows = await Order.find({}).sort({ date: -1 }).lean();
+    const doc = new PDFDocument({ size:'A4', margin:40 });
+    const chunks = [];
+    doc.on('data', c => chunks.push(c));
+    doc.on('end', async () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      const filename = `Orders_Report_${new Date().toISOString().slice(0,10)}.pdf`;
+      await Doc.create({ name: filename, size: pdfBuffer.length, date: new Date() });
+      await logActivity(req.headers['x-username'], `Generated Orders PDF: ${filename}`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/pdf');
+      return res.send(pdfBuffer);
+    });
+    doc.fontSize(16).text('L&B - Orders Report', { align:'center' }).moveDown(0.5);
+    doc.fontSize(10).text(`Generated: ${new Date().toLocaleDateString()}`, { align:'right' }).moveDown(0.5);
+    rows.forEach(r => {
+      const itemsText = (r.items||[]).map(i => `${i.name||''} x${i.qty||0}`).join(', ');
+      doc.fontSize(10).text(`Order ${r.orderNumber||'-'} | ${r.customer||'-'} | ${itemsText} | RM ${Number(r.total||0).toFixed(2)} | ${r.status||''}`);
+      doc.moveDown(0.2);
+    });
+    doc.end();
+  } catch (err) { console.error(err); return res.status(500).json({ message:'PDF generation failed' }); }
+});
+
 // ===== Logs =====
+// Return ISO timestamps — frontend will format into local timezone
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
-    // return ISO timestamps so client formats to local timezone
     const formatted = logs.map(l => ({ user: l.user, action: l.action, time: l.time ? new Date(l.time).toISOString() : new Date().toISOString() }));
     return res.json(formatted);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Serve frontend =====
+// ===== Serve frontend (public folder) =====
 app.use(express.static(path.join(__dirname, '../public')));
 
+// SPA fallback (non-API) — send index.html
 app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ message:'API route not found' });
+  if (req.path.startsWith('/api/')) return res.status(404).json({ message: 'API route not found' });
   return res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// ===== Startup helpers: create default admin if none, single system start log =====
-async function ensureDefaultAdminAndStartupLog() {
-  try {
-    const count = await User.countDocuments({}).exec();
-    if (count === 0) {
-      await User.create({ username: 'admin', password: 'password' });
-      await logActivity('System', 'Default admin user created.');
-      console.log('Default admin user created.');
-    }
-    // Write a single "server live" message (logActivity suppresses near-duplicates)
-    await logActivity('System', `Server is live and listening on port ${PORT}`);
-  } catch (err) {
-    console.error('Startup helper error:', err);
-  }
-}
-
-// ===== Start =====
-(async () => {
-  await ensureDefaultAdminAndStartupLog();
-  console.log(`Starting server (no DB startup log written to ActivityLog)`);
-  app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-  });
-})();
+// ===== Start server =====
+console.log('Starting server (no DB startup log written to ActivityLog)');
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
