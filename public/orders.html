@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Orders | Inventory System</title>
+  <link rel="stylesheet" href="CSS/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🧾 Orders</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="sales.html">Sales</a>
+      <a href="orders.html">Orders</a>
+      <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
+      <button id="downloadSalesXLSXBtn">⬇️ Sales Report</button>
+      <button id="downloadOrdersXLSXBtn">⬇️ Orders Report</button>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
+
+  <main>
+    <section>
+      <h2>Order Records</h2>
+      <div class="controls" style="margin-bottom:12px;">
+        <button id="downloadOrdersXLSXBtnInline" class="success-btn">⬇️ Download Orders (Excel)</button>
+        <button id="downloadOrdersPDFBtn" class="secondary-btn" onclick="window.open('/api/orders/report/pdf','_blank')">⬇️ Download Orders (PDF)</button>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Order #</th><th>Customer</th><th>Items</th><th>Total (RM)</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="ordersList"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'orders';
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.querySelector('#downloadOrdersXLSXBtnInline');
+      if(btn && window.downloadOrdersReportXLSX) btn.addEventListener('click', downloadOrdersReportXLSX);
+    });
+  </script>
+</body>
+</html>
