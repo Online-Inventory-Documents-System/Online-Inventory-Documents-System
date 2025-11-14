@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
+
 <header>
   <h1>📊 Dashboard</h1>
+
   <nav>
     <a href="index.html" class="active">Home</a>
     <a href="inventory.html">Inventory</a>
@@ -20,10 +20,9 @@
     <a href="orders.html">Orders</a>
     <a href="setting.html"><button>⚙️ Setting</button></a>
 
-    <!-- Dashboard Report Buttons -->
-    <button onclick="window.open('/api/dashboard/report/excel','_blank')">⬇️ Excel</button>
-    <button onclick="window.open('/api/dashboard/report/pdf','_blank')">⬇️ PDF</button>
-    <button onclick="window.open('/api/reports/all.zip','_blank')">📦 ZIP All Reports</button>
+    <button onclick="window.open('/api/dashboard/report/excel','_blank')">⬇️ Dashboard Excel</button>
+    <button onclick="window.open('/api/dashboard/report/pdf','_blank')">⬇️ Dashboard PDF</button>
+    <button onclick="window.open('/api/reports/zip','_blank')" class="success-btn">⬇️ Download All Reports (ZIP)</button>
 
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
@@ -32,68 +31,74 @@
   </nav>
 </header>
 
-<main>
-<section>
-  <h2>System Overview</h2>
 
+<section>
   <div class="dashboard-grid">
 
-    <!-- LEFT COLUMN: CHARTS -->
+    <!-- LEFT SIDE -->
     <div>
-      <canvas id="stockChart" style="margin-bottom:30px;"></canvas>
-      <canvas id="categoryChart"></canvas>
-    </div>
-
-    <!-- RIGHT COLUMN: QUICK ACCESS & STATS -->
-    <div class="dashboard-card-container">
-
-      <a href="inventory.html" class="quick-access-btn" id="btn-inventory">
-        📦 Go to Inventory
-      </a>
-
-      <a href="documents.html" class="quick-access-btn" id="btn-documents">
-        📁 Manage Documents
-      </a>
-
       <div class="info-card">
-        <div class="clock" id="clockDisplay">Loading time...</div>
+        <div class="clock" id="liveClock"></div>
 
         <div class="dashboard-info">
           <ul>
-            <li>Total Products: <strong id="totalProducts">0</strong></li>
-            <li>Low Stock Items: <strong id="lowStockItems">0</strong></li>
-            <li>Out of Stock Items: <strong id="outOfStockItems">0</strong></li>
-            <li>Total Documents: <strong id="totalDocuments">0</strong></li>
-            <li>Total Sales RM: <strong id="totalSales">0.00</strong></li>
+            <li>📦 Total Products: <b><span id="dash_totalItems">0</span></b></li>
+            <li>💰 Inventory Value: <b>RM <span id="dash_totalValue">0.00</span></b></li>
+            <li>📈 Potential Revenue: <b>RM <span id="dash_totalRevenue">0.00</span></b></li>
+            <li>📦 Stock Quantity: <b><span id="dash_totalStock">0</span></b></li>
           </ul>
         </div>
       </div>
 
+      <div class="info-card">
+        <h3>📄 Recent Activity</h3>
+        <table style="width:100%;">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Action</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="recentActivities"></tbody>
+        </table>
+      </div>
     </div>
-  </div>
 
-  <h2 style="margin-top:40px;">Recent Activities</h2>
-  <div class="table-container">
-    <table id="recentActivities">
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>User</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody id="activityList"></tbody>
-    </table>
-  </div>
+    <!-- RIGHT SIDE -->
+    <div class="dashboard-card-container">
+      <a href="inventory.html" class="quick-access-btn" id="btn-inventory">
+        📦 Open Inventory
+      </a>
+      <a href="documents.html" class="quick-access-btn" id="btn-documents">
+        📁 Open Documents
+      </a>
 
+      <div class="info-card">
+        <h3>📊 Sales Chart</h3>
+        <canvas id="salesChart"></canvas>
+      </div>
+
+      <div class="info-card">
+        <h3>📦 Stock Chart</h3>
+        <canvas id="stockChart"></canvas>
+      </div>
+    </div>
+
+  </div>
 </section>
-</main>
+
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 
 <script>
-  document.documentElement.dataset.page = 'dashboard';
+document.documentElement.dataset.page = 'dashboard';
+
+setInterval(() => {
+  const c = document.querySelector("#liveClock");
+  if (c) c.textContent = new Date().toLocaleString();
+}, 1000);
 </script>
 
 </body>
