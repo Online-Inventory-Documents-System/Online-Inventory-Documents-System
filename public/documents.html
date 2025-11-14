@@ -19,10 +19,6 @@
     <a href="sales.html">Sales</a>
     <a href="orders.html">Orders</a>
     <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
-
-    <button id="downloadDocsXLSXBtn">⬇️ Documents Excel</button>
-    <button onclick="window.open('/api/documents/report/pdf','_blank')">⬇️ Documents PDF</button>
-
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
 
@@ -37,13 +33,6 @@
   <div class="controls">
     <input type="file" id="docUpload" multiple />
     <button id="uploadDocsBtn" class="primary-btn">📤 Upload</button>
-
-    <button class="success-btn" id="downloadDocsXLSXBtnInline">⬇️ Download Excel</button>
-    <button class="secondary-btn" onclick="window.open('/api/documents/report/pdf','_blank')">
-      ⬇️ Download PDF
-    </button>
-  </div>
-
   <div class="controls">
     <div class="search-controls">
       <input id="searchDocs" type="text" placeholder="Search documents..." />
@@ -93,3 +82,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </body>
 </html>
+
