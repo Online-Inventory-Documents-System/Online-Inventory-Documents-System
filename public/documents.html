@@ -1,57 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Documents | Inventory System</title>
-<link rel="stylesheet" href="css/style.css"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Documents | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
+
 <body>
 <header>
-  <h1>📄 Document Management</h1>
+  <h1>📁 Documents</h1>
   <nav>
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
-    <a href="documents.html">Documents</a>
+    <a href="documents.html" class="active">Documents</a>
     <a href="log.html">Activity Log</a>
-    <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+    <a href="sales.html">Sales</a>
+    <a href="orders.html">Orders</a>
+    <a href="setting.html"><button>⚙️ Setting</button></a>
+
+    <!-- Documents Page Buttons -->
+    <button onclick="window.open('/api/documents/report/excel','_blank')">⬇️ Excel</button>
+    <button onclick="window.open('/api/documents/report/pdf','_blank')">⬇️ PDF</button>
+
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
+
     <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
   </nav>
 </header>
 
-<section>
-  <h2>Upload & Manage Documents</h2>
-  <div class="controls" style="margin-bottom: 15px;">
-    <input type="file" id="docUpload" multiple />
-    <button id="uploadDocsBtn" class="primary-btn">📤 Upload (Simulated)</button>
-    <input type="text" id="searchDocs" placeholder="Search document metadata..." style="margin-left: 10px;" />
-    <p id="uploadMessage" style="margin-top:10px;"></p>
-  </div>
+<main>
+  <section>
+    <h2>Document Storage</h2>
 
-  <div class="table-container">
+    <!-- Upload Area -->
+    <div class="product-bar">
+      <input type="file" id="uploadFile">
+      <button class="primary-btn" onclick="uploadDocument()">📤 Upload File</button>
+    </div>
+
+    <!-- Search -->
+    <div class="controls">
+      <div class="search-controls">
+        <input type="text" id="searchDocs" placeholder="Search documents...">
+        <button class="secondary-btn" onclick="searchDocuments()">🔍 Search</button>
+      </div>
+    </div>
+
+    <!-- Document Table -->
+    <div class="table-container">
       <table id="documentsTable">
-          <thead>
-              <tr>
-                  <th>File Name</th>
-                  <th>Size (MB)</th>
-                  <th>Date/Time Uploaded</th>
-                  <th class="actions">Actions</th>
-              </tr>
-          </thead>
-          <tbody id="docList">
-              <!-- Rendered dynamically by script.js -->
-          </tbody>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Date</th>
+            <th>Download</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="documentsList"></tbody>
       </table>
-  </div>
-</section>
+    </div>
 
-<!-- JS -->
+  </section>
+</main>
+
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
+
 <script>
-  // Let script.js know current page for binding
   document.documentElement.dataset.page = 'documents';
 </script>
 </body>
