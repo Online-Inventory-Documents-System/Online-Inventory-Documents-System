@@ -1,14 +1,14 @@
 // server/server.js
-// MongoDB (Mongoose) based server for Online Inventory, Orders & Sales + Reports (XLSX/PDF/ZIP)
+// MongoDB (Mongoose) based server for Online Inventory & Documents System
+// Adds Orders & Sales collections, Excel reports, PDF generation, and ZIP-all endpoint.
 
 const express = require('express');
 const cors = require('cors');
 const xlsx = require('xlsx');
-const PDFDocument = require('pdfkit');
-const archiver = require('archiver');
 const mongoose = require('mongoose');
 const path = require('path');
-const stream = require('stream');
+const PDFDocument = require('pdfkit');
+const archiver = require('archiver');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,8 +17,8 @@ const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || '1234';
 
 // ===== Middleware =====
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ===== Mongoose / Models =====
 if (!MONGODB_URI) {
@@ -33,7 +33,6 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
 
 const { Schema } = mongoose;
 
-// --- user
 const UserSchema = new Schema({
   username: { type: String, unique: true, required: true },
   password: { type: String, required: true },
@@ -41,7 +40,6 @@ const UserSchema = new Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-// --- inventory
 const InventorySchema = new Schema({
   sku: String,
   name: String,
@@ -53,7 +51,6 @@ const InventorySchema = new Schema({
 });
 const Inventory = mongoose.model('Inventory', InventorySchema);
 
-// --- documents
 const DocumentSchema = new Schema({
   name: String,
   size: Number,
@@ -61,7 +58,24 @@ const DocumentSchema = new Schema({
 });
 const Doc = mongoose.model('Doc', DocumentSchema);
 
-// --- activity log
+const OrderSchema = new Schema({
+  orderNumber: { type: String, required: true },
+  customerName: String,
+  items: [{ sku: String, name: String, qty: Number, unitPrice: Number }],
+  total: { type: Number, default: 0 },
+  status: { type: String, default: 'Pending' },
+  createdAt: { type: Date, default: Date.now }
+});
+const Order = mongoose.model('Order', OrderSchema);
+
+const SaleSchema = new Schema({
+  invoice: { type: String, required: true },
+  items: [{ sku: String, name: String, qty: Number, unitPrice: Number }],
+  total: { type: Number, default: 0 },
+  date: { type: Date, default: Date.now }
+});
+const Sale = mongoose.model('Sale', SaleSchema);
+
 const LogSchema = new Schema({
   user: String,
   action: String,
@@ -69,42 +83,8 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model('ActivityLog', LogSchema);
 
-// --- orders (new)
-const OrderItemSchema = new Schema({
-  sku: String,
-  name: String,
-  qty: Number,
-  unitPrice: Number
-}, { _id: false });
-
-const OrdersSchema = new Schema({
-  orderNumber: String,           // optional, auto or provided
-  customerName: String,
-  items: [OrderItemSchema],
-  total: { type: Number, default: 0 },
-  status: { type: String, default: 'pending' }, // pending, shipped, completed, cancelled
-  createdAt: { type: Date, default: Date.now }
-});
-const Order = mongoose.model('Order', OrdersSchema);
-
-// --- sales (new)
-const SalesItemSchema = new Schema({
-  sku: String,
-  name: String,
-  qty: Number,
-  unitPrice: Number
-}, { _id: false });
-
-const SalesSchema = new Schema({
-  invoiceNumber: String,
-  items: [SalesItemSchema],
-  total: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now }
-});
-const Sale = mongoose.model('Sale', SalesSchema);
-
 // ===== safer logActivity: suppress near-duplicate entries =====
-const DUPLICATE_WINDOW_MS = 15 * 1000; // 15 seconds to avoid noisy duplicates
+const DUPLICATE_WINDOW_MS = 30 * 1000; // 30 seconds
 
 async function logActivity(user, action){
   try {
@@ -237,411 +217,292 @@ app.delete('/api/inventory/:id', async (req, res) => {
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Orders CRUD (new) =====
+// ===== Orders CRUD =====
 app.get('/api/orders', async (req, res) => {
   try {
     const orders = await Order.find({}).sort({ createdAt: -1 }).lean();
     const normalized = orders.map(o => ({ ...o, id: o._id.toString() }));
     return res.json(normalized);
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+  } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
-
 app.post('/api/orders', async (req, res) => {
   try {
-    const payload = req.body || {};
-    // Calculate total if not provided
-    let total = payload.total || 0;
-    if ((!payload.total || payload.total === 0) && Array.isArray(payload.items)) {
-      total = payload.items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.unitPrice||0)), 0);
-    }
-    const order = await Order.create({ ...payload, total });
-    await logActivity(req.headers['x-username'], `Created order for ${order.customerName || 'Unknown'}`);
-    const normalized = { ...order.toObject(), id: order._id.toString() };
-    return res.status(201).json(normalized);
-  } catch(err){ console.error('order create error', err); return res.status(500).json({ message:'Server error' }); }
+    const payload = req.body;
+    if (!payload.orderNumber) payload.orderNumber = `ORD-${Date.now()}`;
+    const order = await Order.create(payload);
+    await logActivity(req.headers['x-username'], `Created order: ${order.orderNumber}`);
+    return res.status(201).json({ ...order.toObject(), id: order._id.toString() });
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
-
 app.put('/api/orders/:id', async (req, res) => {
   try {
-    const id = req.params.id;
-    const payload = req.body || {};
-    if (payload.items && Array.isArray(payload.items) && (!payload.total || payload.total === 0)) {
-      payload.total = payload.items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.unitPrice||0)), 0);
-    }
-    const order = await Order.findByIdAndUpdate(id, payload, { new:true });
-    if (!order) return res.status(404).json({ message:'Order not found' });
-    await logActivity(req.headers['x-username'], `Updated order ${order._id.toString()}`);
+    const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new:true });
+    if(!order) return res.status(404).json({ message:'Order not found' });
+    await logActivity(req.headers['x-username'], `Updated order: ${order.orderNumber}`);
     return res.json({ ...order.toObject(), id: order._id.toString() });
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
-
 app.delete('/api/orders/:id', async (req, res) => {
   try {
-    const id = req.params.id;
-    const order = await Order.findByIdAndDelete(id);
-    if (!order) return res.status(404).json({ message:'Order not found' });
-    await logActivity(req.headers['x-username'], `Deleted order ${order._id.toString()}`);
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if(!order) return res.status(404).json({ message:'Order not found' });
+    await logActivity(req.headers['x-username'], `Deleted order: ${order.orderNumber}`);
     return res.status(204).send();
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Sales CRUD (new) =====
+// ===== Sales CRUD =====
 app.get('/api/sales', async (req, res) => {
   try {
-    const sales = await Sale.find({}).sort({ createdAt: -1 }).lean();
+    const sales = await Sale.find({}).sort({ date: -1 }).lean();
     const normalized = sales.map(s => ({ ...s, id: s._id.toString() }));
     return res.json(normalized);
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+  } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
-
 app.post('/api/sales', async (req, res) => {
   try {
-    const payload = req.body || {};
-    let total = payload.total || 0;
-    if ((!payload.total || payload.total === 0) && Array.isArray(payload.items)) {
-      total = payload.items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.unitPrice||0)), 0);
-    }
-    const sale = await Sale.create({ ...payload, total });
-    await logActivity(req.headers['x-username'], `Recorded sale (invoice: ${sale.invoiceNumber || 'N/A'})`);
-    const normalized = { ...sale.toObject(), id: sale._id.toString() };
-    return res.status(201).json(normalized);
-  } catch(err){ console.error('sale create error', err); return res.status(500).json({ message:'Server error' }); }
+    const payload = req.body;
+    if (!payload.invoice) payload.invoice = `INV-${Date.now()}`;
+    const sale = await Sale.create(payload);
+    await logActivity(req.headers['x-username'], `Recorded sale: ${sale.invoice}`);
+    return res.status(201).json({ ...sale.toObject(), id: sale._id.toString() });
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
-
 app.put('/api/sales/:id', async (req, res) => {
   try {
-    const id = req.params.id;
-    const payload = req.body || {};
-    if (payload.items && Array.isArray(payload.items) && (!payload.total || payload.total === 0)) {
-      payload.total = payload.items.reduce((s, it) => s + (Number(it.qty||0) * Number(it.unitPrice||0)), 0);
-    }
-    const sale = await Sale.findByIdAndUpdate(id, payload, { new:true });
-    if (!sale) return res.status(404).json({ message:'Sale not found' });
-    await logActivity(req.headers['x-username'], `Updated sale ${sale._id.toString()}`);
+    const sale = await Sale.findByIdAndUpdate(req.params.id, req.body, { new:true });
+    if(!sale) return res.status(404).json({ message:'Sale not found' });
+    await logActivity(req.headers['x-username'], `Updated sale: ${sale.invoice}`);
     return res.json({ ...sale.toObject(), id: sale._id.toString() });
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
-
 app.delete('/api/sales/:id', async (req, res) => {
   try {
-    const id = req.params.id;
-    const sale = await Sale.findByIdAndDelete(id);
-    if (!sale) return res.status(404).json({ message:'Sale not found' });
-    await logActivity(req.headers['x-username'], `Deleted sale ${sale._id.toString()}`);
+    const sale = await Sale.findByIdAndDelete(req.params.id);
+    if(!sale) return res.status(404).json({ message:'Sale not found' });
+    await logActivity(req.headers['x-username'], `Deleted sale: ${sale.invoice}`);
     return res.status(204).send();
-  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ===== Report Helpers =====
-function buildInventoryWorksheetData(items) {
-  const header = ["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"];
-  const rows = [header];
-  let totalValue = 0, totalRevenue = 0;
-  items.forEach(it => {
-    const qty = Number(it.quantity || 0);
-    const uc = Number(it.unitCost || 0);
-    const up = Number(it.unitPrice || 0);
-    const invVal = qty * uc;
-    const rev = qty * up;
-    totalValue += invVal;
-    totalRevenue += rev;
-    rows.push([it.sku||'', it.name||'', it.category||'', qty, uc.toFixed(2), up.toFixed(2), invVal.toFixed(2), rev.toFixed(2)]);
-  });
-  rows.push([]);
-  rows.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
-  return rows;
-}
-
-function buildOrdersWorksheetData(orders) {
-  const rows = [
-    ["Order #","Customer","Status","Items (SKU x qty)","Total","Created At"]
-  ];
-  orders.forEach(o => {
-    const itemsText = (o.items || []).map(it => `${it.sku||it.name||''} x${it.qty||0}`).join('; ');
-    rows.push([o.orderNumber || o._id.toString(), o.customerName||'', o.status||'', itemsText, Number(o.total||0).toFixed(2), (o.createdAt? new Date(o.createdAt).toISOString().slice(0,10):'')]);
-  });
-  return rows;
-}
-
-function buildSalesWorksheetData(sales) {
-  const rows = [
-    ["Invoice","Items (SKU x qty)","Total","Created At"]
-  ];
-  sales.forEach(s => {
-    const itemsText = (s.items || []).map(it => `${it.sku||it.name||''} x${it.qty||0}`).join('; ');
-    rows.push([s.invoiceNumber || s._id.toString(), itemsText, Number(s.total||0).toFixed(2), (s.createdAt? new Date(s.createdAt).toISOString().slice(0,10):'')]);
-  });
-  return rows;
-}
-
-function createXlsxBufferFromAOA(aoa, sheetName = 'Report') {
-  const ws = xlsx.utils.aoa_to_sheet(aoa);
-  const wb = xlsx.utils.book_new();
-  xlsx.utils.book_append_sheet(wb, ws, sheetName);
-  const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-  return buffer;
-}
-
-// ===== Inventory report (XLSX) - date-only header (already present earlier) =====
+// ===== Inventory Report (generate XLSX - date only in header) =====
 app.get('/api/inventory/report', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0,10)}`;
     const filename = `${filenameBase}.xlsx`;
+    const dateOnly = new Date().toISOString().slice(0,10);
+
     const ws_data = [
       ["L&B Company - Inventory Report"],
-      ["Date:", new Date().toISOString().slice(0,10)],
-      []
+      ["Date:", dateOnly],
+      [],
+      ["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]
     ];
-    const itemsData = buildInventoryWorksheetData(items);
-    const full = ws_data.concat(itemsData);
-    const wb_out = createXlsxBufferFromAOA(full, 'Inventory Report');
+
+    let totalValue = 0, totalRevenue = 0;
+    items.forEach(it => {
+      const qty = Number(it.quantity || 0);
+      const uc = Number(it.unitCost || 0);
+      const up = Number(it.unitPrice || 0);
+      const invVal = qty * uc;
+      const rev = qty * up;
+      totalValue += invVal;
+      totalRevenue += rev;
+      ws_data.push([it.sku||'', it.name||'', it.category||'', qty, uc.toFixed(2), up.toFixed(2), invVal.toFixed(2), rev.toFixed(2)]);
+    });
+    ws_data.push([]);
+    ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
 
     // Persist document record
-    await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    const doc = await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
     await logActivity(req.headers['x-username'], `Generated and saved Inventory Report: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(wb_out);
   } catch (err) {
-    console.error('inventory report error', err);
+    console.error('report error', err);
     return res.status(500).json({ message:'Report generation failed' });
   }
 });
 
-// ===== Orders report (XLSX) =====
+// ===== Orders Report (XLSX) =====
 app.get('/api/orders/report', async (req, res) => {
   try {
     const orders = await Order.find({}).lean();
     const filenameBase = `Orders_Report_${new Date().toISOString().slice(0,10)}`;
     const filename = `${filenameBase}.xlsx`;
-
-    const header = [
-      ["L&B Company - Orders Report"],
+    const ws_data = [
+      ["Orders Report"],
       ["Date:", new Date().toISOString().slice(0,10)],
-      []
+      [],
+      ["Order #","Customer","Items (count)","Total","Status","Created At"]
     ];
-    const rows = buildOrdersWorksheetData(orders);
-    const aoa = header.concat(rows);
-    const wb_out = createXlsxBufferFromAOA(aoa, 'Orders Report');
-
-    // Persist doc
-    await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
-    await logActivity(req.headers['x-username'], `Generated and saved Orders Report: ${filename}`);
-
+    orders.forEach(o => {
+      ws_data.push([o.orderNumber || '', o.customerName || '', (o.items||[]).length, Number(o.total||0).toFixed(2), o.status || '', new Date(o.createdAt).toLocaleString()]);
+    });
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Orders Report");
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+    // persist
+    const doc = await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    await logActivity(req.headers['x-username'], `Generated Orders Report: ${filename}`);
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(wb_out);
-  } catch (err) {
-    console.error('orders report error', err);
-    return res.status(500).json({ message:'Orders report generation failed' });
-  }
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Orders report failed' }); }
 });
 
-// ===== Sales report (XLSX) =====
+// ===== Sales Report (XLSX) =====
 app.get('/api/sales/report', async (req, res) => {
   try {
     const sales = await Sale.find({}).lean();
     const filenameBase = `Sales_Report_${new Date().toISOString().slice(0,10)}`;
     const filename = `${filenameBase}.xlsx`;
-
-    const header = [
-      ["L&B Company - Sales Report"],
+    const ws_data = [
+      ["Sales Report"],
       ["Date:", new Date().toISOString().slice(0,10)],
-      []
+      [],
+      ["Invoice","Items (count)","Total","Date"]
     ];
-    const rows = buildSalesWorksheetData(sales);
-    const aoa = header.concat(rows);
-    const wb_out = createXlsxBufferFromAOA(aoa, 'Sales Report');
-
-    // Persist doc
-    await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
-    await logActivity(req.headers['x-username'], `Generated and saved Sales Report: ${filename}`);
-
+    sales.forEach(s => {
+      ws_data.push([s.invoice || '', (s.items||[]).length, Number(s.total||0).toFixed(2), new Date(s.date).toLocaleString()]);
+    });
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Sales Report");
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+    const doc = await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    await logActivity(req.headers['x-username'], `Generated Sales Report: ${filename}`);
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     return res.send(wb_out);
-  } catch (err) {
-    console.error('sales report error', err);
-    return res.status(500).json({ message:'Sales report generation failed' });
-  }
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Sales report failed' }); }
 });
 
-// ===== PDF generation helpers =====
-function generateOrdersPdfBuffer(orders) {
-  const doc = new PDFDocument({ margin: 40 });
-  const buffers = [];
-  doc.on('data', chunk => buffers.push(chunk));
-  doc.on('end', () => { /* handled by caller via promise */ });
-
-  doc.fontSize(18).text('L&B Company - Orders Report', { align: 'center' });
-  doc.moveDown();
-  doc.fontSize(12).text(`Date: ${new Date().toISOString().slice(0,10)}`, { align: 'left' });
-  doc.moveDown(0.5);
-
-  orders.forEach((o, idx) => {
-    doc.fontSize(12).text(`Order: ${o.orderNumber || o._id.toString()}  |  Customer: ${o.customerName || ''}  |  Status: ${o.status || ''}`);
-    doc.fontSize(10);
-    (o.items || []).forEach(it => {
-      doc.text(`   - ${it.sku || it.name}  x${it.qty}  @ RM ${Number(it.unitPrice||0).toFixed(2)}`);
-    });
-    doc.text(`  Total: RM ${Number(o.total||0).toFixed(2)}`);
-    if (idx < orders.length - 1) doc.moveDown();
-  });
-
-  doc.end();
-
-  return new Promise((resolve, reject) => {
-    doc.on('finish', () => {
-      resolve(Buffer.concat(buffers));
-    });
-    doc.on('error', reject);
-  });
-}
-
-function generateSalesPdfBuffer(sales) {
-  const doc = new PDFDocument({ margin: 40 });
-  const buffers = [];
-  doc.on('data', chunk => buffers.push(chunk));
-  doc.on('end', () => { /* handled by caller via promise */ });
-
-  doc.fontSize(18).text('L&B Company - Sales Report', { align: 'center' });
-  doc.moveDown();
-  doc.fontSize(12).text(`Date: ${new Date().toISOString().slice(0,10)}`, { align: 'left' });
-  doc.moveDown(0.5);
-
-  sales.forEach((s, idx) => {
-    doc.fontSize(12).text(`Invoice: ${s.invoiceNumber || s._id.toString()}`);
-    doc.fontSize(10);
-    (s.items || []).forEach(it => {
-      doc.text(`   - ${it.sku || it.name}  x${it.qty}  @ RM ${Number(it.unitPrice||0).toFixed(2)}`);
-    });
-    doc.text(`  Total: RM ${Number(s.total||0).toFixed(2)}`);
-    if (idx < sales.length - 1) doc.moveDown();
-  });
-
-  doc.end();
-
-  return new Promise((resolve, reject) => {
-    doc.on('finish', () => {
-      resolve(Buffer.concat(buffers));
-    });
-    doc.on('error', reject);
-  });
-}
-
-// ===== PDF endpoints =====
-app.get('/api/orders/report/pdf', async (req, res) => {
+// ===== PDF Endpoints =====
+// /api/pdf/:type  where type = inventory | orders | sales
+app.get('/api/pdf/:type', async (req, res) => {
   try {
-    const orders = await Order.find({}).lean();
-    const filename = `Orders_Report_${new Date().toISOString().slice(0,10)}.pdf`;
-    const pdfBuffer = await generateOrdersPdfBuffer(orders);
-
-    // Save doc meta for index (optional)
-    await Doc.create({ name: filename, size: pdfBuffer.length, date: new Date() });
-    await logActivity(req.headers['x-username'], `Generated Orders PDF: ${filename}`);
-
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const type = (req.params.type || '').toLowerCase();
+    const doc = new PDFDocument({ margin: 40 });
+    const filename = `${type}_report_${new Date().toISOString().slice(0,10)}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    return res.send(pdfBuffer);
-  } catch (err) {
-    console.error('orders pdf error', err);
-    return res.status(500).json({ message: 'Failed to generate Orders PDF' });
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.fontSize(18).text(`L&B Company - ${type.charAt(0).toUpperCase() + type.slice(1)} Report`, { align: 'center' });
+    doc.moveDown();
+
+    if (type === 'inventory') {
+      const items = await Inventory.find({}).lean();
+      doc.fontSize(12);
+      doc.text(`Date: ${new Date().toISOString().slice(0,10)}`);
+      doc.moveDown();
+      items.forEach(it => {
+        doc.text(`${it.sku || ''} — ${it.name || ''} — ${it.category || ''} — Qty: ${it.quantity || 0} — UnitCost: RM ${Number(it.unitCost||0).toFixed(2)}`);
+      });
+      await logActivity(req.headers['x-username'], `Generated Inventory PDF`);
+    } else if (type === 'orders') {
+      const orders = await Order.find({}).lean();
+      doc.fontSize(12);
+      doc.text(`Date: ${new Date().toISOString().slice(0,10)}`);
+      doc.moveDown();
+      orders.forEach(o => {
+        doc.text(`${o.orderNumber} — ${o.customerName || ''} — Items: ${(o.items||[]).length} — Total: RM ${Number(o.total||0).toFixed(2)} — ${o.status}`);
+      });
+      await logActivity(req.headers['x-username'], `Generated Orders PDF`);
+    } else if (type === 'sales') {
+      const sales = await Sale.find({}).lean();
+      doc.fontSize(12);
+      doc.text(`Date: ${new Date().toISOString().slice(0,10)}`);
+      doc.moveDown();
+      sales.forEach(s => {
+        doc.text(`${s.invoice} — Items: ${(s.items||[]).length} — Total: RM ${Number(s.total||0).toFixed(2)} — ${new Date(s.date).toLocaleString()}`);
+      });
+      await logActivity(req.headers['x-username'], `Generated Sales PDF`);
+    } else {
+      doc.text('Unknown report type');
+    }
+
+    doc.end();
+    doc.pipe(res);
+  } catch(err) {
+    console.error('PDF generation error', err);
+    return res.status(500).json({ message: 'PDF generation failed' });
   }
 });
 
-app.get('/api/sales/report/pdf', async (req, res) => {
-  try {
-    const sales = await Sale.find({}).lean();
-    const filename = `Sales_Report_${new Date().toISOString().slice(0,10)}.pdf`;
-    const pdfBuffer = await generateSalesPdfBuffer(sales);
+// legacy convenience redirect endpoints used in client html
+app.get('/api/inventory/report/pdf', (req, res) => res.redirect('/api/pdf/inventory'));
+app.get('/api/orders/report/pdf', (req, res) => res.redirect('/api/pdf/orders'));
+app.get('/api/sales/report/pdf', (req, res) => res.redirect('/api/pdf/sales'));
 
-    await Doc.create({ name: filename, size: pdfBuffer.length, date: new Date() });
-    await logActivity(req.headers['x-username'], `Generated Sales PDF: ${filename}`);
-
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/pdf');
-    return res.send(pdfBuffer);
-  } catch (err) {
-    console.error('sales pdf error', err);
-    return res.status(500).json({ message: 'Failed to generate Sales PDF' });
-  }
-});
-
-// ===== ZIP all reports endpoint =====
+// ===== ZIP All Reports =====
 app.get('/api/reports/zip', async (req, res) => {
   try {
-    // Gather data and generate buffers
-    const [inventoryItems, orders, sales] = await Promise.all([
-      Inventory.find({}).lean(),
-      Order.find({}).lean(),
-      Sale.find({}).lean()
-    ]);
-
-    // Build XLSX buffers
-    const inventoryAoaHeader = [
-      ["L&B Company - Inventory Report"],
-      ["Date:", new Date().toISOString().slice(0,10)],
-      []
-    ];
-    const inventoryAoa = inventoryAoaHeader.concat(buildInventoryWorksheetData(inventoryItems));
-    const inventoryXlsx = createXlsxBufferFromAOA(inventoryAoa, 'Inventory');
-
-    const ordersAoaHeader = [
-      ["L&B Company - Orders Report"],
-      ["Date:", new Date().toISOString().slice(0,10)],
-      []
-    ];
-    const ordersAoa = ordersAoaHeader.concat(buildOrdersWorksheetData(orders));
-    const ordersXlsx = createXlsxBufferFromAOA(ordersAoa, 'Orders');
-
-    const salesAoaHeader = [
-      ["L&B Company - Sales Report"],
-      ["Date:", new Date().toISOString().slice(0,10)],
-      []
-    ];
-    const salesAoa = salesAoaHeader.concat(buildSalesWorksheetData(sales));
-    const salesXlsx = createXlsxBufferFromAOA(salesAoa, 'Sales');
-
-    // Build PDFs
-    const [ordersPdf, salesPdf] = await Promise.all([
-      generateOrdersPdfBuffer(orders),
-      generateSalesPdfBuffer(sales)
-    ]);
-
-    // Create zip and stream to response
+    // create a zip stream
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="All_Reports_${new Date().toISOString().slice(0,10)}.zip"`);
+    const zipName = `All_Reports_${new Date().toISOString().slice(0,10)}.zip`;
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
 
     const archive = archiver('zip', { zlib: { level: 9 } });
     archive.on('error', err => { throw err; });
     archive.pipe(res);
 
-    // Append buffers with filenames
-    archive.append(inventoryXlsx, { name: `Inventory_Report_${new Date().toISOString().slice(0,10)}.xlsx` });
-    archive.append(ordersXlsx, { name: `Orders_Report_${new Date().toISOString().slice(0,10)}.xlsx` });
-    archive.append(salesXlsx, { name: `Sales_Report_${new Date().toISOString().slice(0,10)}.xlsx` });
+    // generate three xlsx buffers in-memory and append to zip
+    // Inventory
+    {
+      const items = await Inventory.find({}).lean();
+      const ws_data = [["Inventory Report"],["Date:", new Date().toISOString().slice(0,10)],[],["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]];
+      items.forEach(it => {
+        const qty = Number(it.quantity||0), uc = Number(it.unitCost||0), up = Number(it.unitPrice||0);
+        ws_data.push([it.sku||'', it.name||'', it.category||'', qty, uc.toFixed(2), up.toFixed(2), (qty*uc).toFixed(2), (qty*up).toFixed(2)]);
+      });
+      const ws = xlsx.utils.aoa_to_sheet(ws_data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "Inventory");
+      const buf = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+      archive.append(buf, { name: `Inventory_Report_${new Date().toISOString().slice(0,10)}.xlsx` });
+    }
 
-    archive.append(ordersPdf, { name: `Orders_Report_${new Date().toISOString().slice(0,10)}.pdf` });
-    archive.append(salesPdf, { name: `Sales_Report_${new Date().toISOString().slice(0,10)}.pdf` });
+    // Orders
+    {
+      const orders = await Order.find({}).lean();
+      const ws_data = [["Orders Report"],["Date:", new Date().toISOString().slice(0,10)],[],["Order #","Customer","Items","Total","Status","Created At"]];
+      orders.forEach(o => ws_data.push([o.orderNumber, o.customerName, (o.items||[]).length, Number(o.total||0).toFixed(2), o.status, new Date(o.createdAt).toLocaleString()]));
+      const ws = xlsx.utils.aoa_to_sheet(ws_data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "Orders");
+      const buf = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+      archive.append(buf, { name: `Orders_Report_${new Date().toISOString().slice(0,10)}.xlsx` });
+    }
+
+    // Sales
+    {
+      const sales = await Sale.find({}).lean();
+      const ws_data = [["Sales Report"],["Date:", new Date().toISOString().slice(0,10)],[],["Invoice","Items","Total","Date"]];
+      sales.forEach(s => ws_data.push([s.invoice, (s.items||[]).length, Number(s.total||0).toFixed(2), new Date(s.date).toLocaleString()]));
+      const ws = xlsx.utils.aoa_to_sheet(ws_data);
+      const wb = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(wb, ws, "Sales");
+      const buf = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+      archive.append(buf, { name: `Sales_Report_${new Date().toISOString().slice(0,10)}.xlsx` });
+    }
 
     await archive.finalize();
-
-    // Persist docs metadata for the individual files (optional)
-    await Doc.create({ name: `Inventory_Report_${new Date().toISOString().slice(0,10)}.xlsx`, size: inventoryXlsx.length, date: new Date() });
-    await Doc.create({ name: `Orders_Report_${new Date().toISOString().slice(0,10)}.xlsx`, size: ordersXlsx.length, date: new Date() });
-    await Doc.create({ name: `Sales_Report_${new Date().toISOString().slice(0,10)}.xlsx`, size: salesXlsx.length, date: new Date() });
-    await logActivity(req.headers['x-username'], `Generated ZIP of all reports`);
-
-    // response will be ended by archiver stream
-  } catch (err) {
-    console.error('zip reports error', err);
-    return res.status(500).json({ message: 'Failed to generate ZIP of reports' });
+  } catch(err) {
+    console.error('ZIP creation failed', err);
+    return res.status(500).json({ message: 'ZIP creation failed' });
   }
 });
 
-// ===== Documents endpoints (download helper) =====
+// ===== Documents =====
 app.get('/api/documents', async (req, res) => {
   try {
     const docs = await Doc.find({}).sort({ date: -1 }).lean();
@@ -686,6 +547,7 @@ app.get('/api/documents/download/:filename', async (req, res) => {
 app.get('/api/logs', async (req, res) => {
   try {
     const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
+    // return ISO timestamps so client formats to local timezone
     const formatted = logs.map(l => ({ user: l.user, action: l.action, time: l.time ? new Date(l.time).toISOString() : new Date().toISOString() }));
     return res.json(formatted);
   } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
