@@ -1,70 +1,63 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sales | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header>
-  <h1>💰 Sales</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="inventory.html">Inventory</a>
-    <a href="documents.html">Documents</a>
-    <a href="sales.html" class="active">Sales</a>
-    <a href="orders.html">Orders</a>
-    <a href="log.html">Activity Log</a>
-    <a href="setting.html"><button>⚙️ Setting</button></a>
-    <button onclick="toggleTheme()">🌓 Mode</button>
-    <button onclick="logout()">🚪 Logout</button>
-    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-  </nav>
-</header>
+  <header>
+    <h1>💰 Sales</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="sales.html" class="active">Sales</a>
+      <a href="orders.html">Orders</a>
+      <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
 
-<main>
-  <section>
-    <h2>Sales Records</h2>
-    <div class="controls" style="margin-bottom:12px;">
-      <div style="display:flex;gap:8px;">
-        <button id="addSaleBtn" class="primary-btn">➕ Add New Sale</button>
-        <button id="downloadSalesXLSXBtnInline" class="success-btn">⬇️ Download Sales (Excel)</button>
-        <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ Download Sales (PDF)</button>
+  <main>
+    <section>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2>Sales Records</h2>
+        <div style="display:flex;gap:8px;">
+          <button id="addSaleBtn" class="primary-btn">+ Add New Sale</button>
+          <button id="downloadSalesXLSXBtnInline" class="success-btn">⬇️ Download Sales (Excel)</button>
+          <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ Download Sales (PDF)</button>
+        </div>
       </div>
-      <div class="search-controls">
-        <input id="searchSales" placeholder="Search invoice, product..." />
+
+      <div class="table-container">
+        <table id="salesTable">
+          <thead>
+            <tr><th>Invoice</th><th>Product (SKU)</th><th>Qty</th><th class="money">Total (RM)</th><th>Date</th><th class="actions">Actions</th></tr>
+          </thead>
+          <tbody id="salesList"></tbody>
+        </table>
       </div>
-    </div>
+    </section>
+  </main>
 
-    <div class="table-container">
-      <table id="salesTable">
-        <thead>
-          <tr><th>Invoice</th><th>Product</th><th>Qty</th><th class="money">Total (RM)</th><th>Date</th><th class="actions">Actions</th></tr>
-        </thead>
-        <tbody id="salesList"></tbody>
-      </table>
-    </div>
-  </section>
-</main>
+  <!-- modal placeholders created by script.js when needed -->
 
-<!-- sale modal will be injected by script.js (uses card modal) -->
-
-<script src="js/setting.js" defer></script>
-<script src="js/script.js" defer></script>
-<script>
-  document.documentElement.dataset.page = 'sales';
-  document.addEventListener('DOMContentLoaded', ()=>{
-    // PDF endpoint (server should provide /api/sales/report/pdf or /api/sales/report)
-    document.getElementById('downloadSalesPDFBtn')?.addEventListener('click', ()=> window.open(`${API_BASE}/sales/report/pdf`,'_blank'));
-    // search locally (client)
-    qs = sel => document.querySelector(sel);
-    qs('#searchSales')?.addEventListener('input', (e)=>{
-      const q = (e.target.value||'').toLowerCase().trim();
-      const filtered = (window.sales || []).filter(s => (s.invoice||'').toLowerCase().includes(q) || (s.product||'').toLowerCase().includes(q));
-      if(window.renderSales) window.renderSales(filtered);
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'sales';
+    document.addEventListener('DOMContentLoaded', () => {
+      // PDF button
+      qs('#downloadSalesPDFBtn')?.addEventListener('click', ()=> {
+        if(!confirm('Download Sales PDF?')) return;
+        window.open(`${window.location.origin}/api/sales/report/pdf`, '_blank');
+      });
     });
-  });
-</script>
+  </script>
 </body>
 </html>
