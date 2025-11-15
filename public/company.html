@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Company Settings</title>
+  <link rel="stylesheet" href="css/style.css" />
+
+  <style>
+    body {
+      background: #f7f7f7;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      margin-top: 12px;
+      display: block;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-top: 4px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      font-size: 16px;
+      background: #1a73e8;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #0d5fcc;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Company Profile Settings</h2>
+
+    <label>Company Name</label>
+    <input id="companyName" placeholder="Enter company name" />
+
+    <label>Address</label>
+    <textarea id="address" rows="3" placeholder="Enter company address"></textarea>
+
+    <label>Phone Number</label>
+    <input id="phone" placeholder="Enter phone number" />
+
+    <label>Email</label>
+    <input id="email" placeholder="Enter email" />
+
+    <label>Tax (%)</label>
+    <input id="tax" type="number" placeholder="0" />
+
+    <button onclick="saveCompany()">Save Company Settings</button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+
+<script>
+const API_BASE = window.location.origin + "/api";
+
+// Load initial company data
+async function loadCompany() {
+  try {
+    const res = await fetch(`${API_BASE}/company`);
+    const data = await res.json();
+
+    if (data) {
+      document.getElementById("companyName").value = data.name || "";
+      document.getElementById("address").value = data.address || "";
+      document.getElementById("phone").value = data.phone || "";
+      document.getElementById("email").value = data.email || "";
+      document.getElementById("tax").value = data.tax || 0;
+    }
+  } catch (err) {
+    console.error("Error loading company info", err);
+  }
+}
+
+async function saveCompany() {
+  const body = {
+    name: document.getElementById("companyName").value,
+    address: document.getElementById("address").value,
+    phone: document.getElementById("phone").value,
+    email: document.getElementById("email").value,
+    tax: Number(document.getElementById("tax").value),
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/company/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const result = await res.json();
+    document.getElementById("status").innerText = "Saved successfully!";
+    setTimeout(() => (document.getElementById("status").innerText = ""), 2500);
+  } catch (err) {
+    document.getElementById("status").innerText = "Error saving data!";
+  }
+}
+
+// Startup
+loadCompany();
+</script>
+
+</body>
+</html>
