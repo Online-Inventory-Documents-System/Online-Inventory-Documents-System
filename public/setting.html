@@ -1,24 +1,71 @@
-// ===============================
-// SETTINGS PAGE SCRIPT
-// ===============================
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Settings | Inventory System</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<header>
+  <h1>⚙️ Account Settings</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="documents.html">Documents</a>
+    <a href="sales.html">Sales</a>
+    <a href="orders.html">Orders</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html" class="active"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
 
-document.addEventListener("DOMContentLoaded", () => {
+<section>
+  <h2>Manager Account</h2>
+  <div class="info-card">
+    <p>Logged-in User: <strong id="currentUser"></strong></p>
+  </div>
 
-  // Logout button
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-      sessionStorage.clear();
-      window.location.href = "login.html";
-    });
-  }
+  <form id="passwordForm" style="margin-top:20px;max-width:640px;">
+    <h3>Change Password</h3>
 
-  // Navigate to Company Settings page
-  const companyBtn = document.getElementById("companySettingsBtn");
-  if (companyBtn) {
-    companyBtn.addEventListener("click", () => {
-      window.location.href = "company.html";
-    });
-  }
+    <label for="newPassword">New Password</label>
+    <input id="newPassword" type="password" required />
 
-});
+    <label for="confirmPassword">Confirm New Password</label>
+    <input id="confirmPassword" type="password" required />
+
+    <label for="securityCode">Admin Security Code</label>
+    <input id="securityCode" type="password" placeholder="Required to confirm change" required />
+
+    <button id="changePasswordBtn" type="button" class="primary-btn" style="margin-top:15px;">🔒 Confirm Change Password</button>
+    <p id="passwordMessage" style="margin-top:10px;"></p>
+  </form>
+
+  <div style="margin-top:40px;border-top:1px solid var(--border-color);padding-top:20px;">
+    <h3>Account Actions</h3>
+
+    <!-- ✅ ADDED COMPANY PROFILE BUTTON -->
+    <button id="companySettingsBtn" type="button" class="primary-btn" style="margin-bottom:10px;">
+      🏢 Company Profile
+    </button>
+
+    <button id="logoutBtn" type="button" class="secondary-btn">🚪 Logout</button>
+
+    <button id="deleteAccountBtn" type="button" class="danger-btn" style="margin-left:10px;">
+      🗑️ Delete Account
+    </button>
+  </div>
+</section>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>
+  document.documentElement.dataset.page = 'setting';
+</script>
+
+</body>
+</html>
