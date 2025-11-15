@@ -1,77 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Inventory | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Inventory | Inventory System</title>
+<link rel="stylesheet" href="css/style.css"/>
 </head>
-
 <body>
+
 <header>
-  <h1>📦 Inventory</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a class="active" href="inventory.html">Inventory</a>
-    <a href="documents.html">Documents</a>
-    <a href="log.html">Activity Log</a>
-    <a href="sales.html">Sales</a>
-    <a href="orders.html">Orders</a>
-    <a href="setting.html"><button>⚙️ Setting</button></a>
+    <h1>📦 Inventory</h1>
 
-    <button onclick="toggleTheme()">🌓 Mode</button>
-    <button onclick="logout()">🚪 Logout</button>
+    <nav>
+        <a href="index.html">Home</a>
+        <a class="active" href="inventory.html">Inventory</a>
+        <a href="documents.html">Documents</a>
+        <a href="log.html">Activity Log</a>
+        <a href="sales.html">Sales</a>
+        <a href="orders.html">Orders</a>
 
-    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-  </nav>
+        <a href="setting.html"><button>⚙️ Setting</button></a>
+
+        <button onclick="toggleTheme()">🌓 Mode</button>
+        <button onclick="logout()">🚪 Logout</button>
+
+        <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
 </header>
 
-<section class="card">
 
-  <h2>Inventory List</h2>
+<section>
 
-  <!-- Controls -->
-  <div class="controls">
-    <div class="left search-controls">
-      <input id="searchInput" type="text" placeholder="🔍 Search SKU / Name / Category"/>
-      <button id="clearSearchBtn" class="secondary-btn">Clear</button>
+    <h2>Inventory List</h2>
+
+    <!-- ===================== CONTROLS ===================== -->
+    <div class="controls">
+
+        <div class="search-controls">
+            <input id="searchInput" placeholder="🔍 Search SKU / Name / Category" />
+            <button id="clearSearchBtn" class="secondary-btn">Clear</button>
+        </div>
+
+        <div>
+            <button id="addProductBtn" class="success-btn">+ Add Product</button>
+            <button id="reportBtn" class="primary-btn">⬇️ Excel</button>
+            <button onclick="window.open('/api/inventory/report/pdf','_blank')" class="secondary-btn">⬇️ PDF</button>
+        </div>
+
     </div>
 
-    <div class="right">
-      <button id="addProductBtn" class="success-btn">+ Add Product</button>
-      <button id="reportBtn" class="primary-btn">⬇️ Download Excel</button>
+    <!-- ===================== ADD FORM ===================== -->
+    <div class="product-bar">
+
+        <input id="p_sku" placeholder="SKU">
+        <input id="p_name" placeholder="Product Name">
+        <input id="p_category" placeholder="Category">
+
+        <input id="p_quantity" type="number" placeholder="Qty" value="0">
+        <input id="p_unitCost" type="number" placeholder="Unit Cost (RM)" step="0.01" value="0">
+        <input id="p_unitPrice" type="number" placeholder="Unit Price (RM)" step="0.01" value="0">
+
+        <button id="addProductBtn" class="success-btn">+ Add Product</button>
     </div>
-  </div>
 
-  <!-- Inventory Table -->
-  <div class="table-container">
-    <table class="table" id="inventoryTable">
-      <thead>
-        <tr>
-          <th>SKU</th>
-          <th>Name</th>
-          <th>Category</th>
-          <th>Qty</th>
-          <th>Unit Cost</th>
-          <th>Unit Price</th>
-          <th>Total Value</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="inventoryList"></tbody>
-    </table>
-  </div>
+    <!-- ===================== INVENTORY TABLE ===================== -->
+    <div class="table-container">
+        <table id="inventoryTable">
+            <thead>
+                <tr>
+                    <th>SKU</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Qty</th>
+                    <th>Cost (RM)</th>
+                    <th>Price (RM)</th>
+                    <th>Total Value</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="inventoryList"></tbody>
+        </table>
+    </div>
 
-  <!-- Totals -->
-  <div class="totals" style="margin-top:20px; font-size:1.1rem; font-weight:bold;">
-    <p>Total Stock: <span id="totalStock">0</span></p>
-    <p>Total Inventory Value: RM <span id="totalValue">0.00</span></p>
-    <p>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></p>
-  </div>
+    <!-- ===================== SUMMARY TOTALS ===================== -->
+    <section class="totals" style="
+        margin-top:25px; 
+        padding:20px; 
+        background:#f1f7fe; 
+        border-radius:8px; 
+        box-shadow:var(--shadow-sm);
+    ">
+        <h3>Summary</h3>
+
+        <p><b>Total Stock:</b> <span id="totalStock">0</span></p>
+        <p><b>Total Inventory Value:</b> RM <span id="totalValue">0.00</span></p>
+        <p><b>Total Potential Revenue:</b> RM <span id="totalRevenue">0.00</span></p>
+    </section>
 
 </section>
 
+
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
+
 </body>
 </html>
