@@ -2,24 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta-name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sales | Inventory System</title>
+
   <link rel="stylesheet" href="css/style.css" />
+
   <style>
-    /* Modal override */
-    .modal { position: fixed; left:0; right:0; top:0; bottom:0; display:none; background: rgba(0,0,0,0.45); z-index: 9999; }
+    .modal { position: fixed; inset: 0; display:none; background: rgba(0,0,0,0.45); z-index: 9999; }
     .modal-inner { margin: 60px auto; max-width: 520px; background: var(--card-light); padding: 18px; border-radius: 8px; }
-    .search-dropdown { position: relative; }
-    .search-dropdown-input { width:100%; padding:8px; }
-    .search-dropdown-list { position:absolute; left:0; right:0; background:white; max-height:220px; overflow:auto; border:1px solid #ddd; z-index:50; display:none; }
-    .search-dropdown-item { padding:8px; cursor:pointer; border-bottom:1px solid #eee; }
-    .search-dropdown-item:hover { background:#f1f1f1; }
 
     .action-btns { display:flex; gap:6px; }
     .edit-btn { background:#3498db; color:#fff; padding:5px 8px; border-radius:5px; cursor:pointer; }
     .delete-btn { background:#e74c3c; color:#fff; padding:5px 8px; border-radius:5px; cursor:pointer; }
   </style>
 </head>
+
 <body>
 
 <header>
@@ -31,9 +28,14 @@
     <a href="log.html">Activity Log</a>
     <a href="sales.html">Sales</a>
     <a href="orders.html">Orders</a>
-    <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
+
+    <a href="setting.html" style="text-decoration:none;">
+      <button>⚙️ Setting</button>
+    </a>
+
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
+
     <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
   </nav>
 </header>
@@ -41,12 +43,12 @@
 <main>
   <section>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
       <h2>Sales Records</h2>
-      <div style="display:flex;gap:8px;">
-        <button id="downloadSalesXLSXBtnInline" class="success-btn">⬇️ Download Sales (Excel)</button>
-        <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ Download Sales (PDF)</button>
-        <button id="addSaleBtn" class="primary-btn">➕ Add New Sale</button>
+
+      <div style="display:flex; gap:8px;">
+        <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ PDF Report</button>
+        <button id="addSaleBtn" class="primary-btn">➕ Add Sale</button>
       </div>
     </div>
 
@@ -73,81 +75,75 @@
 <script src="js/script.js" defer></script>
 
 <script>
-  document.documentElement.dataset.page = 'sales';
+  document.documentElement.dataset.page = "sales";
 
   document.addEventListener("DOMContentLoaded", () => {
     const adminName = sessionStorage.getItem("adminName") || "Guest";
-    const role = sessionStorage.getItem("role") || "user"; // user/admin
-    if (document.getElementById("adminName")) {
-      document.getElementById("adminName").textContent = adminName;
-    }
+    const role = sessionStorage.getItem("role") || "user";
 
-    // Load sales
+    document.getElementById("adminName").textContent = adminName;
+
     loadSales(role);
 
-    // Reports
-    const btnPDF = document.querySelector("#downloadSalesPDFBtn");
-    if (btnPDF) btnPDF.addEventListener("click", () => window.open(`${API_BASE}/sales/report/pdf`, "_blank"));
+    document.getElementById("downloadSalesPDFBtn")
+      .addEventListener("click", () => window.open(`${API_BASE}/sales/report/pdf`, "_blank"));
 
-    const btnXLS = document.querySelector("#downloadSalesXLSXBtnInline");
-    if (btnXLS && window.downloadSalesReportXLSX) btnXLS.addEventListener("click", downloadSalesReportXLSX);
-
-    // Add Sales page
-    const addSaleBtn = document.getElementById("addSaleBtn");
-    if (addSaleBtn) addSaleBtn.addEventListener("click", () => {
-      window.location.href = "add-sale.html";
-    });
+    document.getElementById("addSaleBtn")
+      .addEventListener("click", () => window.location.href = "add-sale.html");
   });
 
-  // ========================
-  // LOAD SALES + BUILD TABLE
-  // ========================
+  // ==========================================
+  // LOAD SALES INTO TABLE
+  // ==========================================
   async function loadSales(role) {
     try {
       const res = await fetch(`${API_BASE}/sales`);
-      const data = await res.json();
-      const list = document.getElementById("salesList");
-      list.innerHTML = "";
+      const sales = await res.json();
 
-      data.forEach(sale => {
+      const tbody = document.getElementById("salesList");
+      tbody.innerHTML = "";
+
+      sales.forEach(sale => {
         const tr = document.createElement("tr");
 
         tr.innerHTML = `
           <td>${sale.invoice}</td>
           <td>${sale.productName} (${sale.sku})</td>
           <td>${sale.qty}</td>
-          <td class="money">RM ${sale.total.toFixed(2)}</td>
+          <td class="money">RM ${Number(sale.total).toFixed(2)}</td>
           <td>${new Date(sale.date).toLocaleString()}</td>
+
           <td>
             <div class="action-btns">
               <button class="edit-btn" onclick="editSale('${sale._id}')">Edit</button>
+
               ${
                 role === "admin"
                   ? `<button class="delete-btn" onclick="deleteSale('${sale._id}')">Delete</button>`
-                  : ""
+                  : ``
               }
             </div>
           </td>
         `;
 
-        list.appendChild(tr);
+        tbody.appendChild(tr);
       });
 
-    } catch (err) {
-      console.error("Error loading sales:", err);
+    } catch (error) {
+      console.error("Failed to load sales:", error);
     }
   }
 
-  // ========================
+  // ==========================================
   // EDIT SALE
-  // ========================
+  // ==========================================
   function editSale(id) {
     window.location.href = `edit-sale.html?id=${id}`;
   }
 
-  // ========================
-  // DELETE SALE
-  // ========================
+  // ==========================================
+  // DELETE SALE (ADMIN ONLY)
+  // ==========================================
   async function deleteSale(id) {
     if (!confirm("Are you sure you want to delete this sale?")) return;
 
@@ -155,13 +151,13 @@
       const res = await fetch(`${API_BASE}/sales/${id}`, { method: "DELETE" });
 
       if (res.ok) {
-        alert("Sale deleted successfully.");
+        alert("Sale deleted.");
         location.reload();
       } else {
-        alert("Failed to delete sale.");
+        alert("Delete failed.");
       }
     } catch (err) {
-      console.error("Delete error:", err);
+      console.error(err);
       alert("Error deleting sale.");
     }
   }
