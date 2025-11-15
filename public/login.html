@@ -1,59 +1,150 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Login | Inventory System</title>
-<link rel="stylesheet" href="css/style.css"/>
+<link rel="stylesheet" href="css/style.css"/> 
 </head>
 <body>
+  
   <div class="main-title-container">
-    <h1>Online Inventory & Documents Management System</h1>
+      <h1>Online Inventory & Documents Management System</h1>
   </div>
-
+  
   <div class="login-container">
     <h2 id="formTitle">🔐 User Login</h2>
 
+    <!-- LOGIN FORM -->
     <div id="loginForm">
       <label for="username">Username</label>
       <input type="text" id="username" placeholder="Enter username" />
-
+      
       <label for="password">Password</label>
       <input type="password" id="password" placeholder="Enter password" />
-
+      
       <button id="loginBtn" type="button" class="primary-btn">Login</button>
-
-      <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com <b id="contactPhone"></b></p>
+      
+      <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
       <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
-
+      
       <p id="loginMessage"></p>
     </div>
 
+    <!-- REGISTER FORM -->
     <div id="registerForm" style="display:none;">
       <label for="newUsername">New Username</label>
       <input type="text" id="newUsername" placeholder="Enter username" />
-
+      
       <label for="newPassword">New Password</label>
       <input type="password" id="newPassword" placeholder="Enter password" />
-
+      
       <label for="securityCode">Security Code</label>
       <input type="text" id="securityCode" placeholder="Enter company security code" />
 
+      <label for="newRole">Role</label>
+      <select id="newRole">
+        <option value="user">User – View Only</option>
+        <option value="admin">Admin – Full Access</option>
+      </select>
+      
       <button id="registerBtn" type="button" class="success-btn">Register Account</button>
-
+      
       <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
-
+      
       <p id="registerMessage"></p>
     </div>
   </div>
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
   <script>
-    document.documentElement.dataset.page = 'login.html';
-    document.addEventListener('DOMContentLoaded', ()=>{
-      if (qs('#contactPhone') && window.CONFIG && CONFIG.CONTACT_PHONE) qs('#contactPhone').textContent = CONFIG.CONTACT_PHONE;
-    });
+    const API_BASE = "/api";
+
+    // Switch between login / register
+    document.getElementById("toggleToRegister").onclick = () => {
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("registerForm").style.display = "block";
+      document.getElementById("formTitle").textContent = "🆕 Register Account";
+    };
+
+    document.getElementById("toggleToLogin").onclick = () => {
+      document.getElementById("loginForm").style.display = "block";
+      document.getElementById("registerForm").style.display = "none";
+      document.getElementById("formTitle").textContent = "🔐 User Login";
+    };
+
+    // LOGIN
+    document.getElementById("loginBtn").onclick = async () => {
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const msg = document.getElementById("loginMessage");
+
+      if (!username || !password) {
+        msg.textContent = "⚠️ Please enter username & password.";
+        msg.style.color = "red";
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        msg.textContent = "❌ " + data.message;
+        msg.style.color = "red";
+        return;
+      }
+
+      // SAVE LOGIN SESSION
+      sessionStorage.setItem("username", data.user.username);
+      sessionStorage.setItem("role", data.user.role);
+      sessionStorage.setItem("isLoggedIn", "true");
+
+      msg.style.color = "green";
+      msg.textContent = "✔️ Login successful. Redirecting...";
+
+      setTimeout(() => (window.location.href = "index.html"), 800);
+    };
+
+    // REGISTER
+    document.getElementById("registerBtn").onclick = async () => {
+      const username = document.getElementById("newUsername").value.trim();
+      const password = document.getElementById("newPassword").value.trim();
+      const securityCode = document.getElementById("securityCode").value.trim();
+      const role = document.getElementById("newRole").value;
+      const msg = document.getElementById("registerMessage");
+
+      if (!username || !password || !securityCode) {
+        msg.textContent = "⚠️ Please fill all fields.";
+        msg.style.color = "red";
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, securityCode, role })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        msg.textContent = "❌ " + data.message;
+        msg.style.color = "red";
+        return;
+      }
+
+      msg.style.color = "green";
+      msg.textContent = "✔️ Account created successfully!";
+
+      setTimeout(() => {
+        document.getElementById("toggleToLogin").click();
+      }, 1000);
+    };
   </script>
+
 </body>
 </html>
