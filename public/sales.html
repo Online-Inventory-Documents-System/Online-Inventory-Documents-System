@@ -1,108 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Sales | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sales | Inventory System</title>
+
+<link rel="stylesheet" href="css/style.css" />
 </head>
 
 <body>
 
 <header>
-  <h1>💰 Sales</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="inventory.html">Inventory</a>
-    <a href="documents.html">Documents</a>
-    <a href="log.html">Activity Log</a>
-    <a class="active" href="sales.html">Sales</a>
-    <a href="orders.html">Orders</a>
+    <h1>💰 Sales</h1>
 
-    <a href="setting.html"><button>⚙️ Setting</button></a>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="inventory.html">Inventory</a>
+        <a href="documents.html">Documents</a>
+        <a href="log.html">Activity Log</a>
+        <a class="active" href="sales.html">Sales</a>
+        <a href="orders.html">Orders</a>
 
-    <button onclick="toggleTheme()">🌓 Mode</button>
-    <button onclick="logout()">🚪 Logout</button>
+        <a href="setting.html"><button>⚙️ Setting</button></a>
 
-    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-  </nav>
+        <button onclick="toggleTheme()">🌓 Mode</button>
+        <button onclick="logout()">🚪 Logout</button>
+
+        <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
 </header>
 
 
+<section>
 
-<section class="sales-container">
+    <h2>Sales Records</h2>
 
-  <h2>Sales Records</h2>
-
-  <!-- Controls -->
-  <div class="controls">
-    <div class="search-controls">
-      <input id="searchSales" type="text" placeholder="🔍 Search invoice / product">
-      <button id="clearSalesSearchBtn" class="secondary-btn">Clear</button>
+    <!-- ==================== CONTROLS ==================== -->
+    <div class="controls">
+        <button id="addSaleBtn" class="success-btn">+ Add Sale</button>
+        
+        <button id="downloadSalesXLSXBtnInline" class="primary-btn">⬇️ Excel</button>
+        <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ PDF</button>
     </div>
 
-    <div class="right">
-      <button id="addSaleBtn" class="success-btn">+ Add Sale</button>
-
-      <button id="downloadSalesXLSXBtnInline" class="primary-btn">⬇️ Excel</button>
-      <button id="downloadSalesPDFBtn" class="secondary-btn"
-        onclick="window.open('/api/sales/report/pdf','_blank')">
-        ⬇️ PDF
-      </button>
+    <!-- ==================== SALES TABLE ==================== -->
+    <div class="table-container">
+        <table id="salesTable">
+            <thead>
+                <tr>
+                    <th>Invoice</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Total (RM)</th>
+                    <th>Date</th>
+                    <th style="text-align:center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="salesList">
+                <!-- Filled by script.js -->
+            </tbody>
+        </table>
     </div>
-  </div>
-
-
-  <!-- Table -->
-  <div class="table-container">
-    <table id="salesTable">
-      <thead>
-        <tr>
-          <th>Invoice</th>
-          <th>Product</th>
-          <th>Qty</th>
-          <th>Total (RM)</th>
-          <th>Date</th>
-          <th style="text-align:center;">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="salesList"></tbody>
-    </table>
-  </div>
 
 </section>
 
-
-<!-- ================================
-      ADD + EDIT SALE MODAL
-================================== -->
+<!-- ==================== ADD / EDIT SALE MODAL ==================== -->
 <div id="saleModal" class="modal" style="display:none;">
-  <div class="modal-inner wide-modal">
+    <div class="modal-inner" style="
+        width: 500px;
+        max-width: 90%;
+        background: var(--card-light);
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: var(--shadow-md);
+        margin: 80px auto;
+    ">
+        <h3 id="saleModalTitle">Add New Sale</h3>
 
-    <h3 id="saleModalTitle">Add New Sale</h3>
+        <label>Invoice No</label>
+        <input id="sale_invoice" placeholder="(Optional)" />
 
-    <label>Invoice No. (Auto or Manual):</label>
-    <input type="text" id="sale_invoice">
+        <label>Search Product</label>
+        <input id="sale_product_search" placeholder="Search SKU / Name" />
 
-    <label>Product:</label>
-    <input type="text" id="sale_product_search" placeholder="Search product..." />
+        <div id="sale_product_dropdown" class="search-dropdown"></div>
 
-    <div id="sale_product_dropdown" class="dropdown-list" style="display:none;"></div>
+        <label>Product Name</label>
+        <input id="sale_product" readonly />
 
-    <label>Quantity:</label>
-    <input type="number" id="sale_quantity" min="1" value="1">
+        <label>Quantity</label>
+        <input id="sale_quantity" type="number" min="1" value="1" />
 
-    <label>Total (RM):</label>
-    <input type="number" id="sale_total" step="0.01">
+        <label>Total (RM)</label>
+        <input id="sale_total" type="number" step="0.01" />
 
-    <div class="modal-actions">
-      <button id="saveSaleBtn" class="primary-btn">Save</button>
-      <button id="cancelSaleBtn" class="secondary-btn">Cancel</button>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button id="saveSaleBtn" class="primary-btn">Save</button>
+            <button id="saleModalClose" class="secondary-btn">Cancel</button>
+        </div>
     </div>
-
-  </div>
 </div>
-
 
 
 <script src="js/setting.js" defer></script>
