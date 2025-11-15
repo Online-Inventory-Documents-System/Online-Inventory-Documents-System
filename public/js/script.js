@@ -20,15 +20,30 @@ let documents = [];
 let companyInfo = null;
 const currentPage = window.location.pathname.split('/').pop();
 
-// Fetch wrapper adds X-Username header
+// Fetch wrapper adds X-Username header and handles no-body responses
 async function apiFetch(url, options = {}) {
   const user = getUsername();
   options.headers = {
-    'Content-Type': 'application/json',
     'X-Username': user,
     ...options.headers
   };
+
+  // Ensure content-type for JSON requests where body is present
+  if (options.body && !options.headers['Content-Type']) {
+    options.headers['Content-Type'] = 'application/json';
+  }
+
   return fetch(url, options);
+}
+
+// Helper to safely parse JSON if possible
+async function tryParseJson(response) {
+  const ct = response.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    return response.json();
+  }
+  // Not JSON — return null so caller can handle or fallback
+  return null;
 }
 
 // Redirect to login if not logged in (except login page)
@@ -161,13 +176,12 @@ function renderDashboardData(){
 async function fetchCompanyInfo(){
   try {
     const res = await apiFetch(`${API_BASE}/company`);
-    if(!res.ok) throw new Error('Failed to fetch company');
-    companyInfo = await res.json();
+    if(!res.ok) throw new Error(`Failed to fetch company (status ${res.status})`);
+    companyInfo = await tryParseJson(res) || null;
   } catch (err) {
     console.warn('Failed to load company info:', err);
     companyInfo = null;
   }
-  // apply tax to any pages that use it (orders modal)
   if(companyInfo && companyInfo.taxPercent !== undefined) {
     const taxEl = qs('#taxText');
     if(taxEl) taxEl.textContent = `${Number(companyInfo.taxPercent).toFixed(0)}%`;
@@ -177,8 +191,8 @@ async function fetchCompanyInfo(){
 async function fetchInventory() {
   try {
     const res = await apiFetch(`${API_BASE}/inventory`);
-    if(!res.ok) throw new Error('Failed to fetch inventory');
-    const data = await res.json();
+    if(!res.ok) throw new Error(`Failed to fetch inventory (status ${res.status})`);
+    const data = await tryParseJson(res) || [];
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
     renderInventory(inventory);
     renderDashboardData();
@@ -188,8 +202,8 @@ async function fetchInventory() {
 async function fetchDocuments() {
   try {
     const res = await apiFetch(`${API_BASE}/documents`);
-    if(!res.ok) throw new Error('Failed to fetch documents');
-    const data = await res.json();
+    if(!res.ok) throw new Error(`Failed to fetch documents (status ${res.status})`);
+    const data = await tryParseJson(res) || [];
     documents = data.map(d => ({ ...d, id: d.id || d._id }));
     renderDocuments(documents);
   } catch(err) { console.error(err); documents = []; }
@@ -198,8 +212,8 @@ async function fetchDocuments() {
 async function fetchLogs() {
   try {
     const res = await apiFetch(`${API_BASE}/logs`);
-    if(!res.ok) throw new Error('Failed to fetch logs');
-    activityLog = await res.json();
+    if(!res.ok) throw new Error(`Failed to fetch logs (status ${res.status})`);
+    activityLog = await tryParseJson(res) || [];
     renderLogs();
   } catch(err) { console.error(err); activityLog = []; }
 }
@@ -223,7 +237,6 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('setting')) bindSettingPage();
     if(currentPage.includes('sales')) bindSalesPage();
     if(currentPage.includes('orders')) bindOrdersPage();
-    if(currentPage.includes('orders.html')) { /* orders page uses its own module if present */ }
   } catch(e) { console.error('Init error', e); }
 });
 
@@ -237,21 +250,24 @@ async function login(){
 
   try {
     const res = await apiFetch(`${API_BASE}/login`, { method: 'POST', body: JSON.stringify({ username: user, password: pass }) });
-    const data = await res.json();
+    // parse JSON only if server returned JSON
+    const data = await tryParseJson(res);
     if(res.ok) {
       sessionStorage.setItem('isLoggedIn', 'true');
-      // server returns user object possibly with role
-      const role = (data.user && data.user.role) ? data.user.role : (data.role || 'admin');
+      // server returns either { success:true, user: { username, role } } or similar
+      const role = data && data.user && data.user.role ? data.user.role : (data && data.role) ? data.role : 'admin';
       sessionStorage.setItem('adminName', user);
       sessionStorage.setItem('adminRole', role);
       showMsg(msg, '✅ Login successful! Redirecting...', 'green');
       setTimeout(()=> window.location.href = 'index.html', 600);
     } else {
-      showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
+      // try to show server message, otherwise construct helpful message
+      const serverMessage = data && data.message ? data.message : `Login failed (status ${res.status})`;
+      showMsg(msg, `❌ ${serverMessage}`, 'red');
     }
   } catch(e) {
     showMsg(msg, '❌ Server connection failed.', 'red');
-    console.error(e);
+    console.error('login error', e);
   }
 }
 
@@ -265,12 +281,13 @@ async function register(){
 
   try {
     const res = await apiFetch(`${API_BASE}/register`, { method: 'POST', body: JSON.stringify({ username: user, password: pass, securityCode: code }) });
-    const data = await res.json();
+    const data = await tryParseJson(res);
     if(res.ok) {
       showMsg(msg, '✅ Registered successfully! You can now log in.', 'green');
       setTimeout(()=> toggleForm(), 900);
     } else {
-      showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
+      const serverMessage = data && data.message ? data.message : `Registration failed (status ${res.status})`;
+      showMsg(msg, `❌ ${serverMessage}`, 'red');
     }
   } catch(e) { showMsg(msg, '❌ Server connection failed.', 'red'); console.error(e); }
 }
@@ -305,14 +322,14 @@ async function confirmAndAddProduct(){
   const newItem = { sku, name, category, quantity, unitCost, unitPrice };
   try {
     const res = await apiFetch(`${API_BASE}/inventory`, { method: 'POST', body: JSON.stringify(newItem) });
+    const data = await tryParseJson(res);
     if(res.ok) {
       ['#p_sku','#p_name','#p_category','#p_quantity','#p_unitCost','#p_unitPrice'].forEach(id => { if(qs(id)) qs(id).value = ''; });
       await fetchInventory();
       if(currentPage.includes('inventory')) await fetchLogs();
       alert('✅ Product added successfully.');
     } else {
-      const err = await res.json().catch(()=>({message:'Add failed'}));
-      alert('❌ Failed to add product: ' + (err.message || ''));
+      alert('❌ Failed to add product: ' + (data && data.message ? data.message : `status ${res.status}`));
     }
   } catch(e) { console.error(e); alert('❌ Server connection error while adding product.'); }
 }
@@ -327,8 +344,8 @@ async function confirmAndDeleteItem(id){
       await fetchInventory();
       alert('🗑️ Item deleted!');
     } else {
-      const err = await res.json().catch(()=>({message:'Delete failed'}));
-      alert('❌ Failed to delete item: ' + (err.message || ''));
+      const data = await tryParseJson(res);
+      alert('❌ Failed to delete item: ' + (data && data.message ? data.message : `status ${res.status}`));
     }
   } catch(e) { console.error(e); alert('❌ Server connection error while deleting product.'); }
 }
@@ -372,7 +389,7 @@ async function bindProductPage(){
   if(id) {
     try {
       const res = await apiFetch(`${API_BASE}/inventory`);
-      const items = await res.json();
+      const items = await tryParseJson(res) || [];
       const it = items.find(x => String(x.id) === String(id));
       if(!it) { alert('Item not found'); return; }
       if(qs('#prod_id')) qs('#prod_id').value = it.id || it._id;
@@ -399,7 +416,7 @@ async function bindProductPage(){
     try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
       if(res.ok) { alert('✅ Item updated'); window.location.href = 'inventory.html'; }
-      else { const err = await res.json(); alert('❌ Failed to update item: ' + (err.message || 'Unknown')); }
+      else { const data = await tryParseJson(res); alert('❌ Failed to update item: ' + (data && data.message ? data.message : 'Unknown')); }
     } catch(e) { console.error(e); alert('❌ Server connection error during update.'); }
   });
 
@@ -451,7 +468,7 @@ async function deleteDocument(id) {
   try {
     const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
     if(res.status === 204 || res.ok) { await fetchDocuments(); alert('🗑️ Document metadata deleted successfully!'); }
-    else { const err = await res.json().catch(()=>({message:'Delete failed'})); alert('❌ Failed to delete document metadata: ' + (err.message || '')); }
+    else { const data = await tryParseJson(res); alert('❌ Failed to delete document metadata: ' + (data && data.message ? data.message : `status ${res.status}`)); }
   } catch(e) { console.error(e); alert('❌ Server error while deleting document metadata.'); }
 }
 
@@ -483,7 +500,7 @@ function bindSettingPage(){
 
     try {
       const res = await apiFetch(`${API_BASE}/account/password`, { method: 'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
-      const data = await res.json();
+      const data = await tryParseJson(res);
       if(res.ok) {
         showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
         qs('#newPassword').value = '';
@@ -491,9 +508,9 @@ function bindSettingPage(){
         qs('#securityCode').value = '';
         setTimeout(logout, 1500);
       } else {
-        showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
+        showMsg(msgEl, `❌ ${data && data.message ? data.message : 'Failed to change password.'}`, 'red');
       }
-    } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); }
+    } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); console.error(e); }
   });
 
   qs('#deleteAccountBtn')?.addEventListener('click', async ()=> {
@@ -502,16 +519,15 @@ function bindSettingPage(){
     if(!code) return alert('Deletion cancelled.');
     try {
       const res = await apiFetch(`${API_BASE}/account`, { method: 'DELETE', body: JSON.stringify({ username: currentUsername, securityCode: code }) });
-      const data = await res.json();
+      const data = await tryParseJson(res);
       if(res.ok) { alert('🗑️ Account deleted successfully. You will now be logged out.'); logout(); }
-      else alert(`❌ ${data.message || 'Failed to delete account.'}`);
-    } catch(e) { alert('❌ Server connection failed during account deletion.'); }
+      else alert(`❌ ${data && data.message ? data.message : 'Failed to delete account.'}`);
+    } catch(e) { alert('❌ Server connection failed during account deletion.'); console.error(e); }
   });
 }
 
 // ----------------- Sales & Orders page binding helpers -----------------
 function bindSalesPage(){
-  // This is lightweight: attach report PDF button if present
   qs('#downloadSalesPDFBtn')?.addEventListener('click', ()=> window.open(`${API_BASE}/sales/report/pdf`, '_blank'));
   qs('#downloadSalesXLSXBtnInline')?.addEventListener('click', ()=> window.open(`${API_BASE}/sales/report`, '_blank'));
 }
