@@ -1,68 +1,60 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Orders | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header>
-  <h1>🧾 Orders</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="inventory.html">Inventory</a>
-    <a href="documents.html">Documents</a>
-    <a href="sales.html">Sales</a>
-    <a href="orders.html" class="active">Orders</a>
-    <a href="log.html">Activity Log</a>
-    <a href="setting.html"><button>⚙️ Setting</button></a>
-    <button onclick="toggleTheme()">🌓 Mode</button>
-    <button onclick="logout()">🚪 Logout</button>
-    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-  </nav>
-</header>
+  <header>
+    <h1>🧾 Orders</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="sales.html">Sales</a>
+      <a href="orders.html" class="active">Orders</a>
+      <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
 
-<main>
-  <section>
-    <h2>Order Records</h2>
-    <div class="controls" style="margin-bottom:12px;">
-      <div style="display:flex;gap:8px;">
-        <button id="addOrderBtn" class="primary-btn">➕ Create New Order</button>
-        <button id="downloadOrdersXLSXBtnInline" class="success-btn">⬇️ Download Orders (Excel)</button>
-        <button id="downloadOrdersPDFBtn" class="secondary-btn">⬇️ Download Orders (PDF)</button>
+  <main>
+    <section>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2>Order Records</h2>
+        <div style="display:flex;gap:8px;">
+          <button id="addOrderBtn" class="primary-btn">+ Add New Order</button>
+          <button id="downloadOrdersXLSXBtnInline" class="success-btn">⬇️ Download Orders (Excel)</button>
+          <button id="downloadOrdersPDFBtn" class="secondary-btn">⬇️ Download Orders (PDF)</button>
+        </div>
       </div>
-      <div class="search-controls">
-        <input id="searchOrders" placeholder="Search order #, customer..." />
+
+      <div class="table-container">
+        <table id="ordersTable">
+          <thead>
+            <tr><th>Order #</th><th>Customer</th><th>Items</th><th class="money">Total (RM)</th><th>Status</th><th>Date</th><th class="actions">Actions</th></tr>
+          </thead>
+          <tbody id="ordersList"></tbody>
+        </table>
       </div>
-    </div>
+    </section>
+  </main>
 
-    <div class="table-container">
-      <table id="ordersTable">
-        <thead>
-          <tr><th>Order #</th><th>Customer</th><th>Items</th><th class="money">Total (RM)</th><th>Status</th><th>Date</th><th class="actions">Actions</th></tr>
-        </thead>
-        <tbody id="ordersList"></tbody>
-      </table>
-    </div>
-  </section>
-</main>
-
-<!-- order modal injected by script.js -->
-
-<script src="js/setting.js" defer></script>
-<script src="js/script.js" defer></script>
-<script>
-  document.documentElement.dataset.page = 'orders';
-  document.addEventListener('DOMContentLoaded', ()=>{
-    document.getElementById('downloadOrdersPDFBtn')?.addEventListener('click', ()=> window.open(`${API_BASE}/orders/report/pdf`,'_blank'));
-    qs = sel => document.querySelector(sel);
-    qs('#searchOrders')?.addEventListener('input', (e)=>{
-      const q = (e.target.value||'').toLowerCase().trim();
-      const filtered = (window.orders || []).filter(o => (o.orderNumber||'').toLowerCase().includes(q) || (o.customerName||'').toLowerCase().includes(q));
-      if(window.renderOrders) window.renderOrders(filtered);
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'orders';
+    document.addEventListener('DOMContentLoaded', () => {
+      qs('#downloadOrdersPDFBtn')?.addEventListener('click', ()=> {
+        if(!confirm('Download Orders PDF?')) return;
+        window.open(`${window.location.origin}/api/orders/report/pdf`, '_blank');
+      });
     });
-  });
-</script>
+  </script>
 </body>
 </html>
