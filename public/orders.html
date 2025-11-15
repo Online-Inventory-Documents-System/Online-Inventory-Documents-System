@@ -1,166 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Orders | Inventory System</title>
-
-<link rel="stylesheet" href="css/style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Orders | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
-
 <body>
-
 <header>
-    <h1>📦 Orders</h1>
+  <h1>🧾 Orders</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="sales.html">Sales</a>
+    <a href="orders.html">Orders</a>
 
-    <nav>
-        <a href="index.html">Home</a>
-        <a href="inventory.html">Inventory</a>
-        <a href="documents.html">Documents</a>
-        <a href="log.html">Activity Log</a>
-        <a href="sales.html">Sales</a>
-        <a class="active" href="orders.html">Orders</a>
+    <a href="company.html">Company</a>
+    <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
 
-        <a href="setting.html"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
 
-        <button onclick="toggleTheme()">🌓 Mode</button>
-        <button onclick="logout()">🚪 Logout</button>
-
-        <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-    </nav>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span> (<span id="adminRole"></span>)</div>
+  </nav>
 </header>
 
-
-<section>
-
-    <h2>Orders</h2>
-
-    <!-- ========== CONTROLS ========== -->
-    <div class="controls">
-        <button id="addOrderBtn" class="success-btn">+ Add Order</button>
-
-        <button id="downloadOrdersXLSXBtnInline" class="primary-btn">⬇️ Excel</button>
+<main>
+  <section>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2>Order Records</h2>
+      <div style="display:flex;gap:8px;">
+        <button id="downloadOrdersXLSXBtnInline" class="success-btn">⬇️ Excel</button>
         <button id="downloadOrdersPDFBtn" class="secondary-btn">⬇️ PDF</button>
+        <button id="addOrderBtn" class="primary-btn">➕ Create Order</button>
+      </div>
     </div>
 
-    <!-- ========== ORDER TABLE ========== -->
-    <div class="table-container">
-
-        <table id="ordersTable">
-            <thead>
-                <tr>
-                    <th>Order No</th>
-                    <th>Customer</th>
-                    <th>Items</th>
-                    <th>Total (RM)</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th style="text-align:center;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="ordersList">
-                <!-- Filled by script.js -->
-            </tbody>
-        </table>
-
+    <div class="table-container" style="margin-top:12px;">
+      <table id="ordersTable">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Items</th>
+            <th class="money">Total (RM)</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th class="actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ordersList"></tbody>
+      </table>
     </div>
-</section>
-
-
-
-<!-- ====================================================================== -->
-<!--                     ADD / EDIT ORDER MODAL FORM                        -->
-<!-- ====================================================================== -->
-
-<div id="orderModal" class="modal" style="display:none;">
-
-    <div class="modal-inner" style="
-        width: 700px;
-        max-width: 95%;
-        background: var(--card-light);
-        padding: 25px;
-        border-radius: 8px;
-        margin: 60px auto;
-        box-shadow: var(--shadow-md);
-    ">
-
-        <h3 id="orderModalTitle">Add New Order</h3>
-
-
-        <!-- ========== CUSTOMER ========== -->
-        <label>Customer Name</label>
-        <input id="order_customer" type="text" placeholder="Enter customer name" />
-
-        <label>Order No</label>
-        <input id="order_number" placeholder="(Optional)" />
-
-
-        <!-- ========== SEARCH PRODUCT FIELD ========== -->
-        <label>Search Item</label>
-        <input id="order_item_search" placeholder="Search SKU / Name" />
-
-        <!-- Auto dropdown -->
-        <div id="order_item_dropdown" class="search-dropdown"></div>
-
-
-        <!-- ========== ITEM LIST TABLE ========== -->
-        <div class="table-container" style="margin-top:20px;">
-            <table id="orderItemTable" style="min-width:600px;">
-                <thead>
-                    <tr>
-                        <th style="width:30%;">Item</th>
-                        <th style="width:15%;">Price</th>
-                        <th style="width:15%;">Qty</th>
-                        <th style="width:15%;">Subtotal</th>
-                        <th style="text-align:center;">Action</th>
-                    </tr>
-                </thead>
-
-                <tbody id="orderItemList"></tbody>
-            </table>
-        </div>
-
-
-        <!-- ========== TOTAL BOX ========== -->
-        <div style="
-            margin-top:20px;
-            background:#f8f9fa;
-            padding:15px;
-            border-radius:8px;
-            font-size:1.1rem;
-            border:1px solid var(--border-color);
-        ">
-            <b>Total: RM <span id="order_total">0.00</span></b>
-        </div>
-
-
-        <!-- ========== STATUS ========== -->
-        <label style="margin-top:20px;">Order Status</label>
-        <select id="order_status" style="padding:10px; width:100%; border-radius:6px;">
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Cancelled">Cancelled</option>
-        </select>
-
-
-        <!-- ========== BUTTONS ========== -->
-        <div style="display:flex; gap:10px; margin-top:25px;">
-
-            <button id="saveOrderBtn" class="primary-btn">Save Order</button>
-
-            <button id="orderModalClose" class="secondary-btn">Cancel</button>
-        </div>
-
-    </div>
-
-</div>
-
-
-
-
+  </section>
+</main>
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 
+<script>
+  document.documentElement.dataset.page = "orders";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const adminName = sessionStorage.getItem("adminName");
+    const adminRole = sessionStorage.getItem("adminRole");
+
+    document.getElementById("adminName").textContent = adminName;
+    document.getElementById("adminRole").textContent = adminRole;
+
+    // PDF + Excel buttons
+    document.querySelector("#downloadOrdersPDFBtn")
+      ?.addEventListener("click", () => window.open(`${API_BASE}/orders/report/pdf`, "_blank"));
+
+    document.querySelector("#downloadOrdersXLSXBtnInline")
+      ?.addEventListener("click", () => {
+        if (window.downloadOrdersReportXLSX) downloadOrdersReportXLSX();
+      });
+
+    // Create Order button
+    document.querySelector("#addOrderBtn")
+      ?.addEventListener("click", () => window.location.href = "order_edit.html");
+  });
+</script>
 </body>
 </html>
