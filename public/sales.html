@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sales | Inventory System</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* quick modal override to ensure it's visible with your style.css */
+    .modal { position: fixed; left:0; right:0; top:0; bottom:0; display:none; background: rgba(0,0,0,0.45); z-index: 9999; }
+    .modal-inner { margin: 60px auto; max-width: 520px; background: var(--card-light); padding: 18px; border-radius: 8px; }
+    .search-dropdown { position: relative; }
+    .search-dropdown-input { width:100%; padding:8px; }
+    .search-dropdown-list { position:absolute; left:0; right:0; background:white; max-height:220px; overflow:auto; border:1px solid #ddd; z-index:50; display:none; }
+    .search-dropdown-item { padding:8px; cursor:pointer; border-bottom:1px solid #eee; }
+    .search-dropdown-item:hover { background:#f1f1f1; }
+  </style>
 </head>
 <body>
   <header>
@@ -13,9 +23,9 @@
       <a href="index.html">Home</a>
       <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
       <a href="sales.html">Sales</a>
       <a href="orders.html">Orders</a>
-      <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration:none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
       <button onclick="logout()">🚪 Logout</button>
@@ -25,15 +35,18 @@
 
   <main>
     <section>
-      <h2>Sales Records</h2>
-      <div class="controls" style="margin-bottom:12px;">
-        <button id="addSaleBtn" class="primary-btn">+ Add New Sale</button>
-        <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ Download Sales (PDF)</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2>Sales Records</h2>
+        <div style="display:flex;gap:8px;">
+          <button id="downloadSalesXLSXBtnInline" class="success-btn">⬇️ Download Sales (Excel)</button>
+          <button id="downloadSalesPDFBtn" class="secondary-btn">⬇️ Download Sales (PDF)</button>
+          <button id="addSaleBtn" class="primary-btn">➕ Add New Sale</button>
+        </div>
       </div>
 
-      <div class="table-container">
-        <table>
-          <thead><tr><th>Invoice</th><th>Product</th><th>Qty</th><th>Total (RM)</th><th>Date</th></tr></thead>
+      <div class="table-container" style="margin-top:12px;">
+        <table id="salesTable">
+          <thead><tr><th>Invoice</th><th>Product (SKU)</th><th>Qty</th><th class="money">Total (RM)</th><th>Date</th></tr></thead>
           <tbody id="salesList"></tbody>
         </table>
       </div>
@@ -44,7 +57,14 @@
   <script src="js/script.js" defer></script>
   <script>
     document.documentElement.dataset.page = 'sales';
-    // bindings are handled in script.js on load
+    document.addEventListener('DOMContentLoaded', ()=> {
+      // attach PDF/XLSX
+      const pdfBtn = qs => document.querySelector('#downloadSalesPDFBtn');
+      const btnPDF = document.querySelector('#downloadSalesPDFBtn');
+      if(btnPDF) btnPDF.addEventListener('click', ()=> window.open(`${API_BASE}/sales/report/pdf`, '_blank'));
+      const btnXLS = document.querySelector('#downloadSalesXLSXBtnInline');
+      if(btnXLS && window.downloadSalesReportXLSX) btnXLS.addEventListener('click', downloadSalesReportXLSX);
+    });
   </script>
 </body>
 </html>
