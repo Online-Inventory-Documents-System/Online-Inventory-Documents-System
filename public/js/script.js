@@ -1,55 +1,65 @@
 // public/js/script.js
-// Consolidated client script (inventory + sales + orders + documents + auth)
-// Make sure to replace API_BASE if your backend runs on a different host/port.
-
+// Unified client script for Inventory, Orders & Sales with search dropdown + modal logic
+// Update API_BASE if using different host
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
-  : `${window.location.origin}/api`;
+  : "https://online-inventory-documents-system-olzt.onrender.com/api";
 
-const qs = (s) => document.querySelector(s);
-const qsa = (s) => Array.from(document.querySelectorAll(s));
+const qs = s => document.querySelector(s);
+const qsa = s => Array.from(document.querySelectorAll(s));
 const showMsg = (el, text, color = 'red') => { if (!el) return; el.textContent = text; el.style.color = color; };
-const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : '';
+const escapeHtml = s => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : '';
 const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 
-let inventory = [], sales = [], orders = [], documents = [], activityLog = [];
+let inventory = [], sales = [], orders = [], activityLog = [], documents = [];
 const currentPage = window.location.pathname.split('/').pop();
 
-// Simple fetch wrapper attaches X-Username
+// Basic fetch wrapper (adds X-Username and JSON content type)
 async function apiFetch(url, options = {}) {
   const user = getUsername();
-  options.headers = { 'Content-Type': 'application/json', 'X-Username': user, ...(options.headers||{}) };
+  options.headers = { 'Content-Type': 'application/json', 'X-Username': user, ...(options.headers || {}) };
   return fetch(url, options);
 }
 
-/* -------- Auth redirect (don't redirect on login page) -------- */
-if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
+/* ========================= AUTH / REDIRECT ========================= */
+// don't redirect when on login page
+if (!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
   try { window.location.href = 'login.html'; } catch(e) {}
 }
 
-function logout(){
+function logout() {
   sessionStorage.removeItem('isLoggedIn');
   sessionStorage.removeItem('adminName');
   window.location.href = 'login.html';
 }
-function toggleTheme(){ document.body.classList.toggle('dark-mode'); if(window.CONFIG && CONFIG.LS_THEME) localStorage.setItem(CONFIG.LS_THEME, document.body.classList.contains('dark-mode') ? 'dark' : 'light'); }
 
-/* ================= RENDERERS ================= */
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  if (window.CONFIG && CONFIG.LS_THEME) {
+    localStorage.setItem(CONFIG.LS_THEME, document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+  }
+}
 
-function renderInventory(items){
-  const listEl = qs('#inventoryList'); if(!listEl) return;
-  listEl.innerHTML = '';
+/* ========================= RENDERERS ========================= */
+
+function renderInventory(items = []) {
+  const tbody = qs('#inventoryList');
+  if(!tbody) return;
+  tbody.innerHTML = '';
   let totalValue = 0, totalRevenue = 0, totalStock = 0;
-  items.forEach(it=>{
+  items.forEach(it => {
     const id = it.id || it._id;
-    const qty = Number(it.quantity||0);
-    const uc = Number(it.unitCost||0);
-    const up = Number(it.unitPrice||0);
+    const qty = Number(it.quantity || 0);
+    const uc = Number(it.unitCost || 0);
+    const up = Number(it.unitPrice || 0);
     const invVal = qty * uc;
     const rev = qty * up;
     totalValue += invVal; totalRevenue += rev; totalStock += qty;
+
     const tr = document.createElement('tr');
-    if(qty===0) tr.classList.add('out-of-stock-row'); else if(qty < 10) tr.classList.add('low-stock-row');
+    if (qty === 0) tr.classList.add('out-of-stock-row');
+    else if (qty < 10) tr.classList.add('low-stock-row');
+
     tr.innerHTML = `
       <td>${escapeHtml(it.sku||'')}</td>
       <td>${escapeHtml(it.name||'')}</td>
@@ -63,116 +73,220 @@ function renderInventory(items){
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
       </td>
     `;
-    listEl.appendChild(tr);
+    tbody.appendChild(tr);
   });
+
   if(qs('#totalValue')) qs('#totalValue').textContent = totalValue.toFixed(2);
   if(qs('#totalRevenue')) qs('#totalRevenue').textContent = totalRevenue.toFixed(2);
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
-function renderSales(rows){
-  const t = qs('#salesList'); if(!t) return; t.innerHTML = '';
-  rows.forEach(r=>{
-    const id = r.id || r._id;
-    const dateStr = r.date ? new Date(r.date).toLocaleString() : '';
-    const productLabel = r.productSku ? `${escapeHtml(r.product)} (${escapeHtml(r.productSku)})` : escapeHtml(r.product);
+function renderSales(rows = []) {
+  const t = qs('#salesList'); if(!t) return;
+  t.innerHTML = '';
+  rows.forEach(r => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHtml(r.invoice||'')}</td><td>${productLabel}</td><td>${Number(r.quantity||0)}</td><td class="money">RM ${(Number(r.total)||0).toFixed(2)}</td><td>${escapeHtml(dateStr)}</td>
+    tr.innerHTML = `
+      <td>${escapeHtml(r.invoice || '')}</td>
+      <td>${escapeHtml(r.product || '')}</td>
+      <td>${Number(r.quantity||0)}</td>
+      <td class="money">RM ${(Number(r.total)||0).toFixed(2)}</td>
+      <td>${new Date(r.date||Date.now()).toLocaleString()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="openEditSaleModal('${id}')">✏️ Edit</button>
-        <button class="danger-btn small-btn" onclick="confirmDeleteSale('${id}')">🗑️ Delete</button>
-      </td>`;
+        <button class="primary-btn small-btn" onclick="openEditSale('${r.id||r._id}')">✏️ Edit</button>
+        <button class="danger-btn small-btn" onclick="deleteSaleConfirm('${r.id||r._id}')">🗑️ Delete</button>
+      </td>
+    `;
     t.appendChild(tr);
   });
 }
 
-function renderOrders(rows){
-  const t = qs('#ordersList'); if(!t) return; t.innerHTML = '';
-  rows.forEach(o=>{
+function renderOrders(rows = []) {
+  const t = qs('#ordersList'); if(!t) return;
+  t.innerHTML = '';
+  rows.forEach(o => {
     const id = o.id || o._id;
-    const dateStr = o.date ? new Date(o.date).toLocaleString() : '';
-    const itemsSummary = (Array.isArray(o.items) ? o.items.map(i=>`${escapeHtml(i.name||i.sku||'')} x${i.qty}`).join(', ') : '');
+    const orderNo = o.orderNumber || o.orderNumber || (o._id ? String(o._id).slice(-6) : '—');
+    const itemsSummary = Array.isArray(o.items) ? o.items.map(i => `${escapeHtml(i.name||i.sku||'')} x${i.qty}`).join(', ') : '';
+    const statusClass = o.status === 'Approved' ? 'status-completed' : (o.status === 'Cancelled' ? 'status-cancelled' : 'status-pending');
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHtml(o.orderNumber||o._id?.toString?.()||'')}</td>
-      <td>${escapeHtml(o.customerName||'')}</td>
+    tr.innerHTML = `
+      <td>${escapeHtml(orderNo)}</td>
+      <td>${escapeHtml(o.customerName || '')}</td>
       <td>${itemsSummary}</td>
       <td class="money">RM ${(Number(o.total)||0).toFixed(2)}</td>
-      <td>${escapeHtml(o.status||'Pending')}</td>
-      <td>${escapeHtml(dateStr)}</td>
+      <td><span class="order-status ${statusClass}">${escapeHtml(o.status||'Pending')}</span></td>
+      <td>${new Date(o.date||Date.now()).toLocaleString()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="openEditOrderModal('${id}')">✏️ Edit</button>
-        <button class="secondary-btn small-btn" onclick="cancelOrder('${id}')">✖️ Cancel</button>
-        <button class="danger-btn small-btn" onclick="confirmDeleteOrder('${id}')">🗑️ Delete</button>
-      </td>`;
+        <button class="primary-btn small-btn" onclick="openEditOrder('${id}')">✏️ Edit</button>
+        <button class="secondary-btn small-btn" onclick="changeOrderStatusPrompt('${id}')">⚙️ Status</button>
+        <button class="danger-btn small-btn" onclick="deleteOrderConfirm('${id}')">🗑️ Delete</button>
+      </td>
+    `;
     t.appendChild(tr);
   });
 }
 
-/* ================= FETCHERS ================= */
+/* Dashboard small table of recent activities & totals */
+function renderDashboardData(){
+  // recent activity rows
+  if(qs('#recentActivities')) {
+    const tbody = qs('#recentActivities');
+    tbody.innerHTML = '';
+    (activityLog || []).slice().slice(0,5).forEach(l => {
+      const tr = document.createElement('tr');
+      const timeStr = l.time ? new Date(l.time).toLocaleString() : new Date().toLocaleString();
+      tr.innerHTML = `<td>${escapeHtml(l.user||'System')}</td><td>${escapeHtml(l.action||'')}</td><td>${escapeHtml(timeStr)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
 
-async function fetchInventory(){ try{ const res = await apiFetch(`${API_BASE}/inventory`); if(!res.ok) throw new Error(); inventory = await res.json(); renderInventory(inventory); populateProductDatalist(); }catch(e){ console.error('fetchInventory', e); } }
-async function fetchSales(){ try{ const res = await apiFetch(`${API_BASE}/sales`); if(!res.ok) { sales = []; renderSales(sales); return; } sales = await res.json(); renderSales(sales); }catch(e){ console.error('fetchSales', e); } }
-async function fetchOrders(){ try{ const res = await apiFetch(`${API_BASE}/orders`); if(!res.ok) { orders = []; renderOrders(orders); return; } orders = await res.json(); renderOrders(orders); }catch(e){ console.error('fetchOrders', e); } }
-async function fetchDocuments(){ try{ const res = await apiFetch(`${API_BASE}/documents`); if(!res.ok) throw new Error(); documents = await res.json(); }catch(e){ console.error('fetchDocuments', e); } }
-async function fetchLogs(){ try{ const res = await apiFetch(`${API_BASE}/logs`); if(!res.ok) throw new Error(); activityLog = await res.json(); renderDashboardData(); }catch(e){ console.error('fetchLogs', e); } }
+  // dashboard totals
+  if(qs('#dash_totalItems')) {
+    let totalValue = 0, totalRevenue = 0, totalStock = 0;
+    (inventory || []).forEach(it => {
+      const qty = Number(it.quantity||0);
+      totalValue += qty * Number(it.unitCost||0);
+      totalRevenue += qty * Number(it.unitPrice||0);
+      totalStock += qty;
+    });
+    qs('#dash_totalItems').textContent = (inventory||[]).length;
+    qs('#dash_totalValue').textContent = totalValue.toFixed(2);
+    qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
+    qs('#dash_totalStock').textContent = totalStock;
+  }
+}
 
-/* ================= INIT ================= */
+/* ========================= FETCHERS ========================= */
+
+async function fetchInventory() {
+  try {
+    const res = await apiFetch(`${API_BASE}/inventory`);
+    if (!res.ok) throw new Error('Failed to fetch inventory');
+    const data = await res.json();
+    // normalize ids
+    inventory = (Array.isArray(data) ? data : []).map(i => ({ ...i, id: i.id || i._id }));
+    renderInventory(inventory);
+  } catch (err) { console.error('fetchInventory:', err); }
+}
+
+async function fetchSales() {
+  try {
+    const res = await apiFetch(`${API_BASE}/sales`);
+    if (!res.ok) throw new Error('Failed to fetch sales');
+    const data = await res.json();
+    sales = (Array.isArray(data) ? data : []).map(s => ({ ...s, id: s.id || s._id }));
+    renderSales(sales);
+  } catch (err) { console.error('fetchSales:', err); }
+}
+
+async function fetchOrders() {
+  try {
+    const res = await apiFetch(`${API_BASE}/orders`);
+    if (!res.ok) throw new Error('Failed to fetch orders');
+    const data = await res.json();
+    orders = (Array.isArray(data) ? data : []).map(o => ({ ...o, id: o.id || o._id }));
+    renderOrders(orders);
+  } catch (err) { console.error('fetchOrders:', err); }
+}
+
+async function fetchDocuments() {
+  try {
+    const res = await apiFetch(`${API_BASE}/documents`);
+    if (!res.ok) throw new Error('Failed to fetch documents');
+    documents = await res.json();
+  } catch (err) { console.error('fetchDocuments:', err); }
+}
+
+async function fetchLogs() {
+  try {
+    const res = await apiFetch(`${API_BASE}/logs`);
+    if (!res.ok) throw new Error('Failed to fetch logs');
+    activityLog = await res.json();
+    renderDashboardData();
+  } catch (err) { console.error('fetchLogs:', err); }
+}
+
+/* ========================= INITIALIZATION ========================= */
 
 window.addEventListener('load', async () => {
-  if(qs('#adminName')) qs('#adminName').textContent = getUsername();
-  // apply saved theme
-  if(window.CONFIG && CONFIG.LS_THEME) {
-    const theme = localStorage.getItem(CONFIG.LS_THEME);
-    if(theme === 'dark') document.body.classList.add('dark-mode');
+  // fill admin name in header
+  if (qs('#adminName')) qs('#adminName').textContent = getUsername();
+  // apply theme
+  if (window.CONFIG && CONFIG.LS_THEME) {
+    const t = localStorage.getItem(CONFIG.LS_THEME);
+    if (t === 'dark') document.body.classList.add('dark-mode');
   }
 
   try {
-    if(currentPage.includes('inventory')) { await fetchInventory(); bindInventoryUI(); }
-    if(currentPage.includes('sales')) { await fetchInventory(); await fetchSales(); bindSalesUI(); }
-    if(currentPage.includes('orders')) { await fetchInventory(); await fetchOrders(); bindOrdersUI(); }
-    if(currentPage.includes('documents')) { await fetchDocuments(); bindDocumentsUI(); }
-    if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { await fetchLogs(); await fetchInventory(); }
-    if(currentPage.includes('product')) bindProductPage();
-    if(currentPage.includes('setting')) bindSettingPage();
-    if(currentPage.includes('login.html')) bindLoginPage();
-  } catch(e) { console.error('init error', e); }
+    if (currentPage.includes('inventory')) { await fetchInventory(); bindInventoryUI(); }
+    if (currentPage.includes('sales')) { await fetchSales(); bindSalesUI(); }
+    if (currentPage.includes('orders')) { await fetchOrders(); bindOrdersUI(); }
+    if (currentPage.includes('documents')) { await fetchDocuments(); bindDocumentsUI(); }
+    if (currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { await fetchLogs(); await fetchInventory(); }
+    if (currentPage.includes('product')) bindProductPage();
+    if (currentPage.includes('setting')) bindSettingPage();
+  } catch(e) {
+    console.error('init error', e);
+  }
 });
 
-/* ================= AUTH (login/register) ================= */
+/* ========================= AUTH (login/register) ========================= */
 
-function bindLoginPage(){
-  qs('#loginBtn')?.addEventListener('click', async ()=>{
-    const user = qs('#username')?.value?.trim();
-    const pass = qs('#password')?.value?.trim();
-    const msg = qs('#loginMessage');
-    showMsg(msg,'');
-    if(!user||!pass) return showMsg(msg,'⚠️ Enter username & password','red');
-    try{
-      const res = await apiFetch(`${API_BASE}/login`, { method: 'POST', body: JSON.stringify({ username: user, password: pass }) });
-      const data = await res.json();
-      if(res.ok){ sessionStorage.setItem('isLoggedIn','true'); sessionStorage.setItem('adminName', user); showMsg(msg,'✅ Login successful','green'); setTimeout(()=> window.location.href='index.html',500); }
-      else showMsg(msg, `❌ ${data.message||'Login failed'}`,'red');
-    }catch(e){ showMsg(msg,'❌ Server error','red'); console.error(e); }
-  });
-
-  qs('#registerBtn')?.addEventListener('click', async ()=>{
-    const user = qs('#newUsername')?.value?.trim();
-    const pass = qs('#newPassword')?.value?.trim();
-    const code = qs('#securityCode')?.value?.trim();
-    if(!user||!pass||!code) return showMsg(qs('#registerMessage'),'⚠️ Fill all fields','red');
-    try{
-      const res = await apiFetch(`${API_BASE}/register`, { method:'POST', body: JSON.stringify({ username: user, password: pass, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok){ showMsg(qs('#registerMessage'),'✅ Registered. Login now','green'); setTimeout(()=> qs('#toggleToLogin')?.click(), 900); }
-      else showMsg(qs('#registerMessage'), `❌ ${data.message||'Register failed'}`,'red');
-    }catch(e){ showMsg(qs('#registerMessage'),'❌ Server error','red'); console.error(e); }
-  });
-
-  qs('#toggleToRegister')?.addEventListener('click', ()=> { qs('#loginForm').style.display='none'; qs('#registerForm').style.display='block'; qs('#formTitle').textContent='🧾 Register Account'; });
-  qs('#toggleToLogin')?.addEventListener('click', ()=> { qs('#loginForm').style.display='block'; qs('#registerForm').style.display='none'; qs('#formTitle').textContent='🔐 User Login'; });
+async function login() {
+  const user = qs('#username')?.value?.trim();
+  const pass = qs('#password')?.value?.trim();
+  const msg = qs('#loginMessage');
+  showMsg(msg, '');
+  if (!user || !pass) { showMsg(msg, '⚠️ Enter username and password', 'red'); return; }
+  try {
+    const res = await apiFetch(`${API_BASE}/login`, { method: 'POST', body: JSON.stringify({ username: user, password: pass }) });
+    const data = await res.json();
+    if (res.ok) {
+      sessionStorage.setItem('isLoggedIn', 'true');
+      sessionStorage.setItem('adminName', user);
+      showMsg(msg, '✅ Login successful', 'green');
+      setTimeout(() => window.location.href = 'index.html', 600);
+    } else {
+      showMsg(msg, `❌ ${data.message || 'Login failed'}`, 'red');
+    }
+  } catch (err) {
+    showMsg(msg, '❌ Server error', 'red');
+    console.error('login err', err);
+  }
 }
 
-/* ================= INVENTORY CRUD ================= */
+async function register() {
+  const user = qs('#newUsername')?.value?.trim();
+  const pass = qs('#newPassword')?.value?.trim();
+  const code = qs('#securityCode')?.value?.trim();
+  const msg = qs('#registerMessage');
+  showMsg(msg, '');
+  if (!user || !pass || !code) { showMsg(msg, '⚠️ Fill all fields', 'red'); return; }
+  try {
+    const res = await apiFetch(`${API_BASE}/register`, { method: 'POST', body: JSON.stringify({ username: user, password: pass, securityCode: code }) });
+    const data = await res.json();
+    if (res.ok) {
+      showMsg(msg, '✅ Registered. Login now', 'green');
+      setTimeout(toggleForm, 900);
+    } else showMsg(msg, `❌ ${data.message || 'Registration failed'}`, 'red');
+  } catch (err) {
+    showMsg(msg, '❌ Server error', 'red');
+    console.error(err);
+  }
+}
+
+function toggleForm(){
+  const loginForm = qs('#loginForm'), registerForm = qs('#registerForm'), formTitle = qs('#formTitle');
+  if (!loginForm || !registerForm || !formTitle) return;
+  if (getComputedStyle(loginForm).display === 'none') {
+    loginForm.style.display = 'block'; registerForm.style.display = 'none'; formTitle.textContent = '🔐 Admin Login';
+  } else {
+    loginForm.style.display = 'none'; registerForm.style.display = 'block'; formTitle.textContent = '🧾 Register Account';
+  }
+}
+
+/* ========================= INVENTORY CRUD ========================= */
 
 async function confirmAndAddProduct(){
   const sku = qs('#p_sku')?.value?.trim();
@@ -181,23 +295,23 @@ async function confirmAndAddProduct(){
   const quantity = Number(qs('#p_quantity')?.value || 0);
   const unitCost = Number(qs('#p_unitCost')?.value || 0);
   const unitPrice = Number(qs('#p_unitPrice')?.value || 0);
-  if(!sku||!name) return alert('Enter SKU and Name');
-  if(!confirm(`Add product ${name}?`)) return;
-  try{
-    const res = await apiFetch(`${API_BASE}/inventory`, { method:'POST', body: JSON.stringify({ sku,name,category,quantity,unitCost,unitPrice }) });
-    if(res.ok){ ['#p_sku','#p_name','#p_category','#p_quantity','#p_unitCost','#p_unitPrice'].forEach(id=> qs(id) && (qs(id).value='')); await fetchInventory(); alert('Product added'); }
-    else { const err = await res.json(); alert('Add failed: ' + (err.message||'')); }
-  }catch(e){ console.error(e); alert('Server error'); }
+  if (!sku || !name) return alert('Enter SKU and Name');
+  if (!confirm(`Add product "${name}"?`)) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/inventory`, { method: 'POST', body: JSON.stringify({ sku,name,category,quantity,unitCost,unitPrice }) });
+    if (res.ok) { ['#p_sku','#p_name','#p_category','#p_quantity','#p_unitCost','#p_unitPrice'].forEach(id => { if(qs(id)) qs(id).value=''; }); await fetchInventory(); alert('Added'); }
+    else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+  } catch (e) { console.error(e); alert('Server error'); }
 }
 
-async function confirmAndDeleteItem(id){
-  const it = inventory.find(x=>String(x.id)===String(id));
-  if(!it) return alert('Item not found');
-  if(!confirm(`Delete ${it.name}?`)) return;
-  try{
-    const res = await apiFetch(`${API_BASE}/inventory/${id}`, { method:'DELETE' });
-    if(res.status === 204){ await fetchInventory(); alert('Deleted'); } else { alert('Delete failed'); }
-  }catch(e){ console.error(e); alert('Server error'); }
+async function confirmAndDeleteItem(id) {
+  const it = inventory.find(x => String(x.id) === String(id));
+  if (!it) return; if (!confirm(`Delete ${it.name}?`)) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/inventory/${id}`, { method: 'DELETE' });
+    if (res.status === 204) { await fetchInventory(); alert('Deleted'); }
+    else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+  } catch(e) { console.error(e); alert('Server error'); }
 }
 
 async function confirmAndGenerateReport(){
@@ -207,478 +321,479 @@ async function confirmAndGenerateReport(){
     if(!res.ok){ const err = await res.json(); return alert('Failed: ' + (err.message||'')); }
     const blob = await res.blob();
     const cd = res.headers.get('Content-Disposition');
-    const fn = cd && cd.match(/filename="(.+?)"/) ? cd.match(/filename="(.+?)"/)[1] : `Inventory_Report.xlsx`;
+    const fn = cd && cd.match(/filename="(.+?)"/) ? cd.match(/filename="(.+?)"/)[1] : `Inventory_Report_${Date.now()}.xlsx`;
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    // refresh docs list
     await fetchDocuments();
-  }catch(e){ console.error(e); alert('Report error'); }
+    alert('Report generated & downloaded');
+  }catch(e){ console.error(e); alert('Error generating report'); }
 }
 
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
-  // PDF action open
-  qs('#reportPdfBtn')?.addEventListener('click', ()=> window.open(`${API_BASE}/inventory/report/pdf`, '_blank'));
-  qs('#searchInput')?.addEventListener('input', ()=>{
-    const q = (qs('#searchInput')?.value||'').toLowerCase().trim();
+  qs('#searchInput')?.addEventListener('input', ()=> {
+    const q = (qs('#searchInput')?.value||'').toLowerCase();
     renderInventory(inventory.filter(it=> (it.sku||'').toLowerCase().includes(q) || (it.name||'').toLowerCase().includes(q) || (it.category||'').toLowerCase().includes(q)));
   });
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { if(qs('#searchInput')) { qs('#searchInput').value=''; renderInventory(inventory); } });
 }
 
-/* ================= PRODUCT PAGE BINDING ================= */
-
-function openEditPageForItem(id){ window.location.href = `product.html?id=${encodeURIComponent(id)}`; }
-
+/* Product edit page */
+function openEditPageForItem(id) { window.location.href = `product.html?id=${encodeURIComponent(id)}`; }
 async function bindProductPage(){
   const params = new URLSearchParams(window.location.search); const id = params.get('id');
-  if(id){
-    try{
-      const res = await apiFetch(`${API_BASE}/inventory`);
-      const items = await res.json();
+  if (id) {
+    try {
+      const res = await apiFetch(`${API_BASE}/inventory`); const items = await res.json();
       const it = items.find(x=> String(x.id) === String(id));
       if(!it) return alert('Item not found');
-      qs('#prod_id') && (qs('#prod_id').value = it.id || it._id);
-      qs('#prod_sku') && (qs('#prod_sku').value = it.sku || '');
-      qs('#prod_name') && (qs('#prod_name').value = it.name || '');
-      qs('#prod_category') && (qs('#prod_category').value = it.category || '');
-      qs('#prod_quantity') && (qs('#prod_quantity').value = it.quantity || 0);
-      qs('#prod_unitCost') && (qs('#prod_unitCost').value = it.unitCost || 0);
-      qs('#prod_unitPrice') && (qs('#prod_unitPrice').value = it.unitPrice || 0);
-    }catch(e){ console.error(e); alert('Load failed'); }
+      if(qs('#prod_id')) qs('#prod_id').value = it.id || it._id;
+      if(qs('#prod_sku')) qs('#prod_sku').value = it.sku || '';
+      if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
+      if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
+      if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
+      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
+      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
+    } catch (e) { console.error(e); alert('Load failed'); }
   }
-
   qs('#saveProductBtn')?.addEventListener('click', async ()=>{
     if(!confirm('Save changes?')) return;
     const idVal = qs('#prod_id')?.value;
     const body = {
-      sku: qs('#prod_sku')?.value,
-      name: qs('#prod_name')?.value,
-      category: qs('#prod_category')?.value,
-      quantity: Number(qs('#prod_quantity')?.value||0),
-      unitCost: Number(qs('#prod_unitCost')?.value||0),
-      unitPrice: Number(qs('#prod_unitPrice')?.value||0)
+      sku: qs('#prod_sku')?.value, name: qs('#prod_name')?.value, category: qs('#prod_category')?.value,
+      quantity: Number(qs('#prod_quantity')?.value||0), unitCost: Number(qs('#prod_unitCost')?.value||0), unitPrice: Number(qs('#prod_unitPrice')?.value||0)
     };
-    try{
+    try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method:'PUT', body: JSON.stringify(body) });
-      if(res.ok){ alert('Updated'); window.location.href='inventory.html'; } else { const err = await res.json(); alert('Failed: '+(err.message||'')); }
-    }catch(e){ console.error(e); alert('Server error'); }
+      if(res.ok) { alert('Updated'); window.location.href = 'inventory.html'; }
+      else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+    } catch(e) { console.error(e); alert('Server error'); }
   });
-  qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href='inventory.html');
+  qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
 }
 
-/* ================= DOCUMENTS ================= */
+/* ========================= DOCUMENTS ========================= */
 
 async function uploadDocuments(){
   const files = qs('#docUpload')?.files || [];
-  if(files.length === 0) return showMsg(qs('#uploadMessage'),'Select files','red');
-  if(!confirm(`Upload metadata for ${files.length} files?`)) return;
-  for(const f of files){
-    try{
-      const res = await apiFetch(`${API_BASE}/documents`, { method:'POST', body: JSON.stringify({ name: f.name, sizeBytes: f.size, type: f.type }) });
-      if(!res.ok) throw new Error('Failed to upload metadata');
-    }catch(e){ console.error(e); showMsg(qs('#uploadMessage'),`Failed ${f.name}`); return; }
+  const msgEl = qs('#uploadMessage') || null;
+  if(files.length === 0) { if(msgEl) showMsg(msgEl, '⚠️ Select files'); return; }
+  if(!confirm(`Upload ${files.length} documents metadata?`)) { if(msgEl) showMsg(msgEl, 'Cancelled','orange'); return; }
+  for(const f of files) {
+    try {
+      const res = await apiFetch(`${API_BASE}/documents`, { method:'POST', body: JSON.stringify({ name: f.name, type: f.type, sizeBytes: f.size }) });
+      if(!res.ok) throw new Error('Upload failed');
+    } catch(e) { console.error(e); if(msgEl) showMsg(msgEl, `Failed ${f.name}`,'red'); return; }
   }
-  qs('#docUpload').value = ''; setTimeout(()=> fetchDocuments(), 800); showMsg(qs('#uploadMessage'),'Uploaded','green');
+  qs('#docUpload').value = '';
+  setTimeout(()=> fetchDocuments(), 700);
+  if(msgEl) showMsg(msgEl, 'Uploaded','green');
 }
-
+function downloadDocument(fileNameEncoded) {
+  const fileName = decodeURIComponent(fileNameEncoded);
+  if(!confirm(`Download ${fileName}?`)) return;
+  window.open(`${API_BASE}/documents/download/${encodeURIComponent(fileName)}`, '_blank');
+}
+async function deleteDocumentConfirm(id) {
+  const d = documents.find(x=>String(x.id) === String(id));
+  if(!d) return; if(!confirm(`Delete ${d.name}?`)) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/documents/${id}`, { method:'DELETE' });
+    if(res.status === 204) { await fetchDocuments(); alert('Deleted'); }
+    else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+  } catch(e) { console.error(e); alert('Server error'); }
+}
 function bindDocumentsUI(){
   qs('#uploadDocsBtn')?.addEventListener('click', uploadDocuments);
-  qs('#searchDocs')?.addEventListener('input', ()=>{
-    const q = (qs('#searchDocs')?.value||'').toLowerCase().trim();
-    const filtered = documents.filter(d => (d.name||'').toLowerCase().includes(q));
-    renderDocuments(filtered);
+  qs('#searchDocs')?.addEventListener('input', ()=> {
+    const q = (qs('#searchDocs')?.value||'').toLowerCase();
+    renderDocuments((documents||[]).filter(d => (d.name||'').toLowerCase().includes(q)));
   });
 }
 
-/* ================= SALES (modal add/edit) ================= */
+/* ========================= SALES UI ========================= */
 
 function bindSalesUI(){
-  qs('#addSaleBtn')?.addEventListener('click', openSaleModal);
+  // downloads
   qs('#downloadSalesXLSXBtnInline')?.addEventListener('click', downloadSalesReportXLSX);
-  // sales pdf button handled inline in HTML
+  qs('#downloadSalesPDFBtn')?.addEventListener('click', ()=> window.open(`${API_BASE}/sales/report/pdf`, '_blank'));
+
+  // add sale button (modal)
+  qs('#addSaleBtn')?.addEventListener('click', openSaleModal);
+  // modal close/save are bound in openSaleModal creation
 }
 
-function openSaleModal(existing){
-  // existing: sale object to edit (optional)
+function openSaleModal(existingSale){
+  // build modal only once
   if(!qs('#saleModal')){
-    const modal = document.createElement('div');
-    modal.id = 'saleModal';
-    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;overflow:auto;padding:40px 16px;';
+    const modal = document.createElement('div'); modal.id = 'saleModal'; modal.className = 'modal';
     modal.innerHTML = `
-      <div style="background:white;padding:20px;border-radius:8px;max-width:520px;width:100%;">
+      <div class="modal-inner" style="background:white;padding:20px;border-radius:8px;max-width:520px;margin:60px auto;">
         <h3 id="saleModalTitle">Add Sale</h3>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label>Invoice (optional)</label>
-          <input id="sale_invoice" placeholder="Invoice # (optional)" />
-          <label>Product (type name or SKU)</label>
-          <input id="sale_product" list="productList" placeholder="Product name or SKU" />
-          <datalist id="productList"></datalist>
-          <label>SKU (auto-filled)</label>
-          <input id="sale_product_sku" readonly />
-          <label>Quantity</label>
-          <input id="sale_quantity" type="number" min="1" value="1" />
-          <label>Total (RM)</label>
-          <input id="sale_total" type="number" step="0.01" />
-          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
-            <button id="saveSaleBtn" class="primary-btn">Save</button>
-            <button id="closeSaleBtn" class="secondary-btn">Close</button>
-          </div>
+        <label>Invoice</label><input id="sale_invoice" />
+        <label>Product (search)</label><input id="sale_product_search" placeholder="type SKU or name" />
+        <div id="sale_product_dropdown" class="search-dropdown"></div>
+        <label>Quantity</label><input id="sale_quantity" type="number" value="1" min="1" />
+        <label>Total (RM)</label><input id="sale_total" type="number" step="0.01" />
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button id="saveSaleBtn" class="primary-btn">Save</button>
+          <button id="saleModalClose" class="secondary-btn">Close</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
 
-    // bind events
-    qs('#saveSaleBtn')?.addEventListener('click', saveSaleFromModal);
-    qs('#closeSaleBtn')?.addEventListener('click', ()=> qs('#saleModal').style.display='none');
-    // product change -> autofill sku & price
-    qs('#sale_product')?.addEventListener('input', onSaleProductInput);
+    // events
+    qs('#sale_product_search').addEventListener('input', (e)=> buildSimpleDropdown(e.target.value, '#sale_product_dropdown', inventory, onSalePick));
+    qs('#saleModalClose').addEventListener('click', ()=> qs('#saleModal').style.display='none');
+    qs('#saveSaleBtn').addEventListener('click', addSale);
   }
-  qs('#saleModalTitle').textContent = existing ? 'Edit Sale' : 'Add Sale';
-  // clear or set fields
-  qs('#sale_invoice').value = existing?.invoice || '';
-  qs('#sale_product').value = existing?.product || '';
-  qs('#sale_product_sku').value = existing?.productSku || '';
-  qs('#sale_quantity').value = existing?.quantity || 1;
-  qs('#sale_total').value = existing?.total || 0;
-  qs('#saleModal').style.display = 'flex';
-  // store edit id
-  qs('#saleModal').dataset.editId = existing?.id || existing?._id || '';
-}
 
-function onSaleProductInput(e){
-  const val = e.target.value.trim().toLowerCase();
-  // find by sku or name
-  const found = inventory.find(it => (it.sku||'').toLowerCase() === val || (it.name||'').toLowerCase() === val || `${(it.name||'')} ${(it.sku||'')}`.toLowerCase().includes(val));
-  if(found){
-    qs('#sale_product_sku').value = found.sku || '';
-    // default total = price * qty
-    const qty = Number(qs('#sale_quantity')?.value || 1);
-    qs('#sale_total').value = (Number(found.unitPrice||found.unitCost||0) * qty).toFixed(2);
+  // prefill when editing
+  if (existingSale) {
+    qs('#saleModalTitle').textContent = 'Edit Sale';
+    qs('#sale_invoice').value = existingSale.invoice || '';
+    qs('#sale_product_search').value = existingSale.product || '';
+    qs('#sale_quantity').value = existingSale.quantity || 1;
+    qs('#sale_total').value = existingSale.total || 0;
+    qs('#saveSaleBtn').dataset.editId = existingSale.id || existingSale._id;
   } else {
-    // clear sku if not exact match
-    qs('#sale_product_sku').value = '';
+    qs('#saleModalTitle').textContent = 'Add Sale';
+    qs('#sale_invoice').value = '';
+    qs('#sale_product_search').value = '';
+    qs('#sale_quantity').value = 1;
+    qs('#sale_total').value = '';
+    delete qs('#saveSaleBtn').dataset.editId;
   }
+
+  qs('#saleModal').style.display='block';
 }
 
-async function saveSaleFromModal(){
+function onSalePick(item) {
+  // item: inventory item object
+  if(!item) return;
+  qs('#sale_product_search').value = `${item.sku} — ${item.name}`;
+  // auto fill total as unitPrice * qty
+  const qty = Number(qs('#sale_quantity')?.value || 1);
+  qs('#sale_total').value = (Number(item.unitPrice||0) * qty).toFixed(2);
+  // hide dropdown
+  qs('#sale_product_dropdown').innerHTML = '';
+}
+
+async function addSale(){
+  const editId = qs('#saveSaleBtn')?.dataset?.editId;
   const invoice = qs('#sale_invoice')?.value?.trim();
-  const product = qs('#sale_product')?.value?.trim();
-  const sku = qs('#sale_product_sku')?.value?.trim();
-  const quantity = Number(qs('#sale_quantity')?.value || 0);
+  const product = qs('#sale_product_search')?.value?.trim();
+  const qty = Number(qs('#sale_quantity')?.value || 0);
   const total = Number(qs('#sale_total')?.value || 0);
-  if(!product || quantity <= 0) return alert('Enter product and quantity');
-  const editId = qs('#saleModal')?.dataset?.editId;
-  try{
-    const payload = { invoice, product, productSku: sku, quantity, total };
-    if(editId){
-      const res = await apiFetch(`${API_BASE}/sales/${encodeURIComponent(editId)}`, { method:'PUT', body: JSON.stringify(payload) });
-      if(!res.ok) { const err = await res.json(); return alert('Save failed: ' + (err.message||'')); }
-      alert('Sale updated');
+  if (!product || qty <= 0) return alert('Fill product and qty');
+  try {
+    if(editId) {
+      const res = await apiFetch(`${API_BASE}/sales/${encodeURIComponent(editId)}`, { method:'PUT', body: JSON.stringify({ invoice, product, quantity: qty, total }) });
+      if(res.ok) { await fetchSales(); qs('#saleModal').style.display='none'; alert('Sale updated'); }
+      else { const err = await res.json(); alert('Failed: '+(err.message||'')); }
     } else {
-      const res = await apiFetch(`${API_BASE}/sales`, { method:'POST', body: JSON.stringify(payload) });
-      if(!res.ok) { const err = await res.json(); return alert('Create failed: ' + (err.message||'')); }
-      alert('Sale saved');
+      const res = await apiFetch(`${API_BASE}/sales`, { method:'POST', body: JSON.stringify({ invoice, product, quantity: qty, total }) });
+      if(res.ok) { await fetchSales(); qs('#saleModal').style.display='none'; alert('Sale recorded'); }
+      else { const err = await res.json(); alert('Failed: '+(err.message||'')); }
     }
-    qs('#saleModal').style.display = 'none';
-    await fetchSales();
-    await fetchInventory(); // if sales affect inventory
-  }catch(e){ console.error(e); alert('Server error'); }
+  } catch(e) { console.error(e); alert('Server error'); }
 }
 
-function openEditSaleModal(id){
-  const s = sales.find(x=> String(x.id) === String(id) || String(x._id) === String(id));
+function openEditSale(id) {
+  const s = sales.find(x => String(x.id || x._id) === String(id));
+  if (!s) return alert('Sale not found');
   openSaleModal(s);
 }
 
-async function confirmDeleteSale(id){
-  if(!confirm('Delete sale?')) return;
-  try{
-    const res = await apiFetch(`${API_BASE}/sales/${encodeURIComponent(id)}`, { method:'DELETE' });
-    if(res.status === 204 || res.ok){ alert('Deleted'); await fetchSales(); } else { alert('Delete failed'); }
-  }catch(e){ console.error(e); alert('Server error'); }
+async function deleteSaleConfirm(id) {
+  if(!confirm('Delete this sale?')) return;
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/${id}`, { method:'DELETE' });
+    if (res.status === 204 || res.ok) { await fetchSales(); alert('Deleted'); }
+    else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+  } catch(e) { console.error(e); alert('Server error'); }
 }
 
-/* download sales xlsx */
 async function downloadSalesReportXLSX(){
-  try{
+  try {
     const res = await apiFetch(`${API_BASE}/sales/report`, { method:'GET' });
-    if(!res.ok){ const err = await res.json(); return alert('Failed: '+(err.message||'')); }
+    if(!res.ok){ const err = await res.json(); return alert('Failed: ' + (err.message||'')); }
     const blob = await res.blob();
     const cd = res.headers.get('Content-Disposition'); const fn = cd && cd.match(/filename="(.+?)"/) ? cd.match(/filename="(.+?)"/)[1] : `Sales_Report.xlsx`;
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     await fetchSales();
-  }catch(e){ console.error(e); alert('Error'); }
+  } catch(e) { console.error(e); alert('Error'); }
 }
 
-/* ================= ORDERS (advanced modal, items chosen from inventory) ================= */
+/* ========================= ORDERS UI (Advanced) ========================= */
 
 function bindOrdersUI(){
-  qs('#addOrderBtn')?.addEventListener('click', openOrderModal);
+  qs('#addOrderBtn')?.addEventListener('click', ()=> openOrderModal());
   qs('#downloadOrdersXLSXBtnInline')?.addEventListener('click', downloadOrdersReportXLSX);
+  qs('#downloadOrdersPDFBtn')?.addEventListener('click', ()=> window.open(`${API_BASE}/orders/report/pdf`, '_blank'));
+  // openEditOrder, changeOrderStatusPrompt, deleteOrderConfirm are used inline from renderOrders
 }
 
-function openOrderModal(existing){
-  if(!qs('#orderModal')){
-    const modal = document.createElement('div');
-    modal.id = 'orderModal';
-    modal.style = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;overflow:auto;padding:40px 10px;';
+// Creates or shows the order modal
+function openOrderModal(existingOrder) {
+  // create once
+  if(!qs('#orderModal')) {
+    console.log('orderModal not present; create');
+    // the HTML for order modal is in the page for most templates (we create fallback)
+    const modal = document.createElement('div'); modal.id = 'orderModal'; modal.className='modal';
     modal.innerHTML = `
-      <div style="background:white;padding:18px;border-radius:8px;max-width:880px;width:100%;">
-        <h3 id="orderModalTitle">Create New Order</h3>
-        <div style="display:flex;gap:12px;margin-bottom:8px;">
-          <div style="flex:1;">
-            <label>Customer Name</label>
-            <input id="order_customer" placeholder="Customer full name" />
-          </div>
-          <div style="width:160px;">
-            <label>Order # (optional)</label>
-            <input id="order_number" placeholder="Order #" />
-          </div>
+      <div class="modal-inner" style="background:white;padding:20px;border-radius:8px;max-width:720px;margin:60px auto;">
+        <h3 id="orderModalTitle">Add New Order</h3>
+        <label>Customer Name</label><input id="order_customer" />
+        <label>Order No (optional)</label><input id="order_number" />
+        <label>Search item (SKU / Name)</label><input id="order_item_search" placeholder="type to search inventory" />
+        <div id="order_item_dropdown" class="search-dropdown"></div>
+
+        <div class="table-container" style="margin-top:12px;">
+          <table id="orderItemTable" style="min-width:600px;">
+            <thead><tr><th>Item</th><th>Unit Price</th><th>Qty</th><th>Subtotal</th><th>Action</th></tr></thead>
+            <tbody id="orderItemList"></tbody>
+          </table>
         </div>
-        <div id="order_items_container" style="border:1px solid #eee;padding:10px;border-radius:6px;min-height:60px;"></div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-          <button id="addOrderItemBtn" class="secondary-btn">+ Add Item</button>
+
+        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+          <div><b>Total: RM <span id="order_total">0.00</span></b></div>
           <div style="flex:1"></div>
-          <label style="margin:0;">Total: RM <span id="order_total_display">0.00</span></label>
+          <label>Order Status</label>
+          <select id="order_status" style="padding:8px;">
+            <option>Pending</option><option>Approved</option><option>Cancelled</option>
+          </select>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:8px;">
           <button id="saveOrderBtn" class="primary-btn">Save Order</button>
-          <button id="orderModalClose" class="secondary-btn">Close</button>
+          <button id="orderModalClose" class="secondary-btn">Cancel</button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
 
-    qs('#addOrderItemBtn')?.addEventListener('click', addOrderItemRow);
-    qs('#saveOrderBtn')?.addEventListener('click', saveOrderFromModal);
-    qs('#orderModalClose')?.addEventListener('click', ()=> qs('#orderModal').style.display = 'none');
+    // events
+    qs('#order_item_search').addEventListener('input', e => buildSimpleDropdown(e.target.value, '#order_item_dropdown', inventory, onOrderItemPick));
+    qs('#orderModalClose').addEventListener('click', () => qs('#orderModal').style.display='none');
+    qs('#saveOrderBtn').addEventListener('click', saveOrderFromModal);
   }
 
-  // clear & populate
-  qs('#order_customer').value = existing?.customerName || '';
-  qs('#order_number').value = existing?.orderNumber || '';
-  const container = qs('#order_items_container'); container.innerHTML = '';
-  if(existing && Array.isArray(existing.items) && existing.items.length){
-    existing.items.forEach(it => addOrderItemRow(it));
+  // reset or populate
+  qs('#orderItemList').innerHTML = '';
+  qs('#order_customer').value = existingOrder ? existingOrder.customerName || '' : '';
+  qs('#order_number').value = existingOrder ? (existingOrder.orderNumber || '') : '';
+  qs('#order_status').value = existingOrder ? (existingOrder.status || 'Pending') : 'Pending';
+  qs('#order_total').textContent = '0.00';
+  if (existingOrder) {
+    // add items
+    (existingOrder.items || []).forEach(it => addOrderItemRow(it));
+    qs('#saveOrderBtn').dataset.editId = existingOrder.id || existingOrder._id;
+    qs('#orderModalTitle').textContent = 'Edit Order';
   } else {
-    addOrderItemRow();
+    addOrderItemRow(); // default one row
+    delete qs('#saveOrderBtn').dataset.editId;
+    qs('#orderModalTitle').textContent = 'Add New Order';
   }
-  qs('#order_total_display').textContent = (existing?.total || 0).toFixed(2);
-  qs('#orderModal').style.display = 'flex';
-  qs('#orderModal').dataset.editId = existing?.id || existing?._id || '';
+
+  qs('#orderModal').style.display = 'block';
 }
 
-function addOrderItemRow(prefill){
-  const container = qs('#order_items_container');
-  const row = document.createElement('div');
-  row.style = 'display:flex;gap:8px;align-items:center;margin-top:8px;';
-  row.className = 'order-item-row';
-  row.innerHTML = `
-    <input class="order_product" list="productList" placeholder="Product name or SKU" style="flex:2" />
-    <input class="order_sku" placeholder="SKU" style="width:120px" />
-    <input class="order_qty" type="number" min="1" value="${prefill?.qty||1}" style="width:80px" />
-    <input class="order_price" type="number" step="0.01" value="${(prefill?.price||0).toFixed ? (prefill?.price||0).toFixed(2) : (prefill?.price||0)}" style="width:120px" />
-    <button class="danger-btn removeOrderItem">Remove</button>`;
-  container.appendChild(row);
+function onOrderItemPick(item) {
+  // adds an item row prefilled from inventory
+  if(!item) return;
+  addOrderItemRow({ sku: item.sku, name: item.name, price: Number(item.unitPrice||0), qty: 1 });
+  qs('#order_item_dropdown').innerHTML = '';
+  qs('#order_item_search').value = '';
+  updateOrderTotalFromModal();
+}
 
-  // populate datalist for product suggestions (same datalist used by sales)
-  populateProductDatalist();
+// Adds an order item row to modal; item object optional to prefill
+function addOrderItemRow(item = null) {
+  const tbody = qs('#orderItemList');
+  if(!tbody) return;
+  const tr = document.createElement('tr');
 
-  // events: when product chosen -> autofill sku & price
-  row.querySelector('.order_product').addEventListener('input', (e)=>{
-    const v = e.target.value.trim().toLowerCase();
-    const found = inventory.find(it => (it.sku||'').toLowerCase() === v || (it.name||'').toLowerCase() === v || `${it.name} ${it.sku}`.toLowerCase().includes(v));
-    if(found){
-      row.querySelector('.order_sku').value = found.sku || '';
-      // auto-fill price (unitPrice preferred)
-      row.querySelector('.order_price').value = Number(found.unitPrice || found.unitCost || 0).toFixed(2);
-      updateOrderTotalFromModal();
-    }
-  });
+  const nameVal = item ? `${item.sku} — ${item.name}` : '';
+  const priceVal = item ? Number(item.price||0).toFixed(2) : '0.00';
+  const qtyVal = item ? Number(item.qty||1) : 1;
+  tr.innerHTML = `
+    <td><input class="order_row_name" placeholder="SKU — Name" value="${escapeHtml(nameVal)}" style="width:100%"></td>
+    <td><input class="order_row_price" type="number" step="0.01" value="${escapeHtml(priceVal)}" style="width:120px"></td>
+    <td><input class="order_row_qty" type="number" min="1" value="${escapeHtml(qtyVal)}" style="width:80px"></td>
+    <td class="order_row_subtotal money">RM ${ (Number(priceVal) * Number(qtyVal)).toFixed(2) }</td>
+    <td style="text-align:center;">
+      <button class="danger-btn small-btn remove-order-row">Remove</button>
+    </td>
+  `;
+  tbody.appendChild(tr);
 
-  row.querySelector('.order_qty').addEventListener('input', updateOrderTotalFromModal);
-  row.querySelector('.order_price').addEventListener('input', updateOrderTotalFromModal);
-  row.querySelector('.removeOrderItem')?.addEventListener('click', ()=>{
-    row.remove(); updateOrderTotalFromModal();
-  });
+  const priceInp = tr.querySelector('.order_row_price');
+  const qtyInp = tr.querySelector('.order_row_qty');
+  const subtotalTd = tr.querySelector('.order_row_subtotal');
+
+  function recompute() {
+    const p = Number(priceInp.value || 0);
+    const q = Number(qtyInp.value || 0);
+    subtotalTd.textContent = 'RM ' + (p * q).toFixed(2);
+    updateOrderTotalFromModal();
+  }
+
+  priceInp.addEventListener('input', recompute);
+  qtyInp.addEventListener('input', recompute);
+  tr.querySelector('.remove-order-row').addEventListener('click', ()=> { tr.remove(); updateOrderTotalFromModal(); });
 
   updateOrderTotalFromModal();
 }
 
-function updateOrderTotalFromModal(){
-  const rows = qsa('#order_items_container .order-item-row');
+// calculate order total in modal
+function updateOrderTotalFromModal() {
+  const rows = qsa('#orderItemList tr');
   let total = 0;
-  rows.forEach(r=>{
-    const q = Number(r.querySelector('.order_qty')?.value || 0);
-    const p = Number(r.querySelector('.order_price')?.value || 0);
-    total += q * p;
+  rows.forEach(r => {
+    const p = Number(r.querySelector('.order_row_price').value || 0);
+    const q = Number(r.querySelector('.order_row_qty').value || 0);
+    total += p * q;
   });
-  qs('#order_total_display').textContent = total.toFixed(2);
+  if (qs('#order_total')) qs('#order_total').textContent = total.toFixed(2);
 }
 
+// save order from modal (create or update)
 async function saveOrderFromModal(){
+  const editId = qs('#saveOrderBtn').dataset.editId;
   const customer = qs('#order_customer')?.value?.trim();
   const orderNumber = qs('#order_number')?.value?.trim();
+  const status = qs('#order_status')?.value || 'Pending';
   if(!customer) return alert('Enter customer name');
-  const rows = qsa('#order_items_container .order-item-row');
+  const rows = qsa('#orderItemList tr');
   if(rows.length === 0) return alert('Add at least one item');
-  const items = rows.map(r => ({ sku: r.querySelector('.order_sku')?.value.trim(), name: r.querySelector('.order_product')?.value.trim(), qty: Number(r.querySelector('.order_qty')?.value||0), price: Number(r.querySelector('.order_price')?.value||0) }));
-  const total = items.reduce((s,i)=> s + (Number(i.qty||0) * Number(i.price||0)), 0);
-  const payload = { customerName: customer, orderNumber, items, total, status: 'Pending' };
-  const editId = qs('#orderModal')?.dataset?.editId;
-  try{
-    if(editId){
-      const res = await apiFetch(`${API_BASE}/orders/${encodeURIComponent(editId)}`, { method:'PUT', body: JSON.stringify(payload) });
-      if(!res.ok) { const err = await res.json(); return alert('Save failed: ' + (err.message||'')); }
-      alert('Order updated');
-    } else {
-      const res = await apiFetch(`${API_BASE}/orders`, { method:'POST', body: JSON.stringify(payload) });
-      if(!res.ok) { const err = await res.json(); return alert('Create failed: ' + (err.message||'')); }
-      alert('Order saved');
+  const items = rows.map(r => {
+    const name = r.querySelector('.order_row_name').value || '';
+    // attempt to split sku & name if provided in "SKU — Name" format
+    let sku = '', label = name;
+    if (name.includes('—')) {
+      const parts = name.split('—').map(p => p.trim());
+      sku = parts[0]; label = parts.slice(1).join(' — ');
     }
-    qs('#orderModal').style.display = 'none';
-    await fetchOrders();
-  }catch(e){ console.error(e); alert('Server error'); }
+    const qty = Number(r.querySelector('.order_row_qty').value || 0);
+    const price = Number(r.querySelector('.order_row_price').value || 0);
+    return { sku, name: label, qty, price };
+  });
+  const total = items.reduce((s,i) => s + (Number(i.qty||0) * Number(i.price||0)), 0);
+
+  try {
+    if (editId) {
+      const res = await apiFetch(`${API_BASE}/orders/${encodeURIComponent(editId)}`, { method:'PUT', body: JSON.stringify({ customerName: customer, orderNumber, items, total, status }) });
+      if (res.ok) { await fetchOrders(); qs('#orderModal').style.display='none'; alert('Order updated'); }
+      else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+    } else {
+      const res = await apiFetch(`${API_BASE}/orders`, { method:'POST', body: JSON.stringify({ customerName: customer, orderNumber, items, total, status }) });
+      if (res.ok) { await fetchOrders(); qs('#orderModal').style.display='none'; alert('Order created'); }
+      else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+    }
+  } catch(e) { console.error(e); alert('Server error'); }
 }
 
-function openEditOrderModal(id){
-  const o = orders.find(x=> String(x.id) === String(id) || String(x._id) === String(id));
-  openOrderModal(o);
+// open order edit - find order and call openOrderModal with existing data
+function openEditOrder(id) {
+  const o = orders.find(x => String(x.id || x._id) === String(id));
+  if(!o) return alert('Order not found');
+  // map to expected fields
+  openOrderModal({ ...o, id: o.id || o._id });
 }
 
-async function cancelOrder(id){
-  if(!confirm('Mark order as Cancelled?')) return;
-  try{
-    const res = await apiFetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, { method:'PUT', body: JSON.stringify({ status: 'Cancelled' }) });
-    if(!res.ok) { const err = await res.json(); return alert('Failed: ' + (err.message||'')); }
-    alert('Order cancelled');
-    await fetchOrders();
-  }catch(e){ console.error(e); alert('Server error'); }
+// change order status by prompt or quick menu
+async function changeOrderStatusPrompt(id) {
+  const o = orders.find(x => String(x.id || x._id) === String(id));
+  if(!o) return alert('Order not found');
+  const newStatus = prompt('Set order status (Pending / Approved / Cancelled):', o.status || 'Pending');
+  if(!newStatus) return;
+  if (!['Pending','Approved','Cancelled'].includes(newStatus)) return alert('Invalid status');
+  try {
+    const res = await apiFetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, { method:'PUT', body: JSON.stringify({ ...o, status: newStatus }) });
+    if(res.ok) { await fetchOrders(); alert('Status updated'); }
+    else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+  } catch(e) { console.error(e); alert('Server error'); }
 }
 
-async function confirmDeleteOrder(id){
-  if(!confirm('Delete order?')) return;
-  try{
+async function deleteOrderConfirm(id) {
+  if(!confirm('Delete this order?')) return;
+  try {
     const res = await apiFetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, { method:'DELETE' });
-    if(res.status === 204 || res.ok){ alert('Deleted'); await fetchOrders(); } else alert('Delete failed');
-  }catch(e){ console.error(e); alert('Server error'); }
+    if (res.status === 204 || res.ok) { await fetchOrders(); alert('Deleted'); }
+    else { const err = await res.json(); alert('Failed: ' + (err.message||'')); }
+  } catch(e) { console.error(e); alert('Server error'); }
 }
 
 async function downloadOrdersReportXLSX(){
-  try{
+  try {
     const res = await apiFetch(`${API_BASE}/orders/report`, { method:'GET' });
-    if(!res.ok){ const err = await res.json(); return alert('Failed: '+(err.message||'')); }
-    const blob = await res.blob(); const cd = res.headers.get('Content-Disposition');
+    if(!res.ok){ const err = await res.json(); return alert('Failed: ' + (err.message||'')); }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition');
     const fn = cd && cd.match(/filename="(.+?)"/) ? cd.match(/filename="(.+?)"/)[1] : `Orders_Report.xlsx`;
-    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=fn; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fn; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     await fetchOrders();
-  }catch(e){ console.error(e); alert('Error'); }
+  } catch(e) { console.error(e); alert('Error'); }
 }
 
-/* ================= ZIP ALL REPORTS (dashboard) ================= */
+/* ========================= ZIP ALL REPORTS ========================= */
 
 async function downloadAllReportsZip(){
-  try{
+  try {
     const res = await apiFetch(`${API_BASE}/reports/zip`, { method:'GET' });
-    if(!res.ok) { const err = await res.json(); return alert('Failed: ' + (err.message||'')); }
-    const blob = await res.blob(); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download = `All_Reports_${new Date().toISOString().slice(0,10)}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  }catch(e){ console.error(e); alert('Error'); }
+    if(!res.ok){ const err = await res.json(); return alert('Failed: ' + (err.message||'')); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `All_Reports_${new Date().toISOString().slice(0,10)}.zip`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  } catch(e) { console.error(e); alert('Error'); }
 }
 
-/* ================= HELPERS & small bindings ================= */
+/* ========================= UTIL: Simple Search Dropdown (A - simple box + auto dropdown) =========================
+   buildSimpleDropdown(query, dropdownSelector, listArray, onPick(item))
+   - listArray: array of inventory objects [{sku,name,...}, ...]
+   - displays up to 8 matches
+*/
+function buildSimpleDropdown(query, dropdownSelector, listArray, onPick) {
+  const dropEl = qs(dropdownSelector);
+  if(!dropEl) return;
+  const q = (query || '').toLowerCase().trim();
+  if(!q) { dropEl.innerHTML = ''; return; }
 
-function populateProductDatalist(){
-  // single datalist reused by sales & orders; create if missing
-  if(!qs('#productList')) {
-    const dl = document.createElement('datalist'); dl.id = 'productList'; document.body.appendChild(dl);
+  const matches = (listArray || []).filter(i => (i.sku||'').toLowerCase().includes(q) || (i.name||'').toLowerCase().includes(q)).slice(0, 8);
+  if(matches.length === 0) { dropEl.innerHTML = '<div style="padding:8px;color:#777">No matches</div>'; return; }
+
+  dropEl.innerHTML = '';
+  matches.forEach(m => {
+    const div = document.createElement('div');
+    div.style = 'padding:8px;cursor:pointer;border-bottom:1px solid #eee';
+    div.textContent = `${m.sku} — ${m.name} (RM ${Number(m.unitPrice||0).toFixed(2)})`;
+    div.addEventListener('click', ()=> { onPick && onPick(m); dropEl.innerHTML = ''; });
+    dropEl.appendChild(div);
+  });
+}
+
+/* ========================= SETTINGS & BINDINGS for login/register pages ========================= */
+document.addEventListener('DOMContentLoaded', ()=> {
+  // login/register page bindings
+  if (currentPage.includes('login.html')) {
+    qs('#loginBtn')?.addEventListener('click', login);
+    qs('#registerBtn')?.addEventListener('click', register);
+    qs('#toggleToRegister')?.addEventListener('click', toggleForm);
+    qs('#toggleToLogin')?.addEventListener('click', toggleForm);
+    if (qs('#contactPhone') && window.CONFIG && CONFIG.CONTACT_PHONE) qs('#contactPhone').textContent = CONFIG.CONTACT_PHONE;
   }
-  const dl = qs('#productList');
-  if(!dl) return;
-  dl.innerHTML = '';
-  inventory.forEach(it => {
-    const opt = document.createElement('option');
-    opt.value = `${it.name} ${it.sku}`.trim();
-    dl.appendChild(opt);
-  });
-}
+});
 
-function renderDocuments(docs){
-  const t = qs('#docList'); if(!t) return; t.innerHTML = '';
-  docs.forEach(d=>{
-    const id = d.id || d._id;
-    const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHtml(d.name||'')}</td><td>${sizeMB} MB</td><td>${escapeHtml(new Date(d.date).toLocaleString())}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${encodeURIComponent(d.name||'')}')">⬇️ Download</button>
-        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
-      </td>`;
-    t.appendChild(tr);
-  });
-}
-
-function downloadDocument(fnEnc){ const fn = decodeURIComponent(fnEnc); if(!confirm(`Download ${fn}?`)) return; window.open(`${API_BASE}/documents/download/${encodeURIComponent(fn)}`, '_blank'); }
-async function deleteDocumentConfirm(id){ const d = documents.find(x=> String(x.id)===String(id)); if(!d) return; if(!confirm(`Delete ${d.name}?`)) return; try{ const res = await apiFetch(`${API_BASE}/documents/${id}`, { method:'DELETE' }); if(res.status===204){ await fetchDocuments(); alert('Deleted'); } else alert('Failed'); }catch(e){ console.error(e); alert('Server error'); } }
-
-/* ================= SETTINGS & DASHBOARD ================= */
-
-function bindSettingPage(){
-  const currentUsername = getUsername();
-  if(qs('#currentUser')) qs('#currentUser').textContent = currentUsername;
-  qs('#changePasswordBtn')?.addEventListener('click', async ()=>{
-    const newPass = qs('#newPassword')?.value, conf = qs('#confirmPassword')?.value, code = qs('#securityCode')?.value;
-    const msgEl = qs('#passwordMessage'); showMsg(msgEl,'');
-    if(!newPass||!conf||!code) return showMsg(msgEl,'⚠️ Fill all','red');
-    if(newPass !== conf) return showMsg(msgEl,'⚠️ Password mismatch','red');
-    if(!confirm('Change password?')) return;
-    try{
-      const res = await apiFetch(`${API_BASE}/account/password`, { method:'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok){ showMsg(msgEl,'✅ Password updated. Logging out...','green'); setTimeout(()=> logout(), 1200); } else showMsg(msgEl, `❌ ${data.message||'Failed'}`,'red');
-    }catch(e){ showMsg(msgEl,'❌ Server error','red'); }
-  });
-
-  qs('#deleteAccountBtn')?.addEventListener('click', async ()=>{
-    if(!confirm('Delete your account?')) return;
-    const code = prompt('Enter Admin Security Code:');
-    if(!code) return alert('Cancelled');
-    try{
-      const res = await apiFetch(`${API_BASE}/account`, { method:'DELETE', body: JSON.stringify({ username: currentUsername, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok){ alert('Account deleted'); logout(); } else alert(`Failed: ${data.message||''}`);
-    }catch(e){ alert('Server error'); }
-  });
-}
-
-/* Dashboard helper (renders recent activities and totals) */
-function renderDashboardData(){
-  // recentActivities table
-  const tbody = qs('#recentActivities');
-  if(tbody && Array.isArray(activityLog)){
-    tbody.innerHTML = '';
-    activityLog.slice(0,5).forEach(l=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${escapeHtml(l.user||'System')}</td><td>${escapeHtml(l.action||'')}</td><td>${escapeHtml(new Date(l.time).toLocaleString())}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
-  if(qs('#dash_totalItems')){
-    let tv=0,trv=0,ts=0;
-    inventory.forEach(it=>{ const q=Number(it.quantity||0); tv += q*Number(it.unitCost||0); trv += q*Number(it.unitPrice||0); ts += q; });
-    qs('#dash_totalItems').textContent = inventory.length;
-    qs('#dash_totalValue').textContent = tv.toFixed(2);
-    qs('#dash_totalRevenue').textContent = trv.toFixed(2);
-    qs('#dash_totalStock').textContent = ts;
-  }
-}
-
-/* Expose some functions globally for inline handlers */
+/* ========================= Expose globals used by inline onclick handlers ========================= */
 window.logout = logout;
 window.toggleTheme = toggleTheme;
 window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
-window.openEditSaleModal = openEditSaleModal;
-window.openEditOrderModal = openEditOrderModal;
+window.openEditOrder = openEditOrder;
+window.openEditSale = openEditSale;
 window.downloadSalesReportXLSX = downloadSalesReportXLSX;
 window.downloadOrdersReportXLSX = downloadOrdersReportXLSX;
 window.downloadAllReportsZip = downloadAllReportsZip;
-window.populateProductDatalist = populateProductDatalist;
+
