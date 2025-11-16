@@ -12,9 +12,11 @@
   <nav>
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
+    <a href="orders.html">Orders</a>
+    <a href="sales.html">Sales</a>
     <a href="documents.html">Documents</a>
     <a href="log.html">Activity Log</a>
-    <a href="setting.html"><button>⚙️ Setting</button></a>
+    <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
     <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
@@ -24,26 +26,24 @@
 <section class="dashboard-grid">
     <div class="dashboard-info">
         <h2>Welcome to the Inventory & Document Management System</h2>
-        <p>This dashboard provides quick access to your inventory, document uploads, and activity log.</p>
+        <p>This dashboard provides quick access to your inventory, documents, orders, and sales.</p>
         
         <div class="clock" id="clock"></div>
 
         <ul>
             <li>📦 Manage inventory with SKU tracking.</li>
+            <li>🛒 Track Purchase Orders and update stock.</li>
+            <li>💰 Manage Sales and record revenue.</li>
             <li>📄 Upload and manage important documents.</li>
             <li>🕒 Review all actions in your activity log.</li>
         </ul>
-
-        <div class="info-card" style="margin-top: 20px;">
-            <p style="margin:0; font-size: 0.9rem;">
-                🛠️ The website was developed by <b>Brendan Jong & Leong Jia Wei</b><br>
-                ⚙️ Render Cloud database managed by <b>Leong Jia Wei</b>
-            </p>
-        </div>
     </div>
     
-    <div class="dashboard-card-container">
-        <a href="inventory.html" id="btn-inventory" class="quick-access-btn">📦 View Inventory</a>
+    <div class="quick-access">
+        <h3>Quick Access</h3>
+        <a href="inventory.html" id="btn-inventory" class="quick-access-btn">📦 Manage Inventory</a>
+        <a href="orders.html" id="btn-orders" class="quick-access-btn">🛒 Manage Orders</a>
+        <a href="sales.html" id="btn-sales" class="quick-access-btn">💰 Manage Sales</a>
         <a href="documents.html" id="btn-documents" class="quick-access-btn">📄 Manage Documents</a>
         
         <div class="info-card">
@@ -51,24 +51,35 @@
             <ul>
                 <li>Total Items: <span id="dash_totalItems">0</span></li>
                 <li>Total Value: RM <span id="dash_totalValue">0.00</span></li>
-                <li>Total Revenue: RM <span id="dash_totalRevenue">0.00</span></li>
+                <li>Total Potential Revenue: RM <span id="dash_totalRevenue">0.00</span></li>
                 <li>Total Stock Qty: <span id="dash_totalStock">0</span></li>
+            </ul>
+        </div>
+        
+        <div class="info-card" style="margin-top: 15px;">
+            <h3>📊 Sales & Order Summary</h3>
+            <ul>
+                <li>Total Orders: <span id="dash_totalOrders">0</span></li>
+                <li>Total Sales: <span id="dash_totalSales">0</span></li>
+                <li>Total Sales Revenue: RM <span id="dash_totalRevenueTotal">0.00</span></li>
             </ul>
         </div>
     </div>
     
-    <div style="grid-column: 1 / -1;" class="info-card">
+    <div style="grid-column: 1 / -1; margin-top: 10px;" class="info-card">
         <h3>🕒 Recent Activity Log</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Action</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody id="recentActivities"></tbody>
-        </table>
+        <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody id="recentActivities"></tbody>
+            </table>
+        </div>
     </div>
 </section>
 
@@ -81,7 +92,7 @@
     const options = { weekday: "short", year: "numeric", month: "short", day: "numeric" };
     const dateStr = now.toLocaleDateString(undefined, options);
     const timeStr = now.toLocaleTimeString();
-    document.getElementById("clock").textContent = `📅 ${dateStr} ⏰ ${timeStr}`;
+    document.getElementById("clock").textContent = `${dateStr} ${timeStr}`;
   }
   setInterval(updateClock, 1000);
   updateClock();
