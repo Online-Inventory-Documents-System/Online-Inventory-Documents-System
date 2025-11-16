@@ -386,18 +386,6 @@ input:focus {
 }
 
 /* =========================================
-   Log Styling (Unchanged)
-========================================= */
-#logList { list-style: none; padding: 0; }
-#logList li {
-  padding: 10px;
-  background: #e9ecef;
-  margin: 8px 0;
-  border-left: 4px solid var(--primary-color);
-  border-radius: 4px;
-}
-
-/* =========================================
    Dark Mode Overrides
 ========================================= */
 .dark-mode {
