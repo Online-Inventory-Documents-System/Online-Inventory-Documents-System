@@ -223,7 +223,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                 PDF REPORT — FIXED (NO BLANK PAGES EVER)
+//                 PDF REPORT — SAVE TO DOCUMENTS + LOG USER ACTION
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -234,8 +234,12 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     const reportId = `REP-${Date.now()}`;
     const printedBy = req.headers["x-username"] || "System";
 
-    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}.pdf`;
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
+    // ============================
+    // Prepare PDF buffer collector
+    // ============================
+    let pdfChunks = [];
     const doc = new PDFDocument({
       size: "A4",
       layout: "landscape",
@@ -243,14 +247,33 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       bufferPages: true
     });
 
+    // Capture PDF buffer
+    doc.on("data", chunk => pdfChunks.push(chunk));
+    doc.on("end", async () => {
+      const pdfBuffer = Buffer.concat(pdfChunks);
+
+      // Save PDF record in Document database
+      await Doc.create({
+        name: filename,
+        size: pdfBuffer.length,
+        date: new Date()
+      });
+
+      // Log user action
+      await logActivity(
+        printedBy,
+        `Generated Inventory Report PDF: ${filename}`
+      );
+    });
+
+    // Also send PDF to user
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
-
     doc.pipe(res);
 
-    // --------------------------
-    // HEADER (only first page)
-    // --------------------------
+    // =====================================================
+    // HEADER (Only shown on First Page)
+    // =====================================================
     doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
     doc.fontSize(10).font("Helvetica");
     doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
@@ -268,9 +291,9 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
     doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
-    // --------------------------
+    // =====================================================
     // TABLE SETTINGS
-    // --------------------------
+    // =====================================================
     const rowHeight = 18;
     const colX = {
       sku: 40, name: 100, category: 260, qty: 340,
@@ -306,9 +329,9 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
     let subtotalQty = 0, totalValue = 0, totalRevenue = 0;
 
-    // --------------------------
-    // TABLE ROWS (10 rows per page)
-    // --------------------------
+    // =====================================================
+    // TABLE ROWS — max 10 per page
+    // =====================================================
     for (const it of items) {
       if (rowsOnPage === 10) {
         doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
@@ -344,9 +367,9 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       rowsOnPage++;
     }
 
-    // --------------------------
-    // TOTAL BOX (always safe)
-    // --------------------------
+    // =====================================================
+    // TOTAL BOX (Last Page)
+    // =====================================================
     const last = doc.bufferedPageRange().count - 1;
     doc.switchToPage(last);
 
@@ -360,14 +383,11 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
     doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
 
-    // --------------------------
-    // FORCE PAGE RENDER COMPLETE
-    // --------------------------
     doc.flushPages();
 
-    // --------------------------
-    // FOOTER + PAGE NUMBERS (SAFE)
-    // --------------------------
+    // =====================================================
+    // FOOTER + PAGE NUMBER
+    // =====================================================
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
@@ -389,7 +409,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     res.status(500).json({ message: "PDF generation failed" });
   }
 });
-
 
 // ============================================================================
 //                                   XLSX REPORT
