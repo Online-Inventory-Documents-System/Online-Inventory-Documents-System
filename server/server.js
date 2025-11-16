@@ -6,7 +6,7 @@ const cors = require('cors');
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
-const PDFDocument = require('pdfkit');   // ✅ Added for PDF Reports
+const PDFDocument = require('pdfkit');   // ✅ Required for PDF Reports
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -228,70 +228,172 @@ app.delete('/api/inventory/:id', async (req, res) => {
 });
 
 // ============================================================================
-//                         PDF REPORT (NEW FEATURE)
+//                  PDF REPORT — A4 LANDSCAPE — PROFESSIONAL
 // ============================================================================
+
 app.get('/api/inventory/report/pdf', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const now = new Date();
     const filename = `Inventory_Report_${now.toISOString().slice(0,10)}.pdf`;
 
-    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    // Use A4 landscape and bufferPages so we can add page numbers at the end
+    const doc = new PDFDocument({
+      size: "A4",
+      layout: "landscape",
+      margin: 40,
+      bufferPages: true
+    });
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
 
     doc.pipe(res);
 
-    // LEFT HEADER
-    doc.fontSize(18).text("L&B Company");
-    doc.fontSize(10).text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka");
-    doc.text("Phone: 01133127622");
-    doc.text("Email: lbcompany@gmail.com");
+    // ========= Header (two-column fixed positions) =========
+    const headerY = 40;
 
-    // RIGHT HEADER
-    doc.fontSize(16).text("INVENTORY SUMMARY", 350, 40);
-    doc.fontSize(10).text(`Report #: REP-${Date.now()}`, 350);
-    doc.text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 350);
-    doc.text("Status: Generated", 350);
+    // Left column (company info)
+    doc.fontSize(20).font("Helvetica-Bold").text("L&B Company", 40, headerY);
+    doc.fontSize(10).font("Helvetica").text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, headerY + 28);
+    doc.text("Phone: 01133127622", 40, headerY + 44);
+    doc.text("Email: lbcompany@gmail.com", 40, headerY + 58);
 
-    doc.moveDown(2);
+    // Right column (report meta)
+    doc.fontSize(18).font("Helvetica-Bold").text("INVENTORY REPORT", 520, headerY);
+    doc.fontSize(10).font("Helvetica").text(`Report #: REP-${Date.now()}`, 520, headerY + 26);
+    doc.text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 520, headerY + 42);
+    doc.text("Status: Generated", 520, headerY + 58);
 
-    // TABLE HEADER
-    doc.fontSize(12).text("Item", 40, doc.y, { width:120 });
-    doc.text("SKU", 160, doc.y, { width:60 });
-    doc.text("Qty", 220, doc.y, { width:40 });
-    doc.text("Unit Price", 260, doc.y, { width:80 });
-    doc.text("Total", 340, doc.y, { width:80 });
+    doc.moveDown(4);
 
-    doc.moveDown(0.5);
-    doc.moveTo(40, doc.y).lineTo(550, doc.y).stroke();
+    // ========= Table header =========
+    const col = {
+      sku: 40,
+      name: 140,
+      category: 360,
+      qty: 480,
+      cost: 520,
+      price: 600,
+      value: 680,
+      revenue: 760
+    };
 
-    let subtotal = 0;
+    const tableTop = doc.y;
+    doc.fontSize(11).font("Helvetica-Bold");
+    doc.text("SKU", col.sku, tableTop);
+    doc.text("Name", col.name, tableTop);
+    doc.text("Category", col.category, tableTop);
+    doc.text("Quantity", col.qty, tableTop);
+    doc.text("Unit Cost", col.cost, tableTop);
+    doc.text("Unit Price", col.price, tableTop);
+    doc.text("Total Inventory Value", col.value, tableTop);
+    doc.text("Total Potential Revenue", col.revenue, tableTop);
 
-    items.forEach(it => {
+    doc.moveDown(0.3);
+    doc.moveTo(40, doc.y).lineTo(820, doc.y).stroke();
+
+    // ========= Table rows (zebra, page-break) =========
+    let totalValue = 0;
+    let totalRevenue = 0;
+    let rowIndex = 0;
+
+    const rowHeight = 18;
+    const bottomLimit = 520; // when to create a new page (landscape)
+
+    // Ensure consistent fonts for rows
+    doc.font("Helvetica").fontSize(10);
+
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+
       const qty = Number(it.quantity || 0);
-      const price = Number(it.unitPrice || 0);
-      const total = qty * price;
-      subtotal += total;
+      const uc = Number(it.unitCost || 0);
+      const up = Number(it.unitPrice || 0);
+      const invVal = qty * uc;
+      const rev = qty * up;
 
-      doc.fontSize(10);
-      doc.text(it.name || "", 40, doc.y, { width:120 });
-      doc.text(it.sku || "", 160, doc.y, { width:60 });
-      doc.text(String(qty), 220, doc.y, { width:40 });
-      doc.text(`RM ${price.toFixed(2)}`, 260, doc.y, { width:80 });
-      doc.text(`RM ${total.toFixed(2)}`, 340, doc.y, { width:80 });
+      totalValue += invVal;
+      totalRevenue += rev;
 
-      doc.moveDown(0.3);
-    });
+      let y = doc.y + 6;
 
-    doc.moveDown(1);
-    doc.fontSize(12).text(`Subtotal: RM ${subtotal.toFixed(2)}`, { align:"right" });
+      // Auto page break: if next row will be past bottomLimit, add page and redraw header
+      if (y > bottomLimit) {
+        doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+        // redraw header on new page
+        doc.fontSize(20).font("Helvetica-Bold").text("L&B Company", 40, 40);
+        doc.fontSize(10).font("Helvetica").text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 68);
+        doc.text("Phone: 01133127622", 40, 84);
+        doc.text("Email: lbcompany@gmail.com", 40, 98);
+        doc.fontSize(18).font("Helvetica-Bold").text("INVENTORY REPORT", 520, 40);
+        doc.fontSize(10).font("Helvetica").text(`Report #: REP-${Date.now()}`, 520, 66);
+        doc.text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 520, 82);
+        doc.text("Status: Generated", 520, 98);
 
-    doc.moveDown(2);
-    doc.fontSize(10).text("Thank you for your business.", { align:"center" });
-    doc.text("Generated by L&B Inventory System", { align:"center" });
+        // table header on new page
+        const newTop = 130;
+        doc.fontSize(11).font("Helvetica-Bold");
+        doc.text("SKU", col.sku, newTop);
+        doc.text("Name", col.name, newTop);
+        doc.text("Category", col.category, newTop);
+        doc.text("Quantity", col.qty, newTop);
+        doc.text("Unit Cost", col.cost, newTop);
+        doc.text("Unit Price", col.price, newTop);
+        doc.text("Total Inventory Value", col.value, newTop);
+        doc.text("Total Potential Revenue", col.revenue, newTop);
+        doc.moveDown(0.3);
+        doc.moveTo(40, doc.y).lineTo(820, doc.y).stroke();
 
+        doc.font("Helvetica").fontSize(10);
+        y = doc.y + 6;
+      }
+
+      // Zebra stripe background for odd rows
+      if (rowIndex % 2 === 1) {
+        // lighter grey fill
+        doc.save();
+        doc.fillOpacity(0.12);
+        doc.rect(40, y - 4, 780, rowHeight).fill("#cccccc");
+        doc.restore();
+      }
+
+      // Row text
+      doc.text(it.sku || "", col.sku, y);
+      doc.text(it.name || "", col.name, y, { width: (col.category - col.name - 8) }); // give name room
+      doc.text(it.category || "", col.category, y, { width: (col.qty - col.category - 8) });
+      doc.text(String(qty), col.qty, y);
+      doc.text(`RM ${uc.toFixed(2)}`, col.cost, y);
+      doc.text(`RM ${up.toFixed(2)}`, col.price, y);
+      doc.text(`RM ${invVal.toFixed(2)}`, col.value, y);
+      doc.text(`RM ${rev.toFixed(2)}`, col.revenue, y);
+
+      rowIndex++;
+      doc.moveDown(1.1);
+    }
+
+    // ========= Totals (right aligned) =========
+    doc.moveDown(0.8);
+    doc.fontSize(12).font("Helvetica-Bold");
+    doc.text(`TOTAL INVENTORY VALUE: RM ${totalValue.toFixed(2)}`, { align: "right" });
+    doc.text(`TOTAL POTENTIAL REVENUE: RM ${totalRevenue.toFixed(2)}`, { align: "right" });
+
+    // ========= Footer (centered) =========
+    doc.moveDown(1.5);
+    doc.fontSize(10).font("Helvetica").text("Thank you for your business.", { align: "center" });
+    doc.text("Generated by L&B Inventory System", { align: "center" });
+
+    // ========= Page numbers =========
+    const range = doc.bufferedPageRange(); // { start, count }
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      const pageNumberText = `Page ${i + 1} of ${range.count}`;
+      doc.fontSize(9).font("Helvetica").text(pageNumberText, 0, doc.page.height - 30, {
+        align: "center"
+      });
+    }
+
+    // End and flush PDF
     doc.end();
 
   } catch (err) {
