@@ -228,7 +228,7 @@ app.delete('/api/inventory/:id', async (req, res) => {
 });
 
 // ============================================================================
-//                  PDF REPORT — A4 LANDSCAPE — PROFESSIONAL
+//                  PDF REPORT — A4 LANDSCAPE — SINGLE PAGE (Medium Density)
 // ============================================================================
 
 app.get('/api/inventory/report/pdf', async (req, res) => {
@@ -237,12 +237,11 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
     const now = new Date();
     const filename = `Inventory_Report_${now.toISOString().slice(0,10)}.pdf`;
 
-    // Use A4 landscape and bufferPages so we can add page numbers at the end
+    // A4 landscape single page, no buffering (single page only)
     const doc = new PDFDocument({
       size: "A4",
       layout: "landscape",
-      margin: 40,
-      bufferPages: true
+      margin: 36 // slightly tighter margins for more space
     });
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -250,150 +249,173 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
 
     doc.pipe(res);
 
-    // ========= Header (two-column fixed positions) =========
-    const headerY = 40;
+    // helpers
+    const pad = (n) => n.toString().padStart(2, '0');
+    function formatDateTime(d) {
+      // format DD/MM/YYYY HH:MM
+      const day = pad(d.getDate());
+      const month = pad(d.getMonth() + 1);
+      const year = d.getFullYear();
+      const hours = pad(d.getHours());
+      const mins = pad(d.getMinutes());
+      return `${day}/${month}/${year} ${hours}:${mins}`;
+    }
 
-    // Left column (company info)
-    doc.fontSize(20).font("Helvetica-Bold").text("L&B Company", 40, headerY);
-    doc.fontSize(10).font("Helvetica").text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, headerY + 28);
-    doc.text("Phone: 01133127622", 40, headerY + 44);
-    doc.text("Email: lbcompany@gmail.com", 40, headerY + 58);
+    // Page metrics
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = doc.page.margins.left; // 36
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
 
-    // Right column (report meta)
-    doc.fontSize(18).font("Helvetica-Bold").text("INVENTORY REPORT", 520, headerY);
-    doc.fontSize(10).font("Helvetica").text(`Report #: REP-${Date.now()}`, 520, headerY + 26);
-    doc.text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 520, headerY + 42);
-    doc.text("Status: Generated", 520, headerY + 58);
+    // HEADER (exactly as requested)
+    const headerLeftX = margin;
+    const headerRightX = pageWidth - margin - 260; // meta block width ~260
+    const headerTopY = margin;
 
-    doc.moveDown(4);
+    doc.font('Helvetica-Bold').fontSize(18).text('L&B Company', headerLeftX, headerTopY);
+    doc.font('Helvetica').fontSize(10).text('Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', headerLeftX, headerTopY + 22);
+    doc.text('Phone: 01133127622', headerLeftX, headerTopY + 36);
+    doc.text('Email: lbcompany@gmail.com', headerLeftX, headerTopY + 50);
 
-    // ========= Table header =========
-    const col = {
-      sku: 40,
-      name: 140,
-      category: 360,
-      qty: 480,
-      cost: 520,
-      price: 600,
-      value: 680,
-      revenue: 760
-    };
+    doc.font('Helvetica-Bold').fontSize(16).text('INVENTORY REPORT', headerRightX, headerTopY);
+    doc.font('Helvetica').fontSize(10).text(`Report #: REP-${Date.now()}`, headerRightX, headerTopY + 22);
+    doc.text(`Date: ${formatDateTime(now)}`, headerRightX, headerTopY + 36);
+    doc.text('Status: Generated', headerRightX, headerTopY + 50);
 
-    const tableTop = doc.y;
-    doc.fontSize(11).font("Helvetica-Bold");
-    doc.text("SKU", col.sku, tableTop);
-    doc.text("Name", col.name, tableTop);
-    doc.text("Category", col.category, tableTop);
-    doc.text("Quantity", col.qty, tableTop);
-    doc.text("Unit Cost", col.cost, tableTop);
-    doc.text("Unit Price", col.price, tableTop);
-    doc.text("Total Inventory Value", col.value, tableTop);
-    doc.text("Total Potential Revenue", col.revenue, tableTop);
+    // Move cursor down after header area
+    const headerBottomY = headerTopY + 74;
+    let cursorY = headerBottomY + 6;
 
-    doc.moveDown(0.3);
-    doc.moveTo(40, doc.y).lineTo(820, doc.y).stroke();
+    // Columns definition (initial guesses)
+    let columns = [
+      { key: 'sku', label: 'SKU', width: 110 },
+      { key: 'name', label: 'Name', width: 300 },
+      { key: 'category', label: 'Category', width: 180 },
+      { key: 'quantity', label: 'Quantity', width: 60, align: 'right' },
+      { key: 'unitCost', label: 'Unit Cost', width: 80, align: 'right' },
+      { key: 'unitPrice', label: 'Unit Price', width: 80, align: 'right' },
+      { key: 'invValue', label: 'Total Inventory Value', width: 110, align: 'right' },
+      { key: 'revenue', label: 'Total Potential Revenue', width: 120, align: 'right' }
+    ];
 
-    // ========= Table rows (zebra, page-break) =========
-    let totalValue = 0;
+    // Ensure total columns width fits usableWidth. If not, scale down proportionally.
+    const totalColsWidth = columns.reduce((s,c) => s + c.width, 0);
+    if (totalColsWidth > usableWidth) {
+      const scale = usableWidth / totalColsWidth;
+      let accX = margin;
+      columns = columns.map(c => {
+        const w = Math.floor(c.width * scale);
+        const col = { ...c, width: w, x: accX };
+        accX += w;
+        return col;
+      });
+    } else {
+      // compute x positions
+      let accX = margin;
+      columns = columns.map(c => ({ ...c, x: accX, width: c.width }));
+      accX += c => c.width;
+    }
+
+    // Table header
+    doc.font('Helvetica-Bold').fontSize(10);
+    columns.forEach(c => {
+      doc.text(c.label, c.x, cursorY, { width: c.width, align: c.align || 'left' });
+    });
+
+    cursorY += 16;
+    // horizontal rule
+    doc.moveTo(margin, cursorY).lineTo(pageWidth - margin, cursorY).stroke();
+
+    // Prepare rows
+    const headerHeightSpace = cursorY; // y where rows start
+    // initial font size and row height for medium density
+    let fontSize = 10;
+    let rowHeight = 14;
+
+    // compute how many rows fit at current font/rowHeight
+    const footerSpace = 70; // space reserved for totals + footer
+    const availableRowsArea = pageHeight - cursorY - footerSpace - margin;
+    let maxRows = Math.floor(availableRowsArea / rowHeight);
+
+    // If too many rows, scale font/row height proportionally but keep readable
+    if (items.length > maxRows) {
+      const scale = maxRows / items.length;
+      // scale font between min 6 and original
+      const minFont = 7;
+      fontSize = Math.max(minFont, Math.floor(fontSize * Math.max(scale, 0.5)));
+      // adjust rowHeight accordingly
+      rowHeight = Math.max(10, Math.floor(rowHeight * (fontSize / 10)));
+      maxRows = Math.floor(availableRowsArea / rowHeight);
+      // If still not enough (extreme case), we will allow tighter rows by reducing rowHeight further until fits or min row height reached
+      let attempts = 0;
+      while (items.length > maxRows && attempts < 5) {
+        rowHeight = Math.max(9, Math.floor(rowHeight * 0.9));
+        maxRows = Math.floor(availableRowsArea / rowHeight);
+        attempts++;
+      }
+    }
+
+    // draw rows (single page, no page breaks)
+    doc.font('Helvetica').fontSize(fontSize);
+    let totalInvValue = 0;
     let totalRevenue = 0;
-    let rowIndex = 0;
-
-    const rowHeight = 18;
-    const bottomLimit = 520; // when to create a new page (landscape)
-
-    // Ensure consistent fonts for rows
-    doc.font("Helvetica").fontSize(10);
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-
       const qty = Number(it.quantity || 0);
       const uc = Number(it.unitCost || 0);
       const up = Number(it.unitPrice || 0);
       const invVal = qty * uc;
-      const rev = qty * up;
+      const revenue = qty * up;
+      totalInvValue += invVal;
+      totalRevenue += revenue;
 
-      totalValue += invVal;
-      totalRevenue += rev;
-
-      let y = doc.y + 6;
-
-      // Auto page break: if next row will be past bottomLimit, add page and redraw header
-      if (y > bottomLimit) {
-        doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-        // redraw header on new page
-        doc.fontSize(20).font("Helvetica-Bold").text("L&B Company", 40, 40);
-        doc.fontSize(10).font("Helvetica").text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 68);
-        doc.text("Phone: 01133127622", 40, 84);
-        doc.text("Email: lbcompany@gmail.com", 40, 98);
-        doc.fontSize(18).font("Helvetica-Bold").text("INVENTORY REPORT", 520, 40);
-        doc.fontSize(10).font("Helvetica").text(`Report #: REP-${Date.now()}`, 520, 66);
-        doc.text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 520, 82);
-        doc.text("Status: Generated", 520, 98);
-
-        // table header on new page
-        const newTop = 130;
-        doc.fontSize(11).font("Helvetica-Bold");
-        doc.text("SKU", col.sku, newTop);
-        doc.text("Name", col.name, newTop);
-        doc.text("Category", col.category, newTop);
-        doc.text("Quantity", col.qty, newTop);
-        doc.text("Unit Cost", col.cost, newTop);
-        doc.text("Unit Price", col.price, newTop);
-        doc.text("Total Inventory Value", col.value, newTop);
-        doc.text("Total Potential Revenue", col.revenue, newTop);
-        doc.moveDown(0.3);
-        doc.moveTo(40, doc.y).lineTo(820, doc.y).stroke();
-
-        doc.font("Helvetica").fontSize(10);
-        y = doc.y + 6;
-      }
-
-      // Zebra stripe background for odd rows
-      if (rowIndex % 2 === 1) {
-        // lighter grey fill
+      // zebra
+      if (i % 2 === 1) {
         doc.save();
-        doc.fillOpacity(0.12);
-        doc.rect(40, y - 4, 780, rowHeight).fill("#cccccc");
+        doc.rect(margin, cursorY - 2, usableWidth, rowHeight).fillOpacity(0.12).fill('#ededed');
         doc.restore();
       }
 
-      // Row text
-      doc.text(it.sku || "", col.sku, y);
-      doc.text(it.name || "", col.name, y, { width: (col.category - col.name - 8) }); // give name room
-      doc.text(it.category || "", col.category, y, { width: (col.qty - col.category - 8) });
-      doc.text(String(qty), col.qty, y);
-      doc.text(`RM ${uc.toFixed(2)}`, col.cost, y);
-      doc.text(`RM ${up.toFixed(2)}`, col.price, y);
-      doc.text(`RM ${invVal.toFixed(2)}`, col.value, y);
-      doc.text(`RM ${rev.toFixed(2)}`, col.revenue, y);
+      // Write each cell with ellipsis to prevent overflow to next cell
+      columns.forEach(c => {
+        let text = '';
+        if (c.key === 'sku') text = it.sku || '';
+        else if (c.key === 'name') text = it.name || '';
+        else if (c.key === 'category') text = it.category || '';
+        else if (c.key === 'quantity') text = String(qty);
+        else if (c.key === 'unitCost') text = `RM ${uc.toFixed(2)}`;
+        else if (c.key === 'unitPrice') text = `RM ${up.toFixed(2)}`;
+        else if (c.key === 'invValue') text = `RM ${invVal.toFixed(2)}`;
+        else if (c.key === 'revenue') text = `RM ${revenue.toFixed(2)}`;
 
-      rowIndex++;
-      doc.moveDown(1.1);
-    }
-
-    // ========= Totals (right aligned) =========
-    doc.moveDown(0.8);
-    doc.fontSize(12).font("Helvetica-Bold");
-    doc.text(`TOTAL INVENTORY VALUE: RM ${totalValue.toFixed(2)}`, { align: "right" });
-    doc.text(`TOTAL POTENTIAL REVENUE: RM ${totalRevenue.toFixed(2)}`, { align: "right" });
-
-    // ========= Footer (centered) =========
-    doc.moveDown(1.5);
-    doc.fontSize(10).font("Helvetica").text("Thank you for your business.", { align: "center" });
-    doc.text("Generated by L&B Inventory System", { align: "center" });
-
-    // ========= Page numbers =========
-    const range = doc.bufferedPageRange(); // { start, count }
-    for (let i = 0; i < range.count; i++) {
-      doc.switchToPage(i);
-      const pageNumberText = `Page ${i + 1} of ${range.count}`;
-      doc.fontSize(9).font("Helvetica").text(pageNumberText, 0, doc.page.height - 30, {
-        align: "center"
+        // If text too long, use options to truncate (ellipsis)
+        doc.text(text, c.x, cursorY, { width: c.width, align: c.align || 'left', ellipsis: true });
       });
+
+      cursorY += rowHeight;
+      // safety: if cursorY exceeds page height (shouldn't happen due to scaling) break
+      if (cursorY + rowHeight + footerSpace >= pageHeight - margin) {
+        // we've reached bottom — stop drawing further rows (they won't fit on single page)
+        // Option: we could keep drawing smaller, but we've already attempted scaling above.
+        break;
+      }
     }
 
-    // End and flush PDF
+    // Totals area (right aligned)
+    const totalsY = pageHeight - margin - 50;
+    doc.font('Helvetica-Bold').fontSize(Math.max(10, fontSize));
+    const totalsRightX = pageWidth - margin;
+    doc.text(`TOTAL INVENTORY VALUE: RM ${totalInvValue.toFixed(2)}`, margin, totalsY, { align: 'right', width: usableWidth });
+    doc.text(`TOTAL POTENTIAL REVENUE: RM ${totalRevenue.toFixed(2)}`, margin, totalsY + 16, { align: 'right', width: usableWidth });
+
+    // Footer center
+    doc.font('Helvetica').fontSize(9);
+    doc.text('Thank you for your business.', margin, pageHeight - margin - 20, { align: 'center', width: usableWidth });
+    doc.text('Generated by L&B Inventory System', margin, pageHeight - margin - 8, { align: 'center', width: usableWidth });
+
+    // Close PDF
     doc.end();
 
   } catch (err) {
