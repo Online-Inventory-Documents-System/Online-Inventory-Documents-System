@@ -1,56 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sales | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header>
-    <h1>💰 Sales Transactions</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="inventory.html">Inventory</a>
-      <a href="orders.html">Orders</a>
-      <a href="sales.html">Sales</a>
-      <a href="documents.html">Documents</a>
-      <a href="log.html">Activity Log</a>
-      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
-      <button onclick="toggleTheme()">🌓 Mode</button>
-      <button onclick="logout()">🚪 Logout</button>
-      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-    </nav>
-  </header>
+<header>
+  <h1>💳 Sales</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="orders.html">Orders</a>
+    <a href="sales.html">Sales</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
 
-  <section>
-    <h2>Manage Sales Invoices</h2>
-    <div class="controls" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
-        <button onclick="window.location.href='sale.html'" class="primary-btn">➕ Add New Sale</button>
-    </div>
-    
-    <div class="table-container"> 
-      <table id="salesTable">
-          <thead>
-              <tr>
-                  <th>Sale #</th>
-                  <th>Customer Name</th>
-                  <th>Total Items</th>
-                  <th class="money">Grand Total</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-              </tr>
-          </thead>
-          <tbody id="saleList">
-              </tbody>
-      </table>
-    </div>
-  </section>
+<main>
+<section>
+  <div style="display:flex;justify-content:space-between;">
+    <h2>Sales</h2>
+    <button id="btnAddSale" class="primary-btn">+ Add Sale</button>
+  </div>
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
-  <script>
-    document.documentElement.dataset.page = 'sales';
-  </script>
+  <div class="table-container">
+    <table id="salesTable">
+      <thead><tr><th>Sale #</th><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+</main>
+
+<!-- MODAL -->
+<div id="saleModal" class="modal hidden">
+  <div class="modal-content big">
+    <h3 id="saleModalTitle">Add / Edit Sale</h3>
+
+    <label>Customer<input id="saleCustomer"></label>
+    <label>Contact<input id="saleContact"></label>
+
+    <h4>Items</h4>
+    <div style="display:flex;gap:8px;">
+      <select id="saleProductSelect"></select>
+      <input id="saleItemQty" type="number" min="1" value="1"/>
+      <input id="saleItemPrice" type="number" step="0.01"/>
+      <button id="addSaleLine" class="primary-btn">Add</button>
+    </div>
+
+    <table id="saleLines" class="table small">
+      <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="totals">
+      <div>Subtotal: RM <span id="saleSubtotal">0.00</span></div>
+      <div>Tax: RM <span id="saleTax">0.00</span></div>
+      <div class="grand">Grand Total: RM <span id="saleTotal">0.00</span></div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="saveSaleBtn" class="primary-btn">Save Sale</button>
+      <button id="cancelSaleBtn" class="secondary-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>document.documentElement.dataset.page="sales";</script>
 </body>
 </html>
