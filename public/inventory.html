@@ -11,7 +11,7 @@
     <h1>📦 Inventory Management</h1>
     <nav>
       <a href="index.html">Home</a>
-      <a href="inventory.html" class="active">Inventory</a>
+      <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
@@ -23,7 +23,7 @@
 
   <section>
     <h2>Add New Product</h2>
-    <div class="product-bar admin-only">
+    <div class="product-bar">
       <input id="p_sku" placeholder="Item ID / SKU" type="text" />
       <input id="p_name" placeholder="Item Name" type="text" />
       <input id="p_category" placeholder="Category" type="text" />
@@ -35,8 +35,7 @@
 
     <h2>Current Inventory List</h2> 
     <div class="controls">
-      <div><button id="reportBtn" class="success-btn admin-only">⬇️ Generate Report (Excel)</button></div>
-
+      <div><button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button></div>
       <div class="search-controls">
         <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
         <button id="clearSearchBtn" class="secondary-btn">Clear</button>
@@ -57,7 +56,8 @@
                   <th class="actions">Actions</th>
               </tr>
           </thead>
-          <tbody id="inventoryList"></tbody>
+          <tbody id="inventoryList">
+          </tbody>
       </table>
     </div>
 
@@ -71,37 +71,9 @@
   <!-- JS -->
   <script src="js/setting.js" defer></script>
   <script src="js/script.js" defer></script>
-
   <script>
-    document.documentElement.dataset.page = "inventory";
-
-    // -------------------------
-    // ROLE-BASED UI ENFORCEMENT
-    // -------------------------
-    window.addEventListener("DOMContentLoaded", () => {
-      const role = sessionStorage.getItem("role");
-
-      // Show Logged In User
-      const adminName = sessionStorage.getItem("username");
-      if (adminName) {
-        document.getElementById("adminName").textContent = adminName + " (" + role + ")";
-      }
-
-      // If user is NOT admin → hide admin-only functions
-      if (role !== "admin") {
-        document.querySelectorAll(".admin-only").forEach(el => {
-          el.style.display = "none";
-        });
-
-        // Hide actions column entirely for users
-        const actionColumn = document.querySelectorAll("th.actions");
-        const actionCells = document.querySelectorAll("td.actions");
-
-        actionColumn.forEach(th => th.style.display = "none");
-        actionCells.forEach(td => td.style.display = "none");
-      }
-    });
+    // Optional: dataset for current page
+    document.documentElement.dataset.page = 'inventory';
   </script>
-
 </body>
 </html>
