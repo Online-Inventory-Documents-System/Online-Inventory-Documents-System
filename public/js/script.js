@@ -115,16 +115,33 @@ function renderDocuments(docs) {
 
 function renderLogs() {
   const list = qs('#logList');
-  if(list) {
-    list.innerHTML = '';
-    [...activityLog].forEach(l => {
-      // l.time is ISO string
-      const timeStr = l.time ? new Date(l.time).toLocaleString() : new Date().toLocaleString();
-      const li = document.createElement('li');
-      li.innerHTML = `[${escapeHtml(timeStr)}] <b>${escapeHtml(l.user||'System')}</b>: ${escapeHtml(l.action||'')}`;
-      list.appendChild(li);
-    });
-  }
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  activityLog.forEach(log => {
+    const tr = document.createElement("tr");
+
+    const userCell = document.createElement("td");
+    userCell.textContent = log.user || "System";
+
+    const actionCell = document.createElement("td");
+    actionCell.textContent = log.action || "";
+
+    const timeCell = document.createElement("td");
+    const timeStr = log.time ? new Date(log.time).toLocaleString() : "N/A";
+    timeCell.textContent = timeStr;
+
+    tr.appendChild(userCell);
+    tr.appendChild(actionCell);
+    tr.appendChild(timeCell);
+
+    list.appendChild(tr);
+  });
+
+  renderDashboardData();
+}
+
   renderDashboardData();
 }
 
@@ -556,3 +573,4 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
+
