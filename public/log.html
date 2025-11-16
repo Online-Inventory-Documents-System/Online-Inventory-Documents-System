@@ -13,28 +13,18 @@
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
     <a href="documents.html">Documents</a>
-    <a href="company.html">Company</a>
     <a href="log.html">Activity Log</a>
     <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
-
-    <div id="adminInfo">
-      Logged in as: <span id="adminName"></span> 
-      (<span id="adminRole"></span>)
-    </div>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
   </nav>
 </header>
 
 <section id="activityLog">
   <h2>Recent Activities</h2>
-
-  <!-- Non-admin users see restricted notice -->
-  <p id="noPermissionMessage" style="display:none; color:red; margin-bottom:15px;">
-    ⚠️ You do not have permission to view the full activity log.
-  </p>
   
-  <div class="table-container" id="adminOnlySection">
+  <div class="table-container">
     <table id="activityTable">
       <thead>
         <tr>
@@ -52,8 +42,8 @@
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
-
 <script>
+  // Let script.js know current page for proper binding
   document.documentElement.dataset.page = 'log';
 </script>
 </body>
