@@ -231,185 +231,188 @@ app.delete('/api/inventory/:id', async (req, res) => {
   }
 });
 
-// -------------------- PDF: FULL-GRID Invoice A4 Landscape (rowHeight = 20) --------------------
+// ============================================================================
+//     FINAL — A4 LANDSCAPE INVENTORY PDF (Invoice Style, Clean Borders)
+// ============================================================================
 app.get('/api/inventory/report/pdf', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const now = new Date();
+
     const filename = `Inventory_Report_${now.toISOString().slice(0,10)}.pdf`;
 
-    const doc = new PDFDocument({ size:'A4', layout:'landscape', margin:30 });
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/pdf');
+    // A4 Landscape, margins, and page buffering for page numbers
+    const doc = new PDFDocument({
+      size: "A4",
+      layout: "landscape",
+      margin: 40,
+      bufferPages: true
+    });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
     doc.pipe(res);
 
-    // page metrics
-    const pageW = doc.page.width;
-    const pageH = doc.page.height;
-    const margin = doc.page.margins.left;
-    const usableW = pageW - margin * 2;
+    // ==============================
+    // HEADER (Invoice Style)
+    // ==============================
+    const headerY = 40;
 
-    // header (compact two-column)
-    const headerY = margin;
-    doc.font('Helvetica-Bold').fontSize(18).text('L&B Company', margin, headerY);
-    doc.font('Helvetica').fontSize(9)
-      .text('Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', margin, headerY + 22)
-      .text('Phone: 01133127622', margin, headerY + 36)
-      .text('Email: lbcompany@gmail.com', margin, headerY + 50);
+    // Left Column
+    doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, headerY);
+    doc.fontSize(10).font("Helvetica")
+      .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, headerY + 28)
+      .text("Phone: 01133127622", 40, headerY + 42)
+      .text("Email: lbcompany@gmail.com", 40, headerY + 56);
 
-    const rightX = pageW - margin - 260;
-    doc.font('Helvetica-Bold').fontSize(16).text('INVENTORY REPORT', rightX, headerY);
-    doc.font('Helvetica').fontSize(9)
-      .text(`Report No: REP-${Date.now()}`, rightX, headerY + 24)
-      .text(`Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, rightX, headerY + 38)
-      .text('Status: Completed', rightX, headerY + 52);
+    // Right Column
+    doc.fontSize(18).font("Helvetica-Bold").text("INVENTORY REPORT", 520, headerY);
+    doc.fontSize(10).font("Helvetica")
+      .text(`Print Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 520, headerY + 26)
+      .text(`Report ID: REP-${Date.now()}`, 520, headerY + 40)
+      .text("Status: Generated", 520, headerY + 54);
 
-    // table area
-    const tableTopY = headerY + 78;
-    const tableBottomY = pageH - margin - 100;
-    const tableLeftX = margin;
-    const tableWidth = usableW;
-    const tableHeight = tableBottomY - tableTopY;
+    doc.moveDown(4);
 
-    // full-grid fixed columns (percentages)
-    const colPixelsPct = [
-      ['sku', 0.12],
-      ['name', 0.32],
-      ['category', 0.16],
-      ['qty', 0.07],
-      ['unitCost', 0.08],
-      ['unitPrice', 0.08],
-      ['value', 0.09],
-      ['revenue', 0.08]
-    ];
+    // ==============================
+    // TABLE COLUMN POSITIONS (OPTIMIZED)
+    // ==============================
+    const col = {
+      sku: 40,
+      name: 120,
+      category: 320,
+      qty: 440,
+      cost: 500,
+      price: 580,
+      value: 660,
+      revenue: 780
+    };
 
-    let x = tableLeftX;
-    const cols = [];
-    let consumed = 0;
-    for (let i=0;i<colPixelsPct.length;i++){
-      const [key, pct] = colPixelsPct[i];
-      const w = Math.round(pct * tableWidth);
-      cols.push({ key, x, w, label:
-        key === 'sku' ? 'SKU' :
-        key === 'name' ? 'Name' :
-        key === 'category' ? 'Category' :
-        key === 'qty' ? 'Qty' :
-        key === 'unitCost' ? 'Unit Cost' :
-        key === 'unitPrice' ? 'Unit Price' :
-        key === 'value' ? 'Total Inventory Value' : 'Total Potential Revenue'
-      });
-      x += w;
-      consumed += w;
-    }
-    if (consumed < tableWidth) cols[cols.length-1].w += (tableWidth - consumed);
+    const columnWidths = {
+      sku: 80,
+      name: 200,
+      category: 120,
+      qty: 60,
+      cost: 80,
+      price: 80,
+      value: 120,
+      revenue: 120
+    };
 
-    // grid styling
-    doc.lineWidth(0.85);
-    doc.strokeColor('black');
-    // outer border
-    doc.rect(tableLeftX, tableTopY, tableWidth, tableHeight).stroke();
-    // vertical lines
-    for (let i=1;i<cols.length;i++){
-      const vx = cols[i].x;
-      doc.moveTo(vx, tableTopY).lineTo(vx, tableTopY + tableHeight).stroke();
-    }
+    let startY = doc.y + 5;
 
-    // header row
-    const headerRowH = 22;
-    doc.font('Helvetica-Bold').fontSize(10);
-    cols.forEach(c => doc.text(c.label, c.x + 6, tableTopY + 6, { width: c.w - 12, align:'left', ellipsis: true }));
-    const headerBottomY = tableTopY + headerRowH;
-    doc.moveTo(tableLeftX, headerBottomY).lineTo(tableLeftX + tableWidth, headerBottomY).stroke();
+    // ==============================
+    // TABLE HEADER
+    // ==============================
+    doc.fontSize(11).font("Helvetica-Bold");
 
-    // rows
-    const rowHeight = 20;
-    const baseFont = 10;
-    const minFont = 8;
-    let fontSize = baseFont;
+    doc.text("SKU", col.sku, startY, { width: columnWidths.sku });
+    doc.text("Name", col.name, startY, { width: columnWidths.name });
+    doc.text("Category", col.category, startY, { width: columnWidths.category });
+    doc.text("Qty", col.qty, startY, { width: columnWidths.qty });
+    doc.text("Unit Cost", col.cost, startY, { width: columnWidths.cost });
+    doc.text("Unit Price", col.price, startY, { width: columnWidths.price });
+    doc.text("Total Inventory Value", col.value, startY, { width: columnWidths.value });
+    doc.text("Total Potential Revenue", col.revenue, startY, { width: columnWidths.revenue });
 
-    const availableRowsArea = tableTopY + tableHeight - (headerBottomY + 6) - 6;
-    const maxRows = Math.floor(availableRowsArea / rowHeight);
+    let tableTop = startY + 18;
 
-    const renderCount = Math.min(items.length, maxRows);
-    let rowsY = headerBottomY + 4;
+    // HEADER LINE
+    doc.moveTo(40, tableTop).lineTo(900, tableTop).stroke();
 
-    doc.font('Helvetica').fontSize(fontSize);
+    // ==============================
+    // TABLE ROWS
+    // ==============================
+    doc.font("Helvetica").fontSize(10);
 
-    let totalInventoryValue = 0;
-    let totalPotentialRevenue = 0;
-    let subtotalQty = 0;
+    let rowY = tableTop + 6;
+    const rowHeight = 22;
 
-    for (let i=0;i<renderCount;i++){
+    let totalQty = 0;
+    let totalValue = 0;
+    let totalRevenue = 0;
+
+    for (let i = 0; i < items.length; i++) {
       const it = items[i];
+
       const qty = Number(it.quantity || 0);
       const uc = Number(it.unitCost || 0);
       const up = Number(it.unitPrice || 0);
       const invVal = qty * uc;
       const rev = qty * up;
 
-      totalInventoryValue += invVal;
-      totalPotentialRevenue += rev;
-      subtotalQty += qty;
+      totalQty += qty;
+      totalValue += invVal;
+      totalRevenue += rev;
 
+      // Zebra striping
       if (i % 2 === 1) {
         doc.save();
-        doc.fillOpacity(0.12);
-        doc.rect(tableLeftX + 1, rowsY - 2, tableWidth - 2, rowHeight).fill('#f2f2f2');
+        doc.fillOpacity(0.10).rect(40, rowY - 4, 860, rowHeight).fill("#cccccc");
         doc.restore();
       }
 
-      cols.forEach(c => {
-        let text = '';
-        if (c.key === 'sku') text = it.sku || '';
-        if (c.key === 'name') text = it.name || '';
-        if (c.key === 'category') text = it.category || '';
-        if (c.key === 'qty') text = String(qty);
-        if (c.key === 'unitCost') text = `RM ${uc.toFixed(2)}`;
-        if (c.key === 'unitPrice') text = `RM ${up.toFixed(2)}`;
-        if (c.key === 'value') text = `RM ${invVal.toFixed(2)}`;
-        if (c.key === 'revenue') text = `RM ${rev.toFixed(2)}`;
-        const align = ['qty','unitCost','unitPrice','value','revenue'].includes(c.key) ? 'right' : 'left';
-        const textY = rowsY + Math.max(2, Math.floor((rowHeight - fontSize) / 2));
-        doc.text(text, c.x + 6, textY, { width: c.w - 12, align, ellipsis: true });
+      // Draw row
+      doc.text(it.sku || "", col.sku, rowY, { width: columnWidths.sku });
+      doc.text(it.name || "", col.name, rowY, { width: columnWidths.name });
+      doc.text(it.category || "", col.category, rowY, { width: columnWidths.category });
+      doc.text(String(qty), col.qty, rowY);
+      doc.text(`RM ${uc.toFixed(2)}`, col.cost, rowY);
+      doc.text(`RM ${up.toFixed(2)}`, col.price, rowY);
+      doc.text(`RM ${invVal.toFixed(2)}`, col.value, rowY);
+      doc.text(`RM ${rev.toFixed(2)}`, col.revenue, rowY);
+
+      // Next row
+      rowY += rowHeight;
+
+      // Prevent spilling off page (forced single-page mode)
+      if (rowY > 420) break;
+    }
+
+    // ==============================
+    // TABLE BORDER (FRAME)
+    // ==============================
+    const tableBottom = rowY + 5;
+
+    doc.rect(40, tableTop, 860, tableBottom - tableTop).stroke();
+
+    // ==============================
+    // INVOICE TOTALS — BOTTOM RIGHT
+    // ==============================
+    const boxW = 260;
+    const boxH = 80;
+    const boxX = 900 - boxW;
+    const boxY = tableBottom + 20;
+
+    // Box outline
+    doc.rect(boxX, boxY, boxW, boxH).stroke();
+
+    doc.font("Helvetica-Bold").fontSize(11);
+    doc.text(`Subtotal (Quantity): ${totalQty} units`, boxX + 10, boxY + 10);
+    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, boxX + 10, boxY + 30);
+    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, boxX + 10, boxY + 50);
+
+    // ==============================
+    // FOOTER
+    // ==============================
+    doc.fontSize(10).font("Helvetica").text("Generated by L&B Inventory System", 0, 560, {
+      align: "center"
+    });
+
+    // Page Numbers
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(9).text(`Page ${i + 1} of ${range.count}`, 0, doc.page.height - 30, {
+        align: "center"
       });
-
-      const lineY = rowsY + rowHeight - 2;
-      doc.moveTo(tableLeftX, lineY).lineTo(tableLeftX + tableWidth, lineY).stroke();
-      rowsY += rowHeight;
     }
-
-    const omitted = items.length - renderCount;
-    if (omitted > 0) {
-      doc.font('Helvetica-Oblique').fontSize(8).fillColor('red');
-      doc.text(`Note: ${omitted} item(s) omitted to keep single-page layout.`, tableLeftX + 6, rowsY + 6);
-      doc.fillColor('black');
-    }
-
-    // totals bottom-right
-    const totalsBoxW = 320;
-    const totalsX = tableLeftX + tableWidth - totalsBoxW - 8;
-    const totalsY = tableBottomY - 72;
-
-    doc.font('Helvetica-Bold').fontSize(10);
-    doc.text(`Subtotal (Quantity): ${subtotalQty} units`, totalsX, totalsY, { width: totalsBoxW, align:'right' });
-    doc.text(`Total Inventory Value: RM ${totalInventoryValue.toFixed(2)}`, totalsX, totalsY + 18, { width: totalsBoxW, align:'right' });
-    doc.text(`Total Potential Revenue: RM ${totalPotentialRevenue.toFixed(2)}`, totalsX, totalsY + 36, { width: totalsBoxW, align:'right' });
-
-    if (omitted > 0) {
-      doc.font('Helvetica').fontSize(8).fillColor('red');
-      doc.text(`* ${omitted} items not printed`, totalsX, totalsY + 54, { width: totalsBoxW, align:'right' });
-      doc.fillColor('black');
-    }
-
-    // footer (moved up)
-    const footerY = pageH - margin - 40;
-    doc.font('Helvetica').fontSize(9).text('Thank you.', margin, footerY, { align:'center', width: usableW });
-    doc.text('Generated by L&B Inventory System', margin, footerY + 12, { align:'center', width: usableW });
 
     doc.end();
+
   } catch (err) {
-    console.error('PDF generation error', err);
-    return res.status(500).json({ message:'PDF generation failed' });
+    console.error("PDF Error", err);
+    res.status(500).json({ message: "PDF generation failed" });
   }
 });
 
