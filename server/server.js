@@ -1,398 +1,325 @@
-// ======================================================================
-// FINAL SERVER.JS — MONGODB ATLAS VERSION (OPTION A)
-// With correct Render path + dotenv path
-// ======================================================================
+// server/server.js
+// MongoDB (Mongoose) based server for Online Inventory & Documents System
+// Paste this complete file into server/server.js (replacing the old file)
 
-const path = require("path");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
-
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const multer = require("multer");
-const fs = require("fs");
-const PDFDocument = require("pdfkit");
+const express = require('express');
+const cors = require('cors');
+const xlsx = require('xlsx');
+const mongoose = require('mongoose');
+const path = require('path');
 
 const app = express();
-
-// ----------------------------------------------------------------------
-// ENVIRONMENT VARIABLES
-// ----------------------------------------------------------------------
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "123456";
+const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || '1234';
 
-// ----------------------------------------------------------------------
-// MIDDLEWARE
-// ----------------------------------------------------------------------
-app.use(express.json({ limit: "20mb" }));
+// ===== Middleware =====
 app.use(cors());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ✅ FIXED STATIC PATH FOR YOUR FOLDER STRUCTURE
-// /server/server.js → ../public
-app.use("/", express.static(path.join(__dirname, "../public")));
-
-if (!fs.existsSync(path.join(__dirname, "uploads"))) {
-  fs.mkdirSync(path.join(__dirname, "uploads"));
+// ===== Mongoose / Models =====
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set. Set MONGODB_URI environment variable.');
+  process.exit(1);
 }
 
-// ----------------------------------------------------------------------
-// MONGODB CONNECTION
-// ----------------------------------------------------------------------
-mongoose
-  .connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("MongoDB Atlas Connected"))
-  .catch((err) => console.error("MongoDB Connection Error:", err));
+mongoose.set('strictQuery', false);
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(()=> console.log('Connected to MongoDB Atlas'))
+  .catch(err => { console.error('MongoDB connect error:', err); process.exit(1); });
 
-// ----------------------------------------------------------------------
-// MONGOOSE SCHEMAS AND MODELS
-// ----------------------------------------------------------------------
-const userSchema = new mongoose.Schema({
-  username: String,
-  password: String
+const { Schema } = mongoose;
+
+const UserSchema = new Schema({
+  username: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
 });
+const User = mongoose.model('User', UserSchema);
 
-const inventorySchema = new mongoose.Schema({
+const InventorySchema = new Schema({
   sku: String,
   name: String,
   category: String,
-  quantity: Number,
-  unitCost: Number,
-  unitPrice: Number
+  quantity: { type: Number, default: 0 },
+  unitCost: { type: Number, default: 0 },
+  unitPrice: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
 });
+const Inventory = mongoose.model('Inventory', InventorySchema);
 
-const orderSchema = new mongoose.Schema({
-  orderNo: String,
-  customer: String,
-  contact: String,
-  items: Array,
-  subtotal: Number,
-  total: Number,
-  status: String,
-  date: String
-});
-
-const saleSchema = new mongoose.Schema({
-  saleNo: String,
-  customer: String,
-  contact: String,
-  items: Array,
-  subtotal: Number,
-  total: Number,
-  status: String,
-  date: String
-});
-
-const documentSchema = new mongoose.Schema({
-  filename: String,
-  originalname: String,
-  uploadDate: String
-});
-
-const companySchema = new mongoose.Schema({
+const DocumentSchema = new Schema({
   name: String,
-  address: String,
-  phone: String,
-  email: String,
-  tax: String
+  size: Number,
+  date: { type: Date, default: Date.now }
 });
+const Doc = mongoose.model('Doc', DocumentSchema);
 
-const logSchema = new mongoose.Schema({
+const LogSchema = new Schema({
   user: String,
   action: String,
-  time: String
+  time: { type: Date, default: Date.now }
 });
+const ActivityLog = mongoose.model('ActivityLog', LogSchema);
 
-const User = mongoose.model("User", userSchema);
-const Inventory = mongoose.model("Inventory", inventorySchema);
-const Order = mongoose.model("Order", orderSchema);
-const Sale = mongoose.model("Sale", saleSchema);
-const DocumentFile = mongoose.model("Document", documentSchema);
-const Company = mongoose.model("Company", companySchema);
-const Log = mongoose.model("Log", logSchema);
+// ===== safer logActivity: suppress near-duplicate entries =====
+const DUPLICATE_WINDOW_MS = 30 * 1000; // 30 seconds
 
-// ----------------------------------------------------------------------
-// MULTER — File Uploads
-// ----------------------------------------------------------------------
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, "uploads")),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 99999);
-    cb(null, unique + path.extname(file.originalname));
+async function logActivity(user, action){
+  try {
+    const safeUser = (user || 'Unknown').toString();
+    const safeAction = (action || '').toString();
+    const now = Date.now();
+
+    const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean().exec();
+    if (last) {
+      const lastUser = last.user || 'Unknown';
+      const lastAction = last.action || '';
+      const lastTime = last.time ? new Date(last.time).getTime() : 0;
+      if (lastUser === safeUser && lastAction === safeAction && (now - lastTime) <= DUPLICATE_WINDOW_MS) {
+        // skip noisy duplicate
+        return;
+      }
+    }
+
+    await ActivityLog.create({ user: safeUser, action: safeAction, time: new Date() });
+  } catch (err) {
+    console.error('logActivity error:', err);
   }
-});
-const upload = multer({ storage });
-
-// ======================================================================
-// AUTHENTICATION
-// ======================================================================
-app.post("/api/auth/login", async (req, res) => {
-  const found = await User.findOne({
-    username: req.body.username,
-    password: req.body.password
-  });
-
-  if (!found) return res.json({ success: false, message: "Invalid login" });
-  res.json({ success: true });
-});
-
-app.post("/api/auth/register", async (req, res) => {
-  if (req.body.code !== SECURITY_CODE)
-    return res.json({ success: false, message: "Security code incorrect" });
-
-  const exists = await User.findOne({ username: req.body.username });
-  if (exists) return res.json({ success: false, message: "User exists" });
-
-  await User.create({ username: req.body.username, password: req.body.password });
-  res.json({ success: true });
-});
-
-// ======================================================================
-// INVENTORY CRUD
-// ======================================================================
-app.get("/api/inventory", async (req, res) => {
-  res.json(await Inventory.find());
-});
-
-app.post("/api/inventory", async (req, res) => {
-  res.json(await Inventory.create(req.body));
-});
-
-app.put("/api/inventory/:id", async (req, res) => {
-  await Inventory.findByIdAndUpdate(req.params.id, req.body);
-  res.json({ success: true });
-});
-
-app.delete("/api/inventory/:id", async (req, res) => {
-  await Inventory.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
-});
-
-// ======================================================================
-// ORDERS CRUD
-// ======================================================================
-app.get("/api/orders", async (req, res) => {
-  res.json(await Order.find());
-});
-
-app.post("/api/orders", async (req, res) => {
-  const count = await Order.countDocuments();
-  const orderNo = "ORD-" + (100000 + count);
-  res.json(await Order.create({ ...req.body, orderNo }));
-});
-
-app.put("/api/orders/:id", async (req, res) => {
-  await Order.findByIdAndUpdate(req.params.id, req.body);
-  res.json({ success: true });
-});
-
-app.delete("/api/orders/:id", async (req, res) => {
-  await Order.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
-});
-
-// ======================================================================
-// SALES CRUD
-// ======================================================================
-app.get("/api/sales", async (req, res) => {
-  res.json(await Sale.find());
-});
-
-app.post("/api/sales", async (req, res) => {
-  const count = await Sale.countDocuments();
-  const saleNo = "SAL-" + (100000 + count);
-  res.json(await Sale.create({ ...req.body, saleNo }));
-});
-
-app.put("/api/sales/:id", async (req, res) => {
-  await Sale.findByIdAndUpdate(req.params.id, req.body);
-  res.json({ success: true });
-});
-
-app.delete("/api/sales/:id", async (req, res) => {
-  await Sale.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
-});
-
-// ======================================================================
-// DOCUMENTS
-// ======================================================================
-app.get("/api/documents", async (req, res) => {
-  res.json(await DocumentFile.find());
-});
-
-app.post("/api/documents", upload.single("file"), async (req, res) => {
-  res.json(
-    await DocumentFile.create({
-      filename: req.file.filename,
-      originalname: req.file.originalname,
-      uploadDate: new Date().toISOString()
-    })
-  );
-});
-
-app.delete("/api/documents/:id", async (req, res) => {
-  const doc = await DocumentFile.findById(req.params.id);
-  if (doc) {
-    const pathFile = path.join(__dirname, "uploads", doc.filename);
-    if (fs.existsSync(pathFile)) fs.unlinkSync(pathFile);
-  }
-  await DocumentFile.findByIdAndDelete(req.params.id);
-  res.json({ success: true });
-});
-
-// ======================================================================
-// COMPANY
-// ======================================================================
-app.get("/api/company", async (req, res) => {
-  res.json((await Company.findOne()) || {});
-});
-
-app.post("/api/company", async (req, res) => {
-  await Company.deleteMany({});
-  await Company.create(req.body);
-  res.json({ success: true });
-});
-
-// ======================================================================
-// LOGS
-// ======================================================================
-app.get("/api/logs", async (req, res) => {
-  res.json(await Log.find());
-});
-
-app.post("/api/logs", async (req, res) => {
-  await Log.create(req.body);
-  res.json({ success: true });
-});
-
-// ======================================================================
-// PDF HELPERS
-// ======================================================================
-function pdfHeader(doc, company, title, meta) {
-  doc.fontSize(16).text(company.name || "L&B Company");
-  doc.fontSize(10).text(company.address || "");
-  doc.text(company.phone || "");
-  doc.text(company.email || "");
-  doc.moveDown();
-  doc.fontSize(16).text(title, { align: "right" });
-  doc.fontSize(10).text(`No: ${meta.no}`, { align: "right" });
-  doc.text(`Date: ${meta.date}`, { align: "right" });
-  doc.text(`Status: ${meta.status}`, { align: "right" });
 }
 
-function pdfTable(doc) {
-  doc.moveDown();
-  doc.fontSize(12).text("Items", { underline: true });
-  doc.moveDown(0.5);
-  doc.fontSize(10);
-  doc.text("Item", 50);
-  doc.text("SKU", 200);
-  doc.text("Qty", 300);
-  doc.text("Unit Price", 350);
-  doc.text("Total", 450);
-  doc.moveDown();
+// ===== Health check =====
+app.get('/api/test', (req, res) => res.json({ success:true, message:'API is up', time: new Date().toISOString() }));
+
+// ===== Auth =====
+app.post('/api/register', async (req, res) => {
+  const { username, password, securityCode } = req.body || {};
+  if (securityCode !== SECURITY_CODE) return res.status(403).json({ success:false, message:'Invalid security code' });
+  if (!username || !password) return res.status(400).json({ success:false, message:'Missing username or password' });
+
+  try {
+    const exists = await User.findOne({ username }).lean();
+    if (exists) return res.status(409).json({ success:false, message:'Username already exists' });
+
+    await User.create({ username, password });
+    await logActivity('System', `Registered new user: ${username}`);
+    return res.json({ success:true, message:'Registration successful' });
+  } catch (err) {
+    console.error('register error', err);
+    return res.status(500).json({ success:false, message:'Server error' });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ success:false, message:'Missing credentials' });
+
+  try {
+    const user = await User.findOne({ username, password }).lean();
+    if (!user) return res.status(401).json({ success:false, message:'Invalid credentials' });
+    await logActivity(username, 'Logged in');
+    return res.json({ success:true, user: username });
+  } catch(err){
+    console.error('login error', err);
+    return res.status(500).json({ success:false, message:'Server error' });
+  }
+});
+
+app.put('/api/account/password', async (req, res) => {
+  const { username, newPassword, securityCode } = req.body || {};
+  if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.password = newPassword;
+    await user.save();
+    await logActivity(username, 'Changed account password');
+    return res.json({ success:true, message:'Password updated successfully' });
+  } catch (err) {
+    console.error('change password error', err);
+    return res.status(500).json({ message:'Server error' });
+  }
+});
+
+app.delete('/api/account', async (req, res) => {
+  const { username, securityCode } = req.body || {};
+  if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: 'Invalid Admin Security Code' });
+
+  try {
+    const result = await User.deleteOne({ username });
+    if (result.deletedCount === 0) return res.status(404).json({ message: 'User not found' });
+    await logActivity('System', `Deleted account for user: ${username}`);
+    return res.json({ success:true, message:'Account deleted successfully' });
+  } catch (err) {
+    console.error('delete account error', err);
+    return res.status(500).json({ message:'Server error' });
+  }
+});
+
+// ===== Inventory CRUD =====
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+    // normalize id for client (id instead of _id)
+    const normalized = items.map(i => ({ ...i, id: i._id.toString() }));
+    return res.json(normalized);
+  } catch(err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.post('/api/inventory', async (req, res) => {
+  try {
+    const item = await Inventory.create(req.body);
+    await logActivity(req.headers['x-username'], `Added product: ${item.name}`);
+    const normalized = { ...item.toObject(), id: item._id.toString() };
+    return res.status(201).json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.put('/api/inventory/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const item = await Inventory.findByIdAndUpdate(id, req.body, { new:true });
+    if (!item) return res.status(404).json({ message:'Item not found' });
+    await logActivity(req.headers['x-username'], `Updated product: ${item.name}`);
+    const normalized = { ...item.toObject(), id: item._id.toString() };
+    return res.json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.delete('/api/inventory/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const item = await Inventory.findByIdAndDelete(id);
+    if (!item) return res.status(404).json({ message:'Item not found' });
+    await logActivity(req.headers['x-username'], `Deleted product: ${item.name}`);
+    return res.status(204).send();
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+// ===== Inventory Report (generate XLSX - date only in header) =====
+app.get('/api/inventory/report', async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+    const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0,10)}`;
+    const filename = `${filenameBase}.xlsx`;
+    // Use date-only (YYYY-MM-DD) for report header (no time)
+    const dateOnly = new Date().toISOString().slice(0,10);
+
+    const ws_data = [
+      ["L&B Company - Inventory Report"],
+      ["Date:", dateOnly],
+      [],
+      ["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]
+    ];
+
+    let totalValue = 0, totalRevenue = 0;
+    items.forEach(it => {
+      const qty = Number(it.quantity || 0);
+      const uc = Number(it.unitCost || 0);
+      const up = Number(it.unitPrice || 0);
+      const invVal = qty * uc;
+      const rev = qty * up;
+      totalValue += invVal;
+      totalRevenue += rev;
+      ws_data.push([it.sku||'', it.name||'', it.category||'', qty, uc.toFixed(2), up.toFixed(2), invVal.toFixed(2), rev.toFixed(2)]);
+    });
+    ws_data.push([]);
+    ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
+    const wb_out = xlsx.write(wb, { type:'buffer', bookType:'xlsx' });
+
+    // Persist document record
+    const doc = await Doc.create({ name: filename, size: wb_out.length, date: new Date() });
+    await logActivity(req.headers['x-username'], `Generated and saved Inventory Report: ${filename}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    return res.send(wb_out);
+  } catch (err) {
+    console.error('report error', err);
+    return res.status(500).json({ message:'Report generation failed' });
+  }
+});
+
+// ===== Documents =====
+app.get('/api/documents', async (req, res) => {
+  try {
+    const docs = await Doc.find({}).sort({ date: -1 }).lean();
+    const normalized = docs.map(d => ({ ...d, id: d._id.toString() }));
+    return res.json(normalized);
+  } catch (err) { console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.post('/api/documents', async (req, res) => {
+  try {
+    const doc = await Doc.create({ ...req.body, date: new Date() });
+    await logActivity(req.headers['x-username'], `Uploaded document metadata: ${doc.name}`);
+    const normalized = { ...doc.toObject(), id: doc._id.toString() };
+    return res.status(201).json(normalized);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.delete('/api/documents/:id', async (req, res) => {
+  try {
+    const doc = await Doc.findByIdAndDelete(req.params.id);
+    if (!doc) return res.status(404).json({ message: 'Document not found' });
+    await logActivity(req.headers['x-username'], `Deleted document metadata: ${doc.name}`);
+    return res.status(204).send();
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+app.get('/api/documents/download/:filename', async (req, res) => {
+  const filename = req.params.filename || '';
+  if (filename.startsWith('Inventory_Report')) {
+    return res.redirect('/api/inventory/report');
+  }
+  return res.status(404).json({ message: "File not found or download unavailable on this mock server." });
+});
+
+// ===== Logs =====
+app.get('/api/logs', async (req, res) => {
+  try {
+    const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
+    // return ISO timestamps so client formats to local timezone
+    const formatted = logs.map(l => ({ user: l.user, action: l.action, time: l.time ? new Date(l.time).toISOString() : new Date().toISOString() }));
+    return res.json(formatted);
+  } catch(err){ console.error(err); return res.status(500).json({ message:'Server error' }); }
+});
+
+// ===== Serve frontend =====
+app.use(express.static(path.join(__dirname, '../public')));
+
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ message:'API route not found' });
+  return res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// ===== Startup helpers: create default admin if none, single system start log =====
+async function ensureDefaultAdminAndStartupLog() {
+  try {
+    const count = await User.countDocuments({}).exec();
+    if (count === 0) {
+      await User.create({ username: 'admin', password: 'password' });
+      await logActivity('System', 'Default admin user created.');
+      console.log('Default admin user created.');
+    }
+    // Write a single "server live" message (logActivity suppresses near-duplicates)
+    await logActivity('System', `Server is live and listening on port ${PORT}`);
+  } catch (err) {
+    console.error('Startup helper error:', err);
+  }
 }
 
-// ======================================================================
-// PDF ROUTES
-// ======================================================================
-app.get("/api/report/inventory/pdf", async (req, res) => {
-  const inventory = await Inventory.find();
-  const company = (await Company.findOne()) || {};
-  const doc = new PDFDocument({ margin: 40 });
-
-  res.setHeader("Content-Type", "application/pdf");
-  doc.pipe(res);
-
-  pdfHeader(doc, company, "INVENTORY REPORT", {
-    no: "INV-REPORT",
-    date: new Date().toLocaleString(),
-    status: "Generated"
+// ===== Start =====
+(async () => {
+  await ensureDefaultAdminAndStartupLog();
+  console.log(`Starting server (no DB startup log written to ActivityLog)`);
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
   });
-
-  pdfTable(doc);
-
-  inventory.forEach((i) => {
-    doc.text(i.name, 50);
-    doc.text(i.sku, 200);
-    doc.text(i.quantity, 300);
-    doc.text(i.unitPrice, 350);
-    doc.text(i.quantity * i.unitPrice, 450);
-    doc.moveDown();
-  });
-
-  doc.end();
-});
-
-app.get("/api/report/order/:id/pdf", async (req, res) => {
-  const order = await Order.findById(req.params.id);
-  if (!order) return res.sendStatus(404);
-  const company = (await Company.findOne()) || {};
-  const doc = new PDFDocument({ margin: 40 });
-
-  res.setHeader("Content-Type", "application/pdf");
-  doc.pipe(res);
-
-  pdfHeader(doc, company, "ORDER SUMMARY", {
-    no: order.orderNo,
-    date: new Date(order.date).toLocaleString(),
-    status: order.status
-  });
-
-  pdfTable(doc);
-
-  order.items.forEach((i) => {
-    doc.text(i.name, 50);
-    doc.text(i.sku, 200);
-    doc.text(i.qty, 300);
-    doc.text(i.price, 350);
-    doc.text(i.qty * i.price, 450);
-    doc.moveDown();
-  });
-
-  doc.text(`Subtotal: RM ${order.subtotal}`);
-  doc.text(`Total: RM ${order.total}`);
-
-  doc.end();
-});
-
-app.get("/api/report/sale/:id/pdf", async (req, res) => {
-  const sale = await Sale.findById(req.params.id);
-  if (!sale) return res.sendStatus(404);
-  const company = (await Company.findOne()) || {};
-  const doc = new PDFDocument({ margin: 40 });
-
-  res.setHeader("Content-Type", "application/pdf");
-  doc.pipe(res);
-
-  pdfHeader(doc, company, "SALES SUMMARY", {
-    no: sale.saleNo,
-    date: new Date(sale.date).toLocaleString(),
-    status: sale.status
-  });
-
-  pdfTable(doc);
-
-  sale.items.forEach((i) => {
-    doc.text(i.name, 50);
-    doc.text(i.sku, 200);
-    doc.text(i.qty, 300);
-    doc.text(i.price, 350);
-    doc.text(i.qty * i.price, 450);
-    doc.moveDown();
-  });
-
-  doc.text(`Subtotal: RM ${sale.subtotal}`);
-  doc.text(`Total: RM ${sale.total}`);
-
-  doc.end();
-});
-
-// ======================================================================
-// START SERVER
-// ======================================================================
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+})();
