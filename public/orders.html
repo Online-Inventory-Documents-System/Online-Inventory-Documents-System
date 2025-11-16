@@ -1,56 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Orders | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header>
-    <h1>🛒 Purchase Orders</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="inventory.html">Inventory</a>
-      <a href="orders.html">Orders</a>
-      <a href="sales.html">Sales</a>
-      <a href="documents.html">Documents</a>
-      <a href="log.html">Activity Log</a>
-      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
-      <button onclick="toggleTheme()">🌓 Mode</button>
-      <button onclick="logout()">🚪 Logout</button>
-      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-    </nav>
-  </header>
+<header>
+  <h1>🧾 Orders</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="orders.html">Orders</a>
+    <a href="sales.html">Sales</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
 
-  <section>
-    <h2>Manage Purchase Orders</h2>
-    <div class="controls" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
-        <button onclick="window.location.href='order.html'" class="primary-btn">➕ Add New Order</button>
-    </div>
-    
-    <div class="table-container"> 
-      <table id="ordersTable">
-          <thead>
-              <tr>
-                  <th>Order #</th>
-                  <th>Supplier/Customer</th>
-                  <th>Total Items</th>
-                  <th class="money">Grand Total</th>
-                  <th>Status</th>
-                  <th class="actions">Actions</th>
-              </tr>
-          </thead>
-          <tbody id="orderList">
-              </tbody>
-      </table>
-    </div>
-  </section>
+<main>
+<section>
+  <div style="display:flex;justify-content:space-between;">
+    <h2>Orders</h2>
+    <button id="btnAddOrder" class="primary-btn">+ Add Order</button>
+  </div>
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
-  <script>
-    document.documentElement.dataset.page = 'orders';
-  </script>
+  <div class="table-container">
+    <table id="ordersTable">
+      <thead><tr><th>Order #</th><th>Date</th><th>Customer</th><th>Items</th><th>Total</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+</main>
+
+<!-- MODAL -->
+<div id="orderModal" class="modal hidden">
+  <div class="modal-content big">
+    <h3 id="orderModalTitle">Add / Edit Order</h3>
+
+    <label>Customer<input id="orderCustomer"></label>
+    <label>Contact<input id="orderContact"></label>
+
+    <h4>Items</h4>
+    <div style="display:flex;gap:8px;">
+      <select id="orderProductSelect"></select>
+      <input id="orderItemQty" type="number" min="1" value="1"/>
+      <input id="orderItemPrice" type="number" step="0.01"/>
+      <button id="addOrderLine" class="primary-btn">Add</button>
+    </div>
+
+    <table id="orderLines" class="table small">
+      <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="totals">
+      <div>Subtotal: RM <span id="orderSubtotal">0.00</span></div>
+      <div>Tax: RM <span id="orderTax">0.00</span></div>
+      <div class="grand">Grand Total: RM <span id="orderTotal">0.00</span></div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="saveOrderBtn" class="primary-btn">Save</button>
+      <button id="cancelOrderBtn" class="secondary-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>document.documentElement.dataset.page="orders";</script>
 </body>
 </html>
