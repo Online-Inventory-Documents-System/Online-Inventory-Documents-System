@@ -239,6 +239,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 // ======================================================
 //          INVENTORY PDF - INVOICE STYLE (1 PAGE)
 // ======================================================
+// Replace your existing /api/inventory/report/pdf with this improved version
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
@@ -256,12 +257,11 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     doc.pipe(res);
 
-    // PAGE METRICS
+    // Page metrics
     const pageW = doc.page.width;
     const pageH = doc.page.height;
     const margin = doc.page.margins.left; // 30
     const usableW = pageW - margin * 2;
-    const usableH = pageH - margin * 2;
 
     // HEADER (compact invoice style)
     const headerTop = margin;
@@ -279,94 +279,97 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       .text("Status: Completed", rightX, headerTop + 52);
 
     // Table area
-    const tableTopY = headerTop + 80; // start table here (kept compact)
-    const tableBottomY = pageH - margin - 90; // leave room for totals and footer
-    const tableHeight = tableBottomY - tableTopY;
+    const tableTopY = headerTop + 78;              // compact header
+    const tableBottomY = pageH - margin - 110;     // room for totals + footer
     const tableLeftX = margin;
     const tableWidth = usableW;
+    const tableHeight = tableBottomY - tableTopY;
 
-    // Column definitions (8 columns) - adjust widths to fit
-    // We'll compute widths proportionally to ensure fit
-    let colDefs = [
-      { key: "sku", label: "SKU", width: 0.12 },       // 12%
-      { key: "name", label: "Name", width: 0.32 },     // 32%
-      { key: "category", label: "Category", width: 0.16 }, // 16%
-      { key: "qty", label: "Qty", width: 0.07 },       // 7%
-      { key: "unitCost", label: "Unit Cost", width: 0.08 }, // 8%
-      { key: "unitPrice", label: "Unit Price", width: 0.08 }, // 8%
-      { key: "value", label: "Total Inventory Value", width: 0.09 }, // 9%
-      { key: "revenue", label: "Total Potential Revenue", width: 0.08 } // 8%
-    ];
+    // Explicit pixel column widths (sum must be <= tableWidth)
+    // tweak these values if you want slightly wider name or category
+    const colPixels = {
+      sku: 0.12,   // % of tableWidth
+      name: 0.32,
+      category: 0.16,
+      qty: 0.07,
+      unitCost: 0.08,
+      unitPrice: 0.08,
+      value: 0.09,
+      revenue: 0.08
+    };
 
-    // compute pixel widths & x positions
-    let cursorX = tableLeftX;
-    colDefs = colDefs.map(cd => {
-      const w = Math.floor(cd.width * tableWidth);
-      const col = { ...cd, x: cursorX, w };
-      cursorX += w;
-      return col;
+    // compute pixel values and x positions precisely (no rounding gaps)
+    const keys = Object.keys(colPixels);
+    let x = tableLeftX;
+    const cols = [];
+    let consumed = 0;
+    keys.forEach((k, idx) => {
+      const w = Math.round(colPixels[k] * tableWidth);
+      consumed += w;
+      cols.push({ key: k, x, w, label:
+        k === 'sku' ? 'SKU' :
+        k === 'name' ? 'Name' :
+        k === 'category' ? 'Category' :
+        k === 'qty' ? 'Qty' :
+        k === 'unitCost' ? 'Unit Cost' :
+        k === 'unitPrice' ? 'Unit Price' :
+        k === 'value' ? 'Total Inventory Value' : 'Total Potential Revenue'
+      });
+      x += w;
     });
-
-    // safety: if rounding left small gap, extend last column
-    const consumed = colDefs.reduce((s, c) => s + c.w, 0);
+    // if rounding left a gap, extend last column
     if (consumed < tableWidth) {
-      colDefs[colDefs.length - 1].w += (tableWidth - consumed);
+      cols[cols.length - 1].w += (tableWidth - consumed);
     }
 
-    // Draw outer border box
+    // draw outer border
     doc.lineWidth(0.9);
+    doc.strokeColor('black');
     doc.rect(tableLeftX, tableTopY, tableWidth, tableHeight).stroke();
 
-    // Draw vertical separators (border style B)
-    colDefs.slice(1).forEach(c => {
-      const x = c.x - 6; // align separators nicely between columns
-      doc.moveTo(x, tableTopY).lineTo(x, tableTopY + tableHeight).stroke();
-    });
+    // draw vertical separators exactly at col boundaries
+    for (let i = 1; i < cols.length; i++) {
+      const vx = cols[i].x;
+      doc.moveTo(vx, tableTopY).lineTo(vx, tableTopY + tableHeight).stroke();
+    }
 
-    // TABLE HEADER
+    // header row
     const headerRowH = 18;
     doc.font("Helvetica-Bold").fontSize(10);
-    colDefs.forEach(c => {
+    cols.forEach(c => {
       doc.text(c.label, c.x + 4, tableTopY + 4, { width: c.w - 8, align: "left", ellipsis: true });
     });
     // header underline
     const headerBottomY = tableTopY + headerRowH;
     doc.moveTo(tableLeftX, headerBottomY).lineTo(tableLeftX + tableWidth, headerBottomY).stroke();
 
-    // Prepare rows area
-    let rowsY = headerBottomY + 4;
-    // Determine row height and font scaling to fit all rows into one page
-    const minFont = 8;      // minimum readable font
-    const baseFont = 9.5;   // preferred font
-    const baseRowH = 14;    // preferred row height
-
-    // compute available rows
-    const availableH = tableTopY + tableHeight - rowsY - 10; // leave tiny padding
-    let maxRows = Math.floor(availableH / baseRowH);
-
+    // rows: calculate row height & font scaling to always fit on single page
+    const baseFont = 9.2;
+    const baseRowH = 14;
+    const minFont = 8;
     let fontSize = baseFont;
     let rowH = baseRowH;
 
+    const availableRowsArea = tableTopY + tableHeight - (headerBottomY + 6) - 6; // leave 6px padding
+    let maxRows = Math.floor(availableRowsArea / rowH);
+
     if (items.length > maxRows) {
-      // scale down font and row height proportionally
       const scale = maxRows / items.length;
       fontSize = Math.max(minFont, Math.floor(baseFont * scale * 10) / 10);
       rowH = Math.max(11, Math.floor(baseRowH * (fontSize / baseFont)));
-      // recalc maxRows
-      maxRows = Math.floor(availableH / rowH);
-      // if still not enough, further reduce rowH until fit or reach min
+      maxRows = Math.floor(availableRowsArea / rowH);
+      // further reduce if needed but preserve readability
       while (items.length > maxRows && rowH > 10) {
         rowH = Math.max(10, Math.floor(rowH * 0.95));
-        maxRows = Math.floor(availableH / rowH);
+        maxRows = Math.floor(availableRowsArea / rowH);
       }
     }
 
-    // ensure we won't overflow: we'll only render up to maxRows
     const renderCount = Math.min(items.length, Math.max(0, maxRows));
-
+    let rowsY = headerBottomY + 4;
     doc.font("Helvetica").fontSize(fontSize);
 
-    // Draw rows
+    // Draw each row and draw a horizontal separator after it so grid lines exist
     let totalInventoryValue = 0;
     let totalPotentialRevenue = 0;
     let subtotalQty = 0;
@@ -378,85 +381,77 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       const up = Number(it.unitPrice || 0);
       const invVal = qty * uc;
       const rev = qty * up;
-
       totalInventoryValue += invVal;
       totalPotentialRevenue += rev;
       subtotalQty += qty;
 
-      // zebra
+      // zebra background
       if (i % 2 === 1) {
         doc.save();
         doc.fillOpacity(0.12);
-        doc.rect(tableLeftX + 1, rowsY - 2, tableWidth - 2, rowH).fill("#f2f2f2");
+        doc.rect(tableLeftX + 1, rowsY - 2, tableWidth - 2, rowH).fill('#f2f2f2');
         doc.restore();
       }
 
-      // draw row text in each column with padding
-      colDefs.forEach(c => {
+      // render each cell; numeric columns right-aligned
+      cols.forEach(c => {
         let text = "";
         if (c.key === "sku") text = it.sku || "";
-        else if (c.key === "name") text = it.name || "";
-        else if (c.key === "category") text = it.category || "";
-        else if (c.key === "qty") text = String(qty);
-        else if (c.key === "unitCost") text = `RM ${uc.toFixed(2)}`;
-        else if (c.key === "unitPrice") text = `RM ${up.toFixed(2)}`;
-        else if (c.key === "value") text = `RM ${invVal.toFixed(2)}`;
-        else if (c.key === "revenue") text = `RM ${rev.toFixed(2)}`;
+        if (c.key === "name") text = it.name || "";
+        if (c.key === "category") text = it.category || "";
+        if (c.key === "qty") text = String(qty);
+        if (c.key === "unitCost") text = `RM ${uc.toFixed(2)}`;
+        if (c.key === "unitPrice") text = `RM ${up.toFixed(2)}`;
+        if (c.key === "value") text = `RM ${invVal.toFixed(2)}`;
+        if (c.key === "revenue") text = `RM ${rev.toFixed(2)}`;
 
-        // alignment: right align numeric-looking columns
-        let align = "left";
-        if (["qty","unitCost","unitPrice","value","revenue"].includes(c.key)) align = "right";
-
-        doc.text(text, c.x + 6, rowsY, { width: c.w - 10, align: align, ellipsis: true });
+        const align = ["qty","unitCost","unitPrice","value","revenue"].includes(c.key) ? "right" : "left";
+        doc.text(text, c.x + 6, rowsY, { width: c.w - 12, align, ellipsis: true });
       });
+
+      // draw horizontal separator line after the row (creates grid)
+      const lineY = rowsY + rowH - 4;
+      doc.moveTo(tableLeftX, lineY).lineTo(tableLeftX + tableWidth, lineY).stroke();
 
       rowsY += rowH;
     }
 
-    // If there are rows that didn't fit, indicate count omitted in small text under table (left side)
+    // If omitted rows, print note left side
     const omitted = items.length - renderCount;
     if (omitted > 0) {
-      doc.font("Helvetica-Oblique").fontSize(8);
-      doc.fillColor("red");
+      doc.font("Helvetica-Oblique").fontSize(8).fillColor("red");
       doc.text(`Note: ${omitted} item(s) omitted to keep single-page layout.`, tableLeftX + 6, rowsY + 6);
       doc.fillColor("black");
-      doc.font("Helvetica").fontSize(fontSize);
     }
 
-    // DRAW horizontal bottom line at end of visible rows (inside table)
-    const bottomLineY = Math.min(tableTopY + tableHeight, rowsY + 4);
-    doc.moveTo(tableLeftX, bottomLineY).lineTo(tableLeftX + tableWidth, bottomLineY).stroke();
-
-    // ======= Totals (bottom-right, invoice style) =======
-    const totalsBoxW = 300;
-    const totalsX = tableLeftX + tableWidth - totalsBoxW - 10;
-    const totalsY = bottomLineY + 12;
+    // Totals box bottom-right (invoice style)
+    const totalsBoxW = 320;
+    const totalsX = tableLeftX + tableWidth - totalsBoxW - 8;
+    const totalsY = tableBottomY - 70; // fit above footer
 
     doc.font("Helvetica-Bold").fontSize(10);
     doc.text(`Subtotal (Quantity): ${subtotalQty} units`, totalsX, totalsY, { width: totalsBoxW, align: "right" });
-    doc.text(`Total Inventory Value: RM ${totalInventoryValue.toFixed(2)}`, totalsX, totalsY + 16, { width: totalsBoxW, align: "right" });
-    doc.text(`Total Potential Revenue: RM ${totalPotentialRevenue.toFixed(2)}`, totalsX, totalsY + 34, { width: totalsBoxW, align: "right" });
+    doc.text(`Total Inventory Value: RM ${totalInventoryValue.toFixed(2)}`, totalsX, totalsY + 18, { width: totalsBoxW, align: "right" });
+    doc.text(`Total Potential Revenue: RM ${totalPotentialRevenue.toFixed(2)}`, totalsX, totalsY + 36, { width: totalsBoxW, align: "right" });
 
-    // small note if we omitted rows
     if (omitted > 0) {
       doc.font("Helvetica").fontSize(8).fillColor("red");
-      doc.text(`* ${omitted} items not printed`, totalsX, totalsY + 52, { width: totalsBoxW, align: "right" });
+      doc.text(`* ${omitted} items not printed`, totalsX, totalsY + 54, { width: totalsBoxW, align: "right" });
       doc.fillColor("black");
     }
 
-    // FOOTER (moved up to avoid creating a new page)
+    // Footer (moved up)
     const footerY = pageH - margin - 40;
     doc.font("Helvetica").fontSize(9).text("Thank you.", margin, footerY, { align: "center", width: usableW });
     doc.text("Generated by L&B Inventory System", margin, footerY + 12, { align: "center", width: usableW });
 
-    // finish PDF
     doc.end();
-
   } catch (err) {
-    console.error("PDF generate error:", err);
+    console.error("PDF generate error", err);
     return res.status(500).json({ message: "PDF generation failed" });
   }
 });
+
 // ======================================================
 //                     XLSX REPORT (unchanged)
 // ======================================================
