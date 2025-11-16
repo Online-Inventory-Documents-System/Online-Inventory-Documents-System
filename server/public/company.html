@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Company Info | Inventory System</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+<header>
+  <h1>🏢 Company Information</h1>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="orders.html">Orders</a>
+    <a href="sales.html">Sales</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
+
+<section>
+  <h2>Edit Company Details (used in all PDF headers)</h2>
+
+  <div class="form-block">
+    <label>Company Name</label>
+    <input id="companyName" type="text" />
+
+    <label>Address</label>
+    <textarea id="companyAddress"></textarea>
+
+    <label>Phone</label>
+    <input id="companyPhone" type="text" />
+
+    <label>Email</label>
+    <input id="companyEmail" type="text" />
+
+    <label>Tax / Registration No.</label>
+    <input id="companyTax" type="text" />
+  </div>
+
+  <div class="modal-actions" style="margin-top:15px;">
+    <button id="saveCompany" class="primary-btn">💾 Save Company Info</button>
+  </div>
+</section>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>
+  // Correct dataset for script.js page detection
+  document.documentElement.dataset.page = "company";
+</script>
+
+</body>
+</html>
