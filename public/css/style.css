@@ -467,3 +467,38 @@ input:focus {
 .dark-mode .info-card {
     background: #343a40;
 }
+
+/* =========================================
+   New Styles for Orders/Sales Status
+========================================= */
+
+.status-cell {
+    text-align: center;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 80px;
+    font-size: 0.9em;
+}
+
+.status-cell.pending { 
+    background-color: #ffc107; /* Yellow */
+    color: #333; 
+}
+
+.status-cell.approved { 
+    background-color: var(--success-color); /* Green */
+    color: white; 
+}
+
+.status-cell.cancelled { 
+    background-color: var(--danger-color); /* Red */
+    color: white; 
+}
+
+/* Dark mode adjustments for new colors */
+.dark-mode .status-cell.pending {
+    background-color: #e6b300;
+    color: var(--text-dark);
+}
