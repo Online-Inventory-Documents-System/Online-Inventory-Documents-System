@@ -1,49 +1,7 @@
-// server/server.js
-// FINAL: Auto-install dependencies on startup + Full backend + Invoice-style PDF (A4 landscape, full-grid)
-
-// -------------------- Auto-installer (no CMD required) --------------------
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-
-function ensureDependencies(pkgs = []) {
-  const missing = [];
-  for (const p of pkgs) {
-    try {
-      require.resolve(p);
-    } catch (e) {
-      missing.push(p);
-    }
-  }
-  if (missing.length === 0) return;
-  console.log('Missing packages detected:', missing.join(', '));
-  try {
-    // Use npm to install missing packages synchronously
-    const cmd = `npm install --no-audit --no-fund ${missing.join(' ')}`;
-    console.log('Installing missing packages:', cmd);
-    execSync(cmd, { stdio: 'inherit' });
-    console.log('Dependency install completed.');
-  } catch (err) {
-    console.error('Auto-install failed. Please run "npm install" manually.', err);
-    // Do not exit; attempt to continue — will likely error later if modules missing
-  }
-}
-
-// List of packages your app requires
-ensureDependencies([
-  'express',
-  'cors',
-  'mongoose',
-  'xlsx',
-  'pdfkit'
-  // Note: body-parser is not required explicitly since express.json() used
-]);
-
-// -------------------- Now require modules (after auto-install) --------------------
 const express = require('express');
 const cors = require('cors');
-const xlsx = require('xlsx');
 const mongoose = require('mongoose');
+const xlsx = require('xlsx');
 const PDFDocument = require('pdfkit');
 const pathModule = require('path');
 
@@ -52,15 +10,14 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || '1234';
 
-// -------------------- Middleware --------------------
+// -------------------- middleware --------------------
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// -------------------- MongoDB connect check --------------------
+// -------------------- MongoDB connect guard --------------------
 if (!MONGODB_URI) {
   console.error('❌ MONGODB_URI environment variable is required. Set it and restart.');
-  // don't exit forcibly here if you want to test locally without DB; still recommended to exit
   process.exit(1);
 }
 
@@ -69,7 +26,7 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
   .then(()=> console.log('✅ Connected to MongoDB'))
   .catch(err => { console.error('❌ MongoDB connect error:', err); process.exit(1); });
 
-// -------------------- Mongoose Models --------------------
+// -------------------- Models --------------------
 const { Schema } = mongoose;
 
 const UserSchema = new Schema({
@@ -118,27 +75,24 @@ async function logActivity(user, action){
     }
     await ActivityLog.create({ user: safeUser, action: safeAction, time: new Date() });
   } catch (err) {
-    console.error('logActivity error:', err);
+    console.error('logActivity error', err);
   }
 }
 
-// -------------------- Health check --------------------
-app.get('/api/test', (req, res) => res.json({ success:true, message:'API is up', time: new Date().toISOString() }));
+// -------------------- Health --------------------
+app.get('/api/test', (req, res) => res.json({ success:true, time: new Date().toISOString() }));
 
-// -------------------- AUTH --------------------
+// -------------------- Auth --------------------
 app.post('/api/register', async (req, res) => {
   const { username, password, securityCode } = req.body || {};
   if (securityCode !== SECURITY_CODE) return res.status(403).json({ success:false, message:'Invalid security code' });
-  if (!username || !password) return res.status(400).json({ success:false, message:'Missing username or password' });
+  if (!username || !password) return res.status(400).json({ success:false, message:'Missing fields' });
   try {
     if (await User.findOne({ username })) return res.status(409).json({ success:false, message:'Username exists' });
     await User.create({ username, password });
     await logActivity('System', `Registered new user: ${username}`);
     return res.json({ success:true, message:'Registration successful' });
-  } catch (err) {
-    console.error('register error', err);
-    return res.status(500).json({ success:false, message:'Server error' });
-  }
+  } catch (err) { console.error('register error', err); return res.status(500).json({ success:false, message:'Server error' }); }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -149,10 +103,7 @@ app.post('/api/login', async (req, res) => {
     if (!user) return res.status(401).json({ success:false, message:'Invalid credentials' });
     await logActivity(username, 'Logged in');
     return res.json({ success:true, user: username });
-  } catch (err) {
-    console.error('login error', err);
-    return res.status(500).json({ success:false, message:'Server error' });
-  }
+  } catch (err) { console.error('login error', err); return res.status(500).json({ success:false, message:'Server error' }); }
 });
 
 app.put('/api/account/password', async (req, res) => {
@@ -165,10 +116,7 @@ app.put('/api/account/password', async (req, res) => {
     await user.save();
     await logActivity(username, 'Changed account password');
     return res.json({ success:true, message:'Password updated successfully' });
-  } catch (err) {
-    console.error('change password error', err);
-    return res.status(500).json({ message:'Server error' });
-  }
+  } catch (err) { console.error('change password error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.delete('/api/account', async (req, res) => {
@@ -179,10 +127,7 @@ app.delete('/api/account', async (req, res) => {
     if (result.deletedCount === 0) return res.status(404).json({ message:'User not found' });
     await logActivity('System', `Deleted account for user: ${username}`);
     return res.json({ success:true, message:'Account deleted successfully' });
-  } catch (err) {
-    console.error('delete account error', err);
-    return res.status(500).json({ message:'Server error' });
-  }
+  } catch (err) { console.error('delete account error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
 // -------------------- Inventory CRUD --------------------
@@ -190,10 +135,7 @@ app.get('/api/inventory', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     return res.json(items.map(i => ({ ...i, id: i._id.toString() })));
-  } catch (err) {
-    console.error('inventory fetch error', err);
-    return res.status(500).json({ message:'Server error' });
-  }
+  } catch (err) { console.error('inventory fetch error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.post('/api/inventory', async (req, res) => {
@@ -201,10 +143,7 @@ app.post('/api/inventory', async (req, res) => {
     const it = await Inventory.create(req.body);
     await logActivity(req.headers['x-username'] || 'Unknown', `Added product: ${it.name}`);
     return res.status(201).json({ ...it.toObject(), id: it._id.toString() });
-  } catch (err) {
-    console.error('inventory create error', err);
-    return res.status(500).json({ message:'Server error' });
-  }
+  } catch (err) { console.error('inventory create error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.put('/api/inventory/:id', async (req, res) => {
@@ -213,10 +152,7 @@ app.put('/api/inventory/:id', async (req, res) => {
     if (!it) return res.status(404).json({ message:'Item not found' });
     await logActivity(req.headers['x-username'] || 'Unknown', `Updated product: ${it.name}`);
     return res.json({ ...it.toObject(), id: it._id.toString() });
-  } catch (err) {
-    console.error('inventory update error', err);
-    return res.status(500).json({ message:'Server error' });
-  }
+  } catch (err) { console.error('inventory update error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
 app.delete('/api/inventory/:id', async (req, res) => {
@@ -225,116 +161,118 @@ app.delete('/api/inventory/:id', async (req, res) => {
     if (!it) return res.status(404).json({ message:'Item not found' });
     await logActivity(req.headers['x-username'] || 'Unknown', `Deleted product: ${it.name}`);
     return res.status(204).send();
-  } catch (err) {
-    console.error('inventory delete error', err);
-    return res.status(500).json({ message:'Server error' });
-  }
+  } catch (err) { console.error('inventory delete error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// ============================================================================
-//     FINAL — A4 LANDSCAPE INVENTORY PDF (Invoice Style, Clean Borders)
-// ============================================================================
+// -------------------- FINAL PDF: Full-grid A4 Landscape (Fixed widths, rowHeight=18) --------------------
 app.get('/api/inventory/report/pdf', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const now = new Date();
-
     const filename = `Inventory_Report_${now.toISOString().slice(0,10)}.pdf`;
 
-    // A4 Landscape, margins, and page buffering for page numbers
-    const doc = new PDFDocument({
-      size: "A4",
-      layout: "landscape",
-      margin: 40,
-      bufferPages: true
-    });
-
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Type", "application/pdf");
+    // Create A4 landscape doc
+    const doc = new PDFDocument({ size:'A4', layout:'landscape', margin:36, bufferPages: true });
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/pdf');
     doc.pipe(res);
 
-    // ==============================
-    // HEADER (Invoice Style)
-    // ==============================
-    const headerY = 40;
+    // Page metrics
+    const pageW = doc.page.width;
+    const pageH = doc.page.height;
+    const margin = doc.page.margins.left; // 36
+    const usableW = pageW - margin*2;
 
-    // Left Column
-    doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, headerY);
-    doc.fontSize(10).font("Helvetica")
-      .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, headerY + 28)
-      .text("Phone: 01133127622", 40, headerY + 42)
-      .text("Email: lbcompany@gmail.com", 40, headerY + 56);
+    // Header (two-column)
+    const headerY = margin;
+    doc.font('Helvetica-Bold').fontSize(20).text('L&B Company', margin, headerY);
+    doc.font('Helvetica').fontSize(9)
+      .text('Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', margin, headerY + 26)
+      .text('Phone: 01133127622', margin, headerY + 40)
+      .text('Email: lbcompany@gmail.com', margin, headerY + 54);
 
-    // Right Column
-    doc.fontSize(18).font("Helvetica-Bold").text("INVENTORY REPORT", 520, headerY);
-    doc.fontSize(10).font("Helvetica")
-      .text(`Print Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, 520, headerY + 26)
-      .text(`Report ID: REP-${Date.now()}`, 520, headerY + 40)
-      .text("Status: Generated", 520, headerY + 54);
+    const rightX = pageW - margin - 320;
+    doc.font('Helvetica-Bold').fontSize(16).text('INVENTORY REPORT', rightX, headerY);
+    doc.font('Helvetica').fontSize(9)
+      .text(`Print Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`, rightX, headerY + 24)
+      .text(`Report ID: REP-${Date.now()}`, rightX, headerY + 38)
+      .text('Status: Generated', rightX, headerY + 52);
 
-    doc.moveDown(4);
-
-    // ==============================
-    // TABLE COLUMN POSITIONS (OPTIMIZED)
-    // ==============================
-    const col = {
-      sku: 40,
-      name: 120,
-      category: 320,
-      qty: 440,
-      cost: 500,
-      price: 580,
-      value: 660,
-      revenue: 780
-    };
-
-    const columnWidths = {
-      sku: 80,
-      name: 200,
-      category: 120,
+    // Column widths (as confirmed)
+    const colWidths = {
+      sku: 60,
+      name: 160,
+      category: 80,
       qty: 60,
-      cost: 80,
-      price: 80,
-      value: 120,
+      unitCost: 80,
+      unitPrice: 80,
+      value: 110,
       revenue: 120
     };
 
-    let startY = doc.y + 5;
+    // Compute starting X for each column (left-aligned)
+    const tableLeft = margin;
+    const cols = [];
+    let cx = tableLeft;
+    const labels = {
+      sku: 'SKU',
+      name: 'Product Name',
+      category: 'Category',
+      qty: 'Quantity',
+      unitCost: 'Unit Cost',
+      unitPrice: 'Unit Price',
+      value: 'Total Inventory Value',
+      revenue: 'Total Potential Revenue'
+    };
+    for (const key of ['sku','name','category','qty','unitCost','unitPrice','value','revenue']) {
+      cols.push({ key, x: cx, w: colWidths[key], label: labels[key] });
+      cx += colWidths[key];
+    }
+    const tableWidth = cx - tableLeft;
 
-    // ==============================
-    // TABLE HEADER
-    // ==============================
-    doc.fontSize(11).font("Helvetica-Bold");
+    // Table placement
+    const tableTop = headerY + 86; // some space after header
+    // leave room for totals & footer: totals should be below table; keep bottom margin
+    const bottomSpace = 110;
+    const tableBottomLimit = pageH - margin - bottomSpace;
+    let tableHeight = tableBottomLimit - tableTop;
+    if (tableHeight < 80) tableHeight = 80;
 
-    doc.text("SKU", col.sku, startY, { width: columnWidths.sku });
-    doc.text("Name", col.name, startY, { width: columnWidths.name });
-    doc.text("Category", col.category, startY, { width: columnWidths.category });
-    doc.text("Qty", col.qty, startY, { width: columnWidths.qty });
-    doc.text("Unit Cost", col.cost, startY, { width: columnWidths.cost });
-    doc.text("Unit Price", col.price, startY, { width: columnWidths.price });
-    doc.text("Total Inventory Value", col.value, startY, { width: columnWidths.value });
-    doc.text("Total Potential Revenue", col.revenue, startY, { width: columnWidths.revenue });
+    // Row layout
+    const headerRowHeight = 20;
+    const rowHeight = 18; // compact as requested
+    const availableRows = Math.floor((tableHeight - headerRowHeight - 6) / rowHeight);
 
-    let tableTop = startY + 18;
+    // Styling & draw outer border
+    doc.lineWidth(0.8).strokeColor('black');
 
-    // HEADER LINE
-    doc.moveTo(40, tableTop).lineTo(900, tableTop).stroke();
+    // Render header row labels
+    doc.font('Helvetica-Bold').fontSize(9.5);
+    const headerYPos = tableTop + 6;
+    for (const c of cols) {
+      doc.text(c.label, c.x + 4, headerYPos, { width: c.w - 8, align: 'left', ellipsis: true });
+    }
+    // draw top border and header bottom line
+    const headerBottomY = tableTop + headerRowHeight;
+    doc.moveTo(tableLeft, tableTop).lineTo(tableLeft + tableWidth, tableTop).stroke();
+    doc.moveTo(tableLeft, headerBottomY).lineTo(tableLeft + tableWidth, headerBottomY).stroke();
 
-    // ==============================
-    // TABLE ROWS
-    // ==============================
-    doc.font("Helvetica").fontSize(10);
+    // Draw vertical separators for grid
+    for (let i = 1; i < cols.length; i++) {
+      const x = cols[i].x;
+      doc.moveTo(x, tableTop).lineTo(x, tableTop + tableHeight).stroke();
+    }
 
-    let rowY = tableTop + 6;
-    const rowHeight = 22;
-
+    // rows
+    let y = headerBottomY + 4;
+    doc.font('Helvetica').fontSize(9);
     let totalQty = 0;
     let totalValue = 0;
     let totalRevenue = 0;
 
-    for (let i = 0; i < items.length; i++) {
+    const renderCount = Math.min(items.length, availableRows);
+    for (let i = 0; i < renderCount; i++) {
       const it = items[i];
-
       const qty = Number(it.quantity || 0);
       const uc = Number(it.unitCost || 0);
       const up = Number(it.unitPrice || 0);
@@ -345,74 +283,94 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
       totalValue += invVal;
       totalRevenue += rev;
 
-      // Zebra striping
+      // zebra
       if (i % 2 === 1) {
         doc.save();
-        doc.fillOpacity(0.10).rect(40, rowY - 4, 860, rowHeight).fill("#cccccc");
+        doc.fillOpacity(0.10);
+        doc.rect(tableLeft + 1, y - 3, tableWidth - 2, rowHeight).fill('#f2f2f2');
         doc.restore();
       }
 
-      // Draw row
-      doc.text(it.sku || "", col.sku, rowY, { width: columnWidths.sku });
-      doc.text(it.name || "", col.name, rowY, { width: columnWidths.name });
-      doc.text(it.category || "", col.category, rowY, { width: columnWidths.category });
-      doc.text(String(qty), col.qty, rowY);
-      doc.text(`RM ${uc.toFixed(2)}`, col.cost, rowY);
-      doc.text(`RM ${up.toFixed(2)}`, col.price, rowY);
-      doc.text(`RM ${invVal.toFixed(2)}`, col.value, rowY);
-      doc.text(`RM ${rev.toFixed(2)}`, col.revenue, rowY);
+      // text vertical centering offset
+      const textY = y + Math.max(1, Math.floor((rowHeight - 9) / 2));
 
-      // Next row
-      rowY += rowHeight;
+      // draw each cell
+      for (const c of cols) {
+        let text = '';
+        if (c.key === 'sku') text = it.sku || '';
+        if (c.key === 'name') text = it.name || '';
+        if (c.key === 'category') text = it.category || '';
+        if (c.key === 'qty') text = String(qty);
+        if (c.key === 'unitCost') text = `RM ${uc.toFixed(2)}`;
+        if (c.key === 'unitPrice') text = `RM ${up.toFixed(2)}`;
+        if (c.key === 'value') text = `RM ${invVal.toFixed(2)}`;
+        if (c.key === 'revenue') text = `RM ${rev.toFixed(2)}`;
 
-      // Prevent spilling off page (forced single-page mode)
-      if (rowY > 420) break;
+        const alignRight = ['qty','unitCost','unitPrice','value','revenue'].includes(c.key);
+        doc.text(text, c.x + 4, textY, { width: c.w - 8, align: alignRight ? 'right' : 'left', ellipsis: true });
+      }
+
+      // draw horizontal separator after row
+      const lineY = y + rowHeight - 2;
+      doc.moveTo(tableLeft, lineY).lineTo(tableLeft + tableWidth, lineY).stroke();
+
+      y += rowHeight;
     }
 
-    // ==============================
-    // TABLE BORDER (FRAME)
-    // ==============================
-    const tableBottom = rowY + 5;
+    // draw outer frame for table (covering header+rows area)
+    const drawnTableBottom = headerBottomY + 4 + (renderCount * rowHeight);
+    doc.rect(tableLeft, tableTop, tableWidth, drawnTableBottom - tableTop).stroke();
 
-    doc.rect(40, tableTop, 860, tableBottom - tableTop).stroke();
+    // omitted note if necessary (keeps single page)
+    const omitted = items.length - renderCount;
+    if (omitted > 0) {
+      doc.font('Helvetica-Oblique').fontSize(8).fillColor('red');
+      doc.text(`Note: ${omitted} item(s) omitted to keep single-page layout.`, tableLeft + 4, drawnTableBottom + 8);
+      doc.fillColor('black');
+    }
 
-    // ==============================
-    // INVOICE TOTALS — BOTTOM RIGHT
-    // ==============================
-    const boxW = 260;
-    const boxH = 80;
-    const boxX = 900 - boxW;
-    const boxY = tableBottom + 20;
+    // Totals box (bottom-right) — placed below the table and above footer
+    const totalsBoxW = 300;
+    const totalsBoxH = 76;
+    const totalsX = tableLeft + tableWidth - totalsBoxW; // right aligned with table
+    // place totals box at or below drawnTableBottom + some padding but keep inside page
+    let totalsY = drawnTableBottom + 16;
+    // ensure totalsY + totalsBoxH + footer fits inside pageH - margin
+    const footerReserve = 60;
+    if (totalsY + totalsBoxH + footerReserve > pageH - margin) {
+      totalsY = pageH - margin - footerReserve - totalsBoxH; // push up if necessary
+    }
 
-    // Box outline
-    doc.rect(boxX, boxY, boxW, boxH).stroke();
+    // draw totals box
+    doc.lineWidth(0.8).strokeColor('black');
+    doc.rect(totalsX, totalsY, totalsBoxW, totalsBoxH).stroke();
 
-    doc.font("Helvetica-Bold").fontSize(11);
-    doc.text(`Subtotal (Quantity): ${totalQty} units`, boxX + 10, boxY + 10);
-    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, boxX + 10, boxY + 30);
-    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, boxX + 10, boxY + 50);
+    doc.font('Helvetica-Bold').fontSize(10);
+    doc.text(`Subtotal (Quantity): ${totalQty} units`, totalsX + 10, totalsY + 10, { width: totalsBoxW - 20, align: 'right' });
+    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, totalsX + 10, totalsY + 28, { width: totalsBoxW - 20, align: 'right' });
+    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, totalsX + 10, totalsY + 46, { width: totalsBoxW - 20, align: 'right' });
 
-    // ==============================
-    // FOOTER
-    // ==============================
-    doc.fontSize(10).font("Helvetica").text("Generated by L&B Inventory System", 0, 560, {
-      align: "center"
-    });
+    if (omitted > 0) {
+      doc.font('Helvetica').fontSize(8).fillColor('red');
+      doc.text(`* ${omitted} items not printed`, totalsX + 10, totalsY + 60, { width: totalsBoxW - 20, align: 'right' });
+      doc.fillColor('black');
+    }
 
-    // Page Numbers
+    // Footer centered
+    doc.font('Helvetica').fontSize(9).text('Thank you for your business.', margin, pageH - margin - 36, { align: 'center', width: usableW });
+    doc.font('Helvetica').fontSize(9).text('Generated by L&B Inventory System', margin, pageH - margin - 22, { align: 'center', width: usableW });
+
+    // Page numbers (single page but keep safe)
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i);
-      doc.fontSize(9).text(`Page ${i + 1} of ${range.count}`, 0, doc.page.height - 30, {
-        align: "center"
-      });
+      doc.fontSize(8).text(`Page ${i + 1} of ${range.count}`, 0, doc.page.height - 18, { align: 'center' });
     }
 
     doc.end();
-
   } catch (err) {
-    console.error("PDF Error", err);
-    res.status(500).json({ message: "PDF generation failed" });
+    console.error('PDF generation error', err);
+    return res.status(500).json({ message:'PDF generation failed' });
   }
 });
 
@@ -428,7 +386,7 @@ app.get('/api/inventory/report', async (req, res) => {
       ["L&B Company - Inventory Report"],
       ["Date:", dateOnly],
       [],
-      ["SKU","Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]
+      ["SKU","Product Name","Category","Quantity","Unit Cost","Unit Price","Total Inventory Value","Total Potential Revenue"]
     ];
 
     let totalValue = 0, totalRevenue = 0;
@@ -457,10 +415,7 @@ app.get('/api/inventory/report', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     return res.send(wb_out);
-  } catch (err) {
-    console.error('XLSX error', err);
-    return res.status(500).json({ message:'Report failed' });
-  }
+  } catch (err) { console.error('XLSX error', err); return res.status(500).json({ message:'Report failed' }); }
 });
 
 // -------------------- Documents --------------------
@@ -509,7 +464,7 @@ app.get('*', (req, res) => {
   return res.sendFile(pathModule.join(__dirname, '../public/index.html'));
 });
 
-// -------------------- Startup --------------------
+// -------------------- Startup helpers --------------------
 async function ensureDefaultAdmin() {
   try {
     const cnt = await User.countDocuments().exec();
@@ -521,6 +476,7 @@ async function ensureDefaultAdmin() {
   } catch (err) { console.error('ensureDefaultAdmin error', err); }
 }
 
+// -------------------- Start server --------------------
 (async () => {
   await ensureDefaultAdmin();
   await logActivity('System', `Server started on port ${PORT}`);
