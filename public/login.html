@@ -7,52 +7,35 @@
 <link rel="stylesheet" href="css/style.css"/> 
 </head>
 <body>
-  
-  <div class="main-title-container">
-      <h1>Online Inventory & Documents Management System</h1>
-  </div>
-  
-  <div class="login-container">
-    <h2 id="formTitle">🔐 User Login</h2>
 
-    <!-- LOGIN FORM -->
-    <div id="loginForm">
-      <label for="username">Username</label>
-      <input type="text" id="username" placeholder="Enter username" />
-      
-      <label for="password">Password</label>
-      <input type="password" id="password" placeholder="Enter password" />
-      
-      <button id="loginBtn" type="button" class="primary-btn">Login</button>
-      
-      <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com <b id="contactPhone"></b></p>
-      <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
-      
-      <p id="loginMessage"></p>
-    </div>
+<div class="main-title-container">
+  <h1>Online Inventory & Documents Management System</h1>
+</div>
 
-    <!-- REGISTER FORM -->
-    <div id="registerForm" style="display:none;">
-      <label for="newUsername">New Username</label>
-      <input type="text" id="newUsername" placeholder="Enter username" />
-      
-      <label for="newPassword">New Password</label>
-      <input type="password" id="newPassword" placeholder="Enter password" />
-      
-      <label for="securityCode">Security Code</label>
-      <input type="text" id="securityCode" placeholder="Enter company security code" />
-      
-      <button id="registerBtn" type="button" class="success-btn">Register Account</button>
-      
-      <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
-      
-      <p id="registerMessage"></p>
-    </div>
+<div class="login-container">
+  <h2 id="formTitle">🔐 User Login</h2>
+
+  <!-- LOGIN -->
+  <div id="loginForm">
+    <label>Username</label><input id="username" type="text" />
+    <label>Password</label><input id="password" type="password" />
+    <button id="loginBtn" class="primary-btn">Login</button>
+    <div id="toggleToRegister" class="toggle-link">Register</div>
+    <p id="loginMessage"></p>
   </div>
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
+  <!-- REGISTER -->
+  <div id="registerForm" style="display:none;">
+    <label>New Username</label><input id="newUsername" />
+    <label>New Password</label><input id="newPassword" type="password" />
+    <label>Security Code</label><input id="securityCode"/>
+    <button id="registerBtn" class="success-btn">Register</button>
+    <div id="toggleToLogin" class="toggle-link">Back to Login</div>
+    <p id="registerMessage"></p>
+  </div>
+</div>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
 </body>
 </html>
-
-
