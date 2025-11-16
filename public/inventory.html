@@ -1,85 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Inventory | Inventory System</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventory | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <header>
-    <h1>📦 Inventory Management</h1>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="inventory.html">Inventory</a>
-      <a href="orders.html">Orders</a>
-      <a href="sales.html">Sales</a>
-      <a href="documents.html">Documents</a>
-      <a href="log.html">Activity Log</a>
-      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
-      <button onclick="toggleTheme()">🌓 Mode</button>
-      <button onclick="logout()">🚪 Logout</button>
-      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-    </nav>
-  </header>
+  <header>
+    <h1>📦 Inventory Management</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="orders.html">Orders</a>
+      <a href="sales.html">Sales</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
 
-  <section>
-    <h2>Add New Product</h2>
-    <div class="product-bar">
-      <input id="p_sku" placeholder="Item ID / SKU" type="text" />
-      <input id="p_name" placeholder="Item Name" type="text" />
-      <input id="p_category" placeholder="Category" type="text" />
-      <input id="p_quantity" placeholder="Quantity" type="number" min="0" value="0" />
-      <input id="p_unitCost" placeholder="Unit Cost (RM)" type="number" step="0.01" value="0.00" />
-      <input id="p_unitPrice" placeholder="Unit Price (RM)" type="number" step="0.01" value="0.00" />
-      <button id="addProductBtn" class="primary-btn">➕ Add</button>
-    </div>
-    <p id="addMessage" style="margin-top: 10px; text-align: center;"></p>
+  <section>
+    <h2>Add New Product</h2>
+    <div class="product-bar">
+      <input id="p_sku" placeholder="Item ID / SKU" type="text" />
+      <input id="p_name" placeholder="Item Name" type="text" />
+      <input id="p_category" placeholder="Category" type="text" />
+      <input id="p_quantity" placeholder="Quantity" type="number" min="0" value="0" />
+      <input id="p_unitCost" placeholder="Unit Cost (RM)" type="number" step="0.01" value="0.00" />
+      <input id="p_unitPrice" placeholder="Unit Price (RM)" type="number" step="0.01" value="0.00" />
+      <button id="addProductBtn" class="primary-btn">➕ Add</button>
+    </div>
+    <p id="addMessage" style="margin-top: 10px; text-align: center;"></p>
 
-    <h2 style="margin-top: 30px;">Current Stock</h2>
-    <div class="controls">
-      <div><button id="reportBtn" class="success-btn">📄 Generate Report (PDF)</button></div>
-      <div class="search-controls">
-        <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
-        <button id="clearSearchBtn" class="secondary-btn">Clear</button>
-      </div>
-    </div>
-    
-    <div class="table-container"> 
-      <table id="inventoryTable">
-          <thead>
-              <tr>
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th class="money">Unit Cost</th>
-                  <th class="money">Unit Price</th>
-                  <th class="money">Inventory Value</th>
-                  <th class="actions">Actions</th>
-              </tr>
-          </thead>
-          <tbody id="inventoryList">
-          </tbody>
-      </table>
-    </div>
+    <h2 style="margin-top: 30px;">Current Stock</h2>
+        <div class="controls" style="display: flex; gap: 10px; align-items: center;"> 
+        <button id="reportBtnExcel" class="success-btn">⬇️ Generate Report (Excel)</button>
+        <button id="reportBtnPDF" class="danger-btn">⬇️ Generate Report (PDF)</button>
+      <div class="search-controls">
+        <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
+        <button id="clearSearchBtn" class="secondary-btn">Clear</button>
+      </div>
+    </div>
+    
+    <div class="table-container"> 
+      <table id="inventoryTable">
+          <thead>
+              <tr>
+                  <th>SKU</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th class="money">Unit Cost</th>
+                  <th class="money">Unit Price</th>
+                  <th class="money">Inventory Value</th>
+                  <th class="actions">Actions</th>
+              </tr>
+          </thead>
+          <tbody id="inventoryList">
+          </tbody>
+      </table>
+    </div>
 
-    <div class="totals" id="inventoryTotals">
-      <div>Total Inventory Value: RM <span id="totalValue">0.00</span></div>
-      <div>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></div>
-      <div>Total Stock Quantity: <span id="totalStock">0</span></div>
-    </div>
-  </section>
+    <div class="totals" id="inventoryTotals">
+      <div>Total Inventory Value: RM <span id="totalValue">0.00</span></div>
+      <div>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></div>
+      <div>Total Stock Quantity: <span id="totalStock">0</span></div>
+    </div>
+  </section>
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
-  <script>
-    document.documentElement.dataset.page = 'inventory';
-    document.addEventListener('DOMContentLoaded', () => {
-      // Re-add the existing event listeners here if they were lost
-      // For example, event listeners for addProductBtn, searchInput, clearSearchBtn
-      // In the final copy/paste version of script.js, these should be handled there.
-    });
-  </script>
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'inventory';
+    document.addEventListener('DOMContentLoaded', () => {
+      // Event listeners for buttons are now handled inside fetchInventoryData() in script.js
+    });
+  </script>
 </body>
 </html>
