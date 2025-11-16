@@ -12,6 +12,8 @@
     <nav>
       <a href="index.html">Home</a>
       <a href="inventory.html">Inventory</a>
+      <a href="orders.html">Orders</a>
+      <a href="sales.html">Sales</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
@@ -27,15 +29,16 @@
       <input id="p_sku" placeholder="Item ID / SKU" type="text" />
       <input id="p_name" placeholder="Item Name" type="text" />
       <input id="p_category" placeholder="Category" type="text" />
-      <input id="p_quantity" placeholder="Quantity" type="number" min="0" />
-      <input id="p_unitCost" placeholder="Unit Cost" type="number" step="0.01" />
-      <input id="p_unitPrice" placeholder="Unit Price" type="number" step="0.01" />
-      <button id="addProductBtn" class="primary-btn">+ Add Product</button>
+      <input id="p_quantity" placeholder="Quantity" type="number" min="0" value="0" />
+      <input id="p_unitCost" placeholder="Unit Cost (RM)" type="number" step="0.01" value="0.00" />
+      <input id="p_unitPrice" placeholder="Unit Price (RM)" type="number" step="0.01" value="0.00" />
+      <button id="addProductBtn" class="primary-btn">➕ Add</button>
     </div>
+    <p id="addMessage" style="margin-top: 10px; text-align: center;"></p>
 
-    <h2>Current Inventory List</h2> 
+    <h2 style="margin-top: 30px;">Current Stock</h2>
     <div class="controls">
-      <div><button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button></div>
+      <div><button id="reportBtn" class="success-btn">📄 Generate Report (PDF)</button></div>
       <div class="search-controls">
         <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
         <button id="clearSearchBtn" class="secondary-btn">Clear</button>
@@ -68,12 +71,15 @@
     </div>
   </section>
 
-  <!-- JS -->
   <script src="js/setting.js" defer></script>
   <script src="js/script.js" defer></script>
   <script>
-    // Optional: dataset for current page
     document.documentElement.dataset.page = 'inventory';
+    document.addEventListener('DOMContentLoaded', () => {
+      // Re-add the existing event listeners here if they were lost
+      // For example, event listeners for addProductBtn, searchInput, clearSearchBtn
+      // In the final copy/paste version of script.js, these should be handled there.
+    });
   </script>
 </body>
 </html>
