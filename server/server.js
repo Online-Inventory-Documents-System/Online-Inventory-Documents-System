@@ -174,20 +174,20 @@ app.delete("/api/inventory/:id", async (req, res) => {
   res.status(204).send();
 });
 
-// ===========================
-// PDF REPORT GENERATOR
-// ===========================
+// ============================================================================
+//                                PDF REPORT (SAFE MODE)
+// ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
 
     const now = new Date();
     const printDate = now.toLocaleString();
-    const printedBy = req.headers["x-username"] || "System";
     const reportId = `REP-${Date.now()}`;
+    const printedBy = req.headers["x-username"] || "System";
+
     const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}.pdf`;
 
-    // PDF Init
     const doc = new PDFDocument({
       size: "A4",
       layout: "landscape",
@@ -197,32 +197,33 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
-
     doc.pipe(res);
 
-    // ===========================
-    // HEADER (Page 1 only)
-    // ===========================
-    doc.font("Helvetica-Bold").fontSize(22).text("L&B Company", 40, 40);
+    // ----------------------
+    // PAGE 1 HEADER ONLY
+    // ----------------------
+    function drawHeader() {
+      doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
+      doc.fontSize(10).font("Helvetica");
+      doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+      doc.text("Phone: 01133127622", 40, 85);
+      doc.text("Email: lbcompany@gmail.com", 40, 100);
 
-    doc.fontSize(10).font("Helvetica");
-    doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
-    doc.text("Phone: 01133127622", 40, 85);
-    doc.text("Email: lbcompany@gmail.com", 40, 100);
+      // Right side header block
+      doc.fontSize(15).font("Helvetica-Bold").text("INVENTORY REPORT", 620, 40);
+      doc.fontSize(10).font("Helvetica");
 
-    // Right side
-    doc.font("Helvetica-Bold").fontSize(15).text("INVENTORY REPORT", 620, 40);
-    doc.font("Helvetica").fontSize(10);
-    doc.text(`Print Date: ${printDate}`, 620, 63);
-    doc.text(`Report ID: ${reportId}`, 620, 78);
-    doc.text("Status: Generated", 620, 93);
-    doc.text(`Printed by: ${printedBy}`, 620, 108);
+      doc.text(`Print Date: ${printDate}`, 620, 63);
+      doc.text(`Report ID: ${reportId}`, 620, 78);
+      doc.text(`Status: Generated`, 620, 93);
+      doc.text(`Printed by: ${printedBy}`, 620, 108);
 
-    doc.moveTo(40, 130).lineTo(800, 130).stroke();
+      doc.moveTo(40, 130).lineTo(800, 130).stroke();
+    }
 
-      // ============================================
-    // TABLE SETTINGS (Fixed Width — No Wrapping)
-    // ============================================
+    // ====================================
+    // TABLE WIDTHS (SAFE / NO WRAPPING)
+    // ====================================
     const rowHeight = 18;
 
     const cols = {
@@ -247,12 +248,10 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       revenue: 120
     };
 
-    let y = 150;
-
-    // ============================================
+    // ====================================
     // DRAW TABLE HEADER
-    // ============================================
-    function drawHeader() {
+    // ====================================
+    function drawTableHeader(y) {
       doc.font("Helvetica-Bold").fontSize(10);
 
       doc.rect(cols.sku, y, widths.sku, rowHeight).stroke();
@@ -273,41 +272,48 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       doc.text("Total Inventory Value", cols.value + 3, y + 4);
       doc.text("Total Potential Revenue", cols.revenue + 3, y + 4);
 
-      y += rowHeight;
-      doc.font("Helvetica").fontSize(9);
+      return y + rowHeight;
     }
+
+    // ====================================
+    // START PAGE 1
+    // ====================================
 
     drawHeader();
 
-    // ============================================
-    // TABLE ROWS
-    // ============================================
+    let y = 150;
+    y = drawTableHeader(y);
+
     let subtotalQty = 0;
     let totalValue = 0;
     let totalRevenue = 0;
 
+    const SAFE_LIMIT = 480;
+
     for (const it of items) {
-      // Need new page?
-      if (y + rowHeight > 510) {
+      // ---------------------------------------
+      // PAGE BREAK WHEN FULL
+      // ---------------------------------------
+      if (y + rowHeight > SAFE_LIMIT) {
         doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
 
-        // Reset y for new page
-        y = 40;
-        drawHeader();
+        y = 40; // top of page 2
+        y = drawTableHeader(y);
       }
 
+      // Calculate values
       const qty = Number(it.quantity || 0);
       const cost = Number(it.unitCost || 0);
       const price = Number(it.unitPrice || 0);
 
-      const invVal = qty * cost;
-      const potential = qty * price;
+      const val = qty * cost;
+      const rev = qty * price;
 
       subtotalQty += qty;
-      totalValue += invVal;
-      totalRevenue += potential;
+      totalValue += val;
+      totalRevenue += rev;
 
-      // Draw row cells
+      // Draw row borders
       doc.rect(cols.sku, y, widths.sku, rowHeight).stroke();
       doc.rect(cols.name, y, widths.name, rowHeight).stroke();
       doc.rect(cols.category, y, widths.category, rowHeight).stroke();
@@ -317,74 +323,58 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       doc.rect(cols.value, y, widths.value, rowHeight).stroke();
       doc.rect(cols.revenue, y, widths.revenue, rowHeight).stroke();
 
-      // Fill row values
+      doc.font("Helvetica").fontSize(9);
       doc.text(it.sku || "", cols.sku + 3, y + 4);
       doc.text(it.name || "", cols.name + 3, y + 4);
       doc.text(it.category || "", cols.category + 3, y + 4);
       doc.text(String(qty), cols.qty + 3, y + 4);
       doc.text(`RM ${cost.toFixed(2)}`, cols.cost + 3, y + 4);
       doc.text(`RM ${price.toFixed(2)}`, cols.price + 3, y + 4);
-      doc.text(`RM ${invVal.toFixed(2)}`, cols.value + 3, y + 4);
-      doc.text(`RM ${potential.toFixed(2)}`, cols.revenue + 3, y + 4);
+      doc.text(`RM ${val.toFixed(2)}`, cols.value + 3, y + 4);
+      doc.text(`RM ${rev.toFixed(2)}`, cols.revenue + 3, y + 4);
 
       y += rowHeight;
     }
 
-    // ============================================
-    // TOTALS BOX — Last Page Only
-    // ============================================
-    function drawTotals() {
-      let boxY = y + 20;
-      if (boxY < 200) boxY = 200;
+    // ======================================
+    // TOTALS BOX ON LAST PAGE
+    // ======================================
+    const boxX = 560;
+    const boxWidth = 230;
+    const boxHeight = 68;
+    const boxY = Math.min(y + 20, 520);
 
-      const boxX = 560;
-      const boxWidth = 250;
-      const boxHeight = 70;
+    doc.rect(boxX, boxY, boxWidth, boxHeight).stroke();
 
-      doc.rect(boxX, boxY, boxWidth, boxHeight).stroke();
+    doc.font("Helvetica-Bold").fontSize(10);
+    doc.text(`Subtotal (Quantity): ${subtotalQty} units`, boxX + 10, boxY + 10);
+    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, boxX + 10, boxY + 28);
+    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, boxX + 10, boxY + 46);
 
-      doc.font("Helvetica-Bold").fontSize(10);
-      doc.text(`Subtotal (Quantity): ${subtotalQty} units`, boxX + 10, boxY + 10);
-      doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, boxX + 10, boxY + 28);
-      doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, boxX + 10, boxY + 46);
-    }
+    // ======================================
+    // PAGE NUMBERS + FOOTERS
+    // ======================================
+    const range = doc.bufferedPageRange(); // {start, count}
 
-    drawTotals();
-
-    // ============================================
-    // PAGE NUMBERS (all pages)
-    // ============================================
-    const pageRange = doc.bufferedPageRange();
-    for (let i = 0; i < pageRange.count; i++) {
-      doc.switchToPage(i);
-      doc.font("Helvetica").fontSize(9).text(
-        `Page ${i + 1} of ${pageRange.count}`,
-        0,
-        doc.page.height - 30,
-        { align: "center" }
-      );
-    }
-
-    // ============================================
-    // FOOTER (ALL PAGES — Option B)
-    // ============================================
-    for (let i = 0; i < pageRange.count; i++) {
+    for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i);
 
-      doc.font("Helvetica").fontSize(9).text(
-        "Generated by L&B Company Inventory System",
-        0,
-        doc.page.height - 45,
-        { align: "center" }
-      );
+      // page number center bottom
+      doc.font("Helvetica").fontSize(9);
+      doc.text(`Page ${i + 1} of ${range.count}`, 0, doc.page.height - 25, {
+        align: "center"
+      });
+
+      // footer (every page)
+      doc.text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, {
+        align: "center"
+      });
     }
 
-      // END PDF
     doc.end();
-
   } catch (err) {
-    console.error("PDF_ERROR:", err);
-    res.status(500).json({ message: "PDF generation failed" });
+    console.error("PDF failed:", err);
+    return res.status(500).json({ message: "PDF generation failed" });
   }
 });
 
