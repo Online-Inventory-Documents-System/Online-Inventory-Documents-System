@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Company Settings | Inventory System</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<header>
+  <h1>🏢 Company Settings</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="orders.html">Orders</a>
+    <a href="sales.html">Sales</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
+
+<section>
+  <h2>Manage PDF Report Information</h2>
+  <form id="companyConfigForm">
+    <label for="companyName">Company Name</label>
+    <input id="companyName" type="text" placeholder="L&B Company" required /><br/>
+    
+    <label for="companyAddress">Address</label>
+    <input id="companyAddress" type="text" placeholder="Jalan Mawar 8..." required /><br/>
+    
+    <label for="companyPhone">Phone Number</label>
+    <input id="companyPhone" type="tel" placeholder="01133127622" required /><br/>
+    
+    <label for="companyEmail">Email</label>
+    <input id="companyEmail" type="email" placeholder="lbcompany@gmail.com" required /><br/>
+    
+    <label for="taxRate">Sales Tax Rate (%)</label>
+    <input id="taxRate" type="number" step="0.01" min="0" max="100" placeholder="0.00" required /><br/>
+    <p class="info">Enter the sales tax rate as a percentage (e.g., 6.00 for 6%).</p>
+    
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+      <button id="saveConfigBtn" type="button" class="primary-btn" style="flex: 1;">💾 Save Company Config</button>
+      <button id="cancelConfigBtn" type="button" class="secondary-btn" style="flex: 1;">↩️ Back to Settings</button>
+    </div>
+    <p id="configMessage" style="margin-top: 10px; text-align: center;"></p>
+  </form>
+</section>
+
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+</body>
+</html>
