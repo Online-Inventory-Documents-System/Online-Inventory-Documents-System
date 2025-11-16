@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sales | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>💰 Sales Transactions</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="orders.html">Orders</a>
+      <a href="sales.html">Sales</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Manage Sales Invoices</h2>
+    <div class="controls" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
+        <button onclick="window.location.href='sale.html'" class="primary-btn">➕ Add New Sale</button>
+    </div>
+    
+    <div class="table-container"> 
+      <table id="salesTable">
+          <thead>
+              <tr>
+                  <th>Sale #</th>
+                  <th>Customer Name</th>
+                  <th>Total Items</th>
+                  <th class="money">Grand Total</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+              </tr>
+          </thead>
+          <tbody id="saleList">
+              </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'sales';
+  </script>
+</body>
+</html>
