@@ -6,6 +6,7 @@
 <title>Activity Log | Inventory System</title>
 <link rel="stylesheet" href="css/style.css"/>
 </head>
+
 <body>
 <header>
   <h1>🕒 Activity Log</h1>
@@ -13,7 +14,7 @@
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
     <a href="documents.html">Documents</a>
-    <a href="log.html">Activity Log</a>
+    <a href="log.html" class="active">Activity Log</a>
     <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
@@ -24,17 +25,18 @@
 <section id="activityLog">
   <h2>Recent Activities</h2>
   
-  <div class="table-container">
+  <!-- UPDATED CONTAINER FOR CORRECT LAYOUT -->
+  <div class="activity-table-container">
     <table id="activityTable">
       <thead>
         <tr>
-          <th>User</th>
-          <th>Action</th>
-          <th>Time</th>
+          <th style="width: 20%">User</th>
+          <th style="width: 55%">Action</th>
+          <th style="width: 25%">Time</th>
         </tr>
       </thead>
       <tbody id="logList">
-        <!-- Logs dynamically rendered via script.js -->
+        <!-- Logs loaded from script.js -->
       </tbody>
     </table>
   </div>
@@ -42,9 +44,11 @@
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
+
 <script>
-  // Let script.js know current page for proper binding
+  // Let script.js know current page
   document.documentElement.dataset.page = 'log';
 </script>
+
 </body>
 </html>
