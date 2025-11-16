@@ -35,11 +35,19 @@
 
     <h2>Current Inventory List</h2> 
     <div class="controls">
-      <div><button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button></div>
+
+      <div style="display:flex; gap:10px;">
+        <button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button>
+
+        <!-- ✅ Added New PDF Button -->
+        <button id="pdfReportBtn" class="primary-btn">📄 Generate PDF Inventory Report</button>
+      </div>
+
       <div class="search-controls">
         <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
         <button id="clearSearchBtn" class="secondary-btn">Clear</button>
       </div>
+
     </div>
     
     <div class="table-container"> 
@@ -56,8 +64,7 @@
                   <th class="actions">Actions</th>
               </tr>
           </thead>
-          <tbody id="inventoryList">
-          </tbody>
+          <tbody id="inventoryList"></tbody>
       </table>
     </div>
 
@@ -72,7 +79,6 @@
   <script src="js/setting.js" defer></script>
   <script src="js/script.js" defer></script>
   <script>
-    // Optional: dataset for current page
     document.documentElement.dataset.page = 'inventory';
   </script>
 </body>
