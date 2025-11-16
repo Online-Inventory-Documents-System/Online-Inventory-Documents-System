@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Product - Inventory System</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<header>
+  <h1>✏️ Edit Product</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="inventory.html">Inventory</a>
+    <a href="documents.html">Documents</a>
+    <a href="log.html">Activity Log</a>
+    <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+    <button onclick="toggleTheme()">🌓 Mode</button>
+    <button onclick="logout()">🚪 Logout</button>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+  </nav>
+</header>
+
+<section>
+  <form id="productForm">
+    <input id="prod_id" type="hidden" />
+    
+    <label for="prod_sku">SKU</label>
+    <input id="prod_sku" type="text" placeholder="Enter SKU" /><br/>
+    
+    <label for="prod_name">Name</label>
+    <input id="prod_name" type="text" placeholder="Enter product name" /><br/>
+    
+    <label for="prod_category">Category</label>
+    <input id="prod_category" type="text" placeholder="Enter category" /><br/>
+    
+    <label for="prod_quantity">Quantity</label>
+    <input id="prod_quantity" type="number" min="0" placeholder="0" /><br/>
+    
+    <label for="prod_unitCost">Unit Cost</label>
+    <input id="prod_unitCost" type="number" step="0.01" placeholder="0.00" /><br/>
+    
+    <label for="prod_unitPrice">Unit Price</label>
+    <input id="prod_unitPrice" type="number" step="0.01" placeholder="0.00" /><br/>
+    
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+      <button id="saveProductBtn" type="button" class="primary-btn" style="flex: 1;">💾 Save Changes</button>
+      <button id="cancelProductBtn" type="button" class="secondary-btn" style="flex: 1;">✖️ Cancel</button>
+    </div>
+  </form>
+</section>
+
+<!-- JS -->
+<script src="js/setting.js" defer></script>
+<script src="js/script.js" defer></script>
+<script>
+  // Set current page so script.js can bind product page functions
+  document.documentElement.dataset.page = 'product';
+</script>
+</body>
+</html>
+
