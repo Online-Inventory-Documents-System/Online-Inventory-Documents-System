@@ -13,16 +13,11 @@
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
     <a href="documents.html">Documents</a>
-    <a href="company.html">Company</a>
     <a href="log.html">Activity Log</a>
     <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
-
-    <div id="adminInfo">
-      Logged in as: <span id="adminName"></span> 
-      (<span id="adminRole"></span>)
-    </div>
+    <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
   </nav>
 </header>
 
@@ -47,29 +42,21 @@
     
     <label for="prod_unitPrice">Unit Price</label>
     <input id="prod_unitPrice" type="number" step="0.01" placeholder="0.00" /><br/>
-
-    <!-- Role-based protection (Admin only) -->
-    <div id="adminOnlySection">
-      <div style="margin-top: 20px; display: flex; gap: 10px;">
-        <button id="saveProductBtn" type="button" class="primary-btn" style="flex: 1;">💾 Save Changes</button>
-        <button id="cancelProductBtn" type="button" class="secondary-btn" style="flex: 1;">✖️ Cancel</button>
-      </div>
+    
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+      <button id="saveProductBtn" type="button" class="primary-btn" style="flex: 1;">💾 Save Changes</button>
+      <button id="cancelProductBtn" type="button" class="secondary-btn" style="flex: 1;">✖️ Cancel</button>
     </div>
-
-    <!-- For non-admin users -->
-    <p id="noPermissionMessage" style="display:none; color: red; margin-top:20px;">
-      ⚠️ You do not have permission to edit this product. (View-only Mode)
-    </p>
-
   </form>
 </section>
 
 <!-- JS -->
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
-
 <script>
-  document.documentElement.dataset.page = "product";
+  // Set current page so script.js can bind product page functions
+  document.documentElement.dataset.page = 'product';
 </script>
 </body>
 </html>
+
