@@ -12,6 +12,8 @@
   <nav>
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
+    <a href="orders.html">Orders</a>
+    <a href="sales.html">Sales</a>
     <a href="documents.html">Documents</a>
     <a href="log.html">Activity Log</a>
     <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
@@ -39,8 +41,14 @@
     <input id="securityCode" type="password" placeholder="Required to confirm change" required /><br/>
     
     <button id="changePasswordBtn" type="button" class="primary-btn" style="margin-top: 15px;">🔒 Confirm Change Password</button>
-    <p id="passwordMessage" style="margin-top: 10px;"></p>
+    <p id="passwordMessage" style="margin-top: 10px; text-align: center;"></p>
   </form>
+
+  <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+    <h3>Company Configuration</h3>
+    <p>Manage company details and sales tax settings for PDF report generation.</p>
+    <button id="companySettingsBtn" type="button" class="primary-btn" onclick="window.location.href='company.html'">🏢 Edit Company Details</button>
+  </div>
 
   <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
     <h3>Account Actions</h3>
@@ -52,14 +60,10 @@
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 <script>
-  // Tell script.js we are on the settings page so it can bind the password & delete account logic
   document.documentElement.dataset.page = 'setting';
-
-  // Pre-fill current user
   document.addEventListener('DOMContentLoaded', () => {
     const adminName = sessionStorage.getItem('adminName') || 'Guest';
-    if (document.getElementById('adminName')) document.getElementById('adminName').textContent = adminName;
-    if (document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
+    if(document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
   });
 </script>
 </body>
