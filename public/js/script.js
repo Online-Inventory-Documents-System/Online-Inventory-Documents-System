@@ -335,9 +335,53 @@ async function confirmAndGenerateReport() {
   }
 }
 
+// ===== NEW: PDF Report Generation =====
+async function confirmAndGeneratePDF() {
+  if(!confirm("Generate PDF Inventory Report?")) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/inventory/report/pdf`, { method: 'GET' });
+
+    if(!res.ok) {
+      // try to parse message if possible
+      try {
+        const err = await res.json();
+        alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
+      } catch (_) {
+        alert("Failed to generate PDF.");
+      }
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    // try to use filename from header
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
+    const filename = filenameMatch ? filenameMatch[1] : `Inventory_Report_${Date.now()}.pdf`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+    alert("PDF Report Generated Successfully!");
+  } catch (e) {
+    console.error(e);
+    alert("PDF Generation Failed.");
+  }
+}
+
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
+
+  // PDF button binding (new)
+  qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
+
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { if(qs('#searchInput')) { qs('#searchInput').value=''; searchInventory(); } });
 }
