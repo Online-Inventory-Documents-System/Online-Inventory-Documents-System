@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
+
 <header>
   <h1>🕒 Activity Log</h1>
   <nav>
@@ -16,7 +17,7 @@
     <a href="sales.html">Sales</a>
     <a href="documents.html">Documents</a>
     <a href="log.html">Activity Log</a>
-    <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+    <a href="setting.html"><button>⚙️ Setting</button></a>
     <button onclick="toggleTheme()">🌓 Mode</button>
     <button onclick="logout()">🚪 Logout</button>
     <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
@@ -24,30 +25,18 @@
 </header>
 
 <section id="activityLog">
-  <h2>Recent Activities</h2>
-  
+  <h2>Recent Activity</h2>
+
   <div class="table-container">
     <table id="activityTable">
-      <thead>
-        <tr>
-          <th>User</th>
-          <th>Action</th>
-          <th>Time</th>
-        </tr>
-      </thead>
-      <tbody id="logList">
-        <!-- Logs dynamically rendered via script.js -->
-      </tbody>
+      <thead><tr><th>User</th><th>Action</th><th>Time</th></tr></thead>
+      <tbody id="logList"></tbody>
     </table>
   </div>
 </section>
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
-<script>
-  // Let script.js know current page for proper binding
-  document.documentElement.dataset.page = 'log';
-</script>
+<script>document.documentElement.dataset.page="log";</script>
 </body>
 </html>
-
