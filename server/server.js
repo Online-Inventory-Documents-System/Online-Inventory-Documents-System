@@ -1,3 +1,4 @@
+// -------------------- Requires --------------------
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -10,12 +11,12 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || '1234';
 
-// -------------------- middleware --------------------
+// -------------------- Middleware --------------------
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// -------------------- MongoDB connect guard --------------------
+// -------------------- Mongo connect --------------------
 if (!MONGODB_URI) {
   console.error('❌ MONGODB_URI environment variable is required. Set it and restart.');
   process.exit(1);
@@ -164,26 +165,26 @@ app.delete('/api/inventory/:id', async (req, res) => {
   } catch (err) { console.error('inventory delete error', err); return res.status(500).json({ message:'Server error' }); }
 });
 
-// -------------------- FINAL PDF: Full-grid A4 Landscape (Fixed widths, rowHeight=18) --------------------
+// -------------------- PDF: ONE-PAGE A4 Landscape (Fixed widths, rowHeight=18) --------------------
 app.get('/api/inventory/report/pdf', async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const now = new Date();
     const filename = `Inventory_Report_${now.toISOString().slice(0,10)}.pdf`;
 
-    // Create A4 landscape doc
+    // PDF setup: A4 landscape, compact margins
     const doc = new PDFDocument({ size:'A4', layout:'landscape', margin:36, bufferPages: true });
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/pdf');
     doc.pipe(res);
 
-    // Page metrics
+    // page metrics
     const pageW = doc.page.width;
     const pageH = doc.page.height;
     const margin = doc.page.margins.left; // 36
     const usableW = pageW - margin*2;
 
-    // Header (two-column)
+    // header (two-column)
     const headerY = margin;
     doc.font('Helvetica-Bold').fontSize(20).text('L&B Company', margin, headerY);
     doc.font('Helvetica').fontSize(9)
@@ -198,7 +199,7 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
       .text(`Report ID: REP-${Date.now()}`, rightX, headerY + 38)
       .text('Status: Generated', rightX, headerY + 52);
 
-    // Column widths (as confirmed)
+    // column widths (exact as confirmed)
     const colWidths = {
       sku: 60,
       name: 160,
@@ -210,7 +211,7 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
       revenue: 120
     };
 
-    // Compute starting X for each column (left-aligned)
+    // build columns x positions
     const tableLeft = margin;
     const cols = [];
     let cx = tableLeft;
@@ -230,49 +231,46 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
     }
     const tableWidth = cx - tableLeft;
 
-    // Table placement
-    const tableTop = headerY + 86; // some space after header
-    // leave room for totals & footer: totals should be below table; keep bottom margin
-    const bottomSpace = 110;
-    const tableBottomLimit = pageH - margin - bottomSpace;
+    // placement and sizes
+    const tableTop = headerY + 86;
+    const footerReserve = 100; // space for totals + footer
+    const tableBottomLimit = pageH - margin - footerReserve;
     let tableHeight = tableBottomLimit - tableTop;
     if (tableHeight < 80) tableHeight = 80;
 
-    // Row layout
+    // row parameters
     const headerRowHeight = 20;
-    const rowHeight = 18; // compact as requested
+    const rowHeight = 18; // compact (user-selected)
     const availableRows = Math.floor((tableHeight - headerRowHeight - 6) / rowHeight);
 
-    // Styling & draw outer border
-    doc.lineWidth(0.8).strokeColor('black');
+    // ensure single-page: also define a MAX printable rows cap (safety)
+    const MAX_ROWS_SAFE = Math.max(5, availableRows);
 
-    // Render header row labels
+    // draw header labels
     doc.font('Helvetica-Bold').fontSize(9.5);
     const headerYPos = tableTop + 6;
     for (const c of cols) {
       doc.text(c.label, c.x + 4, headerYPos, { width: c.w - 8, align: 'left', ellipsis: true });
     }
-    // draw top border and header bottom line
     const headerBottomY = tableTop + headerRowHeight;
     doc.moveTo(tableLeft, tableTop).lineTo(tableLeft + tableWidth, tableTop).stroke();
     doc.moveTo(tableLeft, headerBottomY).lineTo(tableLeft + tableWidth, headerBottomY).stroke();
 
-    // Draw vertical separators for grid
-    for (let i = 1; i < cols.length; i++) {
-      const x = cols[i].x;
-      doc.moveTo(x, tableTop).lineTo(x, tableTop + tableHeight).stroke();
-    }
+    // draw vertical separators only down to rows area (we'll compute drawnTableBottom after rows)
+    // For now draw to headerBottomY; we'll draw final separators after rows with correct bottom.
 
-    // rows
-    let y = headerBottomY + 4;
+    // render rows (no page break; force single page)
     doc.font('Helvetica').fontSize(9);
+    let y = headerBottomY + 4;
     let totalQty = 0;
     let totalValue = 0;
     let totalRevenue = 0;
 
-    const renderCount = Math.min(items.length, availableRows);
+    const renderCount = Math.min(items.length, MAX_ROWS_SAFE);
+
     for (let i = 0; i < renderCount; i++) {
       const it = items[i];
+
       const qty = Number(it.quantity || 0);
       const uc = Number(it.unitCost || 0);
       const up = Number(it.unitPrice || 0);
@@ -283,7 +281,7 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
       totalValue += invVal;
       totalRevenue += rev;
 
-      // zebra
+      // zebra fill
       if (i % 2 === 1) {
         doc.save();
         doc.fillOpacity(0.10);
@@ -291,10 +289,9 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
         doc.restore();
       }
 
-      // text vertical centering offset
+      // vertical center offset
       const textY = y + Math.max(1, Math.floor((rowHeight - 9) / 2));
 
-      // draw each cell
       for (const c of cols) {
         let text = '';
         if (c.key === 'sku') text = it.sku || '';
@@ -310,35 +307,43 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
         doc.text(text, c.x + 4, textY, { width: c.w - 8, align: alignRight ? 'right' : 'left', ellipsis: true });
       }
 
-      // draw horizontal separator after row
+      // horizontal separator after row
       const lineY = y + rowHeight - 2;
       doc.moveTo(tableLeft, lineY).lineTo(tableLeft + tableWidth, lineY).stroke();
 
       y += rowHeight;
     }
 
-    // draw outer frame for table (covering header+rows area)
+    // compute drawnTableBottom (bottom of printed rows)
     const drawnTableBottom = headerBottomY + 4 + (renderCount * rowHeight);
+
+    // draw vertical separators ONLY down to drawnTableBottom
+    for (let i = 1; i < cols.length; i++) {
+      const x = cols[i].x;
+      doc.moveTo(x, tableTop).lineTo(x, drawnTableBottom).stroke();
+    }
+
+    // draw outer frame only around header+printed-rows (not full huge rect)
     doc.rect(tableLeft, tableTop, tableWidth, drawnTableBottom - tableTop).stroke();
 
-    // omitted note if necessary (keeps single page)
+    // omitted note if items omitted for single-page
     const omitted = items.length - renderCount;
     if (omitted > 0) {
       doc.font('Helvetica-Oblique').fontSize(8).fillColor('red');
-      doc.text(`Note: ${omitted} item(s) omitted to keep single-page layout.`, tableLeft + 4, drawnTableBottom + 8);
+      doc.text(`Note: ${omitted} item(s) omitted to keep single-page layout.`, tableLeft + 4, drawnTableBottom + 6);
       doc.fillColor('black');
     }
 
-    // Totals box (bottom-right) — placed below the table and above footer
+    // totals box bottom-right (below table) — ensure fits
     const totalsBoxW = 300;
     const totalsBoxH = 76;
-    const totalsX = tableLeft + tableWidth - totalsBoxW; // right aligned with table
-    // place totals box at or below drawnTableBottom + some padding but keep inside page
-    let totalsY = drawnTableBottom + 16;
-    // ensure totalsY + totalsBoxH + footer fits inside pageH - margin
-    const footerReserve = 60;
-    if (totalsY + totalsBoxH + footerReserve > pageH - margin) {
-      totalsY = pageH - margin - footerReserve - totalsBoxH; // push up if necessary
+    let totalsX = tableLeft + tableWidth - totalsBoxW;
+    if (totalsX < tableLeft + 40) totalsX = tableLeft + 40; // safety
+    let totalsY = drawnTableBottom + 18;
+    // ensure totalsY + totalsBoxH + footer fits
+    if (totalsY + totalsBoxH + 60 > pageH - margin) {
+      totalsY = pageH - margin - 60 - totalsBoxH;
+      if (totalsY < drawnTableBottom + 8) totalsY = drawnTableBottom + 8;
     }
 
     // draw totals box
@@ -356,11 +361,11 @@ app.get('/api/inventory/report/pdf', async (req, res) => {
       doc.fillColor('black');
     }
 
-    // Footer centered
+    // footer centered
     doc.font('Helvetica').fontSize(9).text('Thank you for your business.', margin, pageH - margin - 36, { align: 'center', width: usableW });
     doc.font('Helvetica').fontSize(9).text('Generated by L&B Inventory System', margin, pageH - margin - 22, { align: 'center', width: usableW });
 
-    // Page numbers (single page but keep safe)
+    // page numbers (single page)
     const range = doc.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       doc.switchToPage(i);
