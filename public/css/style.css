@@ -1,1 +1,470 @@
+/* =========================================
+   General Page Styling (Modern Theme)
+========================================= */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --background-light: #4F517D;
+  --background-dark: #1f2833;
+  --card-light: #ffffff;
+  --card-dark: #2c3a47;
+  --text-light: #212529;
+  --text-dark: #f8f9fa;
+  --border-color: #dee2e6;
+  --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  background: var(--background-light);
+  color: var(--text-light);
+  transition: all 0.3s ease;
+  min-height: 100vh;
+}
+
+header {
+  background: var(--primary-color);
+  color: white;
+  padding: 15px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+nav {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+nav a:hover, nav a.active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+nav button {
+  background: var(--secondary-color);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+nav button:hover {
+  background: #5a6268;
+}
+
+#adminInfo {
+  font-size: 0.9rem;
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+section {
+  margin: 30px auto;
+  max-width: 1200px;
+  background: var(--card-light);
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  transition: all 0.3s ease;
+}
+
+/* =========================================
+   Form/Input Styling & Buttons
+========================================= */
+input[type="text"], 
+input[type="number"], 
+input[type="password"],
+input[type="file"] {
+    width: 100%;
+    padding: 12px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.primary-btn, .secondary-btn, .success-btn, .danger-btn {
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.1s;
+}
+.primary-btn { background: var(--primary-color); color: white; }
+.primary-btn:hover { background: #0056b3; }
+
+.secondary-btn { background: var(--secondary-color); color: white; }
+.secondary-btn:hover { background: #545b62; }
+
+.success-btn { background: var(--success-color); color: white; }
+.success-btn:hover { background: #1e7e34; }
+
+.danger-btn { 
+    background: var(--danger-color); 
+    color: white; 
+    padding: 8px 12px; 
+    font-size: 0.9rem; 
+}
+.danger-btn:hover { background: #bd2130; }
+
+.action-btn {
+    margin-left: 5px;
+    padding: 6px 10px;
+}
+
+/* =========================================
+   Login Page Styling
+========================================= */
+.login-container { 
+  max-width: 400px; 
+  background: var(--card-light); 
+  margin: 0 auto 100px auto; 
+  padding: 35px; 
+  border-radius: 10px; 
+  box-shadow: var(--shadow-md); 
+}
+.toggle-link { 
+  text-align: center; 
+  margin-top: 15px; 
+  cursor: pointer; 
+  color: var(--primary-color); 
+  font-weight: 500;
+  text-decoration: underline; 
+}
+#loginMessage, #registerMessage {
+    margin-top: 10px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* =========================================
+   Login Page Title & Layout
+========================================= */
+.main-title-container {
+    text-align: center;
+    margin-top: 50px;
+    margin-bottom: 20px;
+    padding: 0 10px;
+}
+.main-title-container h1 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    font-weight: 800;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 0;
+}
+.login-container h2 {
+    text-align: center;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 20px;
+}
+.login-container input { width: 100%; }
+.login-container button { width: 100%; margin-top: 10px; }
+.toggle-link {
+    text-align: center;
+    color: var(--primary-color);
+    cursor: pointer;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+.info { font-size: 0.8rem; color: var(--secondary-color); text-align: center; }
+
+/* =========================================
+   Inventory/Documents Common Controls
+========================================= */
+.product-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; 
+    align-items: center; 
+    margin-bottom: 20px; 
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background-light);
+}
+
+.product-bar input { 
+    width: 100%; 
+    margin: 0; 
+}
+
+.product-bar button {
+    grid-column: 1 / -1; 
+    padding: 12px 15px;
+}
+
+@media (min-width: 768px) {
+    .product-bar button {
+        grid-column: auto; 
+        min-width: 150px;
+    }
+}
+
+.controls { 
+    display:flex; 
+    justify-content:space-between; 
+    gap:15px; 
+    flex-wrap:wrap; 
+    align-items:center; 
+    margin-bottom: 20px;
+}
+.search-controls { display: flex; gap: 8px; }
+#searchInput, #searchDocs { width: 280px; padding: 10px; }
+
+/* =========================================
+   Modern Table Styling (Inventory & Documents)
+========================================= */
+.table-container {
+    overflow-x: auto; 
+    margin-top: 20px;
+    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    border: 1px solid var(--border-color); 
+    background: var(--card-light);
+}
+
+#inventoryTable, #documentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 0.95em;
+    min-width: 700px; 
+}
+
+#inventoryTable th, #inventoryTable td,
+#documentsTable th, #documentsTable td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#inventoryTable thead th,
+#documentsTable thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky; 
+    top: 0;
+}
+
+#inventoryTable tbody tr:hover,
+#documentsTable tbody tr:hover {
+    background-color: #f1f1f1;
+    transition: background-color 0.2s;
+}
+
+#inventoryTable tbody tr.low-stock-row {
+    background-color: #fff8e1; 
+}
+#inventoryTable tbody tr.out-of-stock-row {
+    background-color: #fce4e4; 
+}
+#inventoryTable tbody tr.low-stock-row:hover {
+    background-color: #ffebac;
+}
+#inventoryTable tbody tr.out-of-stock-row:hover {
+    background-color: #f9d8d8;
+}
+
+.money {
+    text-align: right;
+    font-family: 'Consolas', monospace; 
+    font-weight: bold;
+}
+.actions {
+    text-align: center;
+    min-width: 150px;
+}
+.small-btn {
+    padding: 5px 10px;
+    font-size: 0.85em;
+}
+
+/* =========================================
+   Dashboard Layout (Unchanged)
+========================================= */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 30px;
+}
+@media (min-width: 900px) {
+    .dashboard-grid {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+.dashboard-info {
+    font-size: 1.1rem;
+}
+.dashboard-info ul {
+    list-style: none;
+    padding-left: 0;
+    margin-top: 15px;
+}
+.dashboard-info li {
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+.dashboard-info li:last-child {
+    border-bottom: none;
+}
+
+.dashboard-card-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.quick-access-btn {
+    padding: 30px;
+    text-align: center;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.quick-access-btn:hover {
+    transform: translateY(-3px);
+}
+#btn-inventory { background: #3498db; }
+#btn-inventory:hover { background: #2980b9; }
+#btn-documents { background: #2ecc71; }
+#btn-documents:hover { background: #27ae60; }
+
+.info-card {
+    background: #f1f7fe;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+}
+.clock { font-size: 1.2rem; font-weight: 600; margin-bottom: 15px; color: var(--primary-color); }
+#recentActivities th, #recentActivities td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* =========================================
+   Log Styling (Unchanged)
+========================================= */
+#logList { list-style: none; padding: 0; }
+#logList li {
+  padding: 10px;
+  background: #e9ecef;
+  margin: 8px 0;
+  border-left: 4px solid var(--primary-color);
+  border-radius: 4px;
+}
+
+/* =========================================
+   Dark Mode Overrides
+========================================= */
+.dark-mode {
+  background: var(--background-dark);
+  color: var(--text-dark);
+}
+
+.dark-mode section {
+  background: var(--card-dark);
+  color: var(--text-dark);
+  box-shadow: var(--shadow-md);
+}
+
+.dark-mode header {
+  background: #0056b3;
+}
+
+.dark-mode input {
+    background: #495057;
+    color: var(--text-dark);
+    border-color: #6c757d;
+}
+.dark-mode input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
+}
+
+.dark-mode .totals {
+    background: #343a40;
+    color: var(--text-dark);
+}
+
+.dark-mode .table-container {
+    background: var(--card-dark);
+    border-color: #495057;
+}
+.dark-mode #inventoryTable thead th,
+.dark-mode #documentsTable thead th {
+    background-color: #0056b3; 
+}
+.dark-mode #inventoryTable tbody tr:hover,
+.dark-mode #documentsTable tbody tr:hover {
+    background-color: #3f4a56;
+}
+.dark-mode #inventoryTable th, .dark-mode #inventoryTable td,
+.dark-mode #documentsTable th, .dark-mode #documentsTable td {
+    border-bottom-color: #495057;
+}
+
+.dark-mode #inventoryTable tbody tr.low-stock-row {
+    background-color: #4e4e3b; 
+}
+.dark-mode #inventoryTable tbody tr.out-of-stock-row {
+    background-color: #6b3f3f; 
+}
+.dark-mode #inventoryTable tbody tr.low-stock-row:hover {
+    background-color: #5d5d43;
+}
+.dark-mode #inventoryTable tbody tr.out-of-stock-row:hover {
+    background-color: #7b4f4f;
+}
+
+.dark-mode #logList li {
+  background: #343a40;
+  border-left-color: var(--primary-color);
+}
+
+.dark-mode .info-card {
+    background: #343a40;
+}
 
