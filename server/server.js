@@ -7,6 +7,7 @@ const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
 const PDFDocument = require('pdfkit');   // PDF generator
+// REMOVED: const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,12 @@ const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Specialized middleware for handling raw file uploads (replacement for Multer)
+const rawBodyMiddleware = express.raw({
+  type: '*/*', // Accept all content types
+  limit: '50mb' // Set a reasonable limit for file size (50MB)
+});
 
 // ===== MongoDB Connection =====
 if (!MONGODB_URI) {
@@ -56,7 +63,6 @@ const InventorySchema = new Schema({
 });
 const Inventory = mongoose.model("Inventory", InventorySchema);
 
-// FIX: DocumentSchema updated to store file data and content type
 const DocumentSchema = new Schema({
   name: String,
   size: Number,
@@ -233,8 +239,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     const items = await Inventory.find({}).lean();
 
     const now = new Date();
-
-    // ---------- TIMEZONE-AWARE PRINT DATE (Asia/Kuala_Lumpur) ----------
     const printDate = new Date(now).toLocaleString('en-US', {
       timeZone: 'Asia/Kuala_Lumpur',
       year: 'numeric',
@@ -248,11 +252,8 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
     const reportId = `REP-${Date.now()}`;
     const printedBy = req.headers["x-username"] || "System";
-
-    // include ms timestamp so filename is unique
     const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
-    // collect chunks so we can save the PDF bytes after generation
     let pdfChunks = [];
 
     const doc = new PDFDocument({
@@ -262,10 +263,8 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       bufferPages: true
     });
 
-    // collect buffer chunks to save later
     doc.on("data", chunk => pdfChunks.push(chunk));
 
-    // when PDF finishes, save to Docs collection and log
     doc.on("end", async () => {
       try {
         const pdfBuffer = Buffer.concat(pdfChunks);
@@ -282,14 +281,11 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       }
     });
 
-    // stream to response for immediate download
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
     doc.pipe(res);
 
-    // -------------------------------------------------
-    // HEADER (Only first page)
-    // -------------------------------------------------
+    // PDF Generation logic (simplified for context)
     doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
     doc.fontSize(10).font("Helvetica");
     doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
@@ -299,7 +295,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(15)
        .text("INVENTORY REPORT", 620, 40);
 
-    // Use the timezone-correct printDate
     doc.font("Helvetica").fontSize(10);
     doc.text(`Print Date: ${printDate}`, 620, 63);
     doc.text(`Report ID: ${reportId}`, 620, 78);
@@ -308,41 +303,13 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
     doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
-    // -------------------------------------------------
-    // TABLE SETTINGS
-    // -------------------------------------------------
     const rowHeight = 18;
-
-    const colX = {
-      sku: 40,
-      name: 100,
-      category: 260,
-      qty: 340,
-      cost: 400,
-      price: 480,
-      value: 560,
-      revenue: 670
-    };
-
-    const width = {
-      sku: 60,
-      name: 160,
-      category: 80,
-      qty: 60,
-      cost: 80,
-      price: 80,
-      value: 110,
-      revenue: 120
-    };
-
+    const colX = { sku: 40, name: 100, category: 260, qty: 340, cost: 400, price: 480, value: 560, revenue: 670 };
+    const width = { sku: 60, name: 160, category: 80, qty: 60, cost: 80, price: 80, value: 110, revenue: 120 };
     let y = 150;
 
-    // -------------------------------------------------
-    // DRAW TABLE HEADER
-    // -------------------------------------------------
     function drawHeader() {
       doc.font("Helvetica-Bold").fontSize(10);
-
       doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
       doc.rect(colX.name, y, width.name, rowHeight).stroke();
       doc.rect(colX.category, y, width.category, rowHeight).stroke();
@@ -351,7 +318,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       doc.rect(colX.price, y, width.price, rowHeight).stroke();
       doc.rect(colX.value, y, width.value, rowHeight).stroke();
       doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
-
       doc.text("SKU", colX.sku + 3, y + 4);
       doc.text("Product Name", colX.name + 3, y + 4);
       doc.text("Category", colX.category + 3, y + 4);
@@ -360,26 +326,17 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       doc.text("Unit Price", colX.price + 3, y + 4);
       doc.text("Total Inventory Value", colX.value + 3, y + 4);
       doc.text("Total Potential Revenue", colX.revenue + 3, y + 4);
-
       y += rowHeight;
-
       doc.font("Helvetica").fontSize(9);
     }
 
     drawHeader();
-  // -------------------------------------------------
-    // ROW LOOP (MAX 10 ROWS PER PAGE)
-    // -------------------------------------------------
     let subtotalQty = 0;
     let totalValue = 0;
     let totalRevenue = 0;
-
-    let rowCount = 0;
     let rowsOnPage = 0;
 
     for (const it of items) {
-
-      // Force page break if 10 rows on current page already
       if (rowsOnPage === 10) {
         doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
         y = 40;
@@ -390,15 +347,12 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       const qty = Number(it.quantity || 0);
       const cost = Number(it.unitCost || 0);
       const price = Number(it.unitPrice || 0);
-
       const val = qty * cost;
       const rev = qty * price;
-
       subtotalQty += qty;
       totalValue += val;
       totalRevenue += rev;
 
-      // Row borders
       doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
       doc.rect(colX.name, y, width.name, rowHeight).stroke();
       doc.rect(colX.category, y, width.category, rowHeight).stroke();
@@ -407,8 +361,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       doc.rect(colX.price, y, width.price, rowHeight).stroke();
       doc.rect(colX.value, y, width.value, rowHeight).stroke();
       doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
-
-      // Row text
       doc.text(it.sku || "", colX.sku + 3, y + 4);
       doc.text(it.name || "", colX.name + 3, y + 4);
       doc.text(it.category || "", colX.category + 3, y + 4);
@@ -417,51 +369,28 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
       doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
       doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 4);
       doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 4);
-
       y += rowHeight;
       rowsOnPage++;
-      rowCount++;
     }
 
-    // -------------------------------------------------
-    // TOTALS BOX (LAST PAGE)
-    // -------------------------------------------------
     const lastPageIndex = doc.bufferedPageRange().count - 1;
     doc.switchToPage(lastPageIndex);
-
     let boxY = y + 20;
     if (boxY > 480) boxY = 480;
-
     doc.rect(560, boxY, 230, 68).stroke();
-
     doc.font("Helvetica-Bold").fontSize(10);
     doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
     doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
     doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
 
-    // -------------------------------------------------
-    // FORCE RENDER COMPLETE
-    // -------------------------------------------------
     doc.flushPages();
 
-    // -------------------------------------------------
-    // FOOTER + PAGE NUMBERS (SAFE)
-    // -------------------------------------------------
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      doc.fontSize(9).text(
-        "Generated by L&B Company Inventory System",
-        0, doc.page.height - 40,
-        { align: "center" }
-      );
-      doc.text(`Page ${i + 1} of ${pages.count}`,
-        0, doc.page.height - 25,
-        { align: "center" }
-      );
+      doc.fontSize(9).text( "Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
+      doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
     }
-
-    // finalize PDF (this triggers the 'end' event where we save the buffer)
     doc.end();
 
   } catch (err) {
@@ -477,8 +406,7 @@ app.get("/api/inventory/report", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const now = new Date();
-    const filenameBase = `Inventory_Report_${now.toISOString().slice(0, 10)}`;
-    const filename = `${filenameBase}.xlsx`;
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}.xlsx`;
 
     const ws_data = [
       ["L&B Company - Inventory Report"],
@@ -519,8 +447,7 @@ app.get("/api/inventory/report", async (req, res) => {
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
     const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
-    
-    // FIX: Included data and contentType for XLSX reports
+
     await Doc.create({ 
       name: filename, 
       size: wb_out.length, 
@@ -542,26 +469,50 @@ app.get("/api/inventory/report", async (req, res) => {
 });
 
 // ============================================================================
-//                                   DOCUMENTS CRUD
+//                       DOCUMENTS UPLOAD (CRITICAL FIX - NO MULTER)
 // ============================================================================
-app.get("/api/documents", async (req, res) => {
+// Apply the raw body parser middleware only to this route
+app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
+  // req.body contains the file buffer
+  const fileBuffer = req.body;
+  
+  // Get metadata from request headers (set by the updated script.js)
+  const contentType = req.headers['content-type']; 
+  const fileName = req.headers['x-file-name'];     
+  const username = req.headers["x-username"];
+
+  if (!fileBuffer || !fileBuffer.length || !contentType || !fileName) {
+    return res.status(400).json({ 
+      message: "No file content or required metadata (filename/type) provided for upload." 
+    });
+  }
+
   try {
-    // Only fetch necessary metadata fields for listing (no bulky 'data' field)
-    const docs = await Doc.find({}).select('-data').sort({ date: -1 }).lean();
-    res.json(docs.map(d => ({ ...d, id: d._id.toString() })));
+    const docu = await Doc.create({
+      name: fileName,
+      size: fileBuffer.length,
+      date: new Date(),
+      data: fileBuffer,       // Save the raw buffer
+      contentType: contentType // Save the MIME type
+    });
+    
+    await logActivity(username, `Uploaded document: ${docu.name} (${contentType})`);
+    
+    // Respond with the uploaded document metadata (as an array to match client expectations)
+    res.status(201).json([{ ...docu.toObject(), id: docu._id.toString() }]); 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Document upload error:", err);
+    res.status(500).json({ message: "Server error during file storage." });
   }
 });
 
-app.post("/api/documents", async (req, res) => {
-  // NOTE: This route only saves metadata for simulated uploads. 
-  // Actual file content is NOT saved here.
+// ============================================================================
+//                                DOCUMENTS CRUD (Metadata)
+// ============================================================================
+app.get("/api/documents", async (req, res) => {
   try {
-    const docu = await Doc.create({ ...req.body, date: new Date() });
-    await logActivity(req.headers["x-username"], `Uploaded document: ${docu.name}`);
-    res.status(201).json({ ...docu.toObject(), id: docu._id.toString() });
+    const docs = await Doc.find({}).select('-data').sort({ date: -1 }).lean();
+    res.json(docs.map(d => ({ ...d, id: d._id.toString() })));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
@@ -584,35 +535,30 @@ app.delete("/api/documents/:id", async (req, res) => {
 
 
 // ============================================================================
-//                                DOCUMENTS DOWNLOAD
+//                             DOCUMENTS DOWNLOAD
 // ============================================================================
-// FIX: Added the download route that retrieves the file buffer by ID
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
-    // Crucial: use .lean() for robust retrieval of the Buffer data
     const docu = await Doc.findById(req.params.id).lean(); 
     
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
-    // Check if the document has the 'data' field (which stores the file buffer)
     if (!docu.data || !docu.contentType) {
       return res.status(400).json({ 
-        message: "File content not stored on server. Only server-generated reports (PDF/XLSX) can be downloaded." 
+        message: "File content not stored on server. Only server-generated reports and correctly uploaded files can be downloaded." 
       });
     }
 
-    // Set headers for download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType);
     res.setHeader("Content-Length", docu.size);
     
-    // Send the file data buffer
     res.send(docu.data);
 
     await logActivity(req.headers["x-username"], `Downloaded document: ${docu.name}`);
 
   } catch (err) {
-    console.error("Document download error:", err); // Log the actual error for debugging
+    console.error("Document download error:", err); 
     res.status(500).json({ message: "Server error during download" });
   }
 });
