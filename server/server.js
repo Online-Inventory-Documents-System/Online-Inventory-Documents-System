@@ -1,362 +1,421 @@
-// ============================================================================
-//                          SERVER.JS - FULL COMPLETED
-// ============================================================================
+// server/server.js  
+// Online Inventory & Documents Management System — Full Combined Version  
+// Includes: multer upload, XLSX/PDF binary saving, fixed downloads
 
 const express = require('express');
+const cors = require('cors');
+const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
-const multer = require('multer');
 const PDFDocument = require('pdfkit');
-const xlsx = require('xlsx');
-const fs = require('fs');
+
+// ---- NEW: multer for file uploads ----
+const multer = require('multer');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
+const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
-// ============================================================================
-//                            MONGOOSE MODELS
-// ============================================================================
-const InventorySchema = new mongoose.Schema({
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ---- MongoDB connect ----
+if (!MONGODB_URI) {
+  console.error("MONGODB_URI missing.");
+  process.exit(1);
+}
+
+mongoose.set("strictQuery", false);
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log("MongoDB connected"))
+.catch(err => { console.error(err); process.exit(1); });
+
+const { Schema } = mongoose;
+
+// ---- Schemas: now all documents have "data" + "contentType" ----
+const UserSchema = new Schema({
+  username: String,
+  password: String,
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model("User", UserSchema);
+
+const InventorySchema = new Schema({
   sku: String,
   name: String,
   category: String,
   quantity: Number,
   unitCost: Number,
-  unitPrice: Number
+  unitPrice: Number,
+  createdAt: { type: Date, default: Date.now }
 });
+const Inventory = mongoose.model("Inventory", InventorySchema);
 
-const DocSchema = new mongoose.Schema({
+// ---- DOCUMENTS now store the file buffer ----
+const DocumentSchema = new Schema({
   name: String,
   size: Number,
   date: Date,
   data: Buffer,
   contentType: String
 });
+const Doc = mongoose.model("Doc", DocumentSchema);
 
-const ActivityLogSchema = new mongoose.Schema({
+const LogSchema = new Schema({
   user: String,
   action: String,
-  time: { type: Date, default: Date.now }
+  time: Date
 });
+const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
-const UserSchema = new mongoose.Schema({
-  username: String,
-  password: String
-});
-
-const Inventory = mongoose.model('Inventory', InventorySchema);
-const Doc = mongoose.model('Doc', DocSchema);
-const ActivityLog = mongoose.model('ActivityLog', ActivityLogSchema);
-const User = mongoose.model('User', UserSchema);
-
-// ============================================================================
-//                            MIDDLEWARE
-// ============================================================================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Multer setup for any file type
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-// ============================================================================
-//                          HELPER FUNCTIONS
-// ============================================================================
+// --- Log dedupe ---
+const DUPLICATE_WINDOW_MS = 30000;
 async function logActivity(user, action) {
-  await ActivityLog.create({ user, action, time: new Date() });
+  try {
+    const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean();
+    const now = Date.now();
+
+    if (last &&
+      last.user === user &&
+      last.action === action &&
+      now - new Date(last.time).getTime() <= DUPLICATE_WINDOW_MS) return;
+
+    await ActivityLog.create({ user, action, time: new Date() });
+  } catch (err) { console.error(err); }
 }
 
-// ============================================================================
-//                            INVENTORY ROUTES
-// ============================================================================
+// ---- Auth ----
+app.post("/api/register", async (req, res) => {
+  const { username, password, securityCode } = req.body;
 
-// GET all inventory
-app.get('/api/inventory', async (req, res) => {
+  if (securityCode !== SECURITY_CODE)
+    return res.status(403).json({ message: "Invalid security code" });
+
+  const exists = await User.findOne({ username });
+  if (exists) return res.status(409).json({ message: "Username exists" });
+
+  await User.create({ username, password });
+  await logActivity("System", `Registered user: ${username}`);
+  res.json({ success: true });
+});
+
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  const user = await User.findOne({ username, password });
+  if (!user) return res.status(401).json({ message: "Invalid credentials" });
+
+  await logActivity(username, "Logged in");
+  res.json({ success: true, user: username });
+});
+
+// ---- Inventory CRUD ----
+app.get("/api/inventory", async (req, res) => {
   const items = await Inventory.find({}).lean();
-  res.json(items);
+  res.json(items.map(i => ({ ...i, id: i._id })));
 });
 
-// POST add inventory item
-app.post('/api/inventory', async (req, res) => {
+app.post("/api/inventory", async (req, res) => {
   const item = await Inventory.create(req.body);
-  await logActivity(req.headers['x-username'] || 'System', `Added inventory item ${item.name}`);
-  res.json(item);
+  await logActivity(req.headers["x-username"], `Added: ${item.name}`);
+  res.json({ ...item.toObject(), id: item._id });
 });
 
-// PUT update inventory item
-app.put('/api/inventory/:id', async (req, res) => {
+app.put("/api/inventory/:id", async (req, res) => {
   const item = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  await logActivity(req.headers['x-username'] || 'System', `Updated inventory item ${item.name}`);
-  res.json(item);
+  if (!item) return res.status(404).json({ message: "Not found" });
+  await logActivity(req.headers["x-username"], `Updated: ${item.name}`);
+  res.json({ ...item.toObject(), id: item._id });
 });
 
-// DELETE inventory item
-app.delete('/api/inventory/:id', async (req, res) => {
+app.delete("/api/inventory/:id", async (req, res) => {
   const item = await Inventory.findByIdAndDelete(req.params.id);
-  await logActivity(req.headers['x-username'] || 'System', `Deleted inventory item ${item.name}`);
-  res.json({ message: 'Deleted' });
+  if (!item) return res.status(404).json({ message: "Not found" });
+  await logActivity(req.headers["x-username"], `Deleted: ${item.name}`);
+  res.status(204).send();
 });
-
-// ============================================================================
-//                   FILE UPLOAD / DOWNLOAD (ANY TYPE)
-// ============================================================================
-
-// Upload any file
-app.post('/api/documents/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-    const doc = await Doc.create({
-      name: req.file.originalname,
-      size: req.file.size,
-      date: new Date(),
-      data: req.file.buffer,
-      contentType: req.file.mimetype
-    });
-    await logActivity(req.headers['x-username'] || 'System', `Uploaded document: ${doc.name}`);
-    res.json({ message: 'File uploaded', doc });
-  } catch (err) {
-    console.error('Upload error:', err);
-    res.status(500).json({ message: 'Upload failed' });
-  }
-});
-
-// Download file by ID
-app.get('/api/documents/download/:id', async (req, res) => {
-  try {
-    const doc = await Doc.findById(req.params.id);
-    if (!doc) return res.status(404).json({ message: 'Document not found' });
-
-    res.setHeader('Content-Disposition', `attachment; filename="${doc.name}"`);
-    res.setHeader('Content-Type', doc.contentType);
-    res.send(doc.data);
-
-    await logActivity(req.headers['x-username'] || 'System', `Downloaded document: ${doc.name}`);
-  } catch (err) {
-    console.error('Download error:', err);
-    res.status(500).json({ message: 'Download failed' });
-  }
-});
-
-// ============================================================================
-//                            PDF REPORT
-// ============================================================================
+// ========================================================================
+//                      PDF REPORT (stores binary into DB)
+// ========================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     const now = new Date();
-    const printDate = new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
-    const reportId = `REP-${Date.now()}`;
-    const printedBy = req.headers["x-username"] || "System";
-    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
-    let pdfChunks = [];
-    const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 40, bufferPages: true });
-    doc.on("data", chunk => pdfChunks.push(chunk));
-    doc.on("end", async () => {
-      try {
-        const pdfBuffer = Buffer.concat(pdfChunks);
-        await Doc.create({ name: filename, size: pdfBuffer.length, date: new Date(), data: pdfBuffer, contentType: "application/pdf" });
-        await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
-      } catch (saveErr) {
-        console.error("Failed to save PDF:", saveErr);
-      }
+    // Malaysia time
+    const printDate = new Date(now).toLocaleString("en-US", {
+      timeZone: "Asia/Kuala_Lumpur",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "numeric", minute: "2-digit", second: "2-digit",
+      hour12: true
     });
 
+    const filename = `Inventory_Report_${now.toISOString().slice(0,10)}_${Date.now()}.pdf`;
+    const printedBy = req.headers["x-username"] || "System";
+
+    // collect PDF chunks
+    let chunks = [];
+    const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 40, bufferPages: true });
+    doc.on("data", c => chunks.push(c));
+
+    doc.on("end", async () => {
+      const buffer = Buffer.concat(chunks);
+      await Doc.create({
+        name: filename,
+        size: buffer.length,
+        date: new Date(),
+        data: buffer,
+        contentType: "application/pdf"
+      });
+      await logActivity(printedBy, `Generated Inventory PDF: ${filename}`);
+    });
+
+    // stream to client
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
     doc.pipe(res);
 
     // HEADER
-    doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
-    doc.fontSize(10).font("Helvetica");
-    doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
-    doc.text("Phone: 01133127622", 40, 85);
-    doc.text("Email: lbcompany@gmail.com", 40, 100);
-    doc.font("Helvetica-Bold").fontSize(15).text("INVENTORY REPORT", 620, 40);
-    doc.font("Helvetica").fontSize(10);
-    doc.text(`Print Date: ${printDate}`, 620, 63);
-    doc.text(`Report ID: ${reportId}`, 620, 78);
-    doc.text(`Status: Generated`, 620, 93);
-    doc.text(`Printed by: ${printedBy}`, 620, 108);
-    doc.moveTo(40, 130).lineTo(800, 130).stroke();
+    doc.fontSize(22).text("L&B Company", 40, 40);
+    doc.fontSize(10);
+    doc.text("INVENTORY REPORT", 620, 40);
+    doc.text(`Print Date: ${printDate}`, 620, 65);
+    doc.text(`Printed By: ${printedBy}`, 620, 80);
 
-    // TABLE SETTINGS
-    const rowHeight = 18;
-    const colX = { sku: 40, name: 100, category: 260, qty: 340, cost: 400, price: 480, value: 560, revenue: 670 };
-    const width = { sku: 60, name: 160, category: 80, qty: 60, cost: 80, price: 80, value: 110, revenue: 120 };
-    let y = 150;
+    doc.moveTo(40, 120).lineTo(800, 120).stroke();
 
-    function drawHeader() {
-      doc.font("Helvetica-Bold").fontSize(10);
-      for (const col of Object.keys(colX)) doc.rect(colX[col], y, width[col], rowHeight).stroke();
-      doc.text("SKU", colX.sku + 3, y + 4);
-      doc.text("Product Name", colX.name + 3, y + 4);
-      doc.text("Category", colX.category + 3, y + 4);
-      doc.text("Quantity", colX.qty + 3, y + 4);
-      doc.text("Unit Cost", colX.cost + 3, y + 4);
-      doc.text("Unit Price", colX.price + 3, y + 4);
-      doc.text("Total Inventory Value", colX.value + 3, y + 4);
-      doc.text("Total Potential Revenue", colX.revenue + 3, y + 4);
-      y += rowHeight;
-      doc.font("Helvetica").fontSize(9);
+    // TABLE
+    const rowH = 18;
+    const col = { sku:40,name:100,cat:260,qty:340,cost:400,price:480,val:560,rev:650 };
+    const w = { sku:60,name:160,cat:80,qty:60,cost:80,price:80,val:90,rev:100 };
+
+    let y = 140;
+    function header() {
+      doc.font("Helvetica-Bold");
+      Object.keys(col).forEach(k => doc.rect(col[k],y,w[k],rowH).stroke());
+      doc.text("SKU",col.sku+3,y+4);
+      doc.text("Product",col.name+3,y+4);
+      doc.text("Category",col.cat+3,y+4);
+      doc.text("Qty",col.qty+3,y+4);
+      doc.text("Unit Cost",col.cost+3,y+4);
+      doc.text("Unit Price",col.price+3,y+4);
+      doc.text("Value",col.val+3,y+4);
+      doc.text("Revenue",col.rev+3,y+4);
+      doc.font("Helvetica");
+      y += rowH;
     }
+    header();
 
-    drawHeader();
-
-    let subtotalQty = 0, totalValue = 0, totalRevenue = 0;
-    let rowsOnPage = 0;
-
+    let subtotal=0,totalVal=0,totalRev=0, count=0;
     for (const it of items) {
-      if (rowsOnPage === 10) {
-        doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-        y = 40;
-        rowsOnPage = 0;
-        drawHeader();
+      if (count===10) {
+        doc.addPage({ size:"A4", layout:"landscape", margin:40 });
+        y=40; count=0; header();
       }
+      const qty=it.quantity||0;
+      const cost=it.unitCost||0;
+      const price=it.unitPrice||0;
+      const val=qty*cost, rev=qty*price;
+      subtotal+=qty; totalVal+=val; totalRev+=rev;
 
-      const qty = Number(it.quantity || 0);
-      const cost = Number(it.unitCost || 0);
-      const price = Number(it.unitPrice || 0);
-      const val = qty * cost;
-      const rev = qty * price;
-      subtotalQty += qty;
-      totalValue += val;
-      totalRevenue += rev;
+      Object.keys(col).forEach(k => doc.rect(col[k],y,w[k],rowH).stroke());
+      doc.text(it.sku||"",col.sku+3,y+4);
+      doc.text(it.name||"",col.name+3,y+4);
+      doc.text(it.category||"",col.cat+3,y+4);
+      doc.text(String(qty),col.qty+3,y+4);
+      doc.text(`RM ${cost.toFixed(2)}`,col.cost+3,y+4);
+      doc.text(`RM ${price.toFixed(2)}`,col.price+3,y+4);
+      doc.text(`RM ${val.toFixed(2)}`,col.val+3,y+4);
+      doc.text(`RM ${rev.toFixed(2)}`,col.rev+3,y+4);
 
-      for (const col of Object.keys(colX)) doc.rect(colX[col], y, width[col], rowHeight).stroke();
-      doc.text(it.sku || "", colX.sku + 3, y + 4);
-      doc.text(it.name || "", colX.name + 3, y + 4);
-      doc.text(it.category || "", colX.category + 3, y + 4);
-      doc.text(String(qty), colX.qty + 3, y + 4);
-      doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 4);
-      doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
-      doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 4);
-      doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 4);
-
-      y += rowHeight;
-      rowsOnPage++;
+      y+=rowH; count++;
     }
 
     // TOTAL BOX
-    const lastPageIndex = doc.bufferedPageRange().count - 1;
-    doc.switchToPage(lastPageIndex);
-    let boxY = y + 20;
-    if (boxY > 480) boxY = 480;
-    doc.rect(560, boxY, 230, 68).stroke();
-    doc.font("Helvetica-Bold").fontSize(10);
-    doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
-    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
-    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
+    const last = doc.bufferedPageRange().count-1;
+    doc.switchToPage(last);
+    let tY = y+20; if(tY>480) tY=480;
+    doc.rect(560,tY,200,60).stroke();
+    doc.font("Helvetica-Bold");
+    doc.text(`Subtotal: ${subtotal} units`, 570,tY+8);
+    doc.text(`Value: RM ${totalVal.toFixed(2)}`,570,tY+26);
+    doc.text(`Revenue: RM ${totalRev.toFixed(2)}`,570,tY+44);
 
-    // FOOTER + PAGE NUMBERS
+    // FOOTERS
     const pages = doc.bufferedPageRange();
-    for (let i = 0; i < pages.count; i++) {
+    for(let i=0;i<pages.count;i++){
       doc.switchToPage(i);
-      doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
-      doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+      doc.fontSize(9).text("Generated by L&B Company System",0,doc.page.height-40,{align:"center"});
+      doc.text(`Page ${i+1} of ${pages.count}`,0,doc.page.height-25,{align:"center"});
     }
-
     doc.end();
+
   } catch (err) {
-    console.error("PDF Error:", err);
-    res.status(500).json({ message: "PDF generation failed" });
+    console.error(err);
+    res.status(500).json({ message:"PDF gen fail" });
   }
 });
 
-// ============================================================================
-//                            XLSX REPORT
-// ============================================================================
+// ========================================================================
+//                    XLSX REPORT (store binary into DB)
+// ========================================================================
 app.get("/api/inventory/report", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
-    const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0, 10)}`;
-    const filename = `${filenameBase}.xlsx`;
+    const filename = `Inventory_Report_${new Date().toISOString().slice(0,10)}_${Date.now()}.xlsx`;
 
-    const ws_data = [
+    const rows = [
       ["L&B Company - Inventory Report"],
-      ["Date:", new Date().toISOString().slice(0, 10)],
+      ["Date:", new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kuala_Lumpur"})],
       [],
-      ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", "Total Inventory Value", "Total Potential Revenue"]
+      ["SKU","Name","Category","Qty","Unit Cost","Unit Price","Value","Revenue"]
     ];
 
-    let totalValue = 0, totalRevenue = 0;
-
-    items.forEach(it => {
-      const qty = Number(it.quantity || 0);
-      const uc = Number(it.unitCost || 0);
-      const up = Number(it.unitPrice || 0);
-      const invVal = qty * uc;
-      const rev = qty * up;
-      totalValue += invVal;
-      totalRevenue += rev;
-      ws_data.push([it.sku || "", it.name || "", it.category || "", qty, uc.toFixed(2), up.toFixed(2), invVal.toFixed(2), rev.toFixed(2)]);
+    let totalVal=0,totalRev=0;
+    items.forEach(it=>{
+      const qty=it.quantity||0;
+      const uc=it.unitCost||0;
+      const up=it.unitPrice||0;
+      const v=qty*uc, r=qty*up;
+      totalVal+=v; totalRev+=r;
+      rows.push([it.sku,it.name,it.category,qty,uc.toFixed(2),up.toFixed(2),v.toFixed(2),r.toFixed(2)]);
     });
 
-    ws_data.push([]);
-    ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+    rows.push([]);
+    rows.push(["","","","Totals","","",totalVal.toFixed(2),totalRev.toFixed(2)]);
 
-    const ws = xlsx.utils.aoa_to_sheet(ws_data);
-    const wb = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
-    const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+    const ws=xlsx.utils.aoa_to_sheet(rows);
+    const wb=xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb,ws,"Report");
+    const buf=xlsx.write(wb,{type:"buffer",bookType:"xlsx"});
 
-    await Doc.create({ name: filename, size: wb_out.length, date: new Date(), data: wb_out, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    await logActivity(req.headers["x-username"] || "System", `Generated Inventory Report XLSX`);
+    await Doc.create({
+      name: filename,
+      size: buf.length,
+      date: new Date(),
+      data: buf,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    await logActivity(req.headers["x-username"],`Generated XLSX: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.send(wb_out);
+    res.setHeader("Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+
   } catch (err) {
-    console.error("XLSX error", err);
-    res.status(500).json({ message: "Report generation failed" });
+    console.error(err);
+    res.status(500).json({ message:"XLSX gen fail" });
   }
 });
-
-// ============================================================================
-//                             ACTIVITY LOGS
-// ============================================================================
-app.get('/api/logs', async (req, res) => {
+// ========================================================================
+//              DOCUMENT UPLOAD (multer memory storage)
+// ========================================================================
+app.post("/api/documents", upload.single('file'), async (req, res) => {
   try {
-    const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(1000).lean();
-    res.json(logs.map(l => ({ user: l.user, action: l.action, time: l.time ? new Date(l.time).toISOString() : null })));
+    if (!req.file)
+      return res.status(400).json({ message:"Upload requires field: file" });
+
+    const name = req.body.name || req.file.originalname;
+    const buffer = req.file.buffer;
+    const type = req.file.mimetype;
+
+    const docu = await Doc.create({
+      name,
+      size: buffer.length,
+      date: new Date(),
+      data: buffer,
+      contentType: type
+    });
+
+    await logActivity(req.headers["x-username"],`Uploaded: ${name}`);
+
+    res.status(201).json({ ...docu.toObject(), id: docu._id });
+
   } catch (err) {
-    console.error('logs err', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Upload err:", err);
+    res.status(500).json({ message: "Upload failed" });
   }
 });
 
-// ============================================================================
-//                    SERVE FRONTEND & FALLBACK
-// ============================================================================
-app.use(express.static(path.join(__dirname, '../public')));
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) return res.status(404).json({ message: 'API route not found' });
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
-// ============================================================================
-//                   STARTUP HELPER & SERVER LISTEN
-// ============================================================================
-async function ensureDefaultAdmin() {
+// ========================================================================
+//                    DOCUMENT DOWNLOAD (serves binary)
+// ========================================================================
+app.get("/api/documents/download/:filename", async (req, res) => {
   try {
-    const count = await User.countDocuments();
-    if (!count) {
-      await User.create({ username: 'admin', password: 'password' });
-      await logActivity('System', 'Default admin created');
-      console.log('Default admin created (admin/password)');
-    }
-  } catch (e) {
-    console.error('ensureDefaultAdmin error', e);
+    const fname = req.params.filename;
+    const docu = await Doc.findOne({ name: fname });
+
+    if (!docu) return res.status(404).json({ message:"Not found" });
+    if (!docu.data) return res.status(404).json({ message:"File has no data" });
+
+    res.setHeader("Content-Disposition",`attachment; filename="${docu.name}"`);
+    res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
+
+    res.send(docu.data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message:"Download error" });
   }
+});
+
+// ========================================================================
+//                           DOCUMENT LIST
+// ========================================================================
+app.get("/api/documents", async (req, res) => {
+  const docs = await Doc.find({}).sort({date:-1}).lean();
+  res.json(docs.map(d => ({...d, id:d._id, sizeBytes:d.size||0 })));
+});
+
+// ========================================================================
+//                           DOCUMENT DELETE
+// ========================================================================
+app.delete("/api/documents/:id", async (req,res)=>{
+  const docu = await Doc.findByIdAndDelete(req.params.id);
+  if (!docu) return res.status(404).json({ message:"Not found" });
+  await logActivity(req.headers["x-username"],`Deleted: ${docu.name}`);
+  res.status(204).send();
+});
+
+// ========================================================================
+//                            ACTIVITY LOGS
+// ========================================================================
+app.get("/api/logs", async (req, res) => {
+  const logs = await ActivityLog.find({}).sort({ time:-1 }).lean();
+  res.json(logs.map(l => ({
+    user:l.user,
+    action:l.action,
+    time:l.time? new Date(l.time).toISOString() : null
+  })));
+});
+
+// ========================================================================
+//                            FRONTEND + START
+// ========================================================================
+app.use(express.static(path.join(__dirname,"../public")));
+
+app.get("*",(req,res)=>{
+  if (req.path.startsWith("/api/"))
+    return res.status(404).json({ message:"API route not found" });
+  res.sendFile(path.join(__dirname,"../public/index.html"));
+});
+
+async function bootstrap() {
+  const n = await User.countDocuments();
+  if (!n) await User.create({username:"admin",password:"password"});
+  await logActivity("System","Server started");
 }
 
-(async () => {
-  try {
-    await mongoose.connect('mongodb://127.0.0.1:27017/your_db_name', { useNewUrlParser: true, useUnifiedTopology: true });
-    console.log('MongoDB connected');
-    await ensureDefaultAdmin();
-    app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
-  } catch (err) {
-    console.error('Server startup error:', err);
-  }
-})();
+bootstrap().then(()=>{
+  app.listen(PORT,()=>console.log("Server running on",PORT));
+});
