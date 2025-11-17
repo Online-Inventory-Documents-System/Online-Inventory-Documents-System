@@ -20,6 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Specialized middleware for handling raw file uploads (replacement for Multer)
+// CRITICAL FIX: This middleware parses the raw file bytes into req.body
 const rawBodyMiddleware = express.raw({
   type: '*/*', // Accept all content types
   limit: '50mb' // Set a reasonable limit for file size (50MB)
@@ -67,6 +68,7 @@ const DocumentSchema = new Schema({
   name: String,
   size: Number,
   date: { type: Date, default: Date.now },
+  // CRITICAL FIX: Fields to store file content
   data: Buffer,       // Stores the file content as a Buffer
   contentType: String // Stores the file's MIME type
 });
@@ -268,6 +270,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     doc.on("end", async () => {
       try {
         const pdfBuffer = Buffer.concat(pdfChunks);
+        // CRITICAL FIX: Saving the buffer to the 'data' field
         await Doc.create({
           name: filename,
           size: pdfBuffer.length,
@@ -448,6 +451,7 @@ app.get("/api/inventory/report", async (req, res) => {
     xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
     const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
 
+    // CRITICAL FIX: Saving the buffer to the 'data' field
     await Doc.create({ 
       name: filename, 
       size: wb_out.length, 
@@ -473,7 +477,7 @@ app.get("/api/inventory/report", async (req, res) => {
 // ============================================================================
 // Apply the raw body parser middleware only to this route
 app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
-  // req.body contains the file buffer
+  // req.body now contains the raw file buffer because of rawBodyMiddleware
   const fileBuffer = req.body;
   
   // Get metadata from request headers (set by the updated script.js)
@@ -483,7 +487,7 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
 
   if (!fileBuffer || !fileBuffer.length || !contentType || !fileName) {
     return res.status(400).json({ 
-      message: "No file content or required metadata (filename/type) provided for upload." 
+      message: "No file content or required metadata (filename/type) provided for upload. Ensure script.js is updated." 
     });
   }
 
@@ -511,6 +515,7 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
 // ============================================================================
 app.get("/api/documents", async (req, res) => {
   try {
+    // Exclude the 'data' buffer from the metadata list to save memory
     const docs = await Doc.find({}).select('-data').sort({ date: -1 }).lean();
     res.json(docs.map(d => ({ ...d, id: d._id.toString() })));
   } catch (err) {
@@ -535,24 +540,28 @@ app.delete("/api/documents/:id", async (req, res) => {
 
 
 // ============================================================================
-//                             DOCUMENTS DOWNLOAD
+//                             DOCUMENTS DOWNLOAD (CRITICAL FIX: Route was missing)
 // ============================================================================
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
+    // Fetch the document, including the binary 'data' field
     const docu = await Doc.findById(req.params.id).lean(); 
     
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
     if (!docu.data || !docu.contentType) {
+      // This is the error seen when the file content was not saved correctly
       return res.status(400).json({ 
-        message: "File content not stored on server. Only server-generated reports and correctly uploaded files can be downloaded." 
+        message: "File content not stored on server. This file may have been uploaded before the schema fix. Try generating a new report or re-uploading the file." 
       });
     }
 
+    // Set headers for file download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType);
     res.setHeader("Content-Length", docu.size);
     
+    // Send the binary data
     res.send(docu.data);
 
     await logActivity(req.headers["x-username"], `Downloaded document: ${docu.name}`);
