@@ -232,7 +232,19 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     const items = await Inventory.find({}).lean();
 
     const now = new Date();
-    const printDate = now.toLocaleString();
+
+    // ---------- TIMEZONE-AWARE PRINT DATE (Asia/Kuala_Lumpur) ----------
+    const printDate = new Date(now).toLocaleString('en-US', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
     const reportId = `REP-${Date.now()}`;
     const printedBy = req.headers["x-username"] || "System";
 
@@ -286,6 +298,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(15)
        .text("INVENTORY REPORT", 620, 40);
 
+    // Use the timezone-correct printDate
     doc.font("Helvetica").fontSize(10);
     doc.text(`Print Date: ${printDate}`, 620, 63);
     doc.text(`Report ID: ${reportId}`, 620, 78);
@@ -582,10 +595,10 @@ app.post("/api/documents", async (req, res) => {
 app.delete("/api/documents/:id", async (req, res) => {
   try {
     const docu = await Doc.findByIdAndDelete(req.params.id);
-    if (!docu) return res.status(404).json({ message: "Document not found" });
+  if (!docu) return res.status(404).json({ message: "Document not found" });
 
-    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
-    res.status(204).send();
+  await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
+  res.status(204).send();
 
   } catch (err) {
     console.error(err);
