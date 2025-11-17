@@ -10,7 +10,7 @@ const API_BASE = window.location.hostname.includes('localhost')
 const qs = (s) => document.querySelector(s);
 const qsa = (s) => Array.from(document.querySelectorAll(s));
 const showMsg = (el, text, color = 'red') => { if (!el) return; el.textContent = text; el.style.color = color; };
-const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : escapeHtml('');
+const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : '';
 const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 
 let inventory = [];
@@ -342,8 +342,13 @@ async function confirmAndGenerateReport() {
       await fetchDocuments();
       alert(`Report "${filename}" successfully generated and saved to Documents!`);
     } else {
-      const error = await res.json();
-      alert(`Failed to generate report: ${error.message}`);
+      // FIX: Ensure error message from server is shown
+      try {
+        const error = await res.json();
+        alert(`Failed to generate report: ${error.message}`);
+      } catch(e) {
+        alert('Failed to generate report: Server did not return a valid message.');
+      }
     }
   } catch(e) {
     console.error('Report generation error:', e);
@@ -464,7 +469,7 @@ async function uploadDocuments(){
 
   for(let i=0;i<files.length;i++){
     const f = files[i];
-    // NOTE: We only save metadata (name, type, sizeBytes). File content is NOT sent to the POST /api/documents endpoint.
+    // NOTE: We only save metadata (name, type, size). File content is NOT sent to the POST /api/documents endpoint.
     const meta = { name: f.name, type: f.type, size: f.size };
     try {
       const res = await apiFetch(`${API_BASE}/documents`, { method: 'POST', body: JSON.stringify(meta) });
@@ -481,17 +486,28 @@ async function uploadDocuments(){
   setTimeout(async ()=> { await fetchDocuments(); if(msgEl) msgEl.remove(); }, 1000);
 }
 
-// FIX: Updated downloadDocument to use document ID
+// FIX: Updated downloadDocument to use document ID and apiFetch
 async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
   
   try {
-    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { method: 'GET' });
+    // Use the document ID to fetch the file content
+    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { 
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' } // Overwrite default header to avoid problems with non-JSON response
+    });
 
     if(!res.ok) {
-      const err = await res.json();
-      // Show the explicit error message from the server if file content is missing
-      alert(`❌ Download Failed: ${err.message || 'Server error'}`);
+      // Try to read the error message from the server
+      let message = 'Server error during download.';
+      try {
+        const err = await res.json();
+        message = err.message || message;
+      } catch (_) {
+        // If it fails to parse JSON (e.g., successful download, but not recognized by fetch), use response status
+        message = `Server responded with status: ${res.status}`;
+      }
+      alert(`❌ Download Failed: ${message}`);
       return;
     }
 
