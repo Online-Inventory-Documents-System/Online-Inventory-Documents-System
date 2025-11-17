@@ -1,60 +1,45 @@
-// server/server.js
-// MongoDB (Mongoose) based server for Online Inventory & Documents Management System
+// ============================================================================
+// server/server.js  — FULL UPDATED VERSION (Render Single-Service Compatible)
+// ============================================================================
 
 const express = require("express");
 const cors = require("cors");
 const xlsx = require("xlsx");
 const mongoose = require("mongoose");
 const path = require("path");
+const fs = require("fs");
 const PDFDocument = require("pdfkit");
-const fs = require("fs"); // required for saving files
-const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
-// =============================================================
-// 🔥 CREATE generated_reports folder (PREVENTS ENOTDIR ERROR)
-// =============================================================
-const REPORTS_DIR = path.join(__dirname, "generated_reports");
-
-if (!fs.existsSync(REPORTS_DIR)) {
-  fs.mkdirSync(REPORTS_DIR, { recursive: true });
-  console.log("📁 created folder: generated_reports");
-}
-
-// ===== Middleware =====
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ===== MongoDB Connection =====
+// ============================================================================
+// MongoDB Connection
+// ============================================================================
 if (!MONGODB_URI) {
-  console.error("MONGODB_URI is not set.");
+  console.error("❌ ERROR: Missing MONGODB_URI in Render Environment");
   process.exit(1);
 }
 
 mongoose.set("strictQuery", false);
 mongoose
-  .connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("Connected to MongoDB Atlas"))
+  .connect(MONGODB_URI)
+  .then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch((err) => {
-    console.error("MongoDB connect error:", err);
+    console.error("❌ MongoDB ERROR:", err);
     process.exit(1);
   });
 
 const { Schema } = mongoose;
 
-// ===== Schemas =====
+// ============================================================================
+// Schemas
+// ============================================================================
 const UserSchema = new Schema({
-  username: { type: String, unique: true, required: true },
-  password: { type: String, required: true },
+  username: String,
+  password: String,
   createdAt: { type: Date, default: Date.now },
 });
 const User = mongoose.model("User", UserSchema);
@@ -63,9 +48,9 @@ const InventorySchema = new Schema({
   sku: String,
   name: String,
   category: String,
-  quantity: { type: Number, default: 0 },
-  unitCost: { type: Number, default: 0 },
-  unitPrice: { type: Number, default: 0 },
+  quantity: Number,
+  unitCost: Number,
+  unitPrice: Number,
   createdAt: { type: Date, default: Date.now },
 });
 const Inventory = mongoose.model("Inventory", InventorySchema);
@@ -73,7 +58,6 @@ const Inventory = mongoose.model("Inventory", InventorySchema);
 const DocumentSchema = new Schema({
   name: String,
   size: Number,
-  path: String, // NEW: save real file path
   date: { type: Date, default: Date.now },
 });
 const Doc = mongoose.model("Doc", DocumentSchema);
@@ -85,148 +69,187 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
-// ===== Duplicate Log Protection =====
-const DUPLICATE_WINDOW_MS = 30 * 1000;
+// ============================================================================
+// Ensure report folder exists
+// ============================================================================
+const REPORT_DIR = path.join(__dirname, "generated_reports");
 
-async function logActivity(user, action) {
-  try {
-    const safeUser = (user || "Unknown").toString();
-    const safeAction = (action || "").toString();
-    const now = Date.now();
-
-    const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean().exec();
-    if (last) {
-      const lastUser = last.user || "Unknown";
-      const lastAction = last.action || "";
-      const lastTime = last.time ? new Date(last.time).getTime() : 0;
-
-      if (
-        lastUser === safeUser &&
-        lastAction === safeAction &&
-        now - lastTime <= DUPLICATE_WINDOW_MS
-      ) {
-        return;
-      }
-    }
-
-    await ActivityLog.create({
-      user: safeUser,
-      action: safeAction,
-      time: new Date(),
-    });
-  } catch (err) {
-    console.error("logActivity error:", err);
-  }
+if (!fs.existsSync(REPORT_DIR)) {
+  fs.mkdirSync(REPORT_DIR, { recursive: true });
+  console.log("📁 created:", REPORT_DIR);
 }
 
 // ============================================================================
-//                               AUTH SYSTEM
+// Middleware
+// ============================================================================
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ============================================================================
+// Log System (duplicate protection)
+// ============================================================================
+const DUP_WINDOW = 30_000;
+
+async function logActivity(user, action) {
+  const safeUser = user || "System";
+  const safeAction = action || "";
+
+  const last = await ActivityLog.findOne().sort({ time: -1 }).lean();
+  const now = Date.now();
+
+  if (last) {
+    const tooSoon = now - new Date(last.time).getTime() <= DUP_WINDOW;
+    if (last.user === safeUser && last.action === safeAction && tooSoon) return;
+  }
+
+  await ActivityLog.create({ user: safeUser, action: safeAction });
+}
+
+// ============================================================================
+// AUTH
 // ============================================================================
 app.post("/api/register", async (req, res) => {
-  const { username, password, securityCode } = req.body || {};
+  const { username, password, securityCode } = req.body;
 
   if (securityCode !== SECURITY_CODE)
     return res.status(403).json({ success: false, message: "Invalid security code" });
 
-  if (!username || !password)
-    return res.status(400).json({ success: false, message: "Missing username or password" });
+  const exists = await User.findOne({ username });
+  if (exists) return res.status(409).json({ success: false, message: "User exists" });
 
-  try {
-    const exists = await User.findOne({ username }).lean();
-    if (exists)
-      return res.status(409).json({ success: false, message: "Username already exists" });
+  await User.create({ username, password });
+  await logActivity("System", `Registered new user ${username}`);
 
-    await User.create({ username, password });
-    await logActivity("System", `Registered user: ${username}`);
-
-    res.json({ success: true, message: "Registration successful" });
-  } catch (err) {
-    console.error("register error", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
+  res.json({ success: true });
 });
 
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password } = req.body;
 
-  if (!username || !password)
-    return res.status(400).json({ success: false, message: "Missing credentials" });
+  const user = await User.findOne({ username, password });
+  if (!user)
+    return res.status(401).json({ success: false, message: "Invalid login" });
 
-  try {
-    const user = await User.findOne({ username, password }).lean();
-    if (!user)
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
-
-    await logActivity(username, "Logged in");
-    res.json({ success: true, user: username });
-  } catch (err) {
-    console.error("login error", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
+  await logActivity(username, "Logged in");
+  res.json({ success: true, user: username });
 });
 
 // ============================================================================
-//                                 INVENTORY CRUD
+// INVENTORY CRUD
 // ============================================================================
 app.get("/api/inventory", async (req, res) => {
-  try {
-    const items = await Inventory.find({}).lean();
-    res.json(items.map((i) => ({ ...i, id: i._id.toString() })));
-  } catch (err) {
-    console.error("inventory get error", err);
-    res.status(500).json({ message: "Server error" });
-  }
+  const items = await Inventory.find({}).lean();
+  res.json(items.map((i) => ({ ...i, id: i._id.toString() })));
+});
+
+app.post("/api/inventory", async (req, res) => {
+  const item = await Inventory.create(req.body);
+  await logActivity(req.headers["x-username"], `Added: ${item.name}`);
+  res.json({ ...item.toObject(), id: item._id.toString() });
+});
+
+app.put("/api/inventory/:id", async (req, res) => {
+  const item = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  if (!item) return res.status(404).json({ message: "Not found" });
+
+  await logActivity(req.headers["x-username"], `Updated: ${item.name}`);
+  res.json({ ...item.toObject(), id: item._id.toString() });
+});
+
+app.delete("/api/inventory/:id", async (req, res) => {
+  const item = await Inventory.findByIdAndDelete(req.params.id);
+  if (!item) return res.status(404).json({ message: "Not found" });
+
+  await logActivity(req.headers["x-username"], `Deleted: ${item.name}`);
+  res.status(204).send();
 });
 
 // ============================================================================
-//                           PDF REPORT GENERATION
+// PDF REPORT (with save + download)
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
-    const user = req.headers["x-username"] || "System";
 
-    // File name
-    const fileName = `Inventory_Report_${Date.now()}.pdf`;
-    const filePath = path.join(REPORTS_DIR, fileName);
+    const now = new Date();
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+    const filePath = path.join(REPORT_DIR, filename);
 
-    // Create PDF + Save to file
-    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    let chunks = [];
+    const doc = new PDFDocument({ size: "A4", layout: "landscape", bufferPages: true });
 
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream); // Save file
-    doc.pipe(res); // Also send to client
+    doc.on("data", (c) => chunks.push(c));
+    doc.on("end", async () => {
+      const buffer = Buffer.concat(chunks);
 
-    // PDF content
-    doc.fontSize(20).text("L&B Company", { align: "left" });
-    doc.moveDown();
-    doc.fontSize(14).text("INVENTORY REPORT", { align: "left" });
-    doc.moveDown();
+      // Save to server folder
+      fs.writeFileSync(filePath, buffer);
 
-    items.forEach((it) => {
-      doc.fontSize(10).text(
-        `${it.sku} | ${it.name} | Qty: ${it.quantity} | RM ${it.unitPrice}`,
-        { align: "left" }
-      );
-    });
-
-    doc.end();
-
-    // Save metadata AFTER PDF saved
-    stream.on("finish", async () => {
+      // Save metadata to DB
       await Doc.create({
-        name: fileName,
-        size: fs.statSync(filePath).size,
-        path: filePath,
+        name: filename,
+        size: buffer.length,
         date: new Date(),
       });
 
-      await logActivity(user, `Generated PDF Report: ${fileName}`);
+      await logActivity(req.headers["x-username"], `Generated PDF: ${filename}`);
     });
 
-    // Headers for browser download
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    // Send file to browser
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
+    doc.pipe(res);
+
+    // === PDF CONTENT ===
+    doc.fontSize(20).text("L&B Company — Inventory Report", 40, 40);
+    doc.fontSize(10).text("Generated on: " + now.toLocaleString(), 40, 65);
+
+    let y = 110;
+
+    doc.fontSize(12).text("SKU", 40, y);
+    doc.text("Name", 120, y);
+    doc.text("Category", 300, y);
+    doc.text("Qty", 420, y);
+    doc.text("Cost", 500, y);
+    doc.text("Price", 580, y);
+    doc.text("Value", 660, y);
+
+    y += 25;
+
+    items.forEach((it) => {
+      const qty = Number(it.quantity || 0);
+      const cost = Number(it.unitCost || 0);
+      const price = Number(it.unitPrice || 0);
+      const val = qty * cost;
+
+      doc.fontSize(10).text(it.sku, 40, y);
+      doc.text(it.name, 120, y);
+      doc.text(it.category, 300, y);
+      doc.text(String(qty), 420, y);
+      doc.text("RM " + cost.toFixed(2), 500, y);
+      doc.text("RM " + price.toFixed(2), 580, y);
+      doc.text("RM " + val.toFixed(2), 660, y);
+
+      y += 20;
+    });
+
+    // FOOTER
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).text(
+        "Generated by L&B Company Inventory System",
+        0,
+        doc.page.height - 40,
+        { align: "center" }
+      );
+      doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 28, {
+        align: "center",
+      });
+    }
+
+    doc.end();
   } catch (err) {
     console.error("PDF Error:", err);
     res.status(500).json({ message: "PDF generation failed" });
@@ -234,91 +257,122 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                       DOCUMENT DOWNLOAD ROUTE (FIXED)
+// XLSX REPORT
 // ============================================================================
-app.get("/api/documents/download/:file", async (req, res) => {
+app.get("/api/inventory/report", async (req, res) => {
   try {
-    const file = req.params.file;
-    const record = await Doc.findOne({ name: file }).lean();
+    const items = await Inventory.find({}).lean();
 
-    if (!record || !record.path || !fs.existsSync(record.path)) {
-      return res.status(404).send("File not found");
-    }
+    const filename = `Inventory_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-    res.download(record.path);
+    const ws_data = [
+      ["Inventory Report"],
+      ["Generated On", new Date().toLocaleString()],
+      [],
+      [
+        "SKU",
+        "Name",
+        "Category",
+        "Quantity",
+        "Unit Cost",
+        "Unit Price",
+        "Total Value",
+      ],
+    ];
+
+    items.forEach((it) => {
+      const qty = Number(it.quantity);
+      const cost = Number(it.unitCost);
+      const price = Number(it.unitPrice);
+
+      ws_data.push([
+        it.sku,
+        it.name,
+        it.category,
+        qty,
+        cost.toFixed(2),
+        price.toFixed(2),
+        (qty * cost).toFixed(2),
+      ]);
+    });
+
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Report");
+
+    const buffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    // Save to DB
+    await Doc.create({
+      name: filename,
+      size: buffer.length,
+      date: new Date(),
+    });
+
+    // Log
+    await logActivity(req.headers["x-username"], `Generated XLSX Report`);
+
+    // Send file
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buffer);
   } catch (err) {
-    console.error("Download error:", err);
-    res.status(500).send("Download failed");
+    console.error("XLSX Error:", err);
+    res.status(500).json({ message: "XLSX generation failed" });
   }
 });
 
 // ============================================================================
-//                           DOCUMENTS LIST & DELETE
+// DOCUMENTS
 // ============================================================================
 app.get("/api/documents", async (req, res) => {
   const docs = await Doc.find({}).sort({ date: -1 }).lean();
   res.json(docs.map((d) => ({ ...d, id: d._id.toString() })));
 });
 
+// Download saved PDFs
+app.get("/api/documents/download/:name", (req, res) => {
+  const name = req.params.name;
+  const filePath = path.join(REPORT_DIR, name);
+
+  if (!fs.existsSync(filePath))
+    return res.status(404).json({ message: "File not found" });
+
+  res.download(filePath);
+});
+
+// Delete metadata
 app.delete("/api/documents/:id", async (req, res) => {
-  try {
-    const docu = await Doc.findById(req.params.id).lean();
-    if (!docu) return res.status(404).json({ message: "Not found" });
-
-    // delete actual file
-    if (docu.path && fs.existsSync(docu.path)) {
-      fs.unlinkSync(docu.path);
-    }
-
-    await Doc.deleteOne({ _id: req.params.id });
-
-    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
-    res.status(204).send();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  await Doc.findByIdAndDelete(req.params.id);
+  res.status(204).send();
 });
 
 // ============================================================================
-//                              ACTIVITY LOGS
+// ACTIVITY LOGS
 // ============================================================================
 app.get("/api/logs", async (req, res) => {
-  try {
-    const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
-    res.json(
-      logs.map((l) => ({
-        user: l.user,
-        action: l.action,
-        time: l.time ? new Date(l.time).toISOString() : new Date().toISOString(),
-      }))
-    );
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
+  const logs = await ActivityLog.find().sort({ time: -1 }).limit(500).lean();
+  res.json(
+    logs.map((l) => ({
+      user: l.user,
+      action: l.action,
+      time: l.time,
+    }))
+  );
 });
 
 // ============================================================================
-//                              SERVE FRONTEND
+// STATIC FRONTEND SERVE
 // ============================================================================
 app.use(express.static(path.join(__dirname, "../public")));
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 // ============================================================================
-//                              START SERVER
+// START SERVER
 // ============================================================================
-async function ensureDefaultAdmin() {
-  const count = await User.countDocuments();
-  if (count === 0) {
-    await User.create({ username: "admin", password: "password" });
-    console.log("Default admin created");
-  }
-}
-
-(async () => {
-  await ensureDefaultAdmin();
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-})();
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
