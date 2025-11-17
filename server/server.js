@@ -56,13 +56,13 @@ const InventorySchema = new Schema({
 });
 const Inventory = mongoose.model("Inventory", InventorySchema);
 
-// FIX: Added data and contentType fields to store file content for server-generated reports
+// FIX: DocumentSchema updated to store file data and content type
 const DocumentSchema = new Schema({
   name: String,
   size: Number,
   date: { type: Date, default: Date.now },
-  data: Buffer,
-  contentType: String
+  data: Buffer,       // Stores the file content as a Buffer
+  contentType: String // Stores the file's MIME type
 });
 const Doc = mongoose.model("Doc", DocumentSchema);
 
@@ -476,12 +476,13 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 app.get("/api/inventory/report", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
-    const filenameBase = `Inventory_Report_${new Date().toISOString().slice(0, 10)}`;
+    const now = new Date();
+    const filenameBase = `Inventory_Report_${now.toISOString().slice(0, 10)}`;
     const filename = `${filenameBase}.xlsx`;
 
     const ws_data = [
       ["L&B Company - Inventory Report"],
-      ["Date:", new Date().toISOString().slice(0, 10)],
+      ["Date:", now.toISOString().slice(0, 10)],
       [],
       ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", "Total Inventory Value", "Total Potential Revenue"]
     ];
@@ -519,7 +520,7 @@ app.get("/api/inventory/report", async (req, res) => {
     xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
     const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
     
-    // FIX: Included data and contentType for XLSX reports as well
+    // FIX: Included data and contentType for XLSX reports
     await Doc.create({ 
       name: filename, 
       size: wb_out.length, 
@@ -581,17 +582,20 @@ app.delete("/api/documents/:id", async (req, res) => {
   }
 });
 
+
 // ============================================================================
 //                                DOCUMENTS DOWNLOAD
 // ============================================================================
+// FIX: Added the download route that retrieves the file buffer by ID
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
-    const docu = await Doc.findById(req.params.id);
+    // Crucial: use .lean() for robust retrieval of the Buffer data
+    const docu = await Doc.findById(req.params.id).lean(); 
+    
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
     // Check if the document has the 'data' field (which stores the file buffer)
     if (!docu.data || !docu.contentType) {
-      // This is the expected behavior for simulated user uploads (POST /api/documents)
       return res.status(400).json({ 
         message: "File content not stored on server. Only server-generated reports (PDF/XLSX) can be downloaded." 
       });
@@ -608,11 +612,10 @@ app.get("/api/documents/download/:id", async (req, res) => {
     await logActivity(req.headers["x-username"], `Downloaded document: ${docu.name}`);
 
   } catch (err) {
-    console.error("Document download error:", err);
+    console.error("Document download error:", err); // Log the actual error for debugging
     res.status(500).json({ message: "Server error during download" });
   }
 });
-
 
 // ============================================================================
 //                               ACTIVITY LOGS
