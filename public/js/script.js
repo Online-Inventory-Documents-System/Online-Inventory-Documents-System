@@ -18,14 +18,25 @@ let activityLog = [];
 let documents = [];
 const currentPage = window.location.pathname.split('/').pop();
 
-// Fetch wrapper
+// ============================================================================
+// CRITICAL FIX 1: Fetch wrapper adjusted to not force application/json for file uploads
+// ============================================================================
 async function apiFetch(url, options = {}) {
   const user = getUsername();
+  
   options.headers = {
-    'Content-Type': 'application/json', // Default for JSON endpoints
     'X-Username': user,
-    ...options.headers,
+    ...options.headers
   };
+  
+  // Conditionally set Content-Type: application/json ONLY IF the body is a string (meaning it's likely JSON)
+  // AND the Content-Type header hasn't been explicitly set (e.g., for raw file uploads)
+  if (options.body && typeof options.body === 'string' && (!options.headers['Content-Type'] || options.headers['Content-Type'].toLowerCase().includes('json'))) {
+     options.headers['Content-Type'] = 'application/json';
+  } else if (!options.headers['Content-Type'] && options.method && options.method !== 'GET') {
+     // Default to JSON for requests with a body if Content-Type is completely missing (e.g., PUT/DELETE for inventory)
+     options.headers['Content-Type'] = 'application/json';
+  }
 
   return fetch(url, options);
 }
@@ -451,69 +462,50 @@ async function bindProductPage(){
 }
 
 // Documents
-// CRITICAL FIX: Sends a single file as raw buffer instead of using FormData
+// ============================================================================
+// CRITICAL FIX 2: Rewritten upload to handle multiple files as raw binary data
+// ============================================================================
 async function uploadDocuments(){
-  const fileInput = qs('#docUpload');
-  const files = fileInput?.files;
+  const files = qs('#docUpload')?.files || [];
   let msgEl = qs('#uploadMessage');
   if(!msgEl){ msgEl = document.createElement('p'); msgEl.id = 'uploadMessage'; if(qs('.controls')) qs('.controls').appendChild(msgEl); }
 
-  if(!files || files.length === 0) { 
-    showMsg(msgEl, '⚠️ Please select a file to upload.', 'red'); 
-    return; 
-  }
-  
-  // Enforce single file upload for compatibility with express.raw()
-  if (files.length > 1) {
-    showMsg(msgEl, '⚠️ Only single file uploads are supported with the current server configuration. Please select only one file.', 'red');
-    fileInput.value = ''; // Clear input
-    return;
-  }
-  
-  const file = files[0];
-  if(!confirm(`Confirm Upload: Upload file "${file.name}" and save file content to the server?`)) { showMsg(msgEl, 'Upload cancelled.', 'orange'); return; }
-  
-  showMsg(msgEl, `Uploading file "${file.name}"...`, 'orange');
+  if(files.length === 0) { showMsg(msgEl, '⚠️ Please select files to upload.', 'red'); return; }
+  if(!confirm(`Confirm Upload: Upload ${files.length} document(s)?`)) { showMsg(msgEl, 'Upload cancelled.', 'orange'); return; }
+  showMsg(msgEl, `Uploading ${files.length} document(s)...`, 'orange');
 
-  try {
-    const fileReader = new FileReader();
+  for(let i=0;i<files.length;i++){
+    const f = files[i];
+    try {
+      // Read file as ArrayBuffer (raw binary data)
+      const fileBuffer = await f.arrayBuffer();
 
-    // Promisify the file reading
-    const fileBuffer = await new Promise((resolve, reject) => {
-        fileReader.onload = (e) => resolve(e.target.result); // Get ArrayBuffer
-        fileReader.onerror = reject;
-        fileReader.readAsArrayBuffer(file);
-    });
-    
-    // Send the raw ArrayBuffer as the request body
-    const res = await fetch(`${API_BASE}/documents`, { 
+      // Use native fetch instead of apiFetch to prevent accidental JSON header application
+      const res = await fetch(`${API_BASE}/documents`, { 
         method: 'POST', 
-        body: fileBuffer,
-        headers: {
-            // Crucial: Set Content-Type to the file's actual type
-            'Content-Type': file.type || 'application/octet-stream', 
-            // Crucial: Pass filename and username in custom headers
-            'X-Username': getUsername(),
-            'X-File-Name': file.name, 
-            // Do NOT include application/json content-type for the raw body
-        }
-    });
+        // Explicitly set headers required by the server's rawBodyMiddleware
+        headers: { 
+          'Content-Type': f.type || 'application/octet-stream', // Send the actual MIME type of the file
+          'X-Username': getUsername(),
+          'X-File-Name': f.name,
+        }, 
+        body: fileBuffer // Send the raw buffer as the body
+      });
 
-    if(res.ok) {
-      await res.json(); // Consume response
-      showMsg(msgEl, `✅ Successfully uploaded and stored file: "${file.name}".`, 'green');
-    } else {
-      const err = await res.json();
-      throw new Error(err.message || `Server responded with status ${res.status}`);
+      if(!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: 'Unknown Server Error' }));
+        throw new Error(errorData.message || 'Server responded with an error.');
+      }
+      showMsg(msgEl, `✅ Uploaded ${f.name}.`, 'green');
+    } catch(e) {
+      console.error(e);
+      showMsg(msgEl, `❌ Failed to upload ${f.name}. Error: ${e.message}`, 'red');
+      // Stop on first failure, or change logic to continue
+      return; 
     }
-  } catch(e) {
-    console.error('Upload error:', e);
-    showMsg(msgEl, `❌ Failed to upload and store file: ${e.message}`, 'red');
-    if(fileInput) fileInput.value = '';
-    return;
   }
-  
-  if(fileInput) fileInput.value = '';
+
+  if(qs('#docUpload')) qs('#docUpload').value = '';
   setTimeout(async ()=> { await fetchDocuments(); if(msgEl) msgEl.remove(); }, 1000);
 }
 
@@ -521,15 +513,16 @@ async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
   
   try {
-    // Note: Removed Content-Type: application/json from header to prevent potential issues
-    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { 
+    // apiFetch is used here, but since it's a GET request with no body, the Content-Type fix will allow it to proceed normally.
+    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, {  
       method: 'GET',
-      headers: {} 
+      headers: {} // Empty headers object ensures no accidental overrides, though apiFetch logic handles it now.
     });
 
     if(!res.ok) {
       let message = 'Server error during download.';
       try {
+        // Try to read the error message as JSON
         const err = await res.json();
         message = err.message || message;
       } catch (_) {
