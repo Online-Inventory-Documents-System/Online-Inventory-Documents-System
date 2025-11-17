@@ -22,10 +22,11 @@ const currentPage = window.location.pathname.split('/').pop();
 async function apiFetch(url, options = {}) {
   const user = getUsername();
   options.headers = {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json', // Default for JSON endpoints
     'X-Username': user,
-    ...options.headers
+    ...options.headers,
   };
+
   return fetch(url, options);
 }
 
@@ -91,7 +92,6 @@ function renderInventory(items) {
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
-// FIX: Updated renderDocuments to pass document ID and name to downloadDocument
 function renderDocuments(docs) {
   const list = qs('#docList');
   if(!list) return;
@@ -342,7 +342,6 @@ async function confirmAndGenerateReport() {
       await fetchDocuments();
       alert(`Report "${filename}" successfully generated and saved to Documents!`);
     } else {
-      // FIX: Ensure error message from server is shown
       try {
         const error = await res.json();
         alert(`Failed to generate report: ${error.message}`);
@@ -356,7 +355,6 @@ async function confirmAndGenerateReport() {
   }
 }
 
-// ===== NEW: PDF Report Generation =====
 async function confirmAndGeneratePDF() {
   if(!confirm("Generate PDF Inventory Report?")) return;
 
@@ -364,7 +362,6 @@ async function confirmAndGeneratePDF() {
     const res = await apiFetch(`${API_BASE}/inventory/report/pdf`, { method: 'GET' });
 
     if(!res.ok) {
-      // try to parse message if possible
       try {
         const err = await res.json();
         alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
@@ -379,7 +376,6 @@ async function confirmAndGeneratePDF() {
 
     const a = document.createElement('a');
     a.href = url;
-    // try to use filename from header
     const contentDisposition = res.headers.get('Content-Disposition');
     const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
     const filename = filenameMatch ? filenameMatch[1] : `Inventory_Report_${Date.now()}.pdf`;
@@ -389,7 +385,7 @@ async function confirmAndGeneratePDF() {
     a.remove();
 
     window.URL.revokeObjectURL(url);
-    await fetchDocuments(); // Fetch documents to show the newly generated report
+    await fetchDocuments();
     alert("PDF Report Generated Successfully!");
   } catch (e) {
     console.error(e);
@@ -400,10 +396,7 @@ async function confirmAndGeneratePDF() {
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
-
-  // PDF button binding (new)
   qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
-
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { if(qs('#searchInput')) { qs('#searchInput').value=''; searchInventory(); } });
 }
@@ -458,66 +451,100 @@ async function bindProductPage(){
 }
 
 // Documents
+// CRITICAL FIX: Sends a single file as raw buffer instead of using FormData
 async function uploadDocuments(){
-  const files = qs('#docUpload')?.files || [];
+  const fileInput = qs('#docUpload');
+  const files = fileInput?.files;
   let msgEl = qs('#uploadMessage');
   if(!msgEl){ msgEl = document.createElement('p'); msgEl.id = 'uploadMessage'; if(qs('.controls')) qs('.controls').appendChild(msgEl); }
 
-  if(files.length === 0) { showMsg(msgEl, '⚠️ Please select files to upload.', 'red'); return; }
-  if(!confirm(`Confirm Upload: Upload metadata for ${files.length} document(s)?\nNOTE: This is a simulated upload and only saves metadata, not the file content.`)) { showMsg(msgEl, 'Upload cancelled.', 'orange'); return; }
-  showMsg(msgEl, `Uploading ${files.length} document(s) metadata...`, 'orange');
-
-  for(let i=0;i<files.length;i++){
-    const f = files[i];
-    // NOTE: We only save metadata (name, type, size). File content is NOT sent to the POST /api/documents endpoint.
-    const meta = { name: f.name, type: f.type, size: f.size };
-    try {
-      const res = await apiFetch(`${API_BASE}/documents`, { method: 'POST', body: JSON.stringify(meta) });
-      if(!res.ok) throw new Error('Server responded with an error.');
-      showMsg(msgEl, `✅ Uploaded metadata for ${f.name}.`, 'green');
-    } catch(e) {
-      console.error(e);
-      showMsg(msgEl, `❌ Failed to upload metadata for ${f.name}.`, 'red');
-      return;
-    }
+  if(!files || files.length === 0) { 
+    showMsg(msgEl, '⚠️ Please select a file to upload.', 'red'); 
+    return; 
   }
+  
+  // Enforce single file upload for compatibility with express.raw()
+  if (files.length > 1) {
+    showMsg(msgEl, '⚠️ Only single file uploads are supported with the current server configuration. Please select only one file.', 'red');
+    fileInput.value = ''; // Clear input
+    return;
+  }
+  
+  const file = files[0];
+  if(!confirm(`Confirm Upload: Upload file "${file.name}" and save file content to the server?`)) { showMsg(msgEl, 'Upload cancelled.', 'orange'); return; }
+  
+  showMsg(msgEl, `Uploading file "${file.name}"...`, 'orange');
 
-  if(qs('#docUpload')) qs('#docUpload').value = '';
+  try {
+    const fileReader = new FileReader();
+
+    // Promisify the file reading
+    const fileBuffer = await new Promise((resolve, reject) => {
+        fileReader.onload = (e) => resolve(e.target.result); // Get ArrayBuffer
+        fileReader.onerror = reject;
+        fileReader.readAsArrayBuffer(file);
+    });
+    
+    // Send the raw ArrayBuffer as the request body
+    const res = await fetch(`${API_BASE}/documents`, { 
+        method: 'POST', 
+        body: fileBuffer,
+        headers: {
+            // Crucial: Set Content-Type to the file's actual type
+            'Content-Type': file.type || 'application/octet-stream', 
+            // Crucial: Pass filename and username in custom headers
+            'X-Username': getUsername(),
+            'X-File-Name': file.name, 
+            // Do NOT include application/json content-type for the raw body
+        }
+    });
+
+    if(res.ok) {
+      await res.json(); // Consume response
+      showMsg(msgEl, `✅ Successfully uploaded and stored file: "${file.name}".`, 'green');
+    } else {
+      const err = await res.json();
+      throw new Error(err.message || `Server responded with status ${res.status}`);
+    }
+  } catch(e) {
+    console.error('Upload error:', e);
+    showMsg(msgEl, `❌ Failed to upload and store file: ${e.message}`, 'red');
+    if(fileInput) fileInput.value = '';
+    return;
+  }
+  
+  if(fileInput) fileInput.value = '';
   setTimeout(async ()=> { await fetchDocuments(); if(msgEl) msgEl.remove(); }, 1000);
 }
 
-// FIX: Updated downloadDocument to use document ID and apiFetch
 async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
   
   try {
-    // Use the document ID to fetch the file content
+    // Note: Removed Content-Type: application/json from header to prevent potential issues
     const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { 
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' } // Overwrite default header to avoid problems with non-JSON response
+      headers: {} 
     });
 
     if(!res.ok) {
-      // Try to read the error message from the server
       let message = 'Server error during download.';
       try {
         const err = await res.json();
         message = err.message || message;
       } catch (_) {
-        // If it fails to parse JSON (e.g., successful download, but not recognized by fetch), use response status
         message = `Server responded with status: ${res.status}`;
       }
       alert(`❌ Download Failed: ${message}`);
       return;
     }
 
-    // Handle successful download
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = fileName; // Use the file name passed to the function
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -531,16 +558,16 @@ async function downloadDocument(docId, fileName) {
 async function deleteDocumentConfirm(id) {
   const doc = documents.find(d => String(d.id) === String(id));
   if(!doc) return;
-  if(!confirm(`Delete document metadata for: ${doc.name}?`)) return;
+  if(!confirm(`Delete document: ${doc.name}?`)) return;
   await deleteDocument(id);
 }
 
 async function deleteDocument(id) {
   try {
     const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
-    if(res.status === 204 || res.ok) { await fetchDocuments(); alert('🗑️ Document metadata deleted successfully!'); }
-    else { alert('❌ Failed to delete document metadata.'); }
-  } catch(e) { console.error(e); alert('❌ Server error while deleting document metadata.'); }
+    if(res.status === 204 || res.ok) { await fetchDocuments(); alert('🗑️ Document deleted successfully!'); }
+    else { alert('❌ Failed to delete document.'); }
+  } catch(e) { console.error(e); alert('❌ Server error while deleting document.'); }
 }
 
 function searchDocuments() {
