@@ -10,7 +10,7 @@ const API_BASE = window.location.hostname.includes('localhost')
 const qs = (s) => document.querySelector(s);
 const qsa = (s) => Array.from(document.querySelectorAll(s));
 const showMsg = (el, text, color = 'red') => { if (!el) return; el.textContent = text; el.style.color = color; };
-const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : '';
+const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : escapeHtml('');
 const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 
 let inventory = [];
@@ -91,6 +91,7 @@ function renderInventory(items) {
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
+// FIX: Updated renderDocuments to pass document ID and name to downloadDocument
 function renderDocuments(docs) {
   const list = qs('#docList');
   if(!list) return;
@@ -105,7 +106,7 @@ function renderDocuments(docs) {
       <td>${sizeMB} MB</td>
       <td>${new Date(d.date).toLocaleString()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${encodeURIComponent(d.name||'')}')">⬇️ Download</button>
+        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')">⬇️ Download</button>
         <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
       </td>
     `;
@@ -383,6 +384,7 @@ async function confirmAndGeneratePDF() {
     a.remove();
 
     window.URL.revokeObjectURL(url);
+    await fetchDocuments(); // Fetch documents to show the newly generated report
     alert("PDF Report Generated Successfully!");
   } catch (e) {
     console.error(e);
@@ -457,12 +459,13 @@ async function uploadDocuments(){
   if(!msgEl){ msgEl = document.createElement('p'); msgEl.id = 'uploadMessage'; if(qs('.controls')) qs('.controls').appendChild(msgEl); }
 
   if(files.length === 0) { showMsg(msgEl, '⚠️ Please select files to upload.', 'red'); return; }
-  if(!confirm(`Confirm Upload: Upload metadata for ${files.length} document(s)?`)) { showMsg(msgEl, 'Upload cancelled.', 'orange'); return; }
+  if(!confirm(`Confirm Upload: Upload metadata for ${files.length} document(s)?\nNOTE: This is a simulated upload and only saves metadata, not the file content.`)) { showMsg(msgEl, 'Upload cancelled.', 'orange'); return; }
   showMsg(msgEl, `Uploading ${files.length} document(s) metadata...`, 'orange');
 
   for(let i=0;i<files.length;i++){
     const f = files[i];
-    const meta = { name: f.name, type: f.type, sizeBytes: f.size };
+    // NOTE: We only save metadata (name, type, sizeBytes). File content is NOT sent to the POST /api/documents endpoint.
+    const meta = { name: f.name, type: f.type, size: f.size };
     try {
       const res = await apiFetch(`${API_BASE}/documents`, { method: 'POST', body: JSON.stringify(meta) });
       if(!res.ok) throw new Error('Server responded with an error.');
@@ -478,10 +481,35 @@ async function uploadDocuments(){
   setTimeout(async ()=> { await fetchDocuments(); if(msgEl) msgEl.remove(); }, 1000);
 }
 
-function downloadDocument(fileNameEncoded) {
-  const fileName = decodeURIComponent(fileNameEncoded);
+// FIX: Updated downloadDocument to use document ID
+async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
-  window.open(`${API_BASE}/documents/download/${encodeURIComponent(fileName)}`, '_blank');
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { method: 'GET' });
+
+    if(!res.ok) {
+      const err = await res.json();
+      // Show the explicit error message from the server if file content is missing
+      alert(`❌ Download Failed: ${err.message || 'Server error'}`);
+      return;
+    }
+
+    // Handle successful download
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName; // Use the file name passed to the function
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  } catch (e) {
+    console.error('Download error:', e);
+    alert('❌ An unexpected error occurred during download.');
+  }
 }
 
 async function deleteDocumentConfirm(id) {
@@ -571,5 +599,3 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
-
-
