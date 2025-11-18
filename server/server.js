@@ -468,27 +468,40 @@ app.get("/api/inventory/report", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                       DOCUMENTS UPLOAD (NO MULTER) - REPLACEMENT
-// ============================================================================
-// Apply the raw body parser middleware only to this route
+// ====================== Documents: Upload / List / Delete / Download (Robust) ======================
+const { PassThrough } = require('stream'); // at top of file, already required? require again is idempotent
+
+// Helper: normalize many binary shapes into Node Buffer
+function normalizeToBuffer(dbData) {
+  if (!dbData) return null;
+  if (Buffer.isBuffer(dbData)) return dbData;
+  // Mongoose Binary type sometimes has .buffer + byteLength
+  if (dbData && dbData.buffer && typeof dbData.byteLength === 'number') {
+    try { return Buffer.from(dbData.buffer, dbData.byteOffset || 0, dbData.byteLength); } catch (e) {}
+  }
+  if (dbData instanceof ArrayBuffer) return Buffer.from(new Uint8Array(dbData));
+  try { return Buffer.from(dbData); } catch (e) { return null; }
+}
+
+function sanitizeFilename(name) {
+  if (!name) return 'file';
+  const sanitized = String(name).replace(/[\r\n"]/g, '').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
+  return sanitized.length > 200 ? sanitized.slice(-200) : sanitized;
+}
+
+// ------------------ Upload (rawBodyMiddleware must be applied to this route) ------------------
 app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
   try {
-    // Normalize request body into a Node Buffer (covers Buffer, ArrayBuffer, TypedArray)
+    // Normalize request body -> Node Buffer
     let fileBuffer = null;
     if (Buffer.isBuffer(req.body)) {
       fileBuffer = req.body;
     } else if (req.body instanceof ArrayBuffer) {
       fileBuffer = Buffer.from(new Uint8Array(req.body));
     } else if (req.body && req.body.buffer && typeof req.body.byteLength === 'number') {
-      // e.g. a typed array view
       fileBuffer = Buffer.from(req.body.buffer, req.body.byteOffset || 0, req.body.byteLength);
     } else {
-      try {
-        fileBuffer = Buffer.from(req.body);
-      } catch (e) {
-        fileBuffer = null;
-      }
+      try { fileBuffer = Buffer.from(req.body); } catch (e) { fileBuffer = null; }
     }
 
     const contentType = (req.headers['content-type'] || 'application/octet-stream').split(';')[0].trim();
@@ -496,23 +509,22 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
     const username = req.headers['x-username'] || 'Unknown';
 
     if (!fileBuffer || fileBuffer.length === 0) {
-      return res.status(400).json({
-        message: "No file content received or file is empty. Ensure client sends raw bytes and 'X-File-Name' header."
-      });
+      console.warn("Upload: no fileBuffer or empty", { headers: req.headers, len: fileBuffer ? fileBuffer.length : 0 });
+      return res.status(400).json({ message: "No file content received or file is empty. Ensure client sends raw bytes and 'X-File-Name' header." });
     }
 
-    // Save to DB ensuring 'data' is a Node Buffer
+    // save Buffer into DB
     const docu = await Doc.create({
       name: String(fileName),
       size: fileBuffer.length,
       date: new Date(),
-      data: fileBuffer,
+      data: fileBuffer,          // guaranteed Buffer
       contentType: String(contentType)
     });
 
+    console.log(`Upload: saved ${docu.name} size=${docu.size} bytes by user=${username}`);
     await logActivity(username, `Uploaded document: ${docu.name} (${contentType})`);
 
-    // Return metadata (array format preserved as your client expects)
     return res.status(201).json([{ ...docu.toObject(), id: docu._id.toString() }]);
   } catch (err) {
     console.error("Document upload error:", err);
@@ -520,12 +532,9 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
   }
 });
 
-// ============================================================================
-//                                DOCUMENTS CRUD (Metadata)
-// ============================================================================
+// ------------------ Documents metadata list ------------------
 app.get("/api/documents", async (req, res) => {
   try {
-    // Exclude the large 'data' field when listing metadata
     const docs = await Doc.find({}).select('-data').sort({ date: -1 }).lean();
     res.json(docs.map(d => ({ ...d, id: d._id.toString() })));
   } catch (err) {
@@ -534,12 +543,13 @@ app.get("/api/documents", async (req, res) => {
   }
 });
 
+// ------------------ Delete ------------------
 app.delete("/api/documents/:id", async (req, res) => {
   try {
     const docu = await Doc.findByIdAndDelete(req.params.id).lean();
     if (!docu) return res.status(404).json({ message: "Document not found" });
-
-    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
+    await logActivity(req.headers["x-username"] || 'Unknown', `Deleted document: ${docu.name}`);
+    console.log(`Deleted doc ${docu.name} (${docu._id})`);
     return res.status(204).send();
   } catch (err) {
     console.error("DELETE /api/documents/:id error:", err);
@@ -547,37 +557,7 @@ app.delete("/api/documents/:id", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                             DOCUMENTS DOWNLOAD (ROBUST)
-//  - by id: /api/documents/download/:id
-//  - by name: /api/documents/download/name/:name  (use encodeURIComponent on client)
-//  - optional query param inline=1 to open in-browser instead of attachment
-// ============================================================================
-function normalizeDbDataToBuffer(dbData) {
-  if (!dbData) return null;
-  if (Buffer.isBuffer(dbData)) return dbData;
-  // Mongoose Binary may have .buffer property
-  if (dbData && dbData.buffer && typeof dbData.byteLength === 'number') {
-    try {
-      return Buffer.from(dbData.buffer, dbData.byteOffset || 0, dbData.byteLength);
-    } catch (e) {
-      // fallback below
-    }
-  }
-  // ArrayBuffer or typed array
-  if (dbData instanceof ArrayBuffer) return Buffer.from(new Uint8Array(dbData));
-  try { return Buffer.from(dbData); } catch (e) { return null; }
-}
-
-function sanitizeFilename(name) {
-  if (!name) return 'file';
-  // strip control chars and quotes/newlines
-  const sanitized = String(name).replace(/[\r\n"]/g, '').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
-  // keep last 200 chars to avoid overly long header values
-  return sanitized.length > 200 ? sanitized.slice(-200) : sanitized;
-}
-
-// Download by id
+// ------------------ Download by ID (streamed) ------------------
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
     const inline = String(req.query.inline || '') === '1';
@@ -587,31 +567,33 @@ app.get("/api/documents/download/:id", async (req, res) => {
     const docu = await Doc.findById(id).lean();
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
-    const buf = normalizeDbDataToBuffer(docu.data);
+    const buf = normalizeToBuffer(docu.data);
     if (!buf) {
-      return res.status(400).json({
-        message: "File content not present or invalid. Try re-uploading the file."
-      });
+      console.warn("Download: missing/invalid buffer for doc", { id, name: docu.name });
+      return res.status(400).json({ message: "File content not present or invalid. Try re-uploading the file." });
     }
 
     const filename = sanitizeFilename(docu.name || `file-${docu._id}`);
     const disposition = inline ? 'inline' : 'attachment';
-    // safe headers for unicode filenames
     res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
     res.setHeader('Content-Type', docu.contentType || 'application/octet-stream');
     res.setHeader('Content-Length', String(buf.length));
+    res.setHeader('Cache-Control', 'no-transform'); // help avoid proxies altering bytes
 
-    // Send buffer directly (Express will handle streaming)
-    res.send(buf);
+    // Use PassThrough to stream raw buffer (ensures exact bytes)
+    const stream = new PassThrough();
+    stream.end(buf);
+    stream.pipe(res);
 
+    console.log(`Download: streaming ${filename} size=${buf.length} bytes`);
     await logActivity(req.headers['x-username'] || 'Unknown', `Downloaded document: ${filename}`);
   } catch (err) {
-    console.error("Document download error:", err);
+    console.error("Document download error (stream):", err);
     return res.status(500).json({ message: "Server error during download" });
   }
 });
 
-// Download by name (exact match)
+// ------------------ Download by name (exact match) ------------------
 app.get("/api/documents/download/name/:name", async (req, res) => {
   try {
     const rawName = req.params.name || '';
@@ -619,11 +601,10 @@ app.get("/api/documents/download/name/:name", async (req, res) => {
     const docu = await Doc.findOne({ name: decoded }).lean();
     if (!docu) return res.status(404).json({ message: "Document not found by name" });
 
-    const buf = normalizeDbDataToBuffer(docu.data);
+    const buf = normalizeToBuffer(docu.data);
     if (!buf) {
-      return res.status(400).json({
-        message: "File content not present or invalid. Try re-uploading the file."
-      });
+      console.warn("Download by name: invalid buffer", { name: decoded, id: docu._id });
+      return res.status(400).json({ message: "File content not present or invalid. Try re-uploading the file." });
     }
 
     const inline = String(req.query.inline || '') === '1';
@@ -632,9 +613,13 @@ app.get("/api/documents/download/name/:name", async (req, res) => {
     res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
     res.setHeader('Content-Type', docu.contentType || 'application/octet-stream');
     res.setHeader('Content-Length', String(buf.length));
+    res.setHeader('Cache-Control', 'no-transform');
 
-    res.send(buf);
+    const stream = new PassThrough();
+    stream.end(buf);
+    stream.pipe(res);
 
+    console.log(`Download by name: streaming ${filename} size=${buf.length} bytes`);
     await logActivity(req.headers['x-username'] || 'Unknown', `Downloaded document by name: ${filename}`);
   } catch (err) {
     console.error("Document download by name error:", err);
@@ -642,6 +627,30 @@ app.get("/api/documents/download/name/:name", async (req, res) => {
   }
 });
 
+// ------------------ Temporary debug route (call and remove later) ------------------
+app.get('/debug/doc/:id', async (req, res) => {
+  try {
+    const doc = await Doc.findById(req.params.id).lean();
+    if (!doc) return res.status(404).json({ message: 'Not found' });
+    const buf = normalizeToBuffer(doc.data);
+    const firstHex = buf ? buf.slice(0, 32).toString('hex') : null;
+    const firstAscii = buf ? buf.slice(0, 32).toString('utf8').replace(/[^\x20-\x7E]/g, '.') : null;
+    const base64Preview = buf ? buf.slice(0, 128).toString('base64') : null;
+    res.json({
+      id: doc._id,
+      name: doc.name,
+      size: doc.size,
+      contentType: doc.contentType,
+      hasBuffer: !!buf,
+      firstHex,
+      firstAscii,
+      base64Preview
+    });
+  } catch (e) {
+    console.error('debug doc error', e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // ============================================================================
 //                               ACTIVITY LOGS
