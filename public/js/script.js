@@ -1,10 +1,9 @@
 // public/js/script.js
 // Complete client-side script for Online Inventory & Documents System
-// Update API_BASE if you use a custom domain.
 
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
-  : "https://online-inventory-documents-system-olzt.onrender.com/api"; // change if needed
+  : "https://online-inventory-documents-system-olzt.onrender.com/api";
 
 // Utilities
 const qs = (s) => document.querySelector(s);
@@ -22,7 +21,7 @@ const currentPage = window.location.pathname.split('/').pop();
 async function apiFetch(url, options = {}) {
   const user = getUsername();
   options.headers = {
-    'Content-Type': 'application/json', // Default for JSON endpoints
+    'Content-Type': 'application/json',
     'X-Username': user,
     ...options.headers,
   };
@@ -30,7 +29,7 @@ async function apiFetch(url, options = {}) {
   return fetch(url, options);
 }
 
-// Auth redirect (do not redirect when on login page)
+// Auth redirect
 if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
   try { window.location.href = 'login.html'; } catch(e) {}
 }
@@ -100,13 +99,19 @@ function renderDocuments(docs) {
   docs.forEach(d => {
     const id = d.id || d._id;
     const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
+    const hasData = !!(d.data);
+    const fileType = d.contentType || 'Unknown';
+    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(d.name||'')}</td>
       <td>${sizeMB} MB</td>
       <td>${new Date(d.date).toLocaleString()}</td>
+      <td>${fileType.split('/').pop()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')">⬇️ Download</button>
+        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!hasData ? 'disabled title="File content not available"' : ''}>
+          ${hasData ? '⬇️ Download' : '❌ No Data'}
+        </button>
         <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
       </td>
     `;
@@ -143,7 +148,6 @@ function renderLogs() {
   renderDashboardData();
 }
 
-
 function renderDashboardData(){
   const tbody = qs('#recentActivities');
   if(tbody) {
@@ -171,13 +175,12 @@ function renderDashboardData(){
   }
 }
 
-// Fetchers (normalize id)
+// Fetchers
 async function fetchInventory() {
   try {
     const res = await apiFetch(`${API_BASE}/inventory`);
     if(!res.ok) throw new Error('Failed to fetch inventory');
     const data = await res.json();
-    // ensure inventory entries have id property
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
     renderInventory(inventory);
     renderDashboardData();
@@ -451,7 +454,6 @@ async function bindProductPage(){
 }
 
 // Documents
-// CRITICAL FIX: Sends a single file as raw buffer instead of using FormData
 async function uploadDocuments(){
   const fileInput = qs('#docUpload');
   const files = fileInput?.files;
@@ -463,10 +465,9 @@ async function uploadDocuments(){
     return; 
   }
   
-  // Enforce single file upload for compatibility with express.raw()
   if (files.length > 1) {
     showMsg(msgEl, '⚠️ Only single file uploads are supported with the current server configuration. Please select only one file.', 'red');
-    fileInput.value = ''; // Clear input
+    fileInput.value = '';
     return;
   }
   
@@ -478,29 +479,24 @@ async function uploadDocuments(){
   try {
     const fileReader = new FileReader();
 
-    // Promisify the file reading
     const fileBuffer = await new Promise((resolve, reject) => {
-        fileReader.onload = (e) => resolve(e.target.result); // Get ArrayBuffer
+        fileReader.onload = (e) => resolve(e.target.result);
         fileReader.onerror = reject;
         fileReader.readAsArrayBuffer(file);
     });
     
-    // Send the raw ArrayBuffer as the request body
     const res = await fetch(`${API_BASE}/documents`, { 
         method: 'POST', 
         body: fileBuffer,
         headers: {
-            // Crucial: Set Content-Type to the file's actual type
             'Content-Type': file.type || 'application/octet-stream', 
-            // Crucial: Pass filename and username in custom headers
             'X-Username': getUsername(),
-            'X-File-Name': file.name, 
-            // Do NOT include application/json content-type for the raw body
+            'X-File-Name': file.name,
         }
     });
 
     if(res.ok) {
-      await res.json(); // Consume response
+      await res.json();
       showMsg(msgEl, `✅ Successfully uploaded and stored file: "${file.name}".`, 'green');
     } else {
       const err = await res.json();
@@ -521,25 +517,32 @@ async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
   
   try {
-    // Note: Removed Content-Type: application/json from header to prevent potential issues
-    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { 
-      method: 'GET',
-      headers: {} 
-    });
-
+    const res = await fetch(`${API_BASE}/documents/download/${docId}`);
+    
     if(!res.ok) {
-      let message = 'Server error during download.';
+      let errorMessage = 'Download failed';
       try {
-        const err = await res.json();
-        message = err.message || message;
-      } catch (_) {
-        message = `Server responded with status: ${res.status}`;
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${res.status} ${res.statusText}`;
       }
-      alert(`❌ Download Failed: ${message}`);
-      return;
+      throw new Error(errorMessage);
+    }
+
+    const contentLength = res.headers.get('Content-Length');
+    const contentType = res.headers.get('Content-Type');
+    
+    if (!contentLength || contentLength === '0') {
+      throw new Error('File is empty or not properly stored');
     }
 
     const blob = await res.blob();
+    
+    if (blob.size === 0) {
+      throw new Error('Downloaded file is empty');
+    }
+
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -547,11 +550,15 @@ async function downloadDocument(docId, fileName) {
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-  } catch (e) {
-    console.error('Download error:', e);
-    alert('❌ An unexpected error occurred during download.');
+    
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 100);
+
+  } catch (error) {
+    console.error('Download error:', error);
+    alert(`❌ Download Failed: ${error.message}`);
   }
 }
 
@@ -635,7 +642,7 @@ document.addEventListener('DOMContentLoaded', ()=> {
   }
 });
 
-// Expose some functions for inline onclick handlers
+// Expose functions for inline onclick handlers
 window.logout = logout;
 window.toggleTheme = toggleTheme;
 window.openEditPageForItem = openEditPageForItem;
