@@ -639,6 +639,37 @@ app.get("/api/documents/:id/check", async (req, res) => {
   }
 });
 
+// ============================================================================
+//                    DOCUMENT VERIFICATION ENDPOINT
+// ============================================================================
+app.get("/api/documents/:id/verify", async (req, res) => {
+  try {
+    const docu = await Doc.findById(req.params.id);
+    if (!docu) {
+      return res.status(404).json({ valid: false, message: "Document not found" });
+    }
+    
+    const isValid = docu.data && 
+                   Buffer.isBuffer(docu.data) && 
+                   docu.data.length > 0 && 
+                   docu.data.length === docu.size;
+    
+    res.json({
+      valid: isValid,
+      name: docu.name,
+      storedSize: docu.size,
+      actualDataLength: docu.data ? docu.data.length : 0,
+      hasData: !!docu.data,
+      isBuffer: Buffer.isBuffer(docu.data),
+      contentType: docu.contentType,
+      date: docu.date
+    });
+  } catch (err) {
+    console.error("Document verification error:", err);
+    res.status(500).json({ valid: false, message: "Verification failed" });
+  }
+});
+
 app.delete("/api/documents/:id", async (req, res) => {
   try {
     const docu = await Doc.findByIdAndDelete(req.params.id);
@@ -654,7 +685,7 @@ app.delete("/api/documents/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                             DOCUMENTS DOWNLOAD - VERIFIED
+//                             DOCUMENTS DOWNLOAD - FIXED VERSION
 // ============================================================================
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
@@ -667,16 +698,25 @@ app.get("/api/documents/download/:id", async (req, res) => {
       return res.status(404).json({ message: "Document not found" });
     }
 
-    console.log(`📄 Found document: ${docu.name}, size: ${docu.size} bytes`);
+    console.log(`📄 Found document: ${docu.name}, database size: ${docu.size} bytes`);
 
-    if (!docu.data || !Buffer.isBuffer(docu.data) || docu.data.length === 0) {
-      console.error('❌ Document data is missing or empty:', {
+    // More comprehensive data validation
+    if (!docu.data || 
+        !Buffer.isBuffer(docu.data) || 
+        docu.data.length === 0 ||
+        docu.size === 0 ||
+        docu.data.length !== docu.size) {
+      
+      console.error('❌ Document data is invalid:', {
         hasData: !!docu.data,
         isBuffer: Buffer.isBuffer(docu.data),
-        dataLength: docu.data ? docu.data.length : 0
+        dataLength: docu.data ? docu.data.length : 0,
+        storedSize: docu.size,
+        isValid: docu.data && docu.data.length === docu.size
       });
+      
       return res.status(400).json({ 
-        message: "File content not available. This file may have been uploaded before the fix." 
+        message: "File content not available or corrupted. This file may have been uploaded before the fix." 
       });
     }
 
@@ -684,6 +724,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
+    res.setHeader("Cache-Control", "no-cache");
     
     console.log(`✅ Sending file: ${docu.name}, size: ${docu.data.length} bytes`);
     
