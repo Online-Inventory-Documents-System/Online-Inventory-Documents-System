@@ -225,92 +225,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT - WITH PROPER DATE/TIME
-// ============================================================================
-app.get("/api/inventory/report/pdf", async (req, res) => {
-  let pdfBuffer;
-  
-  try {
-    const items = await Inventory.find({}).lean();
-    const printedBy = req.headers["x-username"] || "System";
-    const filename = `Inventory_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
-
-    // Get proper formatted date and time
-    const now = new Date();
-    const printDate = new Date(now).toLocaleString('en-US', {
-      timeZone: 'Asia/Kuala_Lumpur',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-
-    const reportId = `REP-${Date.now()}`;
-
-    console.log(`🔄 Starting PDF generation for user: ${printedBy}`);
-    console.log(`📊 Processing ${items.length} inventory items`);
-    console.log(`📅 Print date: ${printDate}`);
-
-    // Create PDF document
-    const doc = new PDFDocument({
-      size: "A4",
-      layout: "landscape",
-      margin: 40
-    });
-
-    // Collect PDF data
-    const chunks = [];
-    
-    doc.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
-
-    doc.on('end', async () => {
-      try {
-        // Combine all chunks into final buffer
-        pdfBuffer = Buffer.concat(chunks);
-        console.log(`✅ PDF generated successfully, size: ${pdfBuffer.length} bytes`);
-
-        if (!pdfBuffer || pdfBuffer.length === 0) {
-          throw new Error("PDF buffer is empty after generation");
-        }
-
-        // Save to database
-        const savedDoc = await Doc.create({
-          name: filename,
-          size: pdfBuffer.length,
-          date: new Date(),
-          data: pdfBuffer,
-          contentType: "application/pdf"
-        });
-
-        console.log(`💾 PDF saved to database with ID: ${savedDoc._id}, size: ${savedDoc.size} bytes`);
-        await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
-
-        // Send the file for download
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Length", pdfBuffer.length);
-        res.send(pdfBuffer);
-
-        console.log(`📤 PDF sent to client: ${filename}`);
-
-      } catch (saveError) {
-        console.error("❌ Error saving PDF to database:", saveError);
-        res.status(500).json({ message: "Failed to save PDF: " + saveError.message });
-      }
-    });
-
-    doc.on('error', (error) => {
-      console.error("❌ PDF generation error:", error);
-      res.status(500).json({ message: "PDF generation failed: " + error.message });
-    });
-
-// ============================================================================
-//                    PDF REPORT — FIXED VERSION (REPLACE THIS)
+//                    PDF REPORT — FIXED VERSION (COMPLETE)
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -502,7 +417,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     console.error("❌ PDF Generation Error:", err);
     res.status(500).json({ message: "PDF generation failed: " + err.message });
   }
-});
+}); 
 
 // ============================================================================
 //                                   XLSX REPORT
