@@ -99,8 +99,9 @@ function renderDocuments(docs) {
   docs.forEach(d => {
     const id = d.id || d._id;
     const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
-    const hasData = !!(d.data);
+    const hasData = !!(d.data && d.size > 0); // Check both data and size
     const fileType = d.contentType || 'Unknown';
+    const canDownload = hasData && parseFloat(sizeMB) > 0;
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -109,8 +110,8 @@ function renderDocuments(docs) {
       <td>${new Date(d.date).toLocaleString()}</td>
       <td>${fileType.split('/').pop()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!hasData ? 'disabled title="File content not available"' : ''}>
-          ${hasData ? '⬇️ Download' : '❌ No Data'}
+        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!canDownload ? 'disabled title="File content not available"' : ''}>
+          ${canDownload ? '⬇️ Download' : '❌ No Data'}
         </button>
         <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
       </td>
@@ -649,3 +650,4 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
+
