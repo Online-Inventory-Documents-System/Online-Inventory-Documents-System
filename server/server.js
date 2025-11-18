@@ -694,33 +694,46 @@ app.get("/api/documents/:id/check", async (req, res) => {
 });
 
 // ============================================================================
-//                             DOCUMENTS DOWNLOAD
+//                             DOCUMENTS DOWNLOAD - VERIFIED
 // ============================================================================
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
+    console.log(`📥 Download request for document: ${req.params.id}`);
+    
     const docu = await Doc.findById(req.params.id);
     
     if (!docu) {
+      console.log('❌ Document not found');
       return res.status(404).json({ message: "Document not found" });
     }
 
-    console.log(`Download request: ${docu.name}, size: ${docu.size} bytes`);
+    console.log(`📄 Found document: ${docu.name}, size: ${docu.size} bytes`);
 
     if (!docu.data || !Buffer.isBuffer(docu.data) || docu.data.length === 0) {
+      console.error('❌ Document data is missing or empty:', {
+        hasData: !!docu.data,
+        isBuffer: Buffer.isBuffer(docu.data),
+        dataLength: docu.data ? docu.data.length : 0
+      });
       return res.status(400).json({ 
-        message: "File content not available. Please regenerate the report." 
+        message: "File content not available. This file may have been uploaded before the fix." 
       });
     }
 
+    // Set headers for file download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
+    
+    console.log(`✅ Sending file: ${docu.name}, size: ${docu.data.length} bytes`);
+    
+    // Send the binary data
     res.send(docu.data);
 
     await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`);
 
   } catch (err) {
-    console.error("Document download error:", err); 
+    console.error("❌ Document download error:", err); 
     res.status(500).json({ message: "Server error during download: " + err.message });
   }
 });
@@ -806,8 +819,11 @@ async function ensureDefaultAdminAndStartupLog() {
 // ============================================================================
 app.get("/api/debug/document/:id", async (req, res) => {
   try {
+    console.log(`🔍 Debug request for document: ${req.params.id}`);
+    
     const docu = await Doc.findById(req.params.id);
     if (!docu) {
+      console.log('Document not found');
       return res.status(404).json({ error: "Document not found" });
     }
     
@@ -820,11 +836,6 @@ app.get("/api/debug/document/:id", async (req, res) => {
       dataLength: docu.data ? docu.data.length : 0,
       dataType: typeof docu.data,
       isBuffer: Buffer.isBuffer(docu.data),
-      bufferInfo: docu.data ? {
-        byteLength: docu.data.byteLength,
-        byteOffset: docu.data.byteOffset,
-        length: docu.data.length
-      } : null,
       date: docu.date,
       isSizeValid: docu.size > 0 && docu.size === (docu.data ? docu.data.length : 0)
     };
