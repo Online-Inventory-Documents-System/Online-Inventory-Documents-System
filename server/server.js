@@ -541,39 +541,105 @@ app.get("/api/inventory/report", async (req, res) => {
 });
 
 // ============================================================================
-//                       DOCUMENTS UPLOAD - ENHANCED
+//                       DOCUMENTS UPLOAD - COMPLETELY REWRITTEN
 // ============================================================================
-app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
-  const fileBuffer = req.body;
+
+// Remove the rawBodyMiddleware and use this approach instead
+app.post("/api/documents", async (req, res) => {
+  console.log("📤 Document upload request received");
   
-  const contentType = req.headers['content-type']; 
-  const fileName = req.headers['x-file-name'];     
-  const username = req.headers["x-username"];
-
-  console.log(`📤 Upload request: ${fileName}, type: ${contentType}, size: ${fileBuffer?.length || 0} bytes`);
-
-  if (!fileBuffer || !fileBuffer.length || !fileName) {
-    return res.status(400).json({ 
-      message: "No file content or filename provided." 
-    });
-  }
-
   try {
-    const docu = await Doc.create({
-      name: fileName,
-      size: fileBuffer.length,
-      date: new Date(),
-      data: fileBuffer,
-      contentType: contentType || "application/octet-stream"
+    // Get the raw body as buffer
+    const chunks = [];
+    
+    req.on('data', (chunk) => {
+      chunks.push(chunk);
     });
-    
-    console.log(`✅ File uploaded successfully: ${fileName}, size: ${fileBuffer.length} bytes, saved with ID: ${docu._id}`);
-    await logActivity(username, `Uploaded document: ${fileName}`);
-    
-    res.status(201).json([{ ...docu.toObject(), id: docu._id.toString() }]);
-  } catch (err) {
-    console.error("❌ Document upload error:", err);
-    res.status(500).json({ message: "Server error during file storage: " + err.message });
+
+    req.on('end', async () => {
+      try {
+        const fileBuffer = Buffer.concat(chunks);
+        const contentType = req.headers['content-type']; 
+        const fileName = req.headers['x-file-name'];     
+        const username = req.headers["x-username"];
+
+        console.log(`📄 Upload details:`, {
+          fileName,
+          contentType,
+          fileSize: fileBuffer.length,
+          username
+        });
+
+        if (!fileBuffer || fileBuffer.length === 0) {
+          console.error("❌ Empty file buffer received");
+          return res.status(400).json({ 
+            message: "No file content received. File is empty." 
+          });
+        }
+
+        if (!fileName) {
+          console.error("❌ No filename provided");
+          return res.status(400).json({ 
+            message: "Filename is required." 
+          });
+        }
+
+        // Validate file size (max 50MB)
+        if (fileBuffer.length > 50 * 1024 * 1024) {
+          console.error("❌ File too large:", fileBuffer.length);
+          return res.status(400).json({ 
+            message: "File size exceeds 50MB limit." 
+          });
+        }
+
+        console.log(`✅ File validated: ${fileName}, size: ${fileBuffer.length} bytes`);
+
+        // Save to database
+        const docu = await Doc.create({
+          name: fileName,
+          size: fileBuffer.length,
+          date: new Date(),
+          data: fileBuffer,
+          contentType: contentType || "application/octet-stream"
+        });
+        
+        console.log(`💾 File saved to database:`, {
+          id: docu._id,
+          name: docu.name,
+          size: docu.size,
+          contentType: docu.contentType
+        });
+        
+        await logActivity(username, `Uploaded document: ${fileName}`);
+        
+        // Return success response
+        res.status(201).json([{ 
+          ...docu.toObject(), 
+          id: docu._id.toString() 
+        }]);
+
+        console.log(`✅ Upload completed successfully: ${fileName}`);
+
+      } catch (error) {
+        console.error("❌ Upload processing error:", error);
+        res.status(500).json({ 
+          message: "File processing failed: " + error.message 
+        });
+      }
+    });
+
+    req.on('error', (error) => {
+      console.error("❌ Request error during upload:", error);
+      res.status(500).json({ 
+        message: "Upload failed due to connection error." 
+      });
+    });
+
+  } catch (error) {
+    console.error("❌ Upload endpoint error:", error);
+    res.status(500).json({ 
+      message: "Upload failed: " + error.message 
+    });
   }
 });
 
@@ -736,7 +802,7 @@ async function ensureDefaultAdminAndStartupLog() {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 })();
 // ============================================================================
-//                    DEBUG ROUTE - CHECK FILE STATUS
+//                    DEBUG ROUTE - CHECK SPECIFIC DOCUMENT
 // ============================================================================
 app.get("/api/debug/document/:id", async (req, res) => {
   try {
@@ -745,7 +811,7 @@ app.get("/api/debug/document/:id", async (req, res) => {
       return res.status(404).json({ error: "Document not found" });
     }
     
-    res.json({
+    const debugInfo = {
       id: docu._id.toString(),
       name: docu.name,
       size: docu.size,
@@ -754,8 +820,17 @@ app.get("/api/debug/document/:id", async (req, res) => {
       dataLength: docu.data ? docu.data.length : 0,
       dataType: typeof docu.data,
       isBuffer: Buffer.isBuffer(docu.data),
-      date: docu.date
-    });
+      bufferInfo: docu.data ? {
+        byteLength: docu.data.byteLength,
+        byteOffset: docu.data.byteOffset,
+        length: docu.data.length
+      } : null,
+      date: docu.date,
+      isSizeValid: docu.size > 0 && docu.size === (docu.data ? docu.data.length : 0)
+    };
+    
+    console.log(`🔍 Debug info for ${docu.name}:`, debugInfo);
+    res.json(debugInfo);
   } catch (err) {
     console.error("Debug error:", err);
     res.status(500).json({ error: err.message });
