@@ -5,13 +5,13 @@ const express = require('express');
 const cors = require('cors');
 const xlsx = require('xlsx');
 const mongoose = require('mongoose');
-const path = require('path'); // REQUIRED for static file serving
+const path = require('path');
 const PDFDocument = require('pdfkit');   // PDF generator
+// REMOVED: const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// NOTE: Ensure these environment variables are set in your Render dashboard
-const MONGODB_URI = process.env.MONGODB_URI; 
+const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
 // ===== Middleware =====
@@ -19,16 +19,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CRITICAL FIX 1: Specialized middleware for handling raw file uploads
-// This is essential for receiving the binary data of any file type.
+// Specialized middleware for handling raw file uploads (replacement for Multer)
+// CRITICAL FIX: This middleware parses the raw file bytes into req.body
 const rawBodyMiddleware = express.raw({
   type: '*/*', // Accept all content types
-  limit: '50mb' // Set a reasonable limit for file size
+  limit: '50mb' // Set a reasonable limit for file size (50MB)
 });
 
 // ===== MongoDB Connection =====
 if (!MONGODB_URI) {
-  console.error("MONGODB_URI is not set. Using fallback connection.");
+  console.error("MONGODB_URI is not set.");
+  process.exit(1);
 }
 
 mongoose.set("strictQuery", false);
@@ -39,11 +40,12 @@ mongoose.connect(MONGODB_URI, {
 .then(() => console.log("Connected to MongoDB Atlas"))
 .catch(err => {
   console.error("MongoDB connect error:", err);
+  process.exit(1);
 });
 
 const { Schema } = mongoose;
 
-// ===== Schemas (DocSchema updated for binary data) =====
+// ===== Schemas =====
 const UserSchema = new Schema({
   username: { type: String, unique: true, required: true },
   password: { type: String, required: true },
@@ -66,7 +68,7 @@ const DocumentSchema = new Schema({
   name: String,
   size: Number,
   date: { type: Date, default: Date.now },
-  // CRITICAL FIX 2: Fields to store file content for ALL file types
+  // CRITICAL FIX: Fields to store file content
   data: Buffer,       // Stores the file content as a Buffer
   contentType: String // Stores the file's MIME type
 });
@@ -79,143 +81,413 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
-// ===== Logging Helper =====
+// ===== Duplicate Log Protection =====
+const DUPLICATE_WINDOW_MS = 30 * 1000;
 
 async function logActivity(user, action) {
-  const DUPLICATE_WINDOW_MS = 30 * 1000;
   try {
     const safeUser = (user || "Unknown").toString();
     const safeAction = (action || "").toString();
     const now = Date.now();
+
     const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean().exec();
-    if (last && last.user === safeUser && last.action === safeAction && now - new Date(last.time).getTime() <= DUPLICATE_WINDOW_MS) return;
-    await ActivityLog.create({ user: safeUser, action: safeAction, time: new Date() });
+    if (last) {
+      const lastUser = last.user || "Unknown";
+      const lastAction = last.action || "";
+      const lastTime = last.time ? new Date(last.time).getTime() : 0;
+
+      if (
+        lastUser === safeUser &&
+        lastAction === safeAction &&
+        now - lastTime <= DUPLICATE_WINDOW_MS
+      ) {
+        return;
+      }
+    }
+
+    await ActivityLog.create({
+      user: safeUser,
+      action: safeAction,
+      time: new Date()
+    });
+
   } catch (err) {
     console.error("logActivity error:", err);
   }
 }
 
-// ===== API Routes =====
+// ===== Health Check =====
+app.get("/api/test", (req, res) => {
+  res.json({ success: true, message: "API is up", time: new Date().toISOString() });
+});
 
-// Auth Routes (Login, Register, Account Settings)
+// ============================================================================
+//                               AUTH SYSTEM
+// ============================================================================
+app.post("/api/register", async (req, res) => {
+  const { username, password, securityCode } = req.body || {};
+
+  if (securityCode !== SECURITY_CODE)
+    return res.status(403).json({ success: false, message: "Invalid security code" });
+
+  if (!username || !password)
+    return res.status(400).json({ success: false, message: "Missing username or password" });
+
+  try {
+    const exists = await User.findOne({ username }).lean();
+    if (exists)
+      return res.status(409).json({ success: false, message: "Username already exists" });
+
+    await User.create({ username, password });
+    await logActivity("System", `Registered user: ${username}`);
+
+    res.json({ success: true, message: "Registration successful" });
+  } catch (err) {
+    console.error("register error", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.status(400).json({ message: "Username and password required" });
+  const { username, password } = req.body || {};
+
+  if (!username || !password)
+    return res.status(400).json({ success: false, message: "Missing credentials" });
+
   try {
     const user = await User.findOne({ username, password }).lean();
-    if (user) {
-      await logActivity(username, "Logged in");
-      res.json({ message: "Login successful" });
-    } else {
-      res.status(401).json({ message: "Invalid credentials" });
-    }
+    if (!user)
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+
+    await logActivity(username, "Logged in");
+    res.json({ success: true, user: username });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("login error", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-app.post("/api/register", async (req, res) => {
-  const { username, password, securityCode } = req.body;
-  if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: "Invalid security code" });
-  if (!username || !password) return res.status(400).json({ message: "Username and password required" });
-  try {
-    await User.create({ username, password });
-    await logActivity("System", `New user registered: ${username}`);
-    res.status(201).json({ message: "User registered" });
-  } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ message: "Username already exists" });
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.put("/api/account/password", async (req, res) => {
-    const { username, newPassword, securityCode } = req.body;
-    if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: "Invalid security code" });
-    if (!username || !newPassword) return res.status(400).json({ message: "Username and new password required" });
-    try {
-        const user = await User.findOneAndUpdate({ username }, { password: newPassword }, { new: true });
-        if (!user) return res.status(404).json({ message: "User not found" });
-        await logActivity(username, "Changed password");
-        res.json({ message: "Password updated successfully" });
-    } catch (err) {
-        res.status(500).json({ message: "Server error during password change" });
-    }
-});
-
-app.delete("/api/account", async (req, res) => {
-    const { username, securityCode } = req.body;
-    if (securityCode !== SECURITY_CODE) return res.status(403).json({ message: "Invalid security code" });
-    if (!username) return res.status(400).json({ message: "Username required" });
-    try {
-        const user = await User.findOneAndDelete({ username });
-        if (!user) return res.status(404).json({ message: "User not found" });
-        await logActivity("System", `Account deleted: ${username}`);
-        res.json({ message: "Account deleted successfully" });
-    } catch (err) {
-        res.status(500).json({ message: "Server error during account deletion" });
-    }
-});
-
-// Inventory Routes 
+// ============================================================================
+//                                 INVENTORY CRUD
+// ============================================================================
 app.get("/api/inventory", async (req, res) => {
-    try {
-        const inventoryItems = await Inventory.find({}).sort({ name: 1 }).lean();
-        res.json(inventoryItems);
-    } catch (err) {
-        res.status(500).json({ message: "Server error fetching inventory" });
-    }
+  try {
+    const items = await Inventory.find({}).lean();
+    const normalized = items.map(i => ({
+      ...i,
+      id: i._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("inventory get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 app.post("/api/inventory", async (req, res) => {
-    const { sku, name, category, quantity, unitCost, unitPrice } = req.body;
-    try {
-        const newItem = await Inventory.create({ sku, name, category, quantity, unitCost, unitPrice });
-        await logActivity(req.headers["x-username"], `Added inventory item: ${name} (${sku})`);
-        res.status(201).json(newItem);
-    } catch (err) {
-        res.status(500).json({ message: "Server error adding inventory" });
-    }
+  try {
+    const item = await Inventory.create(req.body);
+    await logActivity(req.headers["x-username"], `Added: ${item.name}`);
+
+    res.status(201).json({
+      ...item.toObject(),
+      id: item._id.toString()
+    });
+
+  } catch (err) {
+    console.error("inventory post error", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 app.put("/api/inventory/:id", async (req, res) => {
-    const { id } = req.params;
-    const update = req.body;
-    try {
-        const updatedItem = await Inventory.findByIdAndUpdate(id, update, { new: true });
-        if (!updatedItem) return res.status(404).json({ message: "Item not found" });
-        await logActivity(req.headers["x-username"], `Updated inventory item: ${updatedItem.name}`);
-        res.json(updatedItem);
-    } catch (err) {
-        res.status(500).json({ message: "Server error updating inventory" });
-    }
+  try {
+    const item = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!item)
+      return res.status(404).json({ message: "Item not found" });
+
+    await logActivity(req.headers["x-username"], `Updated: ${item.name}`);
+    res.json({
+      ...item.toObject(),
+      id: item._id.toString()
+    });
+
+  } catch (err) {
+    console.error("inventory update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 app.delete("/api/inventory/:id", async (req, res) => {
-    const { id } = req.params;
-    try {
-        const deletedItem = await Inventory.findByIdAndDelete(id);
-        if (!deletedItem) return res.status(404).json({ message: "Item not found" });
-        await logActivity(req.headers["x-username"], `Deleted inventory item: ${deletedItem.name}`);
-        res.status(204).send();
-    } catch (err) {
-        res.status(500).json({ message: "Server error deleting inventory" });
-    }
+  try {
+    const item = await Inventory.findByIdAndDelete(req.params.id);
+    if (!item)
+      return res.status(404).json({ message: "Item not found" });
+
+    await logActivity(req.headers["x-username"], `Deleted: ${item.name}`);
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("inventory delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // ============================================================================
-//                       DOCUMENTS UPLOAD (FIXED FOR ALL FILES)
+//                    PDF REPORT — SAVE PDF BYTES + LOG + STREAM
+// ============================================================================
+app.get("/api/inventory/report/pdf", async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+
+    const now = new Date();
+    const printDate = new Date(now).toLocaleString('en-US', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const reportId = `REP-${Date.now()}`;
+    const printedBy = req.headers["x-username"] || "System";
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+    let pdfChunks = [];
+
+    const doc = new PDFDocument({
+      size: "A4",
+      layout: "landscape",
+      margin: 40,
+      bufferPages: true
+    });
+
+    doc.on("data", chunk => pdfChunks.push(chunk));
+
+    doc.on("end", async () => {
+      try {
+        const pdfBuffer = Buffer.concat(pdfChunks);
+        // CRITICAL FIX: Saving the buffer to the 'data' field
+        await Doc.create({
+          name: filename,
+          size: pdfBuffer.length,
+          date: new Date(),
+          data: pdfBuffer,
+          contentType: "application/pdf"
+        });
+        await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
+      } catch (saveErr) {
+        console.error("Failed to save PDF to documents collection:", saveErr);
+      }
+    });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    doc.pipe(res);
+
+    // PDF Generation logic (simplified for context)
+    doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
+    doc.fontSize(10).font("Helvetica");
+    doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+    doc.text("Phone: 01133127622", 40, 85);
+    doc.text("Email: lbcompany@gmail.com", 40, 100);
+
+    doc.font("Helvetica-Bold").fontSize(15)
+       .text("INVENTORY REPORT", 620, 40);
+
+    doc.font("Helvetica").fontSize(10);
+    doc.text(`Print Date: ${printDate}`, 620, 63);
+    doc.text(`Report ID: ${reportId}`, 620, 78);
+    doc.text(`Status: Generated`, 620, 93);
+    doc.text(`Printed by: ${printedBy}`, 620, 108);
+
+    doc.moveTo(40, 130).lineTo(800, 130).stroke();
+
+    const rowHeight = 18;
+    const colX = { sku: 40, name: 100, category: 260, qty: 340, cost: 400, price: 480, value: 560, revenue: 670 };
+    const width = { sku: 60, name: 160, category: 80, qty: 60, cost: 80, price: 80, value: 110, revenue: 120 };
+    let y = 150;
+
+    function drawHeader() {
+      doc.font("Helvetica-Bold").fontSize(10);
+      doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
+      doc.rect(colX.name, y, width.name, rowHeight).stroke();
+      doc.rect(colX.category, y, width.category, rowHeight).stroke();
+      doc.rect(colX.qty, y, width.qty, rowHeight).stroke();
+      doc.rect(colX.cost, y, width.cost, rowHeight).stroke();
+      doc.rect(colX.price, y, width.price, rowHeight).stroke();
+      doc.rect(colX.value, y, width.value, rowHeight).stroke();
+      doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
+      doc.text("SKU", colX.sku + 3, y + 4);
+      doc.text("Product Name", colX.name + 3, y + 4);
+      doc.text("Category", colX.category + 3, y + 4);
+      doc.text("Quantity", colX.qty + 3, y + 4);
+      doc.text("Unit Cost", colX.cost + 3, y + 4);
+      doc.text("Unit Price", colX.price + 3, y + 4);
+      doc.text("Total Inventory Value", colX.value + 3, y + 4);
+      doc.text("Total Potential Revenue", colX.revenue + 3, y + 4);
+      y += rowHeight;
+      doc.font("Helvetica").fontSize(9);
+    }
+
+    drawHeader();
+    let subtotalQty = 0;
+    let totalValue = 0;
+    let totalRevenue = 0;
+    let rowsOnPage = 0;
+
+    for (const it of items) {
+      if (rowsOnPage === 10) {
+        doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+        y = 40;
+        rowsOnPage = 0;
+        drawHeader();
+      }
+
+      const qty = Number(it.quantity || 0);
+      const cost = Number(it.unitCost || 0);
+      const price = Number(it.unitPrice || 0);
+      const val = qty * cost;
+      const rev = qty * price;
+      subtotalQty += qty;
+      totalValue += val;
+      totalRevenue += rev;
+
+      doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
+      doc.rect(colX.name, y, width.name, rowHeight).stroke();
+      doc.rect(colX.category, y, width.category, rowHeight).stroke();
+      doc.rect(colX.qty, y, width.qty, rowHeight).stroke();
+      doc.rect(colX.cost, y, width.cost, rowHeight).stroke();
+      doc.rect(colX.price, y, width.price, rowHeight).stroke();
+      doc.rect(colX.value, y, width.value, rowHeight).stroke();
+      doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
+      doc.text(it.sku || "", colX.sku + 3, y + 4);
+      doc.text(it.name || "", colX.name + 3, y + 4);
+      doc.text(it.category || "", colX.category + 3, y + 4);
+      doc.text(String(qty), colX.qty + 3, y + 4);
+      doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 4);
+      doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
+      doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 4);
+      doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 4);
+      y += rowHeight;
+      rowsOnPage++;
+    }
+
+    const lastPageIndex = doc.bufferedPageRange().count - 1;
+    doc.switchToPage(lastPageIndex);
+    let boxY = y + 20;
+    if (boxY > 480) boxY = 480;
+    doc.rect(560, boxY, 230, 68).stroke();
+    doc.font("Helvetica-Bold").fontSize(10);
+    doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
+    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
+    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
+
+    doc.flushPages();
+
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(9).text( "Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
+      doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+    }
+    doc.end();
+
+  } catch (err) {
+    console.error("PDF Error:", err);
+    res.status(500).json({ message: "PDF generation failed" });
+  }
+});
+
+// ============================================================================
+//                                   XLSX REPORT
+// ============================================================================
+app.get("/api/inventory/report", async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+    const now = new Date();
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}.xlsx`;
+
+    const ws_data = [
+      ["L&B Company - Inventory Report"],
+      ["Date:", now.toISOString().slice(0, 10)],
+      [],
+      ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", "Total Inventory Value", "Total Potential Revenue"]
+    ];
+
+    let totalValue = 0;
+    let totalRevenue = 0;
+
+    items.forEach(it => {
+      const qty = Number(it.quantity || 0);
+      const uc = Number(it.unitCost || 0);
+      const up = Number(it.unitPrice || 0);
+      const invVal = qty * uc;
+      const rev = qty * up;
+
+      totalValue += invVal;
+      totalRevenue += rev;
+
+      ws_data.push([
+        it.sku || "",
+        it.name || "",
+        it.category || "",
+        qty,
+        uc.toFixed(2),
+        up.toFixed(2),
+        invVal.toFixed(2),
+        rev.toFixed(2)
+      ]);
+    });
+
+    ws_data.push([]);
+    ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+
+    const ws = xlsx.utils.aoa_to_sheet(ws_data);
+    const wb = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
+    const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    // CRITICAL FIX: Saving the buffer to the 'data' field
+    await Doc.create({ 
+      name: filename, 
+      size: wb_out.length, 
+      date: new Date(),
+      data: wb_out,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    
+    await logActivity(req.headers["x-username"], `Generated Inventory Report XLSX`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(wb_out);
+
+  } catch (err) {
+    console.error("XLSX error", err);
+    return res.status(500).json({ message: "Report generation failed" });
+  }
+});
+
+// ============================================================================
+//                       DOCUMENTS UPLOAD (CRITICAL FIX - NO MULTER)
 // ============================================================================
 // Apply the raw body parser middleware only to this route
 app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
+  // req.body now contains the raw file buffer because of rawBodyMiddleware
   const fileBuffer = req.body;
   
+  // Get metadata from request headers (set by the updated script.js)
   const contentType = req.headers['content-type']; 
   const fileName = req.headers['x-file-name'];     
   const username = req.headers["x-username"];
 
   if (!fileBuffer || !fileBuffer.length || !contentType || !fileName) {
     return res.status(400).json({ 
-      message: "No file content or required metadata (filename/type) provided for upload." 
+      message: "No file content or required metadata (filename/type) provided for upload. Ensure script.js is updated." 
     });
   }
 
@@ -230,11 +502,8 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
     
     await logActivity(username, `Uploaded document: ${docu.name} (${contentType})`);
     
-    // Respond with a success message
-    res.status(201).json({ 
-        message: "File uploaded successfully",
-        documentId: docu._id.toString()
-    }); 
+    // Respond with the uploaded document metadata (as an array to match client expectations)
+    res.status(201).json([{ ...docu.toObject(), id: docu._id.toString() }]); 
   } catch (err) {
     console.error("Document upload error:", err);
     res.status(500).json({ message: "Server error during file storage." });
@@ -242,21 +511,52 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
 });
 
 // ============================================================================
-//                             DOCUMENTS DOWNLOAD (FIXED FOR ALL FILES)
+//                                DOCUMENTS CRUD (Metadata)
+// ============================================================================
+app.get("/api/documents", async (req, res) => {
+  try {
+    // Exclude the 'data' buffer from the metadata list to save memory
+    const docs = await Doc.find({}).select('-data').sort({ date: -1 }).lean();
+    res.json(docs.map(d => ({ ...d, id: d._id.toString() })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/documents/:id", async (req, res) => {
+  try {
+    const docu = await Doc.findByIdAndDelete(req.params.id);
+    if (!docu) return res.status(404).json({ message: "Document not found" });
+
+    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
+    res.status(204).send();
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+// ============================================================================
+//                             DOCUMENTS DOWNLOAD (CRITICAL FIX: Route was missing)
 // ============================================================================
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
+    // Fetch the document, including the binary 'data' field
     const docu = await Doc.findById(req.params.id).lean(); 
     
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
     if (!docu.data || !docu.contentType) {
+      // This is the error seen when the file content was not saved correctly
       return res.status(400).json({ 
-        message: "File content not stored on server." 
+        message: "File content not stored on server. This file may have been uploaded before the schema fix. Try generating a new report or re-uploading the file." 
       });
     }
 
-    // Use the stored content type and size for correct download
+    // Set headers for file download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType);
     res.setHeader("Content-Length", docu.size);
@@ -272,179 +572,34 @@ app.get("/api/documents/download/:id", async (req, res) => {
   }
 });
 
-// Document List
-app.get("/api/documents", async (req, res) => {
-    try {
-        // Select only metadata fields to avoid sending large 'data' buffers
-        const documentsList = await Doc.find({}).select('name size date contentType').sort({ date: -1 }).lean();
-        res.json(documentsList.map(d => ({ ...d, id: d._id, sizeBytes: d.size }))); // use sizeBytes to map to frontend
-    } catch (err) {
-        res.status(500).json({ message: "Server error fetching documents" });
-    }
-});
-
-// Document Delete
-app.delete("/api/documents/:id", async (req, res) => {
-    try {
-        const docu = await Doc.findByIdAndDelete(req.params.id);
-        if (!docu) return res.status(404).json({ message: "Document not found" });
-        await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
-        res.status(204).send();
-    } catch (err) {
-        res.status(500).json({ message: "Server error deleting document" });
-    }
-});
-
-// Activity Logs
+// ============================================================================
+//                               ACTIVITY LOGS
+// ============================================================================
 app.get("/api/logs", async (req, res) => {
-    try {
-        const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(100).lean();
-        res.json(logs);
-    } catch (err) {
-        res.status(500).json({ message: "Server error fetching logs" });
-    }
+  try {
+    const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
+    res.json(logs.map(l => ({
+      user: l.user,
+      action: l.action,
+      time: l.time ? new Date(l.time).toISOString() : new Date().toISOString()
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // ============================================================================
-//                             INVENTORY REPORT GENERATION
+//                              SERVE FRONTEND
 // ============================================================================
+app.use(express.static(path.join(__dirname, "../public")));
 
-// Excel Report
-app.get("/api/inventory/report", async (req, res) => {
-    try {
-        const items = await Inventory.find({}).lean();
-        const data = items.map(item => ({
-            SKU: item.sku,
-            Name: item.name,
-            Category: item.category,
-            Quantity: item.quantity,
-            'Unit Cost (RM)': item.unitCost.toFixed(2),
-            'Unit Price (RM)': item.unitPrice.toFixed(2),
-            'Inventory Value (RM)': (item.quantity * item.unitCost).toFixed(2),
-            'Potential Revenue (RM)': (item.quantity * item.unitPrice).toFixed(2),
-        }));
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/"))
+    return res.status(404).json({ message: "API route not found" });
 
-        const worksheet = xlsx.utils.json_to_sheet(data);
-        const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, "Inventory Report");
-        const excelBuffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
-
-        const filename = `Inventory_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        const contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-        // Save to Documents collection
-        await Doc.create({
-            name: filename,
-            size: excelBuffer.length,
-            data: excelBuffer,
-            contentType: contentType
-        });
-
-        await logActivity(req.headers["x-username"], `Generated Excel report: ${filename}`);
-
-        // Send the file as a response for immediate download
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        res.setHeader("Content-Type", contentType);
-        res.send(excelBuffer);
-
-    } catch (err) {
-        console.error("Report generation error:", err);
-        res.status(500).json({ message: "Failed to generate Excel report." });
-    }
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
-
-// PDF Report
-app.get("/api/inventory/report/pdf", async (req, res) => {
-    try {
-        const items = await Inventory.find({}).lean();
-
-        const doc = new PDFDocument({ margin: 30, size: 'A4' });
-        const buffers = [];
-        doc.on('data', buffers.push.bind(buffers));
-        doc.on('end', async () => {
-            const pdfBuffer = Buffer.concat(buffers);
-            const filename = `Inventory_Report_PDF_${new Date().toISOString().slice(0, 10)}.pdf`;
-            const contentType = 'application/pdf';
-
-            // Save to Documents collection
-            await Doc.create({
-                name: filename,
-                size: pdfBuffer.length,
-                data: pdfBuffer,
-                contentType: contentType
-            });
-
-            await logActivity(req.headers["x-username"], `Generated PDF report: ${filename}`);
-
-            // Send the file as a response
-            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-            res.setHeader('Content-Type', contentType);
-            res.send(pdfBuffer);
-        });
-
-        // PDF Content generation
-        doc.fontSize(16).text('Inventory Report', { align: 'center' }).moveDown();
-        doc.fontSize(10);
-        
-        let y = doc.y;
-        const xStart = 30;
-        const colWidths = [50, 150, 100, 50, 70, 70]; 
-        const headers = ["SKU", "Name", "Category", "Qty", "Cost", "Price"];
-
-        // Draw Headers
-        let currentX = xStart;
-        headers.forEach((header, i) => {
-            doc.text(header, currentX, y, { width: colWidths[i], align: 'left' });
-            currentX += colWidths[i];
-        });
-        doc.y += 15;
-        doc.strokeColor("#aaaaaa").lineWidth(0.5).moveTo(xStart, doc.y).lineTo(doc.page.width - 30, doc.y).stroke().moveDown(0.2);
-
-        // Draw Data
-        items.forEach(item => {
-            if (doc.y > doc.page.height - 50) {
-                doc.addPage();
-                y = 30; // Reset y for new page
-            }
-            currentX = xStart;
-            const dataRow = [
-                item.sku, 
-                item.name, 
-                item.category, 
-                item.quantity.toString(), 
-                item.unitCost.toFixed(2), 
-                item.unitPrice.toFixed(2)
-            ];
-
-            dataRow.forEach((data, i) => {
-                doc.text(data, currentX, doc.y, { width: colWidths[i], align: 'left' });
-                currentX += colWidths[i];
-            });
-            doc.moveDown();
-        });
-
-        doc.end();
-    } catch (err) {
-        console.error("PDF generation error:", err);
-        res.status(500).json({ message: "Failed to generate PDF report." });
-    }
-});
-
-
-// ============================================================================
-// CRITICAL FIX 5: Static File Serving (Resolves "Cannot GET /" issue)
-// This must be placed after all /api routes but before server startup.
-// ============================================================================
-
-// 1. Serve static files (HTML, CSS, JS) from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 2. Handle the root route ('/') and any other unhandled routes by serving the main index.html file.
-app.get('*', (req, res) => {
-  // Use 'index.html' as the entry point for the frontend
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 
 // ============================================================================
 //                        STARTUP HELPER + START SERVER
