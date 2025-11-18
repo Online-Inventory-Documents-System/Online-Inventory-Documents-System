@@ -231,141 +231,229 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT - SIMPLIFIED APPROACH
+//                    PDF REPORT - WITH PROPER DATE/TIME
 // ============================================================================
-function generatePDFBuffer(items, printedBy) {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: "A4",
-        layout: "landscape",
-        margin: 40
-      });
-
-      const buffers = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfData = Buffer.concat(buffers);
-        resolve(pdfData);
-      });
-      doc.on('error', reject);
-
-      // PDF Content
-      doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
-      doc.fontSize(10).font("Helvetica");
-      doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
-      doc.text("Phone: 01133127622", 40, 85);
-      doc.text("Email: lbcompany@gmail.com", 40, 100);
-
-      doc.font("Helvetica-Bold").fontSize(15)
-         .text("INVENTORY REPORT", 620, 40);
-
-      doc.font("Helvetica").fontSize(10);
-      doc.text(`Print Date: ${new Date().toLocaleDateString()}`, 620, 63);
-      doc.text(`Printed by: ${printedBy}`, 620, 78);
-
-      doc.moveTo(40, 130).lineTo(800, 130).stroke();
-
-      // Table
-      const rowHeight = 18;
-      const colX = { sku: 40, name: 100, category: 260, qty: 340, cost: 400, price: 480, value: 560, revenue: 670 };
-      const width = { sku: 60, name: 160, category: 80, qty: 60, cost: 80, price: 80, value: 110, revenue: 120 };
-      let y = 150;
-
-      // Header
-      doc.font("Helvetica-Bold").fontSize(10);
-      Object.keys(colX).forEach(key => doc.rect(colX[key], y, width[key], rowHeight).stroke());
-      doc.text("SKU", colX.sku + 3, y + 4);
-      doc.text("Product Name", colX.name + 3, y + 4);
-      doc.text("Category", colX.category + 3, y + 4);
-      doc.text("Quantity", colX.qty + 3, y + 4);
-      doc.text("Unit Cost", colX.cost + 3, y + 4);
-      doc.text("Unit Price", colX.price + 3, y + 4);
-      doc.text("Total Value", colX.value + 3, y + 4);
-      doc.text("Total Revenue", colX.revenue + 3, y + 4);
-      
-      y += rowHeight;
-      doc.font("Helvetica").fontSize(9);
-
-      // Data
-      let totalValue = 0;
-      let totalRevenue = 0;
-
-      items.forEach(item => {
-        const qty = Number(item.quantity || 0);
-        const cost = Number(item.unitCost || 0);
-        const price = Number(item.unitPrice || 0);
-        const value = qty * cost;
-        const revenue = qty * price;
-        
-        totalValue += value;
-        totalRevenue += revenue;
-
-        Object.keys(colX).forEach(key => doc.rect(colX[key], y, width[key], rowHeight).stroke());
-        doc.text(item.sku || "", colX.sku + 3, y + 4);
-        doc.text(item.name || "", colX.name + 3, y + 4);
-        doc.text(item.category || "", colX.category + 3, y + 4);
-        doc.text(String(qty), colX.qty + 3, y + 4);
-        doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 4);
-        doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
-        doc.text(`RM ${value.toFixed(2)}`, colX.value + 3, y + 4);
-        doc.text(`RM ${revenue.toFixed(2)}`, colX.revenue + 3, y + 4);
-        
-        y += rowHeight;
-      });
-
-      // Summary
-      const summaryY = y + 20;
-      doc.rect(560, summaryY, 230, 50).stroke();
-      doc.font("Helvetica-Bold").fontSize(10);
-      doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, summaryY + 10);
-      doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, summaryY + 28);
-
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
 app.get("/api/inventory/report/pdf", async (req, res) => {
+  let pdfBuffer;
+  
   try {
     const items = await Inventory.find({}).lean();
     const printedBy = req.headers["x-username"] || "System";
     const filename = `Inventory_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
-    console.log(`Generating PDF for user: ${printedBy}`);
-
-    // Generate PDF buffer
-    const pdfBuffer = await generatePDFBuffer(items, printedBy);
-    
-    if (!pdfBuffer || pdfBuffer.length === 0) {
-      throw new Error("Generated PDF buffer is empty");
-    }
-
-    console.log(`PDF generated, size: ${pdfBuffer.length} bytes`);
-
-    // Save to database
-    const savedDoc = await Doc.create({
-      name: filename,
-      size: pdfBuffer.length,
-      date: new Date(),
-      data: pdfBuffer,
-      contentType: "application/pdf"
+    // Get proper formatted date and time
+    const now = new Date();
+    const printDate = new Date(now).toLocaleString('en-US', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
     });
 
-    console.log(`PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
+    const reportId = `REP-${Date.now()}`;
 
-    // Send the file for download
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Length", pdfBuffer.length);
-    res.send(pdfBuffer);
+    console.log(`🔄 Starting PDF generation for user: ${printedBy}`);
+    console.log(`📊 Processing ${items.length} inventory items`);
+    console.log(`📅 Print date: ${printDate}`);
+
+    // Create PDF document
+    const doc = new PDFDocument({
+      size: "A4",
+      layout: "landscape",
+      margin: 40
+    });
+
+    // Collect PDF data
+    const chunks = [];
+    
+    doc.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    doc.on('end', async () => {
+      try {
+        // Combine all chunks into final buffer
+        pdfBuffer = Buffer.concat(chunks);
+        console.log(`✅ PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+
+        if (!pdfBuffer || pdfBuffer.length === 0) {
+          throw new Error("PDF buffer is empty after generation");
+        }
+
+        // Save to database
+        const savedDoc = await Doc.create({
+          name: filename,
+          size: pdfBuffer.length,
+          date: new Date(),
+          data: pdfBuffer,
+          contentType: "application/pdf"
+        });
+
+        console.log(`💾 PDF saved to database with ID: ${savedDoc._id}, size: ${savedDoc.size} bytes`);
+        await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
+
+        // Send the file for download
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Length", pdfBuffer.length);
+        res.send(pdfBuffer);
+
+        console.log(`📤 PDF sent to client: ${filename}`);
+
+      } catch (saveError) {
+        console.error("❌ Error saving PDF to database:", saveError);
+        res.status(500).json({ message: "Failed to save PDF: " + saveError.message });
+      }
+    });
+
+    doc.on('error', (error) => {
+      console.error("❌ PDF generation error:", error);
+      res.status(500).json({ message: "PDF generation failed: " + error.message });
+    });
+
+    // ========== PDF CONTENT GENERATION ==========
+    
+    // Header
+    doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
+    doc.fontSize(10).font("Helvetica");
+    doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+    doc.text("Phone: 01133127622", 40, 85);
+    doc.text("Email: lbcompany@gmail.com", 40, 100);
+
+    // Report Title
+    doc.font("Helvetica-Bold").fontSize(15)
+       .text("INVENTORY REPORT", 620, 40);
+
+    // Report Info - WITH PROPER DATE/TIME
+    doc.font("Helvetica").fontSize(10);
+    doc.text(`Print Date: ${printDate}`, 620, 63);
+    doc.text(`Report ID: ${reportId}`, 620, 78);
+    doc.text(`Status: Generated`, 620, 93);
+    doc.text(`Printed by: ${printedBy}`, 620, 108);
+
+    // Line separator
+    doc.moveTo(40, 130).lineTo(800, 130).stroke();
+
+    // Table setup
+    const rowHeight = 18;
+    const colX = { 
+      sku: 40, name: 100, category: 260, qty: 340, 
+      cost: 400, price: 480, value: 560, revenue: 670 
+    };
+    const width = { 
+      sku: 60, name: 160, category: 80, qty: 60, 
+      cost: 80, price: 80, value: 110, revenue: 120 
+    };
+    
+    let y = 150;
+
+    // Draw table header
+    doc.font("Helvetica-Bold").fontSize(10);
+    Object.keys(colX).forEach(key => {
+      doc.rect(colX[key], y, width[key], rowHeight).stroke();
+    });
+    
+    doc.text("SKU", colX.sku + 3, y + 4);
+    doc.text("Product Name", colX.name + 3, y + 4);
+    doc.text("Category", colX.category + 3, y + 4);
+    doc.text("Quantity", colX.qty + 3, y + 4);
+    doc.text("Unit Cost", colX.cost + 3, y + 4);
+    doc.text("Unit Price", colX.price + 3, y + 4);
+    doc.text("Total Value", colX.value + 3, y + 4);
+    doc.text("Total Revenue", colX.revenue + 3, y + 4);
+    
+    y += rowHeight;
+    doc.font("Helvetica").fontSize(9);
+
+    // Table data
+    let subtotalQty = 0;
+    let totalValue = 0;
+    let totalRevenue = 0;
+    let rowsOnPage = 0;
+
+    for (const item of items) {
+      // Add new page if needed
+      if (rowsOnPage > 20 && y > 450) {
+        doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+        y = 150;
+        rowsOnPage = 0;
+        
+        // Redraw header on new page
+        doc.font("Helvetica-Bold").fontSize(10);
+        Object.keys(colX).forEach(key => {
+          doc.rect(colX[key], y, width[key], rowHeight).stroke();
+        });
+        
+        doc.text("SKU", colX.sku + 3, y + 4);
+        doc.text("Product Name", colX.name + 3, y + 4);
+        doc.text("Category", colX.category + 3, y + 4);
+        doc.text("Quantity", colX.qty + 3, y + 4);
+        doc.text("Unit Cost", colX.cost + 3, y + 4);
+        doc.text("Unit Price", colX.price + 3, y + 4);
+        doc.text("Total Value", colX.value + 3, y + 4);
+        doc.text("Total Revenue", colX.revenue + 3, y + 4);
+        
+        y += rowHeight;
+        doc.font("Helvetica").fontSize(9);
+      }
+
+      const qty = Number(item.quantity || 0);
+      const cost = Number(item.unitCost || 0);
+      const price = Number(item.unitPrice || 0);
+      const value = qty * cost;
+      const revenue = qty * price;
+      
+      subtotalQty += qty;
+      totalValue += value;
+      totalRevenue += revenue;
+
+      // Draw row
+      Object.keys(colX).forEach(key => {
+        doc.rect(colX[key], y, width[key], rowHeight).stroke();
+      });
+
+      doc.text(item.sku || "-", colX.sku + 3, y + 4);
+      doc.text(item.name || "-", colX.name + 3, y + 4);
+      doc.text(item.category || "-", colX.category + 3, y + 4);
+      doc.text(String(qty), colX.qty + 3, y + 4);
+      doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 4);
+      doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
+      doc.text(`RM ${value.toFixed(2)}`, colX.value + 3, y + 4);
+      doc.text(`RM ${revenue.toFixed(2)}`, colX.revenue + 3, y + 4);
+      
+      y += rowHeight;
+      rowsOnPage++;
+    }
+
+    // Summary box
+    const summaryY = Math.min(y + 20, 500);
+    doc.rect(560, summaryY, 230, 68).stroke();
+    doc.font("Helvetica-Bold").fontSize(10);
+    doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, summaryY + 10);
+    doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, summaryY + 28);
+    doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, summaryY + 46);
+
+    // Footer with page numbers
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(9)
+         .text("Generated by L&B Company Inventory System", 40, doc.page.height - 40, { align: "center", width: 720 })
+         .text(`Page ${i + 1} of ${pages.count}`, 40, doc.page.height - 25, { align: "center", width: 720 });
+    }
+
+    // Finalize PDF - THIS TRIGGERS THE 'end' EVENT
+    doc.end();
 
   } catch (err) {
-    console.error("PDF Generation Error:", err);
-    res.status(500).json({ message: "PDF generation failed: " + err.message });
+    console.error("❌ PDF Generation Error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "PDF generation failed: " + err.message });
+    }
   }
 });
 
@@ -453,7 +541,7 @@ app.get("/api/inventory/report", async (req, res) => {
 });
 
 // ============================================================================
-//                       DOCUMENTS UPLOAD
+//                       DOCUMENTS UPLOAD - ENHANCED
 // ============================================================================
 app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
   const fileBuffer = req.body;
@@ -462,9 +550,11 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
   const fileName = req.headers['x-file-name'];     
   const username = req.headers["x-username"];
 
-  if (!fileBuffer || !fileBuffer.length || !contentType || !fileName) {
+  console.log(`📤 Upload request: ${fileName}, type: ${contentType}, size: ${fileBuffer?.length || 0} bytes`);
+
+  if (!fileBuffer || !fileBuffer.length || !fileName) {
     return res.status(400).json({ 
-      message: "No file content or required metadata provided for upload." 
+      message: "No file content or filename provided." 
     });
   }
 
@@ -474,16 +564,16 @@ app.post("/api/documents", rawBodyMiddleware, async (req, res) => {
       size: fileBuffer.length,
       date: new Date(),
       data: fileBuffer,
-      contentType: contentType
+      contentType: contentType || "application/octet-stream"
     });
     
-    console.log(`File uploaded: ${fileName}, size: ${fileBuffer.length} bytes`);
+    console.log(`✅ File uploaded successfully: ${fileName}, size: ${fileBuffer.length} bytes, saved with ID: ${docu._id}`);
     await logActivity(username, `Uploaded document: ${fileName}`);
     
     res.status(201).json([{ ...docu.toObject(), id: docu._id.toString() }]);
   } catch (err) {
-    console.error("Document upload error:", err);
-    res.status(500).json({ message: "Server error during file storage." });
+    console.error("❌ Document upload error:", err);
+    res.status(500).json({ message: "Server error during file storage: " + err.message });
   }
 });
 
@@ -645,3 +735,29 @@ async function ensureDefaultAdminAndStartupLog() {
   console.log("Starting server...");
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 })();
+// ============================================================================
+//                    DEBUG ROUTE - CHECK FILE STATUS
+// ============================================================================
+app.get("/api/debug/document/:id", async (req, res) => {
+  try {
+    const docu = await Doc.findById(req.params.id);
+    if (!docu) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+    
+    res.json({
+      id: docu._id.toString(),
+      name: docu.name,
+      size: docu.size,
+      contentType: docu.contentType,
+      hasData: !!docu.data,
+      dataLength: docu.data ? docu.data.length : 0,
+      dataType: typeof docu.data,
+      isBuffer: Buffer.isBuffer(docu.data),
+      date: docu.date
+    });
+  } catch (err) {
+    console.error("Debug error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
