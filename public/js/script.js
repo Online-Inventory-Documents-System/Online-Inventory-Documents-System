@@ -91,6 +91,22 @@ function renderInventory(items) {
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
+// Add this function to check document data
+async function checkDocumentData(docId) {
+  try {
+    const res = await fetch(`${API_BASE}/documents/${docId}/check`);
+    if (res.ok) {
+      const data = await res.json();
+      return data.hasData;
+    }
+    return false;
+  } catch (e) {
+    console.error('Check document error:', e);
+    return false;
+  }
+}
+
+// Update the renderDocuments function to be more accurate
 function renderDocuments(docs) {
   const list = qs('#docList');
   if(!list) return;
@@ -99,9 +115,9 @@ function renderDocuments(docs) {
   docs.forEach(d => {
     const id = d.id || d._id;
     const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
-    const hasData = !!(d.data && d.size > 0); // Check both data and size
+    // More accurate check - if size is 0, definitely no data
+    const hasData = parseFloat(sizeMB) > 0;
     const fileType = d.contentType || 'Unknown';
-    const canDownload = hasData && parseFloat(sizeMB) > 0;
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -110,8 +126,8 @@ function renderDocuments(docs) {
       <td>${new Date(d.date).toLocaleString()}</td>
       <td>${fileType.split('/').pop()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!canDownload ? 'disabled title="File content not available"' : ''}>
-          ${canDownload ? '⬇️ Download' : '❌ No Data'}
+        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!hasData ? 'disabled title="File has no content (0 bytes)"' : ''}>
+          ${hasData ? '⬇️ Download' : '❌ 0 Bytes'}
         </button>
         <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
       </td>
@@ -650,4 +666,7 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
+
+
+
 
