@@ -14,16 +14,15 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
-// ===== Middleware =====
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Specialized middleware for handling raw file uploads (replacement for Multer)
-// CRITICAL FIX: This middleware parses the raw file bytes into req.body
+// Apply only on the upload route
 const rawBodyMiddleware = express.raw({
   type: '*/*', // Accept all content types
-  limit: '50mb' // Set a reasonable limit for file size (50MB)
+  limit: '200mb' // increase limit if needed
 });
 
 // ===== MongoDB Connection =====
@@ -37,7 +36,7 @@ mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
-.then(() => console.log("Connected to MongoDB Atlas"))
+.then(() => console.log("Connected to MongoDB"))
 .catch(err => {
   console.error("MongoDB connect error:", err);
   process.exit(1);
@@ -68,7 +67,7 @@ const DocumentSchema = new Schema({
   name: String,
   size: Number,
   date: { type: Date, default: Date.now },
-  // CRITICAL FIX: Fields to store file content
+  // Fields to store file content
   data: Buffer,       // Stores the file content as a Buffer
   contentType: String // Stores the file's MIME type
 });
@@ -83,7 +82,6 @@ const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
 // ===== Duplicate Log Protection =====
 const DUPLICATE_WINDOW_MS = 30 * 1000;
-
 async function logActivity(user, action) {
   try {
     const safeUser = (user || "Unknown").toString();
@@ -110,7 +108,6 @@ async function logActivity(user, action) {
       action: safeAction,
       time: new Date()
     });
-
   } catch (err) {
     console.error("logActivity error:", err);
   }
@@ -270,7 +267,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     doc.on("end", async () => {
       try {
         const pdfBuffer = Buffer.concat(pdfChunks);
-        // CRITICAL FIX: Saving the buffer to the 'data' field
+        // Saving the buffer to the 'data' field
         await Doc.create({
           name: filename,
           size: pdfBuffer.length,
@@ -288,7 +285,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     doc.pipe(res);
 
-    // PDF Generation logic (simplified for context)
+    // PDF Generation logic (preserve layout)
     doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
     doc.fontSize(10).font("Helvetica");
     doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
@@ -451,7 +448,6 @@ app.get("/api/inventory/report", async (req, res) => {
     xlsx.utils.book_append_sheet(wb, ws, "Inventory Report");
     const wb_out = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
 
-    // CRITICAL FIX: Saving the buffer to the 'data' field
     await Doc.create({ 
       name: filename, 
       size: wb_out.length, 
@@ -538,37 +534,91 @@ app.delete("/api/documents/:id", async (req, res) => {
   }
 });
 
+// ============================================================================
+//                             DOCUMENTS DOWNLOAD
+//  - by id: /api/documents/download/:id
+//  - by name: /api/documents/download/name/:name  (use encodeURIComponent on client)
+//  - optional query param inline=1 to open in-browser instead of attachment
+// ============================================================================
+function toNodeBuffer(dbData) {
+  // dbData may be a Buffer, mongoose's Binary, or Uint8Array-like — normalize to Buffer
+  if (!dbData) return null;
+  if (Buffer.isBuffer(dbData)) return dbData;
+  // mongoose Binary type: dbData.buffer may exist
+  if (dbData.buffer && dbData.byteLength) {
+    return Buffer.from(dbData.buffer, dbData.byteOffset || 0, dbData.byteLength);
+  }
+  // Uint8Array or array-like
+  try {
+    return Buffer.from(dbData);
+  } catch (e) {
+    return null;
+  }
+}
 
-// ============================================================================
-//                             DOCUMENTS DOWNLOAD (CRITICAL FIX: Route was missing)
-// ============================================================================
+function safeContentDispositionFilename(name) {
+  // Remove newlines and control chars
+  const sanitized = name.replace(/[\r\n"]/g, '').replace(/[\u0000-\u001f\u007f-\u009f]/g, '');
+  // Basic fallback for very long names: keep last 200 chars
+  return sanitized.length > 200 ? sanitized.slice(-200) : sanitized;
+}
+
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
-    // Fetch the document, including the binary 'data' field
-    const docu = await Doc.findById(req.params.id).lean(); 
-    
+    const inline = String(req.query.inline || '') === '1';
+    const docu = await Doc.findById(req.params.id).lean();
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
-    if (!docu.data || !docu.contentType) {
-      // This is the error seen when the file content was not saved correctly
-      return res.status(400).json({ 
-        message: "File content not stored on server. This file may have been uploaded before the schema fix. Try generating a new report or re-uploading the file." 
+    const buf = toNodeBuffer(docu.data);
+    if (!buf) {
+      return res.status(400).json({
+        message: "File content not stored on server. This file may have been uploaded before the schema fix. Try generating a new report or re-uploading the file."
       });
     }
 
-    // Set headers for file download
-    res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
-    res.setHeader("Content-Type", docu.contentType);
-    res.setHeader("Content-Length", docu.size);
-    
-    // Send the binary data
-    res.send(docu.data);
+    const filename = safeContentDispositionFilename(docu.name || `file-${docu._id}`);
+    const dispositionType = inline ? 'inline' : 'attachment';
+    // Set both filename and filename* for unicode-safe download names
+    res.setHeader('Content-Disposition', `${dispositionType}; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.setHeader('Content-Type', docu.contentType || 'application/octet-stream');
+    res.setHeader('Content-Length', buf.length);
 
-    await logActivity(req.headers["x-username"], `Downloaded document: ${docu.name}`);
-
+    // Stream/send the buffer
+    return res.send(buf);
   } catch (err) {
     console.error("Document download error:", err); 
     res.status(500).json({ message: "Server error during download" });
+  }
+});
+
+// Download by name (exact match). Client should encodeURIComponent the name in the URL.
+app.get("/api/documents/download/name/:name", async (req, res) => {
+  try {
+    const rawName = req.params.name || '';
+    const decoded = decodeURIComponent(rawName);
+    // exact match (case sensitive). If you want case-insensitive, use regex.
+    const docu = await Doc.findOne({ name: decoded }).lean();
+    if (!docu) return res.status(404).json({ message: "Document not found by name" });
+
+    const buf = toNodeBuffer(docu.data);
+    if (!buf) {
+      return res.status(400).json({
+        message: "File content not stored on server. This file may have been uploaded before the schema fix. Try generating a new report or re-uploading the file."
+      });
+    }
+
+    // allow inline query param
+    const inline = String(req.query.inline || '') === '1';
+    const filename = safeContentDispositionFilename(docu.name || `file-${docu._id}`);
+    const dispositionType = inline ? 'inline' : 'attachment';
+    res.setHeader('Content-Disposition', `${dispositionType}; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.setHeader('Content-Type', docu.contentType || 'application/octet-stream');
+    res.setHeader('Content-Length', buf.length);
+
+    return res.send(buf);
+  } catch (err) {
+    console.error("Document download by name error:", err);
+    res.status(500).json({ message: "Server error during download by name" });
   }
 });
 
