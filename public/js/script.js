@@ -116,19 +116,15 @@ function renderDocuments(docs) {
     const id = d.id || d._id;
     const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
     
-    // Better data detection - check both size and data existence
-    const hasValidData = parseFloat(sizeMB) > 0.001; // At least 1KB
+    // More accurate data detection
+    const hasValidData = d.size > 0; // If size > 0, data should exist
     const fileType = d.contentType || 'Unknown';
     
     // Clean up file type display
     let displayType = fileType.split('/').pop();
-    if (displayType === 'vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
-      displayType = 'xlsx';
-    } else if (displayType === 'vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      displayType = 'docx';
-    } else if (displayType === 'vnd.openxmlformats-officedocument.presentationml.presentation') {
-      displayType = 'pptx';
-    }
+    if (displayType === 'vnd.openxmlformats-officedocument.spreadsheetml.sheet') displayType = 'xlsx';
+    if (displayType === 'vnd.openxmlformats-officedocument.wordprocessingml.document') displayType = 'docx';
+    if (displayType === 'vnd.openxmlformats-officedocument.presentationml.presentation') displayType = 'pptx';
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -137,14 +133,28 @@ function renderDocuments(docs) {
       <td>${new Date(d.date).toLocaleString()}</td>
       <td>${displayType}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!hasValidData ? 'disabled title="File has no content or is too small"' : ''}>
-          ${hasValidData ? '⬇️ Download' : '❌ No Data'}
+        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!hasValidData ? 'disabled title="File has no content (0 bytes)"' : ''}>
+          ${hasValidData ? '⬇️ Download' : '❌ 0 Bytes'}
         </button>
         <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
+        <button class="secondary-btn small-btn" onclick="debugDocument('${id}')" title="Debug Info">🐛</button>
       </td>
     `;
     list.appendChild(tr);
   });
+}
+
+// Add debug function
+async function debugDocument(docId) {
+  try {
+    const res = await fetch(`${API_BASE}/debug/document/${docId}`);
+    const data = await res.json();
+    console.log('Document debug info:', data);
+    alert(`Debug Info:\nName: ${data.name}\nSize: ${data.size} bytes\nHas Data: ${data.hasData}\nData Length: ${data.dataLength}\nValid: ${data.isSizeValid}`);
+  } catch (e) {
+    console.error('Debug error:', e);
+    alert('Debug failed: ' + e.message);
+  }
 }
 
 function renderLogs() {
@@ -642,6 +652,7 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
+
 
 
 
