@@ -21,13 +21,21 @@ const currentPage = window.location.pathname.split('/').pop();
 // Fetch wrapper
 async function apiFetch(url, options = {}) {
   const user = getUsername();
-  options.headers = {
-    'Content-Type': 'application/json', // Default for JSON endpoints
-    'X-Username': user,
-    ...options.headers,
-  };
 
-  return fetch(url, options);
+  // Clone options so we don't mutate caller's object
+  const opts = Object.assign({}, options);
+  opts.headers = Object.assign({}, options.headers || {});
+
+  // Add X-Username always
+  opts.headers['X-Username'] = user;
+
+  // Only set application/json if body is a JSON string (avoid setting for GET, raw uploads, downloads)
+  if (opts.body && typeof opts.body === 'string') {
+    // assume caller passed JSON.stringify already
+    opts.headers['Content-Type'] = opts.headers['Content-Type'] || 'application/json';
+  }
+
+  return fetch(url, opts);
 }
 
 // Auth redirect (do not redirect when on login page)
@@ -49,7 +57,7 @@ function toggleTheme(){
   }
 }
 
-// Renderers
+// Renderers (unchanged)
 function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
@@ -99,7 +107,9 @@ function renderDocuments(docs) {
 
   docs.forEach(d => {
     const id = d.id || d._id;
-    const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
+    // server returns size or sizeBytes; accept either
+    const rawSize = d.sizeBytes || d.size || 0;
+    const sizeMB = ((rawSize) / (1024*1024)).toFixed(2);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(d.name||'')}</td>
@@ -324,6 +334,7 @@ async function confirmAndDeleteItem(id){
 async function confirmAndGenerateReport() {
   if(!confirm('Confirm Generate Report: This will create and save a new Excel file.')) return;
   try {
+    // use apiFetch because this is a JSON-style GET returning a binary but server handles it fine
     const res = await apiFetch(`${API_BASE}/inventory/report`, { method: 'GET' });
     if(res.ok) {
       const blob = await res.blob();
@@ -359,6 +370,7 @@ async function confirmAndGeneratePDF() {
   if(!confirm("Generate PDF Inventory Report?")) return;
 
   try {
+    // fetch PDF - use apiFetch (server responds with proper headers)
     const res = await apiFetch(`${API_BASE}/inventory/report/pdf`, { method: 'GET' });
 
     if(!res.ok) {
@@ -426,7 +438,7 @@ async function bindProductPage(){
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
       if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
       if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
-    } catch(e) { alert('Failed to load product details.'); return; }
+    } catch(e) { alert('Item load failed.'); return; }
   }
 
   qs('#saveProductBtn')?.addEventListener('click', async ()=> {
@@ -521,10 +533,12 @@ async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
   
   try {
-    // Note: Removed Content-Type: application/json from header to prevent potential issues
-    const res = await apiFetch(`${API_BASE}/documents/download/${docId}`, { 
+    // Use direct fetch to avoid apiFetch default JSON headers
+    const res = await fetch(`${API_BASE}/documents/download/${docId}`, { 
       method: 'GET',
-      headers: {} 
+      headers: {
+        'X-Username': getUsername() // server reads this header for logging
+      }
     });
 
     if(!res.ok) {
