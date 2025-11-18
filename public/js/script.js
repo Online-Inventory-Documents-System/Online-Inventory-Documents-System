@@ -117,7 +117,7 @@ function renderDocuments(docs) {
     const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
     
     // More accurate data detection
-    const hasValidData = d.size > 0; // If size > 0, data should exist
+    const hasValidData = d.size > 0 && parseFloat(sizeMB) > 0;
     const fileType = d.contentType || 'Unknown';
     
     // Clean up file type display
@@ -133,24 +133,70 @@ function renderDocuments(docs) {
       <td>${new Date(d.date).toLocaleString()}</td>
       <td>${displayType}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="downloadDocument('${id}', '${escapeHtml(d.name||'')}')" ${!hasValidData ? 'disabled title="File has no content (0 bytes)"' : ''}>
+        <button class="primary-btn small-btn download-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}" ${!hasValidData ? 'disabled' : ''}>
           ${hasValidData ? '⬇️ Download' : '❌ 0 Bytes'}
         </button>
-        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${id}')">🗑️ Delete</button>
-        <button class="secondary-btn small-btn" onclick="debugDocument('${id}')" title="Debug Info">🐛</button>
+        <button class="danger-btn small-btn delete-btn" data-id="${id}">🗑️ Delete</button>
+        <button class="secondary-btn small-btn debug-btn" data-id="${id}" title="Debug Info">🐛</button>
       </td>
     `;
     list.appendChild(tr);
   });
+
+  // Add event listeners after rendering
+  bindDocumentEvents();
 }
 
-// Add debug function
+// Add this function to bind events properly
+function bindDocumentEvents() {
+  // Download buttons
+  qsa('.download-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      const name = this.getAttribute('data-name');
+      if (!this.disabled) {
+        downloadDocument(id, name);
+      }
+    });
+  });
+
+  // Delete buttons
+  qsa('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      deleteDocumentConfirm(id);
+    });
+  });
+
+  // Debug buttons
+  qsa('.debug-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      debugDocument(id);
+    });
+  });
+}
+
+// Update the debug function
 async function debugDocument(docId) {
   try {
+    console.log(`Debugging document: ${docId}`);
     const res = await fetch(`${API_BASE}/debug/document/${docId}`);
+    if (!res.ok) {
+      throw new Error(`Server returned ${res.status}`);
+    }
     const data = await res.json();
     console.log('Document debug info:', data);
-    alert(`Debug Info:\nName: ${data.name}\nSize: ${data.size} bytes\nHas Data: ${data.hasData}\nData Length: ${data.dataLength}\nValid: ${data.isSizeValid}`);
+    
+    let debugInfo = `Debug Info:\n`;
+    debugInfo += `Name: ${data.name || 'N/A'}\n`;
+    debugInfo += `Size: ${data.size || 0} bytes\n`;
+    debugInfo += `Has Data: ${data.hasData ? 'YES' : 'NO'}\n`;
+    debugInfo += `Data Length: ${data.dataLength || 0}\n`;
+    debugInfo += `Content Type: ${data.contentType || 'N/A'}\n`;
+    debugInfo += `Valid: ${data.isSizeValid ? 'YES' : 'NO'}`;
+    
+    alert(debugInfo);
   } catch (e) {
     console.error('Debug error:', e);
     alert('Debug failed: ' + e.message);
@@ -591,6 +637,110 @@ async function uploadDocuments(){
   }, 3000);
 }
 
+// Update download function with better error handling
+async function downloadDocument(docId, fileName) {
+  if(!confirm(`Confirm Download: ${fileName}?`)) return;
+  
+  try {
+    console.log(`Starting download: ${fileName} (ID: ${docId})`);
+    
+    const res = await fetch(`${API_BASE}/documents/download/${docId}`);
+    
+    if(!res.ok) {
+      let errorMessage = 'Download failed';
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${res.status} ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const contentLength = res.headers.get('Content-Length');
+    const contentType = res.headers.get('Content-Type');
+    
+    console.log(`Download response:`, {
+      status: res.status,
+      contentLength,
+      contentType
+    });
+
+    if (!contentLength || contentLength === '0') {
+      throw new Error('File is empty or not properly stored');
+    }
+
+    const blob = await res.blob();
+    
+    console.log(`Blob created:`, {
+      size: blob.size,
+      type: blob.type
+    });
+
+    if (blob.size === 0) {
+      throw new Error('Downloaded file is empty');
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }, 100);
+
+    console.log(`Download completed: ${fileName}`);
+
+  } catch (error) {
+    console.error('Download error:', error);
+    alert(`❌ Download Failed: ${error.message}`);
+  }
+}
+
+// Update delete function
+async function deleteDocumentConfirm(id) {
+  const doc = documents.find(d => String(d.id) === String(id));
+  if(!doc) {
+    alert('Document not found in local list');
+    return;
+  }
+  
+  if(!confirm(`Delete document: ${doc.name}?`)) return;
+  
+  try {
+    console.log(`Deleting document: ${id}`);
+    const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
+    
+    if(res.status === 204 || res.ok) { 
+      await fetchDocuments(); 
+      alert('🗑️ Document deleted successfully!'); 
+    } else {
+      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
+      alert('❌ Failed to delete document: ' + errorData.message);
+    }
+  } catch(e) { 
+    console.error('Delete error:', e); 
+    alert('❌ Server error while deleting document: ' + e.message); 
+  }
+}
+
+function searchDocuments() {
+  const q = (qs('#searchDocs')?.value || '').toLowerCase().trim();
+  const filtered = documents.filter(d => (d.name||'').toLowerCase().includes(q) || (d.date? new Date(d.date).toLocaleString().toLowerCase() : '').includes(q));
+  renderDocuments(filtered);
+}
+
+function bindDocumentsUI(){
+  qs('#uploadDocsBtn')?.addEventListener('click', uploadDocuments);
+  qs('#searchDocs')?.addEventListener('input', searchDocuments);
+}
+
 // Settings
 function bindSettingPage(){
   const currentUsername = getUsername();
@@ -652,10 +802,4 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
-
-
-
-
-
-
-
+window.debugDocument = debugDocument;
