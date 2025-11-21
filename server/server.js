@@ -159,6 +159,85 @@ app.post("/api/login", async (req, res) => {
 });
 
 // ============================================================================
+//                           PASSWORD CHANGE & ACCOUNT MANAGEMENT
+// ============================================================================
+app.put("/api/account/password", async (req, res) => {
+  const { username, newPassword, securityCode } = req.body || {};
+  const currentUser = req.headers["x-username"];
+
+  console.log(`Password change request for: ${username}, from: ${currentUser}`);
+
+  if (securityCode !== SECURITY_CODE) {
+    return res.status(403).json({ success: false, message: "Invalid security code" });
+  }
+
+  if (!username || !newPassword) {
+    return res.status(400).json({ success: false, message: "Missing username or new password" });
+  }
+
+  // Verify the user is changing their own password
+  if (username !== currentUser) {
+    return res.status(403).json({ success: false, message: "You can only change your own password" });
+  }
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    await logActivity(username, "Changed password");
+    
+    console.log(`✅ Password updated for user: ${username}`);
+    res.json({ success: true, message: "Password updated successfully" });
+
+  } catch (err) {
+    console.error("Password change error", err);
+    res.status(500).json({ success: false, message: "Server error during password change" });
+  }
+});
+
+app.delete("/api/account", async (req, res) => {
+  const { username, securityCode } = req.body || {};
+  const currentUser = req.headers["x-username"];
+
+  console.log(`Account deletion request for: ${username}, from: ${currentUser}`);
+
+  if (securityCode !== SECURITY_CODE) {
+    return res.status(403).json({ success: false, message: "Invalid security code" });
+  }
+
+  if (!username) {
+    return res.status(400).json({ success: false, message: "Missing username" });
+  }
+
+  // Verify the user is deleting their own account
+  if (username !== currentUser) {
+    return res.status(403).json({ success: false, message: "You can only delete your own account" });
+  }
+
+  try {
+    const user = await User.findOneAndDelete({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    await logActivity("System", `Deleted user account: ${username}`);
+    
+    console.log(`🗑️ Account deleted: ${username}`);
+    res.json({ success: true, message: "Account deleted successfully" });
+
+  } catch (err) {
+    console.error("Account deletion error", err);
+    res.status(500).json({ success: false, message: "Server error during account deletion" });
+  }
+});
+
+// ============================================================================
 //                                 INVENTORY CRUD
 // ============================================================================
 app.get("/api/inventory", async (req, res) => {
