@@ -304,7 +304,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT — UPDATED WITH PROPER COLUMN ALIGNMENT
+//                    PDF REPORT — FIXED TABLE ALIGNMENT
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -373,56 +373,68 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
         const rowHeight = 18;
-        // CORRECTED COLUMN ALIGNMENT - Same design, just properly aligned
+        
+        // PERFECTLY ALIGNED COLUMNS - Each column starts where previous ends
         const colX = { 
-          sku: 40, 
-          name: 100, 
-          category: 200, 
-          qty: 280, 
-          cost: 340, 
-          price: 400, 
-          value: 460, 
-          revenue: 540, 
-          profit: 630 
+          sku: 40,        // Start at 40
+          name: 105,      // 40 + 65 (sku width)
+          category: 210,   // 105 + 105 (name width) 
+          qty: 295,       // 210 + 85 (category width)
+          cost: 360,      // 295 + 65 (qty width)
+          price: 425,     // 360 + 65 (cost width)
+          value: 490,     // 425 + 65 (price width)
+          revenue: 575,   // 490 + 85 (value width)
+          profit: 670     // 575 + 95 (revenue width)
         };
         
         const width = { 
-          sku: 60, 
-          name: 100, 
-          category: 80, 
-          qty: 60, 
-          cost: 60, 
-          price: 60, 
-          value: 80, 
-          revenue: 90, 
-          profit: 90 
+          sku: 65,        // Total: 65
+          name: 105,      // Total: 170  
+          category: 85,    // Total: 255
+          qty: 65,        // Total: 320
+          cost: 65,       // Total: 385
+          price: 65,      // Total: 450
+          value: 85,      // Total: 535
+          revenue: 95,    // Total: 630
+          profit: 100     // Total: 730 (leaves room for margin)
         };
         
         let y = 150;
 
         function drawHeader() {
           doc.font("Helvetica-Bold").fontSize(9);
-          // Draw header cells - exactly same as before but now properly aligned
-          doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
-          doc.rect(colX.name, y, width.name, rowHeight).stroke();
-          doc.rect(colX.category, y, width.category, rowHeight).stroke();
-          doc.rect(colX.qty, y, width.qty, rowHeight).stroke();
-          doc.rect(colX.cost, y, width.cost, rowHeight).stroke();
-          doc.rect(colX.price, y, width.price, rowHeight).stroke();
-          doc.rect(colX.value, y, width.value, rowHeight).stroke();
-          doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
-          doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
           
-          // Header text - same positioning as original
-          doc.text("SKU", colX.sku + 3, y + 4);
-          doc.text("Product Name", colX.name + 3, y + 4);
-          doc.text("Category", colX.category + 3, y + 4);
-          doc.text("Quantity", colX.qty + 3, y + 4);
-          doc.text("Unit Cost", colX.cost + 3, y + 4);
-          doc.text("Unit Price", colX.price + 3, y + 4);
-          doc.text("Inventory Value", colX.value + 3, y + 4);
-          doc.text("Potential Revenue", colX.revenue + 3, y + 4);
-          doc.text("Potential Profit", colX.profit + 3, y + 4);
+          // Draw continuous table header
+          let currentX = colX.sku;
+          doc.rect(currentX, y, width.sku, rowHeight).stroke();
+          currentX += width.sku;
+          doc.rect(currentX, y, width.name, rowHeight).stroke();
+          currentX += width.name;
+          doc.rect(currentX, y, width.category, rowHeight).stroke();
+          currentX += width.category;
+          doc.rect(currentX, y, width.qty, rowHeight).stroke();
+          currentX += width.qty;
+          doc.rect(currentX, y, width.cost, rowHeight).stroke();
+          currentX += width.cost;
+          doc.rect(currentX, y, width.price, rowHeight).stroke();
+          currentX += width.price;
+          doc.rect(currentX, y, width.value, rowHeight).stroke();
+          currentX += width.value;
+          doc.rect(currentX, y, width.revenue, rowHeight).stroke();
+          currentX += width.revenue;
+          doc.rect(currentX, y, width.profit, rowHeight).stroke();
+          
+          // Header text
+          doc.text("SKU", colX.sku + 3, y + 5);
+          doc.text("Product Name", colX.name + 3, y + 5);
+          doc.text("Category", colX.category + 3, y + 5);
+          doc.text("Quantity", colX.qty + 3, y + 5);
+          doc.text("Unit Cost", colX.cost + 3, y + 5);
+          doc.text("Unit Price", colX.price + 3, y + 5);
+          doc.text("Inventory Value", colX.value + 3, y + 5);
+          doc.text("Potential Revenue", colX.revenue + 3, y + 5);
+          doc.text("Potential Profit", colX.profit + 3, y + 5);
+          
           y += rowHeight;
           doc.font("Helvetica").fontSize(8);
         }
@@ -454,27 +466,37 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           totalRevenue += rev;
           totalProfit += profit;
 
-          // Draw data cells - exactly same as before
-          doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
-          doc.rect(colX.name, y, width.name, rowHeight).stroke();
-          doc.rect(colX.category, y, width.category, rowHeight).stroke();
-          doc.rect(colX.qty, y, width.qty, rowHeight).stroke();
-          doc.rect(colX.cost, y, width.cost, rowHeight).stroke();
-          doc.rect(colX.price, y, width.price, rowHeight).stroke();
-          doc.rect(colX.value, y, width.value, rowHeight).stroke();
-          doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
-          doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
+          // Draw continuous table data row
+          let currentX = colX.sku;
+          doc.rect(currentX, y, width.sku, rowHeight).stroke();
+          currentX += width.sku;
+          doc.rect(currentX, y, width.name, rowHeight).stroke();
+          currentX += width.name;
+          doc.rect(currentX, y, width.category, rowHeight).stroke();
+          currentX += width.category;
+          doc.rect(currentX, y, width.qty, rowHeight).stroke();
+          currentX += width.qty;
+          doc.rect(currentX, y, width.cost, rowHeight).stroke();
+          currentX += width.cost;
+          doc.rect(currentX, y, width.price, rowHeight).stroke();
+          currentX += width.price;
+          doc.rect(currentX, y, width.value, rowHeight).stroke();
+          currentX += width.value;
+          doc.rect(currentX, y, width.revenue, rowHeight).stroke();
+          currentX += width.revenue;
+          doc.rect(currentX, y, width.profit, rowHeight).stroke();
           
-          // Data text - same positioning as original
-          doc.text(it.sku || "", colX.sku + 3, y + 4);
-          doc.text(it.name || "", colX.name + 3, y + 4);
-          doc.text(it.category || "", colX.category + 3, y + 4);
-          doc.text(String(qty), colX.qty + 3, y + 4);
-          doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 4);
-          doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
-          doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 4);
-          doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 4);
-          doc.text(`RM ${profit.toFixed(2)}`, colX.profit + 3, y + 4);
+          // Data text
+          doc.text(it.sku || "", colX.sku + 3, y + 5);
+          doc.text(it.name || "", colX.name + 3, y + 5);
+          doc.text(it.category || "", colX.category + 3, y + 5);
+          doc.text(String(qty), colX.qty + 3, y + 5);
+          doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 5);
+          doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 5);
+          doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 5);
+          doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 5);
+          doc.text(`RM ${profit.toFixed(2)}`, colX.profit + 3, y + 5);
+          
           y += rowHeight;
           rowsOnPage++;
         }
