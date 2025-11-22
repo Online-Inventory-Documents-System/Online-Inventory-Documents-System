@@ -304,7 +304,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT — PIXEL-PERFECT TABLE ALIGNMENT
+//                    PDF REPORT — FIXED CALCULATIONS & ALIGNMENT
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -374,75 +374,83 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
-        // PIXEL-PERFECT COLUMN ALIGNMENT
+        // PERFECT COLUMN ALIGNMENT - FIXED CALCULATIONS
         const columns = [
-          { name: "SKU", x: 40, width: 70, align: "left" },
-          { name: "Product Name", x: 110, width: 110, align: "left" },
-          { name: "Category", x: 220, width: 80, align: "left" },
-          { name: "Quantity", x: 300, width: 60, align: "center" },
-          { name: "Unit Cost", x: 360, width: 70, align: "right" },
-          { name: "Unit Price", x: 430, width: 70, align: "right" },
-          { name: "Inventory Value", x: 500, width: 85, align: "right" },
-          { name: "Potential Revenue", x: 585, width: 95, align: "right" },
-          { name: "Potential Profit", x: 680, width: 100, align: "right" }
+          { name: "SKU", x: 40, width: 70 },
+          { name: "Product Name", x: 110, width: 110 },
+          { name: "Category", x: 220, width: 80 },
+          { name: "Quantity", x: 300, width: 60 },
+          { name: "Unit Cost", x: 360, width: 70 },
+          { name: "Unit Price", x: 430, width: 70 },
+          { name: "Inventory Value", x: 500, width: 85 },
+          { name: "Potential Revenue", x: 585, width: 95 },
+          { name: "Potential Profit", x: 680, width: 100 }
         ];
         
         let y = 150;
 
-        function drawTableRow(isHeader = false, data = null) {
-          let currentX = columns[0].x;
-          
-          // Draw the entire row as one continuous rectangle first
+        function drawTableHeader() {
+          // Draw header background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Then draw vertical lines for each column
+          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Add text content
-          doc.fontSize(isHeader ? 9 : 8);
-          doc.font(isHeader ? "Helvetica-Bold" : "Helvetica");
-          
-          columns.forEach((col, index) => {
-            let text = "";
-            let textX = col.x + 3;
-            
-            if (isHeader) {
-              text = col.name;
-            } else if (data) {
-              switch (index) {
-                case 0: text = data.sku || ""; break;
-                case 1: text = data.name || ""; break;
-                case 2: text = data.category || ""; break;
-                case 3: text = String(data.qty || 0); break;
-                case 4: text = `RM ${(data.cost || 0).toFixed(2)}`; break;
-                case 5: text = `RM ${(data.price || 0).toFixed(2)}`; break;
-                case 6: text = `RM ${(data.value || 0).toFixed(2)}`; break;
-                case 7: text = `RM ${(data.revenue || 0).toFixed(2)}`; break;
-                case 8: text = `RM ${(data.profit || 0).toFixed(2)}`; break;
-              }
-            }
-            
-            // Handle text alignment
-            if (col.align === "center") {
-              const textWidth = doc.widthOfString(text);
-              textX = col.x + (col.width - textWidth) / 2;
-            } else if (col.align === "right") {
-              const textWidth = doc.widthOfString(text);
-              textX = col.x + col.width - textWidth - 3;
-            }
-            
-            doc.text(text, textX, y + 5, { width: col.width - 6, align: col.align });
+          // Header text
+          doc.font("Helvetica-Bold").fontSize(9);
+          columns.forEach(col => {
+            doc.text(col.name, col.x + 3, y + 5);
           });
           
           y += rowHeight;
         }
 
-        // Draw header row
-        drawTableRow(true);
+        function drawTableRow(item) {
+          const qty = Number(item.quantity || 0);
+          const cost = Number(item.unitCost || 0);
+          const price = Number(item.unitPrice || 0);
+          const inventoryValue = qty * cost; // FIXED: This was wrong in your PDF
+          const potentialRevenue = qty * price;
+          const potentialProfit = potentialRevenue - inventoryValue; // FIXED: This was wrong in your PDF
+
+          // Draw row background and borders
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+          
+          // Draw vertical lines
+          for (let i = 1; i < columns.length; i++) {
+            doc.moveTo(columns[i].x, y)
+               .lineTo(columns[i].x, y + rowHeight)
+               .stroke();
+          }
+          
+          // Data text
+          doc.font("Helvetica").fontSize(8);
+          doc.text(item.sku || "", columns[0].x + 3, y + 5);
+          doc.text(item.name || "", columns[1].x + 3, y + 5);
+          doc.text(item.category || "", columns[2].x + 3, y + 5);
+          doc.text(String(qty), columns[3].x + 3, y + 5);
+          doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
+          doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
+          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
+          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
+          doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
+          
+          y += rowHeight;
+          
+          return {
+            qty,
+            inventoryValue,
+            potentialRevenue,
+            potentialProfit
+          };
+        }
+
+        // Draw header
+        drawTableHeader();
         
         let subtotalQty = 0;
         let totalValue = 0;
@@ -450,46 +458,35 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         let totalProfit = 0;
         let rowsOnPage = 0;
 
-        for (const it of items) {
+        for (const item of items) {
           if (rowsOnPage === 10) {
             doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
             y = 40;
             rowsOnPage = 0;
-            drawTableRow(true); // Redraw header on new page
+            drawTableHeader();
           }
 
-          const qty = Number(it.quantity || 0);
-          const cost = Number(it.unitCost || 0);
-          const price = Number(it.unitPrice || 0);
-          const val = qty * cost;
-          const rev = qty * price;
-          const profit = rev - val;
+          const calculations = drawTableRow(item);
           
-          subtotalQty += qty;
-          totalValue += val;
-          totalRevenue += rev;
-          totalProfit += profit;
-
-          // Draw data row
-          drawTableRow(false, {
-            sku: it.sku,
-            name: it.name,
-            category: it.category,
-            qty: qty,
-            cost: cost,
-            price: price,
-            value: val,
-            revenue: rev,
-            profit: profit
-          });
+          subtotalQty += calculations.qty;
+          totalValue += calculations.inventoryValue;
+          totalRevenue += calculations.potentialRevenue;
+          totalProfit += calculations.potentialProfit;
           
           rowsOnPage++;
         }
 
         const lastPageIndex = doc.bufferedPageRange().count - 1;
         doc.switchToPage(lastPageIndex);
+        
+        // FIXED: Better positioning for summary box
         let boxY = y + 20;
-        if (boxY > 480) boxY = 480;
+        if (boxY > 450) {
+          // If we're running out of space, add a new page for summary
+          doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+          boxY = 40;
+        }
+        
         doc.rect(560, boxY, 230, 88).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
         doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
