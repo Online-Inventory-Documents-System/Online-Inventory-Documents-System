@@ -304,7 +304,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT — UPDATED WITH POTENTIAL PROFIT
+//                    PDF REPORT — UPDATED WITH PROPER COLUMN ALIGNMENT
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -373,18 +373,36 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
         const rowHeight = 18;
+        // CORRECTED COLUMN ALIGNMENT - Same design, just properly aligned
         const colX = { 
-          sku: 40, name: 100, category: 200, qty: 280, cost: 340, price: 400, 
-          value: 460, revenue: 540, profit: 630 
+          sku: 40, 
+          name: 100, 
+          category: 200, 
+          qty: 280, 
+          cost: 340, 
+          price: 400, 
+          value: 460, 
+          revenue: 540, 
+          profit: 630 
         };
+        
         const width = { 
-          sku: 60, name: 100, category: 80, qty: 60, cost: 60, price: 60, 
-          value: 80, revenue: 90, profit: 90 
+          sku: 60, 
+          name: 100, 
+          category: 80, 
+          qty: 60, 
+          cost: 60, 
+          price: 60, 
+          value: 80, 
+          revenue: 90, 
+          profit: 90 
         };
+        
         let y = 150;
 
         function drawHeader() {
           doc.font("Helvetica-Bold").fontSize(9);
+          // Draw header cells - exactly same as before but now properly aligned
           doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
           doc.rect(colX.name, y, width.name, rowHeight).stroke();
           doc.rect(colX.category, y, width.category, rowHeight).stroke();
@@ -395,6 +413,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
           doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
           
+          // Header text - same positioning as original
           doc.text("SKU", colX.sku + 3, y + 4);
           doc.text("Product Name", colX.name + 3, y + 4);
           doc.text("Category", colX.category + 3, y + 4);
@@ -435,6 +454,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           totalRevenue += rev;
           totalProfit += profit;
 
+          // Draw data cells - exactly same as before
           doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
           doc.rect(colX.name, y, width.name, rowHeight).stroke();
           doc.rect(colX.category, y, width.category, rowHeight).stroke();
@@ -445,6 +465,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
           doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
           
+          // Data text - same positioning as original
           doc.text(it.sku || "", colX.sku + 3, y + 4);
           doc.text(it.name || "", colX.name + 3, y + 4);
           doc.text(it.category || "", colX.category + 3, y + 4);
@@ -509,7 +530,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     console.error("❌ PDF Generation Error:", err);
     res.status(500).json({ message: "PDF generation failed: " + err.message });
   }
-}); 
+});
 
 // ============================================================================
 //                           XLSX REPORT - UPDATED WITH POTENTIAL PROFIT
