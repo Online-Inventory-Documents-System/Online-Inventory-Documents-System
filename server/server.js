@@ -304,7 +304,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT — FIXED VERSION (COMPLETE)
+//                    PDF REPORT — UPDATED WITH POTENTIAL PROFIT
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -328,7 +328,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
     console.log(`📊 Generating PDF report: ${filename}`);
 
-    // FIX: Use Promise to handle PDF completion properly
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
         let pdfChunks = [];
@@ -374,12 +373,18 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
         const rowHeight = 18;
-        const colX = { sku: 40, name: 100, category: 260, qty: 340, cost: 400, price: 480, value: 560, revenue: 670 };
-        const width = { sku: 60, name: 160, category: 80, qty: 60, cost: 80, price: 80, value: 110, revenue: 120 };
+        const colX = { 
+          sku: 40, name: 100, category: 200, qty: 280, cost: 340, price: 400, 
+          value: 460, revenue: 540, profit: 630 
+        };
+        const width = { 
+          sku: 60, name: 100, category: 80, qty: 60, cost: 60, price: 60, 
+          value: 80, revenue: 90, profit: 90 
+        };
         let y = 150;
 
         function drawHeader() {
-          doc.font("Helvetica-Bold").fontSize(10);
+          doc.font("Helvetica-Bold").fontSize(9);
           doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
           doc.rect(colX.name, y, width.name, rowHeight).stroke();
           doc.rect(colX.category, y, width.category, rowHeight).stroke();
@@ -388,22 +393,26 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.rect(colX.price, y, width.price, rowHeight).stroke();
           doc.rect(colX.value, y, width.value, rowHeight).stroke();
           doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
+          doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
+          
           doc.text("SKU", colX.sku + 3, y + 4);
           doc.text("Product Name", colX.name + 3, y + 4);
           doc.text("Category", colX.category + 3, y + 4);
           doc.text("Quantity", colX.qty + 3, y + 4);
           doc.text("Unit Cost", colX.cost + 3, y + 4);
           doc.text("Unit Price", colX.price + 3, y + 4);
-          doc.text("Total Inventory Value", colX.value + 3, y + 4);
-          doc.text("Total Potential Revenue", colX.revenue + 3, y + 4);
+          doc.text("Inventory Value", colX.value + 3, y + 4);
+          doc.text("Potential Revenue", colX.revenue + 3, y + 4);
+          doc.text("Potential Profit", colX.profit + 3, y + 4);
           y += rowHeight;
-          doc.font("Helvetica").fontSize(9);
+          doc.font("Helvetica").fontSize(8);
         }
 
         drawHeader();
         let subtotalQty = 0;
         let totalValue = 0;
         let totalRevenue = 0;
+        let totalProfit = 0;
         let rowsOnPage = 0;
 
         for (const it of items) {
@@ -419,9 +428,12 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           const price = Number(it.unitPrice || 0);
           const val = qty * cost;
           const rev = qty * price;
+          const profit = rev - val;
+          
           subtotalQty += qty;
           totalValue += val;
           totalRevenue += rev;
+          totalProfit += profit;
 
           doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
           doc.rect(colX.name, y, width.name, rowHeight).stroke();
@@ -431,6 +443,8 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.rect(colX.price, y, width.price, rowHeight).stroke();
           doc.rect(colX.value, y, width.value, rowHeight).stroke();
           doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
+          doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
+          
           doc.text(it.sku || "", colX.sku + 3, y + 4);
           doc.text(it.name || "", colX.name + 3, y + 4);
           doc.text(it.category || "", colX.category + 3, y + 4);
@@ -439,6 +453,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
           doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 4);
           doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 4);
+          doc.text(`RM ${profit.toFixed(2)}`, colX.profit + 3, y + 4);
           y += rowHeight;
           rowsOnPage++;
         }
@@ -447,11 +462,12 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         doc.switchToPage(lastPageIndex);
         let boxY = y + 20;
         if (boxY > 480) boxY = 480;
-        doc.rect(560, boxY, 230, 68).stroke();
+        doc.rect(560, boxY, 230, 88).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
         doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
         doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
         doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
+        doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, 570, boxY + 64);
 
         doc.flushPages();
 
@@ -462,20 +478,18 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
         }
         
-        doc.end(); // This will trigger the 'end' event
+        doc.end();
 
       } catch (error) {
         reject(error);
       }
     });
 
-    // FIX: Now we have the complete PDF buffer before saving to database
     console.log(`💾 Saving PDF to database: ${pdfBuffer.length} bytes`);
 
-    // Save to database with proper size
     const savedDoc = await Doc.create({
       name: filename,
-      size: pdfBuffer.length, // This will now be correct (> 0)
+      size: pdfBuffer.length,
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf"
@@ -484,7 +498,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     console.log(`✅ PDF saved to database with ID: ${savedDoc._id}`);
     await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
 
-    // Send PDF to browser
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
@@ -499,7 +512,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 }); 
 
 // ============================================================================
-//                                   XLSX REPORT
+//                           XLSX REPORT - UPDATED WITH POTENTIAL PROFIT
 // ============================================================================
 app.get("/api/inventory/report", async (req, res) => {
   try {
@@ -514,11 +527,13 @@ app.get("/api/inventory/report", async (req, res) => {
       ["Date:", new Date().toISOString().slice(0, 10)],
       ["Generated by:", printedBy],
       [],
-      ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", "Total Inventory Value", "Total Potential Revenue"]
+      ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", 
+       "Total Inventory Value", "Total Potential Revenue", "Potential Profit"]
     ];
 
     let totalValue = 0;
     let totalRevenue = 0;
+    let totalProfit = 0;
 
     items.forEach(it => {
       const qty = Number(it.quantity || 0);
@@ -526,9 +541,11 @@ app.get("/api/inventory/report", async (req, res) => {
       const up = Number(it.unitPrice || 0);
       const invVal = qty * uc;
       const rev = qty * up;
+      const profit = rev - invVal;
 
       totalValue += invVal;
       totalRevenue += rev;
+      totalProfit += profit;
 
       ws_data.push([
         it.sku || "",
@@ -538,12 +555,14 @@ app.get("/api/inventory/report", async (req, res) => {
         uc.toFixed(2),
         up.toFixed(2),
         invVal.toFixed(2),
-        rev.toFixed(2)
+        rev.toFixed(2),
+        profit.toFixed(2)
       ]);
     });
 
     ws_data.push([]);
-    ws_data.push(["", "", "", "Totals", "", "", totalValue.toFixed(2), totalRevenue.toFixed(2)]);
+    ws_data.push(["", "", "", "Totals", "", "", 
+                 totalValue.toFixed(2), totalRevenue.toFixed(2), totalProfit.toFixed(2)]);
 
     const ws = xlsx.utils.aoa_to_sheet(ws_data);
     const wb = xlsx.utils.book_new();
@@ -557,7 +576,6 @@ app.get("/api/inventory/report", async (req, res) => {
 
     console.log(`XLSX generated, size: ${wb_out.length} bytes`);
 
-    // Save to database
     const savedDoc = await Doc.create({ 
       name: filename, 
       size: wb_out.length, 
@@ -569,7 +587,6 @@ app.get("/api/inventory/report", async (req, res) => {
     console.log(`XLSX saved to database with ID: ${savedDoc._id}`);
     await logActivity(printedBy, `Generated Inventory Report XLSX: ${filename}`);
 
-    // Send response
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Length", wb_out.length);
