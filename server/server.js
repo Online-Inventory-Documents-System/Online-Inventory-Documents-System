@@ -304,7 +304,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PDF REPORT — UPDATED LAYOUT TO MATCH SCREENSHOT
+//                    PDF REPORT — UPDATED WITH POTENTIAL PROFIT
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -334,6 +334,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
         const doc = new PDFDocument({
           size: "A4",
+          layout: "landscape",
           margin: 40,
           bufferPages: true
         });
@@ -354,78 +355,60 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         });
 
         // ==================== PDF CONTENT GENERATION ====================
-        // Company Header - Centered and larger
-        doc.fontSize(20).font("Helvetica-Bold").text("L&B Company", { align: "center" });
-        doc.moveDown(0.3);
-        
-        // Company Address - Centered
+        doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
         doc.fontSize(10).font("Helvetica");
-        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", { align: "center" });
-        doc.text("Phone: 01133127622", { align: "center" });
-        doc.text("Email: lbcompany@gmail.com", { align: "center" });
-        
-        doc.moveDown(0.5);
-        
-        // Horizontal line
-        doc.moveTo(40, doc.y)
-           .lineTo(555, doc.y)
-           .stroke();
-        
-        doc.moveDown(1);
+        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+        doc.text("Phone: 01133127622", 40, 85);
+        doc.text("Email: lbcompany@gmail.com", 40, 100);
 
-        // Report Title - Centered
-        doc.fontSize(16).font("Helvetica-Bold")
-           .text("INVENTORY REPORT", { align: "center" });
-        
-        doc.moveDown(0.5);
+        doc.font("Helvetica-Bold").fontSize(15)
+           .text("INVENTORY REPORT", 620, 40);
 
-        // Report Details - Right aligned
-        doc.fontSize(9).font("Helvetica");
-        const detailsStartY = doc.y;
-        
-        doc.text(`Print Date: ${printDate}`, { align: "right" });
-        doc.text(`Report ID: ${reportId}`, { align: "right" });
-        doc.text(`Status: Generated`, { align: "right" });
-        doc.text(`Printed by: ${printedBy}`, { align: "right" });
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`Print Date: ${printDate}`, 620, 63);
+        doc.text(`Report ID: ${reportId}`, 620, 78);
+        doc.text(`Status: Generated`, 620, 93);
+        doc.text(`Printed by: ${printedBy}`, 620, 108);
 
-        doc.moveDown(1.5);
+        doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
-        // Table Header
-        const tableTop = doc.y;
-        const rowHeight = 15;
+        const rowHeight = 18;
         const colX = { 
-          sku: 40, name: 100, category: 200, qty: 280, 
-          cost: 320, price: 380, value: 440, revenue: 510
+          sku: 40, name: 100, category: 200, qty: 280, cost: 340, price: 400, 
+          value: 460, revenue: 540, profit: 630 
         };
         const width = { 
-          sku: 60, name: 100, category: 80, qty: 40, 
-          cost: 60, price: 60, value: 70, revenue: 70
+          sku: 60, name: 100, category: 80, qty: 60, cost: 60, price: 60, 
+          value: 80, revenue: 90, profit: 90 
         };
+        let y = 150;
 
-        // Draw table header
-        doc.font("Helvetica-Bold").fontSize(9);
-        doc.rect(colX.sku, tableTop, width.sku, rowHeight).stroke();
-        doc.rect(colX.name, tableTop, width.name, rowHeight).stroke();
-        doc.rect(colX.category, tableTop, width.category, rowHeight).stroke();
-        doc.rect(colX.qty, tableTop, width.qty, rowHeight).stroke();
-        doc.rect(colX.cost, tableTop, width.cost, rowHeight).stroke();
-        doc.rect(colX.price, tableTop, width.price, rowHeight).stroke();
-        doc.rect(colX.value, tableTop, width.value, rowHeight).stroke();
-        doc.rect(colX.revenue, tableTop, width.revenue, rowHeight).stroke();
-        
-        // Header text
-        doc.text("SKU", colX.sku + 2, tableTop + 4);
-        doc.text("Product Name", colX.name + 2, tableTop + 4);
-        doc.text("Category", colX.category + 2, tableTop + 4);
-        doc.text("Qty", colX.qty + 2, tableTop + 4);
-        doc.text("Unit Cost", colX.cost + 2, tableTop + 4);
-        doc.text("Unit Price", colX.price + 2, tableTop + 4);
-        doc.text("Inventory Value", colX.value + 2, tableTop + 4);
-        doc.text("Potential Revenue", colX.revenue + 2, tableTop + 4);
+        function drawHeader() {
+          doc.font("Helvetica-Bold").fontSize(9);
+          doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
+          doc.rect(colX.name, y, width.name, rowHeight).stroke();
+          doc.rect(colX.category, y, width.category, rowHeight).stroke();
+          doc.rect(colX.qty, y, width.qty, rowHeight).stroke();
+          doc.rect(colX.cost, y, width.cost, rowHeight).stroke();
+          doc.rect(colX.price, y, width.price, rowHeight).stroke();
+          doc.rect(colX.value, y, width.value, rowHeight).stroke();
+          doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
+          doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
+          
+          doc.text("SKU", colX.sku + 3, y + 4);
+          doc.text("Product Name", colX.name + 3, y + 4);
+          doc.text("Category", colX.category + 3, y + 4);
+          doc.text("Quantity", colX.qty + 3, y + 4);
+          doc.text("Unit Cost", colX.cost + 3, y + 4);
+          doc.text("Unit Price", colX.price + 3, y + 4);
+          doc.text("Inventory Value", colX.value + 3, y + 4);
+          doc.text("Potential Revenue", colX.revenue + 3, y + 4);
+          doc.text("Potential Profit", colX.profit + 3, y + 4);
+          y += rowHeight;
+          doc.font("Helvetica").fontSize(8);
+        }
 
-        let y = tableTop + rowHeight;
-        doc.font("Helvetica").fontSize(8);
-
+        drawHeader();
         let subtotalQty = 0;
         let totalValue = 0;
         let totalRevenue = 0;
@@ -433,32 +416,11 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         let rowsOnPage = 0;
 
         for (const it of items) {
-          if (rowsOnPage === 25) {
-            doc.addPage({ size: "A4", margin: 40 });
+          if (rowsOnPage === 10) {
+            doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
             y = 40;
             rowsOnPage = 0;
-            // Redraw header on new page
-            doc.font("Helvetica-Bold").fontSize(9);
-            doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
-            doc.rect(colX.name, y, width.name, rowHeight).stroke();
-            doc.rect(colX.category, y, width.category, rowHeight).stroke();
-            doc.rect(colX.qty, y, width.qty, rowHeight).stroke();
-            doc.rect(colX.cost, y, width.cost, rowHeight).stroke();
-            doc.rect(colX.price, y, width.price, rowHeight).stroke();
-            doc.rect(colX.value, y, width.value, rowHeight).stroke();
-            doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
-            
-            doc.text("SKU", colX.sku + 2, y + 4);
-            doc.text("Product Name", colX.name + 2, y + 4);
-            doc.text("Category", colX.category + 2, y + 4);
-            doc.text("Qty", colX.qty + 2, y + 4);
-            doc.text("Unit Cost", colX.cost + 2, y + 4);
-            doc.text("Unit Price", colX.price + 2, y + 4);
-            doc.text("Inventory Value", colX.value + 2, y + 4);
-            doc.text("Potential Revenue", colX.revenue + 2, y + 4);
-            
-            y += rowHeight;
-            doc.font("Helvetica").fontSize(8);
+            drawHeader();
           }
 
           const qty = Number(it.quantity || 0);
@@ -473,7 +435,6 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           totalRevenue += rev;
           totalProfit += profit;
 
-          // Draw row
           doc.rect(colX.sku, y, width.sku, rowHeight).stroke();
           doc.rect(colX.name, y, width.name, rowHeight).stroke();
           doc.rect(colX.category, y, width.category, rowHeight).stroke();
@@ -482,44 +443,39 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.rect(colX.price, y, width.price, rowHeight).stroke();
           doc.rect(colX.value, y, width.value, rowHeight).stroke();
           doc.rect(colX.revenue, y, width.revenue, rowHeight).stroke();
+          doc.rect(colX.profit, y, width.profit, rowHeight).stroke();
           
-          // Row data
-          doc.text(it.sku || "", colX.sku + 2, y + 4);
-          doc.text(it.name || "", colX.name + 2, y + 4);
-          doc.text(it.category || "", colX.category + 2, y + 4);
-          doc.text(String(qty), colX.qty + 2, y + 4);
-          doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 2, y + 4);
-          doc.text(`RM ${price.toFixed(2)}`, colX.price + 2, y + 4);
-          doc.text(`RM ${val.toFixed(2)}`, colX.value + 2, y + 4);
-          doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 2, y + 4);
-          
+          doc.text(it.sku || "", colX.sku + 3, y + 4);
+          doc.text(it.name || "", colX.name + 3, y + 4);
+          doc.text(it.category || "", colX.category + 3, y + 4);
+          doc.text(String(qty), colX.qty + 3, y + 4);
+          doc.text(`RM ${cost.toFixed(2)}`, colX.cost + 3, y + 4);
+          doc.text(`RM ${price.toFixed(2)}`, colX.price + 3, y + 4);
+          doc.text(`RM ${val.toFixed(2)}`, colX.value + 3, y + 4);
+          doc.text(`RM ${rev.toFixed(2)}`, colX.revenue + 3, y + 4);
+          doc.text(`RM ${profit.toFixed(2)}`, colX.profit + 3, y + 4);
           y += rowHeight;
           rowsOnPage++;
         }
 
-        // Bottom horizontal line
-        doc.moveTo(40, y)
-           .lineTo(555, y)
-           .stroke();
-        
-        y += 10;
-
-        // Totals Section - Right aligned like screenshot
-        const totalsX = 400;
+        const lastPageIndex = doc.bufferedPageRange().count - 1;
+        doc.switchToPage(lastPageIndex);
+        let boxY = y + 20;
+        if (boxY > 480) boxY = 480;
+        doc.rect(560, boxY, 230, 88).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
-        
-        doc.text(`Subtotal (Quantity): ${subtotalQty} units`, totalsX, y);
-        doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, totalsX, y + 15);
-        doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, totalsX, y + 30);
-        doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, totalsX, y + 45);
+        doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
+        doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
+        doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
+        doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, 570, boxY + 64);
 
-        // Add footer with page numbers
+        doc.flushPages();
+
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          doc.fontSize(8)
-             .text("Generated by L&B Company Inventory System", 40, doc.page.height - 30)
-             .text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 30, { align: "right" });
+          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
+          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
         }
         
         doc.end();
@@ -553,7 +509,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
     console.error("❌ PDF Generation Error:", err);
     res.status(500).json({ message: "PDF generation failed: " + err.message });
   }
-});
+}); 
 
 // ============================================================================
 //                           XLSX REPORT - UPDATED WITH POTENTIAL PROFIT
