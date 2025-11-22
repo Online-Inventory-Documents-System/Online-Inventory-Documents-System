@@ -374,8 +374,8 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         const colX = { 
-          sku: 40, name: 100, category: 200, qty: 280, cost: 340, price: 400, 
-          value: 460, revenue: 540, profit: 630 
+          sku: 40, name: 100, category: 260, qty: 340, cost: 400, price: 480, 
+          value: 560, revenue: 670, profit: 770 
         };
         const width = { 
           sku: 60, name: 100, category: 80, qty: 60, cost: 60, price: 60, 
