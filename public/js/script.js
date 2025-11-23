@@ -69,6 +69,9 @@ function renderInventory(items) {
     totalProfit += profit;
     totalStock += qty;
 
+    // Format the date - NEW DATE COLUMN
+    const dateAdded = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
+
     const tr = document.createElement('tr');
     if(qty === 0) tr.classList.add('out-of-stock-row');
     else if(qty < 10) tr.classList.add('low-stock-row');
@@ -83,6 +86,8 @@ function renderInventory(items) {
       <td class="money">RM ${invVal.toFixed(2)}</td>
       <td class="money">RM ${rev.toFixed(2)}</td>
       <td class="money">RM ${profit.toFixed(2)}</td>
+      <!-- NEW DATE COLUMN -->
+      <td>${dateAdded}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
