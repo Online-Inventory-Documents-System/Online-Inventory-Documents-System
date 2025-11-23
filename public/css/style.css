@@ -249,7 +249,7 @@ input:focus {
 #searchInput, #searchDocs { width: 280px; padding: 10px; }
 
 /* =========================================
-   Modern Table Styling (Inventory & Documents) - UPDATED
+   Modern Table Styling (Inventory & Documents) - FIXED
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -265,10 +265,10 @@ input:focus {
     border-collapse: collapse;
     margin: 0;
     font-size: 0.85em;
-    min-width: 800px; /* Increased to accommodate new date column */
+    min-width: 700px; 
 }
 
-/* ADD VERTICAL BORDERS TO INVENTORY TABLE */
+/* FIXED VERTICAL BORDERS FOR INVENTORY TABLE */
 #inventoryTable th, #inventoryTable td {
     padding: 12px 15px;
     text-align: left;
@@ -289,25 +289,37 @@ input:focus {
     letter-spacing: 0.05em;
     position: sticky; 
     top: 0;
-    border-right: 1px solid #000000; /* BLACK VERTICAL LINES FOR HEADER */
+    border-right: 1px solid rgba(255, 255, 255, 0.3); /* Lighter borders for header */
 }
 
 #inventoryTable thead th:last-child {
     border-right: none;
 }
 
-/* NEW DATE COLUMN STYLING */
-#inventoryTable th:nth-child(10), /* Date Added header */
-#inventoryTable td:nth-child(10) { /* Date Added cells */
-    text-align: center;
+/* FIXED CURRENCY COLUMNS - KEEP RM AND AMOUNT ON SAME LINE */
+#inventoryTable td:nth-child(5), /* Unit Cost column */
+#inventoryTable td:nth-child(6), /* Unit Price column */
+#inventoryTable td:nth-child(7), /* Inventory Value column */
+#inventoryTable td:nth-child(8), /* Potential Revenue column */
+#inventoryTable td:nth-child(9) { /* Potential Profit column */
+    white-space: nowrap;
+    text-align: right;
+    font-family: 'Consolas', monospace;
+    font-weight: bold;
     min-width: 100px;
-    border-right: 1px solid #000000;
+    padding: 12px 12px;
 }
 
-/* Adjust the actions column to account for the new date column */
-#inventoryTable th:nth-child(11), /* Actions header */
-#inventoryTable td:nth-child(11) { /* Actions cells */
-    border-right: none;
+/* Date column styling */
+#inventoryTable td:nth-child(10) { /* Date column */
+    text-align: center;
+    min-width: 100px;
+}
+
+/* Actions column styling */
+#inventoryTable td:nth-child(11) { /* Actions column */
+    text-align: center;
+    min-width: 120px;
 }
 
 /* Documents table styling (unchanged - no vertical borders) */
@@ -359,17 +371,6 @@ input:focus {
 .small-btn {
     padding: 5px 10px;
     font-size: 0.85em;
-}
-
-/* Fix for unit cost and unit price columns to prevent RM from wrapping */
-#inventoryTable td:nth-child(5), /* Unit Cost column */
-#inventoryTable td:nth-child(6) { /* Unit Price column */
-    white-space: nowrap;
-    text-align: left;
-    font-family: 'Consolas', monospace;
-    font-weight: bold;
-    min-width: 90px;
-    padding: 12px 12px;
 }
 
 /* =========================================
@@ -439,7 +440,7 @@ input:focus {
 }
 
 /* =========================================
-   Dark Mode Overrides - UPDATED FOR VERTICAL BORDERS
+   Dark Mode Overrides - FIXED FOR VERTICAL BORDERS
 ========================================= */
 .dark-mode {
   background: var(--background-dark);
@@ -494,13 +495,7 @@ input:focus {
 }
 
 .dark-mode #inventoryTable thead th {
-    border-right-color: #000000;
-}
-
-/* NEW DATE COLUMN DARK MODE STYLING */
-.dark-mode #inventoryTable th:nth-child(10),
-.dark-mode #inventoryTable td:nth-child(10) {
-    border-right-color: #000000;
+    border-right-color: rgba(255, 255, 255, 0.3);
 }
 
 .dark-mode #inventoryTable tbody tr.low-stock-row {
