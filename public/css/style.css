@@ -265,7 +265,7 @@ input:focus {
     border-collapse: collapse;
     margin: 0;
     font-size: 0.85em;
-    min-width: 700px; 
+    min-width: 800px; /* Increased to accommodate new date column */
 }
 
 /* ADD VERTICAL BORDERS TO INVENTORY TABLE */
@@ -293,6 +293,20 @@ input:focus {
 }
 
 #inventoryTable thead th:last-child {
+    border-right: none;
+}
+
+/* NEW DATE COLUMN STYLING */
+#inventoryTable th:nth-child(10), /* Date Added header */
+#inventoryTable td:nth-child(10) { /* Date Added cells */
+    text-align: center;
+    min-width: 100px;
+    border-right: 1px solid #000000;
+}
+
+/* Adjust the actions column to account for the new date column */
+#inventoryTable th:nth-child(11), /* Actions header */
+#inventoryTable td:nth-child(11) { /* Actions cells */
     border-right: none;
 }
 
@@ -480,6 +494,12 @@ input:focus {
 }
 
 .dark-mode #inventoryTable thead th {
+    border-right-color: #000000;
+}
+
+/* NEW DATE COLUMN DARK MODE STYLING */
+.dark-mode #inventoryTable th:nth-child(10),
+.dark-mode #inventoryTable td:nth-child(10) {
     border-right-color: #000000;
 }
 
