@@ -1,10 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Management System</title>
-    <style>
 /* =========================================
    General Page Styling (Modern Theme)
 ========================================= */
@@ -256,7 +249,7 @@ input:focus {
 #searchInput, #searchDocs { width: 280px; padding: 10px; }
 
 /* =========================================
-   Modern Table Styling (Inventory & Documents) - FIXED VERTICAL LINES
+   Modern Table Styling (Inventory & Documents) - UPDATED
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -275,7 +268,7 @@ input:focus {
     min-width: 700px; /* Increased to accommodate new date column */
 }
 
-/* FIXED: BLACK VERTICAL BORDERS FOR INVENTORY TABLE IN LIGHT MODE */
+/* ADD VERTICAL BORDERS TO INVENTORY TABLE */
 #inventoryTable th, #inventoryTable td {
     padding: 12px 15px;
     text-align: left;
@@ -446,7 +439,7 @@ input:focus {
 }
 
 /* =========================================
-   Dark Mode Overrides - FIXED FOR VERTICAL BORDERS
+   Dark Mode Overrides - UPDATED FOR VERTICAL BORDERS
 ========================================= */
 .dark-mode {
   background: var(--background-dark);
@@ -494,20 +487,20 @@ input:focus {
     border-bottom-color: #495057;
 }
 
-/* KEEP BLACK VERTICAL BORDERS IN DARK MODE - FIXED */
+/* KEEP BLACK VERTICAL BORDERS IN DARK MODE */
 .dark-mode #inventoryTable th, 
 .dark-mode #inventoryTable td {
-    border-right-color: #000000 !important;
+    border-right-color: #000000;
 }
 
 .dark-mode #inventoryTable thead th {
-    border-right-color: #000000 !important;
+    border-right-color: #000000;
 }
 
 /* NEW DATE COLUMN DARK MODE STYLING */
 .dark-mode #inventoryTable th:nth-child(10),
 .dark-mode #inventoryTable td:nth-child(10) {
-    border-right-color: #000000 !important;
+    border-right-color: #000000;
 }
 
 .dark-mode #inventoryTable tbody tr.low-stock-row {
@@ -609,243 +602,3 @@ input:focus {
 .dark-mode #activityTable tbody tr:hover {
   background: #3d3d3d;
 }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Inventory Management System</h1>
-        <nav>
-            <a href="#" class="active">Dashboard</a>
-            <a href="#">Inventory</a>
-            <a href="#">Documents</a>
-            <a href="#">Reports</a>
-            <button id="toggleDarkMode">Toggle Dark Mode</button>
-            <button>Logout</button>
-        </nav>
-        <div id="adminInfo">Logged in as: Admin</div>
-    </header>
-
-    <section>
-        <h2>Dashboard</h2>
-        <div class="dashboard-grid">
-            <div class="dashboard-info">
-                <div class="info-card">
-                    <div class="clock" id="currentTime">Loading time...</div>
-                    <p>Welcome to your Inventory Management System. Here's a quick overview of your current inventory status.</p>
-                    <ul>
-                        <li>Total Products: <strong>125</strong></li>
-                        <li>Low Stock Items: <strong>8</strong></li>
-                        <li>Out of Stock: <strong>3</strong></li>
-                        <li>Total Inventory Value: <strong>RM 45,678.90</strong></li>
-                    </ul>
-                </div>
-                
-                <h3>Recent Activities</h3>
-                <div class="table-container">
-                    <table id="recentActivities">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Activity</th>
-                                <th>User</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>2023-11-15</td>
-                                <td>Added new product: Wireless Mouse</td>
-                                <td>Admin</td>
-                            </tr>
-                            <tr>
-                                <td>2023-11-14</td>
-                                <td>Updated stock for Laptop Dell XPS</td>
-                                <td>Manager</td>
-                            </tr>
-                            <tr>
-                                <td>2023-11-13</td>
-                                <td>Generated monthly report</td>
-                                <td>Admin</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="dashboard-card-container">
-                <a href="#" class="quick-access-btn" id="btn-inventory">Manage Inventory</a>
-                <a href="#" class="quick-access-btn" id="btn-documents">View Documents</a>
-                
-                <div class="info-card">
-                    <h3>Quick Stats</h3>
-                    <p>This week's performance:</p>
-                    <ul>
-                        <li>New Products Added: 12</li>
-                        <li>Stock Updates: 24</li>
-                        <li>Documents Processed: 8</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="inventorySection">
-        <h2>Inventory Management</h2>
-        
-        <div class="product-bar">
-            <input type="text" id="productName" placeholder="Product Name">
-            <input type="text" id="productCategory" placeholder="Category">
-            <input type="number" id="productQuantity" placeholder="Quantity" min="0">
-            <input type="number" id="unitCost" placeholder="Unit Cost" min="0" step="0.01">
-            <input type="number" id="unitPrice" placeholder="Unit Price" min="0" step="0.01">
-            <button class="primary-btn">Add Product</button>
-        </div>
-        
-        <div class="controls">
-            <div class="search-controls">
-                <input type="text" id="searchInput" placeholder="Search products...">
-                <button class="secondary-btn">Search</button>
-            </div>
-            <button class="success-btn">Export Data</button>
-        </div>
-        
-        <div class="table-container">
-            <table id="inventoryTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Product Name</th>
-                        <th>Category</th>
-                        <th>Quantity</th>
-                        <th>Unit Cost</th>
-                        <th>Unit Price</th>
-                        <th>Total Value</th>
-                        <th>Status</th>
-                        <th>Supplier</th>
-                        <th>Date Added</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>1001</td>
-                        <td>Laptop Dell XPS 13</td>
-                        <td>Electronics</td>
-                        <td>15</td>
-                        <td class="money">RM 2,500.00</td>
-                        <td class="money">RM 3,200.00</td>
-                        <td class="money">RM 48,000.00</td>
-                        <td>In Stock</td>
-                        <td>Dell Malaysia</td>
-                        <td>2023-10-15</td>
-                        <td class="actions">
-                            <button class="secondary-btn small-btn">Edit</button>
-                            <button class="danger-btn small-btn">Delete</button>
-                        </td>
-                    </tr>
-                    <tr class="low-stock-row">
-                        <td>1002</td>
-                        <td>Wireless Mouse Logitech MX</td>
-                        <td>Accessories</td>
-                        <td>3</td>
-                        <td class="money">RM 85.00</td>
-                        <td class="money">RM 120.00</td>
-                        <td class="money">RM 360.00</td>
-                        <td>Low Stock</td>
-                        <td>Logitech Supplier</td>
-                        <td>2023-09-22</td>
-                        <td class="actions">
-                            <button class="secondary-btn small-btn">Edit</button>
-                            <button class="danger-btn small-btn">Delete</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>1003</td>
-                        <td>USB-C Cable 2m</td>
-                        <td>Accessories</td>
-                        <td>45</td>
-                        <td class="money">RM 12.50</td>
-                        <td class="money">RM 25.00</td>
-                        <td class="money">RM 1,125.00</td>
-                        <td>In Stock</td>
-                        <td>Tech Accessories Co.</td>
-                        <td>2023-11-05</td>
-                        <td class="actions">
-                            <button class="secondary-btn small-btn">Edit</button>
-                            <button class="danger-btn small-btn">Delete</button>
-                        </td>
-                    </tr>
-                    <tr class="out-of-stock-row">
-                        <td>1004</td>
-                        <td>External SSD 1TB</td>
-                        <td>Storage</td>
-                        <td>0</td>
-                        <td class="money">RM 380.00</td>
-                        <td class="money">RM 499.00</td>
-                        <td class="money">RM 0.00</td>
-                        <td>Out of Stock</td>
-                        <td>Samsung Distributor</td>
-                        <td>2023-08-10</td>
-                        <td class="actions">
-                            <button class="secondary-btn small-btn">Edit</button>
-                            <button class="danger-btn small-btn">Delete</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <script>
-        // =========================================
-        // Dark Mode Persistence
-        // =========================================
-
-        // Function to enable dark mode
-        function enableDarkMode() {
-            document.body.classList.add('dark-mode');
-            localStorage.setItem('darkMode', 'enabled');
-        }
-
-        // Function to disable dark mode
-        function disableDarkMode() {
-            document.body.classList.remove('dark-mode');
-            localStorage.setItem('darkMode', 'disabled');
-        }
-
-        // Function to toggle dark mode
-        function toggleDarkMode() {
-            if (document.body.classList.contains('dark-mode')) {
-                disableDarkMode();
-            } else {
-                enableDarkMode();
-            }
-        }
-
-        // Check and apply dark mode on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const darkMode = localStorage.getItem('darkMode');
-            
-            // Apply dark mode if it was previously enabled
-            if (darkMode === 'enabled') {
-                enableDarkMode();
-            }
-            
-            // Add event listener to dark mode toggle button
-            const darkModeToggle = document.getElementById('toggleDarkMode');
-            if (darkModeToggle) {
-                darkModeToggle.addEventListener('click', toggleDarkMode);
-            }
-            
-            // Update clock
-            function updateClock() {
-                const now = new Date();
-                const timeString = now.toLocaleTimeString();
-                document.getElementById('currentTime').textContent = timeString;
-            }
-            
-            updateClock();
-            setInterval(updateClock, 1000);
-        });
-    </script>
-</body>
-</html>
