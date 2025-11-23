@@ -249,7 +249,7 @@ input:focus {
 #searchInput, #searchDocs { width: 280px; padding: 10px; }
 
 /* =========================================
-   Modern Table Styling (Inventory & Documents) - FIXED
+   Modern Table Styling (Inventory & Documents) - COMPLETELY FIXED
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -268,17 +268,17 @@ input:focus {
     min-width: 700px; 
 }
 
-/* FIXED VERTICAL BORDERS FOR INVENTORY TABLE */
+/* FIXED VERTICAL BORDERS FOR ALL COLUMNS */
 #inventoryTable th, #inventoryTable td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid #000000; /* BLACK VERTICAL LINES */
+    border-right: 1px solid #000000; /* BLACK VERTICAL LINES FOR ALL COLUMNS */
 }
 
 #inventoryTable th:last-child, 
 #inventoryTable td:last-child {
-    border-right: none; /* Remove border from last column */
+    border-right: none; /* Remove border from last column only */
 }
 
 #inventoryTable thead th {
@@ -306,20 +306,22 @@ input:focus {
     text-align: right;
     font-family: 'Consolas', monospace;
     font-weight: bold;
-    min-width: 100px;
-    padding: 12px 12px;
+    min-width: 110px;
+    padding: 12px 15px;
 }
 
-/* Date column styling */
+/* Date column styling - FIXED TO HAVE VERTICAL BORDERS */
 #inventoryTable td:nth-child(10) { /* Date column */
     text-align: center;
     min-width: 100px;
+    border-right: 1px solid #000000; /* Ensure vertical border */
 }
 
-/* Actions column styling */
+/* Actions column styling - FIXED TO HAVE NO RIGHT BORDER */
 #inventoryTable td:nth-child(11) { /* Actions column */
     text-align: center;
     min-width: 120px;
+    border-right: none; /* No border on last column */
 }
 
 /* Documents table styling (unchanged - no vertical borders) */
@@ -339,7 +341,7 @@ input:focus {
     top: 0;
 }
 
-/* Rest of your existing table styles remain the same */
+/* Rest of your existing table styles */
 #inventoryTable tbody tr:hover,
 #documentsTable tbody tr:hover {
     background-color: #f1f1f1;
@@ -496,6 +498,11 @@ input:focus {
 
 .dark-mode #inventoryTable thead th {
     border-right-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Ensure date column has black border in dark mode */
+.dark-mode #inventoryTable td:nth-child(10) {
+    border-right-color: #000000;
 }
 
 .dark-mode #inventoryTable tbody tr.low-stock-row {
