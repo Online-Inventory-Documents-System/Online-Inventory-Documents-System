@@ -70,7 +70,7 @@ function renderInventory(items) {
     totalStock += qty;
 
     // Format the date - NEW DATE COLUMN
-    const dateAdded = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
+    const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
 
     const tr = document.createElement('tr');
     if(qty === 0) tr.classList.add('out-of-stock-row');
@@ -846,4 +846,5 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
+
 
