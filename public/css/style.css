@@ -351,7 +351,7 @@ input:focus {
 #inventoryTable td:nth-child(5), /* Unit Cost column */
 #inventoryTable td:nth-child(6) { /* Unit Price column */
     white-space: nowrap;
-    text-align: right;
+    text-align: left;
     font-family: 'Consolas', monospace;
     font-weight: bold;
     min-width: 90px;
