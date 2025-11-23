@@ -249,7 +249,7 @@ input:focus {
 #searchInput, #searchDocs { width: 280px; padding: 10px; }
 
 /* =========================================
-   Modern Table Styling (Inventory & Documents)
+   Modern Table Styling (Inventory & Documents) - UPDATED
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -268,14 +268,41 @@ input:focus {
     min-width: 700px; 
 }
 
-#inventoryTable th, #inventoryTable td,
+/* ADD VERTICAL BORDERS TO INVENTORY TABLE */
+#inventoryTable th, #inventoryTable td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid #000000; /* BLACK VERTICAL LINES */
+}
+
+#inventoryTable th:last-child, 
+#inventoryTable td:last-child {
+    border-right: none; /* Remove border from last column */
+}
+
+#inventoryTable thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky; 
+    top: 0;
+    border-right: 1px solid #000000; /* BLACK VERTICAL LINES FOR HEADER */
+}
+
+#inventoryTable thead th:last-child {
+    border-right: none;
+}
+
+/* Documents table styling (unchanged - no vertical borders) */
 #documentsTable th, #documentsTable td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
 }
 
-#inventoryTable thead th,
 #documentsTable thead th {
     background-color: var(--primary-color);
     color: white;
@@ -286,6 +313,7 @@ input:focus {
     top: 0;
 }
 
+/* Rest of your existing table styles remain the same */
 #inventoryTable tbody tr:hover,
 #documentsTable tbody tr:hover {
     background-color: #f1f1f1;
@@ -318,6 +346,7 @@ input:focus {
     padding: 5px 10px;
     font-size: 0.85em;
 }
+
 /* Fix for unit cost and unit price columns to prevent RM from wrapping */
 #inventoryTable td:nth-child(5), /* Unit Cost column */
 #inventoryTable td:nth-child(6) { /* Unit Price column */
@@ -328,7 +357,6 @@ input:focus {
     min-width: 90px;
     padding: 12px 12px;
 }
-
 
 /* =========================================
    Dashboard Layout (Unchanged)
@@ -397,7 +425,7 @@ input:focus {
 }
 
 /* =========================================
-   Dark Mode Overrides
+   Dark Mode Overrides - UPDATED FOR VERTICAL BORDERS
 ========================================= */
 .dark-mode {
   background: var(--background-dark);
@@ -443,6 +471,16 @@ input:focus {
 .dark-mode #inventoryTable th, .dark-mode #inventoryTable td,
 .dark-mode #documentsTable th, .dark-mode #documentsTable td {
     border-bottom-color: #495057;
+}
+
+/* KEEP BLACK VERTICAL BORDERS IN DARK MODE */
+.dark-mode #inventoryTable th, 
+.dark-mode #inventoryTable td {
+    border-right-color: #000000;
+}
+
+.dark-mode #inventoryTable thead th {
+    border-right-color: #000000;
 }
 
 .dark-mode #inventoryTable tbody tr.low-stock-row {
@@ -544,4 +582,3 @@ input:focus {
 .dark-mode #activityTable tbody tr:hover {
   background: #3d3d3d;
 }
-
