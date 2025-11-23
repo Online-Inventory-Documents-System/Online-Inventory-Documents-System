@@ -86,8 +86,7 @@ function renderInventory(items) {
       <td class="money">RM ${invVal.toFixed(2)}</td>
       <td class="money">RM ${rev.toFixed(2)}</td>
       <td class="money">RM ${profit.toFixed(2)}</td>
-      <!-- NEW DATE COLUMN -->
-      <td>${dateAdded}</td>
+      <td>${date}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
@@ -847,3 +846,4 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
+
