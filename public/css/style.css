@@ -265,7 +265,7 @@ input:focus {
     border-collapse: collapse;
     margin: 0;
     font-size: 0.85em;
-    min-width: 800px; /* Increased to accommodate new date column */
+    min-width: 700px; /* Increased to accommodate new date column */
 }
 
 /* ADD VERTICAL BORDERS TO INVENTORY TABLE */
