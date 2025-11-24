@@ -85,14 +85,24 @@ nav button:hover {
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* =========================================
+   LARGER SECTION STYLING FOR INVENTORY PAGE
+========================================= */
 section {
-  margin: 30px auto;
-  max-width: 1200px;
+  margin: 20px auto;
+  max-width: 95%; /* Changed from 1200px to 95% for more width */
   background: var(--card-light);
-  padding: 30px;
+  padding: 25px;
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
+}
+
+/* Specific styling for inventory section to be even larger */
+#inventorySection {
+  max-width: 98%;
+  margin: 15px auto;
+  padding: 20px;
 }
 
 /* =========================================
@@ -249,7 +259,7 @@ input:focus {
 #searchInput, #searchDocs { width: 280px; padding: 10px; }
 
 /* =========================================
-   Modern Table Styling (Inventory & Documents) - FINAL FIX
+   LARGER TABLE STYLING FOR INVENTORY
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -258,22 +268,23 @@ input:focus {
     border-radius: 8px;
     border: 1px solid var(--border-color); 
     background: var(--card-light);
+    max-width: 100%; /* Ensure it takes full available width */
 }
 
 #inventoryTable, #documentsTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    font-size: 0.85em;
-    min-width: 700px; 
+    font-size: 0.82em; /* Slightly smaller font to fit more content */
+    min-width: 1100px; /* Increased to accommodate all columns comfortably */
 }
 
-/* FIXED VERTICAL BORDERS - APPLY TO ALL CELLS */
+/* VERTICAL BORDERS FOR ALL CELLS */
 #inventoryTable th, #inventoryTable td {
-    padding: 12px 15px;
+    padding: 10px 12px; /* Reduced padding to save space */
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid #000000; /* BLACK VERTICAL LINES */
+    border-right: 1px solid #000000;
 }
 
 /* Remove border only from last column */
@@ -290,14 +301,42 @@ input:focus {
     letter-spacing: 0.05em;
     position: sticky; 
     top: 0;
-    border-right: 1px solid rgba(255, 255, 255, 0.3); /* Lighter borders for header */
+    border-right: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 0.8em; /* Smaller header font */
+    padding: 12px 10px; /* Adjusted header padding */
 }
 
 #inventoryTable thead th:last-child {
     border-right: none;
 }
 
-/* CURRENCY COLUMNS - FIXED DISPLAY */
+/* COMPACT COLUMN WIDTHS FOR BETTER FIT */
+#inventoryTable th:nth-child(1), /* SKU */
+#inventoryTable td:nth-child(1) {
+    min-width: 80px;
+    max-width: 100px;
+}
+
+#inventoryTable th:nth-child(2), /* NAME */
+#inventoryTable td:nth-child(2) {
+    min-width: 120px;
+    max-width: 150px;
+}
+
+#inventoryTable th:nth-child(3), /* CATEGORY */
+#inventoryTable td:nth-child(3) {
+    min-width: 90px;
+    max-width: 120px;
+}
+
+#inventoryTable th:nth-child(4), /* QUANTITY */
+#inventoryTable td:nth-child(4) {
+    min-width: 70px;
+    max-width: 80px;
+    text-align: center;
+}
+
+/* CURRENCY COLUMNS */
 #inventoryTable td:nth-child(5), /* Unit Cost */
 #inventoryTable td:nth-child(6), /* Unit Price */
 #inventoryTable td:nth-child(7), /* Inventory Value */
@@ -307,19 +346,22 @@ input:focus {
     text-align: right;
     font-family: 'Consolas', monospace;
     font-weight: bold;
-    min-width: 120px;
+    min-width: 100px;
+    max-width: 120px;
 }
 
 /* Date column */
 #inventoryTable td:nth-child(10) {
     text-align: center;
-    min-width: 100px;
+    min-width: 90px;
+    max-width: 100px;
 }
 
 /* Actions column */
 #inventoryTable td:nth-child(11) {
     text-align: center;
-    min-width: 120px;
+    min-width: 100px;
+    max-width: 110px;
 }
 
 /* Documents table styling (no vertical borders) */
@@ -369,8 +411,8 @@ input:focus {
     min-width: 150px;
 }
 .small-btn {
-    padding: 5px 10px;
-    font-size: 0.85em;
+    padding: 5px 8px; /* Smaller buttons */
+    font-size: 0.8em;
 }
 
 /* =========================================
@@ -590,4 +632,27 @@ input:focus {
 
 .dark-mode #activityTable tbody tr:hover {
   background: #3d3d3d;
+}
+
+/* =========================================
+   ADDITIONAL SPACING OPTIMIZATIONS
+========================================= */
+#inventory h2 {
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.controls {
+    margin-bottom: 15px;
+    padding: 10px;
+}
+
+.product-bar {
+    margin-bottom: 15px;
+    padding: 12px;
+}
+
+/* Reduce top margin for inventory section */
+#inventory {
+    margin-top: 10px;
 }
