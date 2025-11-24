@@ -249,7 +249,7 @@ input:focus {
 #searchInput, #searchDocs { width: 280px; padding: 10px; }
 
 /* =========================================
-   Modern Table Styling (Inventory & Documents) - COMPLETELY FIXED
+   Modern Table Styling (Inventory & Documents) - FINAL FIX
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -268,18 +268,18 @@ input:focus {
     min-width: 700px; 
 }
 
-/* SIMPLE FIX: Apply black vertical borders to ALL cells */
+/* FIXED VERTICAL BORDERS - APPLY TO ALL CELLS */
 #inventoryTable th, #inventoryTable td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid #000000 !important; /* FORCE BLACK VERTICAL LINES */
+    border-right: 1px solid #000000; /* BLACK VERTICAL LINES */
 }
 
-/* Remove border only from the very last column */
+/* Remove border only from last column */
 #inventoryTable th:last-child, 
 #inventoryTable td:last-child {
-    border-right: none !important;
+    border-right: none;
 }
 
 #inventoryTable thead th {
@@ -290,14 +290,14 @@ input:focus {
     letter-spacing: 0.05em;
     position: sticky; 
     top: 0;
-    border-right: 1px solid rgba(255, 255, 255, 0.3) !important; /* Lighter borders for header */
+    border-right: 1px solid rgba(255, 255, 255, 0.3); /* Lighter borders for header */
 }
 
 #inventoryTable thead th:last-child {
-    border-right: none !important;
+    border-right: none;
 }
 
-/* CURRENCY COLUMNS STYLING */
+/* CURRENCY COLUMNS - FIXED DISPLAY */
 #inventoryTable td:nth-child(5), /* Unit Cost */
 #inventoryTable td:nth-child(6), /* Unit Price */
 #inventoryTable td:nth-child(7), /* Inventory Value */
@@ -310,7 +310,19 @@ input:focus {
     min-width: 120px;
 }
 
-/* Documents table styling (unchanged - no vertical borders) */
+/* Date column */
+#inventoryTable td:nth-child(10) {
+    text-align: center;
+    min-width: 100px;
+}
+
+/* Actions column */
+#inventoryTable td:nth-child(11) {
+    text-align: center;
+    min-width: 120px;
+}
+
+/* Documents table styling (no vertical borders) */
 #documentsTable th, #documentsTable td {
     padding: 12px 15px;
     text-align: left;
@@ -327,7 +339,7 @@ input:focus {
     top: 0;
 }
 
-/* Rest of table styles */
+/* Table row styles */
 #inventoryTable tbody tr:hover,
 #documentsTable tbody tr:hover {
     background-color: #f1f1f1;
@@ -428,7 +440,7 @@ input:focus {
 }
 
 /* =========================================
-   Dark Mode Overrides - FIXED
+   Dark Mode Overrides
 ========================================= */
 .dark-mode {
   background: var(--background-dark);
@@ -476,14 +488,14 @@ input:focus {
     border-bottom-color: #495057;
 }
 
-/* KEEP BLACK VERTICAL BORDERS IN DARK MODE */
+/* Keep black vertical borders in dark mode */
 .dark-mode #inventoryTable th, 
 .dark-mode #inventoryTable td {
-    border-right-color: #000000 !important;
+    border-right-color: #000000;
 }
 
 .dark-mode #inventoryTable thead th {
-    border-right-color: rgba(255, 255, 255, 0.3) !important;
+    border-right-color: rgba(255, 255, 255, 0.3);
 }
 
 .dark-mode #inventoryTable tbody tr.low-stock-row {
@@ -509,7 +521,7 @@ input:focus {
 }
 
 /* =========================================
-   ACTIVITY LOG TABLE
+   Activity Log Table
 ========================================= */
 
 #activityLog {
