@@ -268,17 +268,18 @@ input:focus {
     min-width: 700px; 
 }
 
-/* FIXED VERTICAL BORDERS FOR ALL COLUMNS */
+/* SIMPLE FIX: Apply black vertical borders to ALL cells */
 #inventoryTable th, #inventoryTable td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid #000000; /* BLACK VERTICAL LINES FOR ALL COLUMNS */
+    border-right: 1px solid #000000 !important; /* FORCE BLACK VERTICAL LINES */
 }
 
+/* Remove border only from the very last column */
 #inventoryTable th:last-child, 
 #inventoryTable td:last-child {
-    border-right: none; /* Remove border from last column only */
+    border-right: none !important;
 }
 
 #inventoryTable thead th {
@@ -289,39 +290,24 @@ input:focus {
     letter-spacing: 0.05em;
     position: sticky; 
     top: 0;
-    border-right: 1px solid rgba(255, 255, 255, 0.3); /* Lighter borders for header */
+    border-right: 1px solid rgba(255, 255, 255, 0.3) !important; /* Lighter borders for header */
 }
 
 #inventoryTable thead th:last-child {
-    border-right: none;
+    border-right: none !important;
 }
 
-/* FIXED CURRENCY COLUMNS - KEEP RM AND AMOUNT ON SAME LINE */
-#inventoryTable td:nth-child(5), /* Unit Cost column */
-#inventoryTable td:nth-child(6), /* Unit Price column */
-#inventoryTable td:nth-child(7), /* Inventory Value column */
-#inventoryTable td:nth-child(8), /* Potential Revenue column */
-#inventoryTable td:nth-child(9) { /* Potential Profit column */
+/* CURRENCY COLUMNS STYLING */
+#inventoryTable td:nth-child(5), /* Unit Cost */
+#inventoryTable td:nth-child(6), /* Unit Price */
+#inventoryTable td:nth-child(7), /* Inventory Value */
+#inventoryTable td:nth-child(8), /* Potential Revenue */
+#inventoryTable td:nth-child(9) { /* Potential Profit */
     white-space: nowrap;
     text-align: right;
     font-family: 'Consolas', monospace;
     font-weight: bold;
-    min-width: 110px;
-    padding: 12px 15px;
-}
-
-/* Date column styling - FIXED TO HAVE VERTICAL BORDERS */
-#inventoryTable td:nth-child(10) { /* Date column */
-    text-align: center;
-    min-width: 100px;
-    border-right: 1px solid #000000; /* Ensure vertical border */
-}
-
-/* Actions column styling - FIXED TO HAVE NO RIGHT BORDER */
-#inventoryTable td:nth-child(11) { /* Actions column */
-    text-align: center;
     min-width: 120px;
-    border-right: none; /* No border on last column */
 }
 
 /* Documents table styling (unchanged - no vertical borders) */
@@ -341,7 +327,7 @@ input:focus {
     top: 0;
 }
 
-/* Rest of your existing table styles */
+/* Rest of table styles */
 #inventoryTable tbody tr:hover,
 #documentsTable tbody tr:hover {
     background-color: #f1f1f1;
@@ -376,7 +362,7 @@ input:focus {
 }
 
 /* =========================================
-   Dashboard Layout (Unchanged)
+   Dashboard Layout
 ========================================= */
 .dashboard-grid {
     display: grid;
@@ -442,7 +428,7 @@ input:focus {
 }
 
 /* =========================================
-   Dark Mode Overrides - FIXED FOR VERTICAL BORDERS
+   Dark Mode Overrides - FIXED
 ========================================= */
 .dark-mode {
   background: var(--background-dark);
@@ -493,16 +479,11 @@ input:focus {
 /* KEEP BLACK VERTICAL BORDERS IN DARK MODE */
 .dark-mode #inventoryTable th, 
 .dark-mode #inventoryTable td {
-    border-right-color: #000000;
+    border-right-color: #000000 !important;
 }
 
 .dark-mode #inventoryTable thead th {
-    border-right-color: rgba(255, 255, 255, 0.3);
-}
-
-/* Ensure date column has black border in dark mode */
-.dark-mode #inventoryTable td:nth-child(10) {
-    border-right-color: #000000;
+    border-right-color: rgba(255, 255, 255, 0.3) !important;
 }
 
 .dark-mode #inventoryTable tbody tr.low-stock-row {
@@ -528,7 +509,7 @@ input:focus {
 }
 
 /* =========================================
-   FIXED ACTIVITY LOG TABLE (FULLY STYLED)
+   ACTIVITY LOG TABLE
 ========================================= */
 
 #activityLog {
@@ -543,7 +524,6 @@ input:focus {
   color: var(--primary-color);
 }
 
-/* Table container */
 .activity-table-container {
   width: 100%;
   overflow-x: auto;
@@ -554,14 +534,12 @@ input:focus {
   padding: 0;
 }
 
-/* Table */
 #activityTable {
   width: 100%;
   min-width: 750px;
   border-collapse: collapse;
 }
 
-/* Header cells */
 #activityTable thead th {
   background: var(--primary-color);
   color: white;
@@ -572,20 +550,17 @@ input:focus {
   text-transform: uppercase;
 }
 
-/* Body cells */
 #activityTable td {
   padding: 12px 15px;
   border-bottom: 1px solid var(--border-color);
   font-size: 0.95rem;
 }
 
-/* Row hover */
 #activityTable tbody tr:hover {
   background: #f5f5f5;
   transition: 0.2s ease;
 }
 
-/* Dark mode compatibility */
 .dark-mode #activityTable thead th {
   background: #0056b3;
   color: #fff;
