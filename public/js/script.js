@@ -730,166 +730,159 @@ async function confirmAndGeneratePDF() {
 }
 
 // ============================================================================
-//                    NEW PURCHASE AND SALE FUNCTIONS - UPDATED FOR BULK
+//                    NEW PURCHASE AND SALE FUNCTIONS
 // ============================================================================
 
 // Purchase Functions
 async function loadProductsForPurchase() {
   try {
+    const select = document.getElementById('purchaseProduct');
+    select.innerHTML = '<option value="">Select Product</option>';
+    
+    inventory.forEach(product => {
+      const option = document.createElement('option');
+      option.value = product.id;
+      option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+      select.appendChild(option);
+    });
+    
     // Set today's date as default
     document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
-    
-    // Add initial row
-    if (window.purchaseProducts.length === 0) {
-      addPurchaseRow();
-    }
   } catch (err) {
     console.error('Error loading products for purchase:', err);
   }
 }
 
 function resetPurchaseForm() {
+  document.getElementById('purchaseProduct').value = '';
+  document.getElementById('purchaseQuantity').value = '';
+  document.getElementById('purchaseUnitCost').value = '';
   document.getElementById('purchaseSupplier').value = '';
   document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
-  window.purchaseProducts = [];
-  updatePurchaseTable();
-  updatePurchaseTotal();
 }
 
-async function confirmBulkPurchase() {
+async function confirmPurchase() {
+  const productId = document.getElementById('purchaseProduct').value;
+  const quantity = parseInt(document.getElementById('purchaseQuantity').value);
+  const unitCost = parseFloat(document.getElementById('purchaseUnitCost').value);
   const supplier = document.getElementById('purchaseSupplier').value;
   const date = document.getElementById('purchaseDate').value;
 
-  if (!supplier) {
-    alert('Please enter supplier name');
+  if (!productId || !quantity || !unitCost || !supplier) {
+    alert('Please fill in all required fields');
     return;
   }
 
-  // Filter out empty products
-  const validProducts = window.purchaseProducts.filter(p => p.productId && p.quantity > 0 && p.unitCost > 0);
-  
-  if (validProducts.length === 0) {
-    alert('Please add at least one product with valid quantity and unit cost');
-    return;
-  }
-
-  const totalCost = validProducts.reduce((sum, p) => sum + p.totalCost, 0);
-  
-  if (!confirm(`Confirm bulk purchase of ${validProducts.length} items from ${supplier} for RM ${totalCost.toFixed(2)}?`)) return;
+  if (!confirm(`Confirm purchase of ${quantity} units?`)) return;
 
   try {
-    const res = await apiFetch(`${API_BASE}/purchases/bulk`, {
+    const res = await apiFetch(`${API_BASE}/purchases`, {
       method: 'POST',
       body: JSON.stringify({
-        purchases: validProducts.map(p => ({
-          productId: p.productId,
-          quantityReceived: p.quantity,
-          unitCost: p.unitCost
-        })),
+        productId,
+        quantityReceived: quantity,
+        unitCost,
         supplier,
         date
       })
     });
 
-    const data = await res.json();
-
     if (res.ok) {
-      alert(`✅ Bulk purchase completed successfully! ${data.message}`);
+      alert('✅ Purchase recorded successfully!');
       closePurchaseModal();
       await fetchInventory(); // Refresh inventory
     } else {
-      alert(`❌ Failed to record bulk purchase: ${data.message}`);
+      const error = await res.json();
+      alert(`❌ Failed to record purchase: ${error.message}`);
     }
   } catch (err) {
-    console.error('Bulk purchase error:', err);
-    alert('❌ Server error while recording bulk purchase');
+    console.error('Purchase error:', err);
+    alert('❌ Server error while recording purchase');
   }
 }
 
 // Sale Functions
 async function loadProductsForSale() {
   try {
+    const select = document.getElementById('saleProduct');
+    select.innerHTML = '<option value="">Select Product</option>';
+    
+    // Only show products with stock
+    inventory.filter(product => product.quantity > 0).forEach(product => {
+      const option = document.createElement('option');
+      option.value = product.id;
+      option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+      option.setAttribute('data-price', product.unitPrice);
+      select.appendChild(option);
+    });
+    
     // Set today's date as default
     document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
     
-    // Add initial row
-    if (window.saleProducts.length === 0) {
-      addSaleRow();
-    }
+    // Auto-fill unit price when product is selected
+    select.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      if (selectedOption.value) {
+        document.getElementById('saleUnitPrice').value = selectedOption.getAttribute('data-price');
+      }
+    });
   } catch (err) {
     console.error('Error loading products for sale:', err);
   }
 }
 
 function resetSaleForm() {
+  document.getElementById('saleProduct').value = '';
+  document.getElementById('saleQuantity').value = '';
+  document.getElementById('saleUnitPrice').value = '';
   document.getElementById('saleCustomer').value = '';
   document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
-  window.saleProducts = [];
-  updateSaleTable();
-  updateSaleTotal();
 }
 
-async function confirmBulkSale() {
+async function confirmSale() {
+  const productId = document.getElementById('saleProduct').value;
+  const quantity = parseInt(document.getElementById('saleQuantity').value);
+  const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value);
   const customer = document.getElementById('saleCustomer').value;
   const date = document.getElementById('saleDate').value;
 
-  if (!customer) {
-    alert('Please enter customer name');
+  if (!productId || !quantity || !unitPrice || !customer) {
+    alert('Please fill in all required fields');
     return;
   }
 
-  // Filter out empty products and validate stock
-  const validProducts = [];
-  for (const product of window.saleProducts) {
-    if (product.productId && product.quantity > 0 && product.unitPrice > 0) {
-      const inventoryProduct = window.inventory.find(p => p.id === product.productId);
-      if (!inventoryProduct) {
-        alert(`Product ${product.productName} not found in inventory`);
-        return;
-      }
-      if (inventoryProduct.quantity < product.quantity) {
-        alert(`Insufficient stock for ${product.productName}. Available: ${inventoryProduct.quantity}, Requested: ${product.quantity}`);
-        return;
-      }
-      validProducts.push(product);
-    }
-  }
-  
-  if (validProducts.length === 0) {
-    alert('Please add at least one product with valid quantity and unit price');
+  // Check stock availability
+  const product = inventory.find(p => p.id === productId);
+  if (product && product.quantity < quantity) {
+    alert(`❌ Insufficient stock! Available: ${product.quantity}, Requested: ${quantity}`);
     return;
   }
 
-  const totalRevenue = validProducts.reduce((sum, p) => sum + p.totalRevenue, 0);
-  
-  if (!confirm(`Confirm bulk sale of ${validProducts.length} items to ${customer} for RM ${totalRevenue.toFixed(2)}?`)) return;
+  if (!confirm(`Confirm sale of ${quantity} units to ${customer}?`)) return;
 
   try {
-    const res = await apiFetch(`${API_BASE}/sales/bulk`, {
+    const res = await apiFetch(`${API_BASE}/sales`, {
       method: 'POST',
       body: JSON.stringify({
-        sales: validProducts.map(p => ({
-          productId: p.productId,
-          quantitySold: p.quantity,
-          unitPrice: p.unitPrice
-        })),
+        productId,
+        quantitySold: quantity,
+        unitPrice,
         customer,
         date
       })
     });
 
-    const data = await res.json();
-
     if (res.ok) {
-      alert(`✅ Bulk sale completed successfully! ${data.message}`);
+      alert('✅ Sale recorded successfully!');
       closeSaleModal();
       await fetchInventory(); // Refresh inventory
     } else {
-      alert(`❌ Failed to record bulk sale: ${data.message}`);
+      const error = await res.json();
+      alert(`❌ Failed to record sale: ${error.message}`);
     }
   } catch (err) {
-    console.error('Bulk sale error:', err);
-    alert('❌ Server error while recording bulk sale');
+    console.error('Sale error:', err);
+    alert('❌ Server error while recording sale');
   }
 }
 
@@ -958,91 +951,6 @@ async function generateSelectedReport() {
   } catch (err) {
     console.error('Report generation error:', err);
     alert(`❌ Failed to generate ${selectedReportType} report: ${err.message}`);
-  }
-}
-
-// Quick report generation functions
-async function generatePurchaseReport() {
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/report/pdf`, { method: 'GET' });
-
-    if (!res.ok) {
-      let errorMessage = 'Purchase report generation failed';
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        errorMessage = `Server error: ${res.status}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const blob = await res.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    
-    const contentDisposition = res.headers.get('Content-Disposition');
-    let filename = `purchase_report_${Date.now()}.pdf`;
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
-      if (filenameMatch) filename = filenameMatch[1];
-    }
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(downloadUrl);
-
-    await fetchDocuments();
-    alert(`✅ Purchase Report generated successfully!`);
-
-  } catch (err) {
-    console.error('Purchase report generation error:', err);
-    alert(`❌ Failed to generate purchase report: ${err.message}`);
-  }
-}
-
-async function generateSalesReport() {
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/report/pdf`, { method: 'GET' });
-
-    if (!res.ok) {
-      let errorMessage = 'Sales report generation failed';
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        errorMessage = `Server error: ${res.status}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const blob = await res.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    
-    const contentDisposition = res.headers.get('Content-Disposition');
-    let filename = `sales_report_${Date.now()}.pdf`;
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
-      if (filenameMatch) filename = filenameMatch[1];
-    }
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(downloadUrl);
-
-    await fetchDocuments();
-    alert(`✅ Sales Report generated successfully!`);
-
-  } catch (err) {
-    console.error('Sales report generation error:', err);
-    alert(`❌ Failed to generate sales report: ${err.message}`);
   }
 }
 
@@ -1459,25 +1367,9 @@ window.openReportSelectionModal = openReportSelectionModal;
 window.closeReportSelectionModal = closeReportSelectionModal;
 window.selectReport = selectReport;
 window.generateSelectedReport = generateSelectedReport;
-window.confirmBulkPurchase = confirmBulkPurchase;
-window.confirmBulkSale = confirmBulkSale;
-window.addPurchaseRow = addPurchaseRow;
-window.addSaleRow = addSaleRow;
-window.updatePurchaseProduct = updatePurchaseProduct;
-window.updatePurchaseQuantity = updatePurchaseQuantity;
-window.updatePurchaseUnitCost = updatePurchaseUnitCost;
-window.removePurchaseRow = removePurchaseRow;
-window.updateSaleProduct = updateSaleProduct;
-window.updateSaleQuantity = updateSaleQuantity;
-window.updateSaleUnitPrice = updateSaleUnitPrice;
-window.removeSaleRow = removeSaleRow;
-window.generatePurchaseReport = generatePurchaseReport;
-window.generateSalesReport = generateSalesReport;
+window.confirmPurchase = confirmPurchase;
+window.confirmSale = confirmSale;
 window.loadCompanyInformation = loadCompanyInformation;
 window.saveCompanyInformation = saveCompanyInformation;
 window.changePassword = changePassword;
 window.deleteAccount = deleteAccount;
-
-// Initialize global variables
-window.purchaseProducts = [];
-window.saleProducts = [];
