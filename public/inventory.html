@@ -6,7 +6,7 @@
   <title>Inventory | Inventory System</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    /* Additional Modal Styles */
+    /* Modal Styles */
     .modal {
       display: none;
       position: fixed;
@@ -23,10 +23,10 @@
       padding: 20px;
       border-radius: 10px;
       width: 90%;
-      max-width: 900px;
-      box-shadow: var(--shadow-md);
-      max-height: 90vh;
+      max-width: 800px;
+      max-height: 85vh;
       overflow-y: auto;
+      box-shadow: var(--shadow-md);
     }
     .dark-mode .modal-content {
       background-color: var(--card-dark);
@@ -73,76 +73,49 @@
       color: white;
     }
     
-    /* Grid layout improvements */
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-    }
-    .grid-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 15px;
-    }
-    .grid-4 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      gap: 15px;
-    }
-    
-    /* Item list styles */
-    .purchase-item, .sale-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-      margin: 5px 0;
-      background: #f8f9fa;
-      border-radius: 5px;
-      border-left: 4px solid #28a745;
-      transition: all 0.3s ease;
-    }
-    .sale-item {
-      border-left-color: #007bff;
-    }
-    .purchase-item:hover, .sale-item:hover {
-      transform: translateX(5px);
-      background: #e9ecef !important;
-    }
-    .dark-mode .purchase-item, 
-    .dark-mode .sale-item {
-      background: #343a40 !important;
-      color: #f8f9fa;
-    }
-    .dark-mode .purchase-item:hover,
-    .dark-mode .sale-item:hover {
-      background: #495057 !important;
-    }
-    
-    /* Search input improvements */
-    #purchaseProductSearch, 
-    #saleProductSearch {
+    /* Multi-product table styles */
+    .multi-product-table {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .multi-product-table th,
+    .multi-product-table td {
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      text-align: left;
+    }
+    .multi-product-table th {
+      background: var(--primary-color);
+      color: white;
+    }
+    .multi-product-table input {
+      width: 100%;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    .product-search-container {
+      margin-bottom: 15px;
+    }
+    .product-search {
+      width: 100%;
+      padding: 8px;
       margin-bottom: 10px;
     }
-    .dark-mode #purchaseProductSearch,
-    .dark-mode #saleProductSearch {
-      background: #495057;
-      color: #f8f9fa;
-      border-color: #6c757d;
+    .totals-display {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-weight: bold;
     }
-    
-    @media (max-width: 768px) {
-      .grid-2, .grid-3, .grid-4 {
-        grid-template-columns: 1fr;
-      }
-      .modal-content {
-        margin: 5% auto;
-        width: 95%;
-      }
+    .dark-mode .totals-display {
+      background: #343a40;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
     }
   </style>
 </head>
@@ -151,9 +124,11 @@
     <h1>📦 Inventory Management</h1>
     <nav>
       <a href="index.html">Home</a>
-      <a href="inventory.html" class="active">Inventory</a>
+      <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
+      <a href="purchases-management.html" style="text-decoration: none;"><button>📥 Manage Purchases</button></a>
+      <a href="sales-management.html" style="text-decoration: none;"><button>📤 Manage Sales</button></a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
       <button onclick="logout()">🚪 Logout</button>
@@ -178,9 +153,7 @@
       <div style="display:flex; gap:10px; flex-wrap: wrap;">
         <button id="purchaseBtn" class="success-btn">🛒 Purchase</button>
         <button id="saleBtn" class="primary-btn">💰 Sale</button>
-        <button id="managePurchasesBtn" class="secondary-btn">📋 Manage Purchases</button>
-        <button id="manageSalesBtn" class="secondary-btn">📊 Manage Sales</button>
-        <button id="reportSelectionBtn" class="success-btn">📈 Generate Reports</button>
+        <button id="reportSelectionBtn" class="success-btn">📊 Generate Reports</button>
       </div>
 
       <div class="search-controls">
@@ -245,51 +218,42 @@
       <h2>🛒 Bulk Stock Purchase</h2>
       
       <div class="form-group">
-        <label for="purchaseProductSearch">Search Product:</label>
-        <input id="purchaseProductSearch" type="text" placeholder="Type to search products...">
+        <label for="purchaseSupplier">Supplier:</label>
+        <input id="purchaseSupplier" type="text" required>
       </div>
-      
-      <div class="form-group">
-        <label for="purchaseProduct">Product:</label>
-        <select id="purchaseProduct" required>
-          <option value="">Select Product</option>
-        </select>
-      </div>
-      
-      <div class="grid-4" style="margin-bottom: 15px;">
-        <div class="form-group">
-          <label for="purchaseQuantity">Quantity:</label>
-          <input id="purchaseQuantity" type="number" min="1" required>
-        </div>
-        <div class="form-group">
-          <label for="purchaseUnitCost">Unit Cost (RM):</label>
-          <input id="purchaseUnitCost" type="number" step="0.01" min="0" required>
-        </div>
-        <div class="form-group">
-          <label for="purchaseSupplier">Supplier:</label>
-          <input id="purchaseSupplier" type="text" required>
-        </div>
-        <div class="form-group" style="display: flex; align-items: end;">
-          <button onclick="addPurchaseItem()" class="success-btn" style="width: 100%;">Add Item</button>
-        </div>
-      </div>
-      
       <div class="form-group">
         <label for="purchaseDate">Date:</label>
         <input id="purchaseDate" type="date">
       </div>
-      
-      <div class="form-group">
-        <h4>Purchase Items</h4>
-        <div id="purchaseItemsContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;"></div>
-        <div style="text-align: right; margin-top: 10px;">
-          <strong>Total Cost: RM <span id="purchaseTotal">0.00</span></strong>
-        </div>
+
+      <div class="product-search-container">
+        <input type="text" id="purchaseProductSearch" class="product-search" placeholder="Search products...">
       </div>
-      
-      <div style="display: flex; gap: 10px; margin-top: 20px;">
-        <button onclick="confirmBulkPurchase()" class="success-btn" style="flex: 1;">Confirm Purchase</button>
-        <button onclick="generatePurchaseReport()" class="primary-btn" style="flex: 1;">Generate Purchase Report</button>
+
+      <table class="multi-product-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Current Stock</th>
+            <th>Quantity</th>
+            <th>Unit Cost (RM)</th>
+            <th>Total Cost (RM)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="purchaseProductsTable">
+          <!-- Rows will be added dynamically -->
+        </tbody>
+      </table>
+
+      <div class="totals-display">
+        Total Purchase Cost: RM <span id="purchaseTotalCost">0.00</span>
+      </div>
+
+      <div class="action-buttons">
+        <button onclick="addPurchaseRow()" class="secondary-btn">+ Add Product</button>
+        <button onclick="confirmBulkPurchase()" class="success-btn" style="flex: 1;">Confirm Bulk Purchase</button>
+        <button onclick="generatePurchaseReport()" class="primary-btn">📊 Generate Purchase Report</button>
         <button onclick="closePurchaseModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
       </div>
     </div>
@@ -302,51 +266,42 @@
       <h2>💰 Bulk Stock Sale</h2>
       
       <div class="form-group">
-        <label for="saleProductSearch">Search Product:</label>
-        <input id="saleProductSearch" type="text" placeholder="Type to search products...">
+        <label for="saleCustomer">Customer:</label>
+        <input id="saleCustomer" type="text" required>
       </div>
-      
-      <div class="form-group">
-        <label for="saleProduct">Product:</label>
-        <select id="saleProduct" required>
-          <option value="">Select Product</option>
-        </select>
-      </div>
-      
-      <div class="grid-4" style="margin-bottom: 15px;">
-        <div class="form-group">
-          <label for="saleQuantity">Quantity:</label>
-          <input id="saleQuantity" type="number" min="1" required>
-        </div>
-        <div class="form-group">
-          <label for="saleUnitPrice">Unit Price (RM):</label>
-          <input id="saleUnitPrice" type="number" step="0.01" min="0" required>
-        </div>
-        <div class="form-group">
-          <label for="saleCustomer">Customer:</label>
-          <input id="saleCustomer" type="text" required>
-        </div>
-        <div class="form-group" style="display: flex; align-items: end;">
-          <button onclick="addSaleItem()" class="primary-btn" style="width: 100%;">Add Item</button>
-        </div>
-      </div>
-      
       <div class="form-group">
         <label for="saleDate">Date:</label>
         <input id="saleDate" type="date">
       </div>
-      
-      <div class="form-group">
-        <h4>Sale Items</h4>
-        <div id="saleItemsContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px;"></div>
-        <div style="text-align: right; margin-top: 10px;">
-          <strong>Total Revenue: RM <span id="saleTotal">0.00</span></strong>
-        </div>
+
+      <div class="product-search-container">
+        <input type="text" id="saleProductSearch" class="product-search" placeholder="Search products...">
       </div>
-      
-      <div style="display: flex; gap: 10px; margin-top: 20px;">
-        <button onclick="confirmBulkSale()" class="primary-btn" style="flex: 1;">Confirm Sale</button>
-        <button onclick="generateSalesReport()" class="success-btn" style="flex: 1;">Generate Sales Report</button>
+
+      <table class="multi-product-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Available Stock</th>
+            <th>Quantity</th>
+            <th>Unit Price (RM)</th>
+            <th>Total Revenue (RM)</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="saleProductsTable">
+          <!-- Rows will be added dynamically -->
+        </tbody>
+      </table>
+
+      <div class="totals-display">
+        Total Sales Revenue: RM <span id="saleTotalRevenue">0.00</span>
+      </div>
+
+      <div class="action-buttons">
+        <button onclick="addSaleRow()" class="secondary-btn">+ Add Product</button>
+        <button onclick="confirmBulkSale()" class="primary-btn" style="flex: 1;">Confirm Bulk Sale</button>
+        <button onclick="generateSalesReport()" class="success-btn">📊 Generate Sales Report</button>
         <button onclick="closeSaleModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
       </div>
     </div>
@@ -389,34 +344,36 @@
   <script>
     document.documentElement.dataset.page = 'inventory';
     
-    // Global variables for bulk operations
+    // New global variables
     let selectedReportType = '';
-    let purchaseItems = [];
-    let saleItems = [];
+    let purchaseProducts = [];
+    let saleProducts = [];
     
     // Modal functions
     function openPurchaseModal() {
       document.getElementById('purchaseModal').style.display = 'block';
       loadProductsForPurchase();
+      purchaseProducts = [];
+      updatePurchaseTable();
+      updatePurchaseTotal();
     }
     
     function closePurchaseModal() {
       document.getElementById('purchaseModal').style.display = 'none';
       resetPurchaseForm();
-      purchaseItems = [];
-      renderPurchaseItems();
     }
     
     function openSaleModal() {
       document.getElementById('saleModal').style.display = 'block';
       loadProductsForSale();
+      saleProducts = [];
+      updateSaleTable();
+      updateSaleTotal();
     }
     
     function closeSaleModal() {
       document.getElementById('saleModal').style.display = 'none';
       resetSaleForm();
-      saleItems = [];
-      renderSaleItems();
     }
     
     function openReportSelectionModal() {
@@ -449,196 +406,214 @@
       }
     }
     
-    // Purchase item functions
-    function addPurchaseItem() {
-      const productSelect = document.getElementById('purchaseProduct');
-      const quantity = parseInt(document.getElementById('purchaseQuantity').value);
-      const unitCost = parseFloat(document.getElementById('purchaseUnitCost').value);
-      const supplier = document.getElementById('purchaseSupplier').value;
-
-      if (!productSelect.value || !quantity || !unitCost || !supplier) {
-        alert('Please fill in all fields for the purchase item');
-        return;
-      }
-
-      const selectedOption = productSelect.options[productSelect.selectedIndex];
-      const productName = selectedOption.text.split(' - ')[0];
-      
-      const purchaseItem = {
-        productId: productSelect.value,
-        productName: productName,
-        quantity: quantity,
-        unitCost: unitCost,
-        supplier: supplier,
-        totalCost: quantity * unitCost
-      };
-
-      purchaseItems.push(purchaseItem);
-      renderPurchaseItems();
-      clearPurchaseForm();
-    }
-
-    function renderPurchaseItems() {
-      const container = document.getElementById('purchaseItemsContainer');
-      if (!container) return;
-
-      container.innerHTML = '';
-      
-      if (purchaseItems.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #666;">No items added</p>';
-        return;
-      }
-
-      let totalCost = 0;
-      
-      purchaseItems.forEach((item, index) => {
-        totalCost += item.totalCost;
-        
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'purchase-item';
-        
-        itemDiv.innerHTML = `
-          <div>
-            <strong>${item.productName}</strong><br>
-            <small>Qty: ${item.quantity} | Cost: RM ${item.unitCost.toFixed(2)} | Total: RM ${item.totalCost.toFixed(2)}</small><br>
-            <small>Supplier: ${item.supplier}</small>
-          </div>
-          <button onclick="removePurchaseItem(${index})" class="danger-btn" style="padding: 5px 10px;">❌</button>
-        `;
-        
-        container.appendChild(itemDiv);
+    // Multi-product purchase functions
+    function addPurchaseRow() {
+      purchaseProducts.push({
+        productId: '',
+        productName: '',
+        currentStock: 0,
+        quantity: 1,
+        unitCost: 0,
+        totalCost: 0
       });
-
-      // Update total
-      const totalElement = document.getElementById('purchaseTotal');
-      if (totalElement) {
-        totalElement.textContent = totalCost.toFixed(2);
-      }
+      updatePurchaseTable();
     }
-
-    function removePurchaseItem(index) {
-      purchaseItems.splice(index, 1);
-      renderPurchaseItems();
-    }
-
-    function clearPurchaseForm() {
-      document.getElementById('purchaseQuantity').value = '';
-      document.getElementById('purchaseUnitCost').value = '';
-      document.getElementById('purchaseSupplier').value = '';
-    }
-
-    // Sale item functions
-    function addSaleItem() {
-      const productSelect = document.getElementById('saleProduct');
-      const quantity = parseInt(document.getElementById('saleQuantity').value);
-      const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value);
-      const customer = document.getElementById('saleCustomer').value;
-
-      if (!productSelect.value || !quantity || !unitPrice || !customer) {
-        alert('Please fill in all fields for the sale item');
-        return;
-      }
-
-      // Check stock availability
-      const product = window.inventory.find(p => p.id === productSelect.value);
-      if (product && product.quantity < quantity) {
-        alert(`❌ Insufficient stock! Available: ${product.quantity}, Requested: ${quantity}`);
-        return;
-      }
-
-      const selectedOption = productSelect.options[productSelect.selectedIndex];
-      const productName = selectedOption.text.split(' - ')[0];
+    
+    function updatePurchaseTable() {
+      const tbody = document.getElementById('purchaseProductsTable');
+      tbody.innerHTML = '';
       
-      const saleItem = {
-        productId: productSelect.value,
-        productName: productName,
-        quantity: quantity,
-        unitPrice: unitPrice,
-        customer: customer,
-        totalRevenue: quantity * unitPrice
-      };
-
-      saleItems.push(saleItem);
-      renderSaleItems();
-      clearSaleForm();
-    }
-
-    function renderSaleItems() {
-      const container = document.getElementById('saleItemsContainer');
-      if (!container) return;
-
-      container.innerHTML = '';
-      
-      if (saleItems.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #666;">No items added</p>';
-        return;
-      }
-
-      let totalRevenue = 0;
-      
-      saleItems.forEach((item, index) => {
-        totalRevenue += item.totalRevenue;
-        
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'sale-item';
-        
-        itemDiv.innerHTML = `
-          <div>
-            <strong>${item.productName}</strong><br>
-            <small>Qty: ${item.quantity} | Price: RM ${item.unitPrice.toFixed(2)} | Total: RM ${item.totalRevenue.toFixed(2)}</small><br>
-            <small>Customer: ${item.customer}</small>
-          </div>
-          <button onclick="removeSaleItem(${index})" class="danger-btn" style="padding: 5px 10px;">❌</button>
+      purchaseProducts.forEach((product, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <select class="purchase-product-select" data-index="${index}" onchange="updatePurchaseProduct(${index}, this.value)">
+              <option value="">Select Product</option>
+              ${window.inventory.map(p => 
+                `<option value="${p.id}" data-stock="${p.quantity}" data-cost="${p.unitCost}">
+                  ${p.name} (${p.sku}) - Stock: ${p.quantity}
+                </option>`
+              ).join('')}
+            </select>
+          </td>
+          <td class="current-stock-${index}">${product.currentStock}</td>
+          <td>
+            <input type="number" class="purchase-quantity" data-index="${index}" 
+                   value="${product.quantity}" min="1" 
+                   onchange="updatePurchaseQuantity(${index}, this.value)" 
+                   oninput="updatePurchaseQuantity(${index}, this.value)">
+          </td>
+          <td>
+            <input type="number" class="purchase-unit-cost" data-index="${index}" 
+                   value="${product.unitCost}" step="0.01" min="0" 
+                   onchange="updatePurchaseUnitCost(${index}, this.value)" 
+                   oninput="updatePurchaseUnitCost(${index}, this.value)">
+          </td>
+          <td class="purchase-total-cost-${index}">${product.totalCost.toFixed(2)}</td>
+          <td>
+            <button class="danger-btn small-btn" onclick="removePurchaseRow(${index})">Remove</button>
+          </td>
         `;
+        tbody.appendChild(row);
         
-        container.appendChild(itemDiv);
+        // Set selected value if product is already selected
+        if (product.productId) {
+          row.querySelector(`.purchase-product-select`).value = product.productId;
+        }
       });
-
-      const totalElement = document.getElementById('saleTotal');
-      if (totalElement) {
-        totalElement.textContent = totalRevenue.toFixed(2);
+    }
+    
+    function updatePurchaseProduct(index, productId) {
+      const product = window.inventory.find(p => p.id === productId);
+      if (product) {
+        purchaseProducts[index].productId = productId;
+        purchaseProducts[index].productName = product.name;
+        purchaseProducts[index].currentStock = product.quantity;
+        purchaseProducts[index].unitCost = product.unitCost || 0;
+        
+        document.querySelector(`.current-stock-${index}`).textContent = product.quantity;
+        document.querySelector(`.purchase-unit-cost[data-index="${index}"]`).value = product.unitCost || 0;
+        
+        updatePurchaseRowTotal(index);
+        updatePurchaseTotal();
       }
     }
-
-    function removeSaleItem(index) {
-      saleItems.splice(index, 1);
-      renderSaleItems();
+    
+    function updatePurchaseQuantity(index, quantity) {
+      purchaseProducts[index].quantity = parseInt(quantity) || 0;
+      updatePurchaseRowTotal(index);
+      updatePurchaseTotal();
     }
-
-    function clearSaleForm() {
-      document.getElementById('saleQuantity').value = '';
-      document.getElementById('saleUnitPrice').value = '';
-      document.getElementById('saleCustomer').value = '';
+    
+    function updatePurchaseUnitCost(index, unitCost) {
+      purchaseProducts[index].unitCost = parseFloat(unitCost) || 0;
+      updatePurchaseRowTotal(index);
+      updatePurchaseTotal();
     }
-
-    // Management functions
-    function openPurchaseManagement() {
-      window.location.href = 'purchases.html';
+    
+    function updatePurchaseRowTotal(index) {
+      const product = purchaseProducts[index];
+      product.totalCost = product.quantity * product.unitCost;
+      document.querySelector(`.purchase-total-cost-${index}`).textContent = product.totalCost.toFixed(2);
     }
-
-    function openSalesManagement() {
-      window.location.href = 'sales.html';
+    
+    function updatePurchaseTotal() {
+      const total = purchaseProducts.reduce((sum, product) => sum + product.totalCost, 0);
+      document.getElementById('purchaseTotalCost').textContent = total.toFixed(2);
     }
-
-    // Report functions
-    function generatePurchaseReport() {
-      if (purchaseItems.length === 0) {
-        alert('Please add at least one purchase item before generating a report');
-        return;
+    
+    function removePurchaseRow(index) {
+      purchaseProducts.splice(index, 1);
+      updatePurchaseTable();
+      updatePurchaseTotal();
+    }
+    
+    // Multi-product sale functions
+    function addSaleRow() {
+      saleProducts.push({
+        productId: '',
+        productName: '',
+        availableStock: 0,
+        quantity: 1,
+        unitPrice: 0,
+        totalRevenue: 0
+      });
+      updateSaleTable();
+    }
+    
+    function updateSaleTable() {
+      const tbody = document.getElementById('saleProductsTable');
+      tbody.innerHTML = '';
+      
+      saleProducts.forEach((product, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <select class="sale-product-select" data-index="${index}" onchange="updateSaleProduct(${index}, this.value)">
+              <option value="">Select Product</option>
+              ${window.inventory.filter(p => p.quantity > 0).map(p => 
+                `<option value="${p.id}" data-stock="${p.quantity}" data-price="${p.unitPrice}">
+                  ${p.name} (${p.sku}) - Stock: ${p.quantity}
+                </option>`
+              ).join('')}
+            </select>
+          </td>
+          <td class="available-stock-${index}">${product.availableStock}</td>
+          <td>
+            <input type="number" class="sale-quantity" data-index="${index}" 
+                   value="${product.quantity}" min="1" max="${product.availableStock}"
+                   onchange="updateSaleQuantity(${index}, this.value)" 
+                   oninput="updateSaleQuantity(${index}, this.value)">
+          </td>
+          <td>
+            <input type="number" class="sale-unit-price" data-index="${index}" 
+                   value="${product.unitPrice}" step="0.01" min="0" 
+                   onchange="updateSaleUnitPrice(${index}, this.value)" 
+                   oninput="updateSaleUnitPrice(${index}, this.value)">
+          </td>
+          <td class="sale-total-revenue-${index}">${product.totalRevenue.toFixed(2)}</td>
+          <td>
+            <button class="danger-btn small-btn" onclick="removeSaleRow(${index})">Remove</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+        
+        // Set selected value if product is already selected
+        if (product.productId) {
+          row.querySelector(`.sale-product-select`).value = product.productId;
+        }
+      });
+    }
+    
+    function updateSaleProduct(index, productId) {
+      const product = window.inventory.find(p => p.id === productId);
+      if (product) {
+        saleProducts[index].productId = productId;
+        saleProducts[index].productName = product.name;
+        saleProducts[index].availableStock = product.quantity;
+        saleProducts[index].unitPrice = product.unitPrice || 0;
+        
+        document.querySelector(`.available-stock-${index}`).textContent = product.quantity;
+        document.querySelector(`.sale-unit-price[data-index="${index}"]`).value = product.unitPrice || 0;
+        document.querySelector(`.sale-quantity[data-index="${index}"]`).max = product.quantity;
+        
+        updateSaleRowTotal(index);
+        updateSaleTotal();
       }
-      selectedReportType = 'purchase';
-      generateSelectedReport();
     }
-
-    function generateSalesReport() {
-      if (saleItems.length === 0) {
-        alert('Please add at least one sale item before generating a report');
-        return;
-      }
-      selectedReportType = 'sales';
-      generateSelectedReport();
+    
+    function updateSaleQuantity(index, quantity) {
+      const maxQuantity = saleProducts[index].availableStock;
+      const actualQuantity = Math.min(parseInt(quantity) || 0, maxQuantity);
+      saleProducts[index].quantity = actualQuantity;
+      document.querySelector(`.sale-quantity[data-index="${index}"]`).value = actualQuantity;
+      updateSaleRowTotal(index);
+      updateSaleTotal();
     }
-
+    
+    function updateSaleUnitPrice(index, unitPrice) {
+      saleProducts[index].unitPrice = parseFloat(unitPrice) || 0;
+      updateSaleRowTotal(index);
+      updateSaleTotal();
+    }
+    
+    function updateSaleRowTotal(index) {
+      const product = saleProducts[index];
+      product.totalRevenue = product.quantity * product.unitPrice;
+      document.querySelector(`.sale-total-revenue-${index}`).textContent = product.totalRevenue.toFixed(2);
+    }
+    
+    function updateSaleTotal() {
+      const total = saleProducts.reduce((sum, product) => sum + product.totalRevenue, 0);
+      document.getElementById('saleTotalRevenue').textContent = total.toFixed(2);
+    }
+    
+    function removeSaleRow(index) {
+      saleProducts.splice(index, 1);
+      updateSaleTable();
+      updateSaleTotal();
+    }
+    
     // Close modals when clicking outside
     window.onclick = function(event) {
       const purchaseModal = document.getElementById('purchaseModal');
@@ -649,18 +624,49 @@
       if (event.target === saleModal) closeSaleModal();
       if (event.target === reportModal) closeReportSelectionModal();
     }
-
-    // Expose functions to global scope
-    window.openPurchaseManagement = openPurchaseManagement;
-    window.openSalesManagement = openSalesManagement;
-    window.generatePurchaseReport = generatePurchaseReport;
-    window.generateSalesReport = generateSalesReport;
-    window.addPurchaseItem = addPurchaseItem;
-    window.removePurchaseItem = removePurchaseItem;
-    window.addSaleItem = addSaleItem;
-    window.removeSaleItem = removeSaleItem;
-    window.confirmBulkPurchase = confirmBulkPurchase;
-    window.confirmBulkSale = confirmBulkSale;
+    
+    // Initialize search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      // Purchase product search
+      const purchaseSearch = document.getElementById('purchaseProductSearch');
+      if (purchaseSearch) {
+        purchaseSearch.addEventListener('input', function() {
+          const searchTerm = this.value.toLowerCase();
+          const selects = document.querySelectorAll('.purchase-product-select');
+          
+          selects.forEach(select => {
+            const options = select.querySelectorAll('option');
+            options.forEach(option => {
+              if (option.textContent.toLowerCase().includes(searchTerm)) {
+                option.style.display = '';
+              } else {
+                option.style.display = 'none';
+              }
+            });
+          });
+        });
+      }
+      
+      // Sale product search
+      const saleSearch = document.getElementById('saleProductSearch');
+      if (saleSearch) {
+        saleSearch.addEventListener('input', function() {
+          const searchTerm = this.value.toLowerCase();
+          const selects = document.querySelectorAll('.sale-product-select');
+          
+          selects.forEach(select => {
+            const options = select.querySelectorAll('option');
+            options.forEach(option => {
+              if (option.textContent.toLowerCase().includes(searchTerm)) {
+                option.style.display = '';
+              } else {
+                option.style.display = 'none';
+              }
+            });
+          });
+        });
+      }
+    });
   </script>
 </body>
 </html>
