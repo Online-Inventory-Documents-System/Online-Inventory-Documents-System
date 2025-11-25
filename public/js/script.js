@@ -102,11 +102,12 @@ function renderInventory(items) {
 }
 
 // =========================================
-// NEW: Date Filtering Functions
+// UPDATED: Date Range Filtering Functions
 // =========================================
-function filterByDate(selectedDate) {
-  if (!selectedDate) {
+function filterByDateRange(startDate, endDate) {
+  if (!startDate && !endDate) {
     renderInventory(inventory);
+    updateDateRangeStatus(false);
     return;
   }
 
@@ -114,32 +115,120 @@ function filterByDate(selectedDate) {
     if (!item.createdAt) return false;
     
     const itemDate = new Date(item.createdAt);
-    const searchDate = new Date(selectedDate);
     
-    // Compare year, month, and day only (ignore time)
-    return itemDate.getFullYear() === searchDate.getFullYear() &&
-           itemDate.getMonth() === searchDate.getMonth() &&
-           itemDate.getDate() === searchDate.getDate();
+    // If only start date is provided, filter items from that date forward
+    if (startDate && !endDate) {
+      const start = new Date(startDate);
+      return itemDate >= start;
+    }
+    
+    // If only end date is provided, filter items up to that date
+    if (!startDate && endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+      return itemDate <= end;
+    }
+    
+    // If both dates are provided, filter items within the range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+      return itemDate >= start && itemDate <= end;
+    }
+    
+    return true;
   });
   
   renderInventory(filtered);
+  updateDateRangeStatus(true, startDate, endDate);
 }
 
-function clearDateFilter() {
-  if (qs('#searchDate')) {
-    qs('#searchDate').value = '';
+function updateDateRangeStatus(isActive, startDate, endDate) {
+  const dateRangeContainer = qs('.date-range-container');
+  const statusElement = qs('.date-range-status') || createDateRangeStatusElement();
+  
+  if (isActive) {
+    dateRangeContainer.classList.add('active');
+    
+    let statusText = 'Filtering by: ';
+    if (startDate && endDate) {
+      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
+    } else if (startDate) {
+      statusText += `From ${formatDateDisplay(startDate)}`;
+    } else if (endDate) {
+      statusText += `Until ${formatDateDisplay(endDate)}`;
+    }
+    
+    statusElement.textContent = statusText;
+    statusElement.classList.add('active');
+  } else {
+    dateRangeContainer.classList.remove('active');
+    statusElement.classList.remove('active');
+    statusElement.textContent = '';
   }
-  renderInventory(inventory);
 }
 
-function bindDateFilterEvents() {
-  // Date input change event
-  qs('#searchDate')?.addEventListener('change', function() {
-    filterByDate(this.value);
+function createDateRangeStatusElement() {
+  const statusElement = document.createElement('span');
+  statusElement.className = 'date-range-status';
+  qs('.date-range-container').appendChild(statusElement);
+  return statusElement;
+}
+
+function formatDateDisplay(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+}
+
+function clearDateRangeFilter() {
+  if (qs('#startDate')) qs('#startDate').value = '';
+  if (qs('#endDate')) qs('#endDate').value = '';
+  renderInventory(inventory);
+  updateDateRangeStatus(false);
+}
+
+function applyDateRangeFilter() {
+  const startDate = qs('#startDate')?.value;
+  const endDate = qs('#endDate')?.value;
+  
+  // Validate date range
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+      alert('❌ Start date cannot be after end date.');
+      return;
+    }
+  }
+  
+  filterByDateRange(startDate, endDate);
+}
+
+function bindDateRangeFilterEvents() {
+  // Apply date range button event
+  qs('#applyDateRangeBtn')?.addEventListener('click', applyDateRangeFilter);
+  
+  // Clear date range button event
+  qs('#clearDateRangeBtn')?.addEventListener('click', clearDateRangeFilter);
+  
+  // Auto-apply when both dates are selected
+  qs('#startDate')?.addEventListener('change', function() {
+    if (qs('#endDate')?.value) {
+      applyDateRangeFilter();
+    }
   });
   
-  // Clear date button event
-  qs('#clearDateBtn')?.addEventListener('click', clearDateFilter);
+  qs('#endDate')?.addEventListener('change', function() {
+    if (qs('#startDate')?.value) {
+      applyDateRangeFilter();
+    }
+  });
 }
 
 // =========================================
@@ -652,13 +741,14 @@ function bindInventoryUI(){
     } 
   });
   
-  // NEW: Bind date filter events
-  bindDateFilterEvents();
+  // UPDATED: Bind date range filter events
+  bindDateRangeFilterEvents();
 }
 
 function searchInventory(){
   const textQuery = (qs('#searchInput')?.value || '').toLowerCase().trim();
-  const dateQuery = qs('#searchDate')?.value || '';
+  const startDate = qs('#startDate')?.value || '';
+  const endDate = qs('#endDate')?.value || '';
   
   let filtered = inventory;
   
@@ -671,17 +761,35 @@ function searchInventory(){
     );
   }
   
-  // Apply date filter if exists
-  if (dateQuery) {
+  // Apply date range filter if exists
+  if (startDate || endDate) {
     filtered = filtered.filter(item => {
       if (!item.createdAt) return false;
       
       const itemDate = new Date(item.createdAt);
-      const searchDate = new Date(dateQuery);
       
-      return itemDate.getFullYear() === searchDate.getFullYear() &&
-             itemDate.getMonth() === searchDate.getMonth() &&
-             itemDate.getDate() === searchDate.getDate();
+      // If only start date is provided, filter items from that date forward
+      if (startDate && !endDate) {
+        const start = new Date(startDate);
+        return itemDate >= start;
+      }
+      
+      // If only end date is provided, filter items up to that date
+      if (!startDate && endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include the entire end date
+        return itemDate <= end;
+      }
+      
+      // If both dates are provided, filter items within the range
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include the entire end date
+        return itemDate >= start && itemDate <= end;
+      }
+      
+      return true;
     });
   }
   
