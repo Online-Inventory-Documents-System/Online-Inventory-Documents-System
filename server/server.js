@@ -396,67 +396,6 @@ app.get("/api/purchases", async (req, res) => {
   }
 });
 
-// NEW: Bulk purchase endpoint
-app.post("/api/purchases/bulk", async (req, res) => {
-  try {
-    const { purchases, supplier, date } = req.body;
-    
-    if (!purchases || !Array.isArray(purchases) || purchases.length === 0) {
-      return res.status(400).json({ message: "No purchase items provided" });
-    }
-
-    const results = [];
-    let totalOverallCost = 0;
-
-    for (const purchaseItem of purchases) {
-      const { productId, quantityReceived, unitCost } = purchaseItem;
-      
-      // Get product details
-      const product = await Inventory.findById(productId);
-      if (!product) {
-        return res.status(404).json({ message: `Product not found: ${productId}` });
-      }
-
-      // Update inventory quantity
-      product.quantity += quantityReceived;
-      await product.save();
-
-      const totalCost = quantityReceived * unitCost;
-      totalOverallCost += totalCost;
-
-      // Create purchase record
-      const purchase = await Purchase.create({
-        productId,
-        productName: product.name,
-        sku: product.sku,
-        quantityReceived,
-        unitCost,
-        supplier,
-        date: date ? new Date(date) : new Date(),
-        totalCost
-      });
-
-      results.push(purchase);
-    }
-
-    await logActivity(req.headers["x-username"], `Bulk purchase: ${results.length} items from ${supplier}, Total: RM ${totalOverallCost.toFixed(2)}`);
-
-    res.status(201).json({
-      success: true,
-      message: `Bulk purchase completed: ${results.length} items`,
-      purchases: results.map(p => ({
-        ...p.toObject(),
-        id: p._id.toString()
-      })),
-      totalCost: totalOverallCost
-    });
-
-  } catch (err) {
-    console.error("bulk purchase error", err);
-    res.status(500).json({ message: "Server error during bulk purchase" });
-  }
-});
-
 app.post("/api/purchases", async (req, res) => {
   try {
     const { productId, quantityReceived, unitCost, supplier, date } = req.body;
@@ -496,74 +435,6 @@ app.post("/api/purchases", async (req, res) => {
   }
 });
 
-// NEW: Purchase update and delete endpoints
-app.put("/api/purchases/:id", async (req, res) => {
-  try {
-    const { quantityReceived, unitCost, supplier, date } = req.body;
-    
-    const purchase = await Purchase.findById(req.params.id);
-    if (!purchase) {
-      return res.status(404).json({ message: "Purchase record not found" });
-    }
-
-    // Calculate the difference in quantity
-    const quantityDiff = quantityReceived - purchase.quantityReceived;
-
-    // Update inventory if quantity changed
-    if (quantityDiff !== 0) {
-      const product = await Inventory.findById(purchase.productId);
-      if (product) {
-        product.quantity += quantityDiff;
-        await product.save();
-      }
-    }
-
-    // Update purchase record
-    purchase.quantityReceived = quantityReceived;
-    purchase.unitCost = unitCost;
-    purchase.supplier = supplier;
-    purchase.date = date ? new Date(date) : purchase.date;
-    purchase.totalCost = quantityReceived * unitCost;
-    await purchase.save();
-
-    await logActivity(req.headers["x-username"], `Updated purchase: ${purchase.productName} (Qty: ${quantityReceived})`);
-
-    res.json({
-      ...purchase.toObject(),
-      id: purchase._id.toString()
-    });
-
-  } catch (err) {
-    console.error("purchase update error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.delete("/api/purchases/:id", async (req, res) => {
-  try {
-    const purchase = await Purchase.findById(req.params.id);
-    if (!purchase) {
-      return res.status(404).json({ message: "Purchase record not found" });
-    }
-
-    // Reverse inventory update
-    const product = await Inventory.findById(purchase.productId);
-    if (product) {
-      product.quantity -= purchase.quantityReceived;
-      await product.save();
-    }
-
-    await Purchase.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName}`);
-
-    res.status(204).send();
-
-  } catch (err) {
-    console.error("purchase delete error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
 // ============================================================================
 //                               SALES MANAGEMENT
 // ============================================================================
@@ -578,78 +449,6 @@ app.get("/api/sales", async (req, res) => {
   } catch (err) {
     console.error("sales get error", err);
     res.status(500).json({ message: "Server error" });
-  }
-});
-
-// NEW: Bulk sales endpoint
-app.post("/api/sales/bulk", async (req, res) => {
-  try {
-    const { sales, customer, date } = req.body;
-    
-    if (!sales || !Array.isArray(sales) || sales.length === 0) {
-      return res.status(400).json({ message: "No sale items provided" });
-    }
-
-    const results = [];
-    let totalOverallRevenue = 0;
-
-    // First, validate all products have sufficient stock
-    for (const saleItem of sales) {
-      const { productId, quantitySold } = saleItem;
-      const product = await Inventory.findById(productId);
-      if (!product) {
-        return res.status(404).json({ message: `Product not found: ${productId}` });
-      }
-      if (product.quantity < quantitySold) {
-        return res.status(400).json({ 
-          message: `Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${quantitySold}` 
-        });
-      }
-    }
-
-    // Process all sales
-    for (const saleItem of sales) {
-      const { productId, quantitySold, unitPrice } = saleItem;
-      
-      const product = await Inventory.findById(productId);
-      
-      // Update inventory quantity
-      product.quantity -= quantitySold;
-      await product.save();
-
-      const totalRevenue = quantitySold * unitPrice;
-      totalOverallRevenue += totalRevenue;
-
-      // Create sale record
-      const sale = await Sale.create({
-        productId,
-        productName: product.name,
-        sku: product.sku,
-        quantitySold,
-        unitPrice,
-        customer,
-        date: date ? new Date(date) : new Date(),
-        totalRevenue
-      });
-
-      results.push(sale);
-    }
-
-    await logActivity(req.headers["x-username"], `Bulk sale: ${results.length} items to ${customer}, Total: RM ${totalOverallRevenue.toFixed(2)}`);
-
-    res.status(201).json({
-      success: true,
-      message: `Bulk sale completed: ${results.length} items`,
-      sales: results.map(s => ({
-        ...s.toObject(),
-        id: s._id.toString()
-      })),
-      totalRevenue: totalOverallRevenue
-    });
-
-  } catch (err) {
-    console.error("bulk sale error", err);
-    res.status(500).json({ message: "Server error during bulk sale" });
   }
 });
 
@@ -693,74 +492,6 @@ app.post("/api/sales", async (req, res) => {
 
   } catch (err) {
     console.error("sale post error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// NEW: Sales update and delete endpoints
-app.put("/api/sales/:id", async (req, res) => {
-  try {
-    const { quantitySold, unitPrice, customer, date } = req.body;
-    
-    const sale = await Sale.findById(req.params.id);
-    if (!sale) {
-      return res.status(404).json({ message: "Sale record not found" });
-    }
-
-    // Calculate the difference in quantity
-    const quantityDiff = quantitySold - sale.quantitySold;
-
-    // Update inventory if quantity changed
-    if (quantityDiff !== 0) {
-      const product = await Inventory.findById(sale.productId);
-      if (product) {
-        product.quantity -= quantityDiff; // Subtract the difference
-        await product.save();
-      }
-    }
-
-    // Update sale record
-    sale.quantitySold = quantitySold;
-    sale.unitPrice = unitPrice;
-    sale.customer = customer;
-    sale.date = date ? new Date(date) : sale.date;
-    sale.totalRevenue = quantitySold * unitPrice;
-    await sale.save();
-
-    await logActivity(req.headers["x-username"], `Updated sale: ${sale.productName} (Qty: ${quantitySold})`);
-
-    res.json({
-      ...sale.toObject(),
-      id: sale._id.toString()
-    });
-
-  } catch (err) {
-    console.error("sale update error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.delete("/api/sales/:id", async (req, res) => {
-  try {
-    const sale = await Sale.findById(req.params.id);
-    if (!sale) {
-      return res.status(404).json({ message: "Sale record not found" });
-    }
-
-    // Reverse inventory update
-    const product = await Inventory.findById(sale.productId);
-    if (product) {
-      product.quantity += sale.quantitySold;
-      await product.save();
-    }
-
-    await Sale.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted sale: ${sale.productName}`);
-
-    res.status(204).send();
-
-  } catch (err) {
-    console.error("sale delete error", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -1000,7 +731,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    PURCHASE REPORT PDF - PORTRAIT (FIXED ALIGNMENT)
+//                    PURCHASE REPORT PDF - PORTRAIT
 // ============================================================================
 app.get("/api/purchases/report/pdf", async (req, res) => {
   try {
@@ -1021,91 +752,47 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
         let pdfChunks = [];
-        const doc = new PDFDocument({ 
-          size: "A4", 
-          layout: "portrait", 
-          margin: 40,
-          bufferPages: true 
-        });
+        const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 40 });
 
         doc.on("data", chunk => pdfChunks.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(pdfChunks)));
         doc.on("error", reject);
 
-        // Company Information - FIXED ALIGNMENT
-        doc.fontSize(20).font("Helvetica-Bold")
-           .text(company.name || "L&B Company", 40, 40, { width: 500, align: 'left' });
-        
+        // Company Information
+        doc.fontSize(20).font("Helvetica-Bold").text(company.name || "L&B Company", 40, 40);
         doc.fontSize(10).font("Helvetica");
-        doc.text(company.address || "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70, { width: 500, align: 'left' });
-        doc.text(`Phone: ${company.phone || "01133127622"}`, 40, 85, { width: 500, align: 'left' });
-        doc.text(`Email: ${company.email || "lbcompany@gmail.com"}`, 40, 100, { width: 500, align: 'left' });
+        doc.text(company.address || "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+        doc.text(`Phone: ${company.phone || "01133127622"}`, 40, 85);
+        doc.text(`Email: ${company.email || "lbcompany@gmail.com"}`, 40, 100);
 
-        // Report Title and Info - RIGHT ALIGNED
-        doc.font("Helvetica-Bold").fontSize(16)
-           .text("PURCHASE REPORT", 0, 40, { width: 550, align: 'right' });
-        
+        doc.font("Helvetica-Bold").fontSize(16).text("PURCHASE REPORT", 40, 130);
         doc.font("Helvetica").fontSize(10);
-        doc.text(`Print Date: ${printDate}`, 0, 65, { width: 550, align: 'right' });
-        doc.text(`Report ID: ${reportId}`, 0, 80, { width: 550, align: 'right' });
-        doc.text(`Printed by: ${printedBy}`, 0, 95, { width: 550, align: 'right' });
+        doc.text(`Print Date: ${printDate}`, 400, 130);
+        doc.text(`Report ID: ${reportId}`, 400, 145);
+        doc.text(`Printed by: ${printedBy}`, 400, 160);
 
-        doc.moveTo(40, 120).lineTo(550, 120).stroke();
+        doc.moveTo(40, 180).lineTo(550, 180).stroke();
 
-        let y = 140;
+        let y = 200;
         const rowHeight = 20;
-        const pageHeight = 750;
 
-        // Table Headers with better alignment
+        // Table Headers
         doc.font("Helvetica-Bold").fontSize(9);
-        
-        // Fixed column positions for better alignment
-        const columns = [
-          { name: "Date", x: 40, width: 70 },
-          { name: "Product", x: 120, width: 120 },
-          { name: "SKU", x: 250, width: 80 },
-          { name: "Supplier", x: 340, width: 80 },
-          { name: "Qty", x: 430, width: 40 },
-          { name: "Unit Cost", x: 480, width: 70 },
-          { name: "Total Cost", x: 560, width: 70 }
-        ];
-
-        // Draw header
-        doc.rect(40, y, 520, rowHeight).stroke();
-        columns.forEach(col => {
-          doc.text(col.name, col.x + 3, y + 6);
-          if (col.x > 40) {
-            doc.moveTo(col.x, y).lineTo(col.x, y + rowHeight).stroke();
-          }
-        });
+        doc.text("Date", 40, y);
+        doc.text("Product", 100, y);
+        doc.text("SKU", 250, y);
+        doc.text("Supplier", 300, y);
+        doc.text("Qty", 370, y);
+        doc.text("Unit Cost", 400, y);
+        doc.text("Total Cost", 470, y);
 
         y += rowHeight;
         doc.font("Helvetica").fontSize(8);
 
         let totalQuantity = 0;
         let totalCost = 0;
-        let pageNumber = 1;
 
-        purchases.forEach((p, index) => {
-          // Check if we need a new page
-          if (y > pageHeight) {
-            doc.addPage();
-            y = 40;
-            pageNumber++;
-            
-            // Redraw header on new page
-            doc.font("Helvetica-Bold").fontSize(9);
-            doc.rect(40, y, 520, rowHeight).stroke();
-            columns.forEach(col => {
-              doc.text(col.name, col.x + 3, y + 6);
-              if (col.x > 40) {
-                doc.moveTo(col.x, y).lineTo(col.x, y + rowHeight).stroke();
-              }
-            });
-            y += rowHeight;
-            doc.font("Helvetica").fontSize(8);
-          }
-
+        purchases.forEach(p => {
           const dateStr = new Date(p.date).toLocaleDateString();
           const productName = p.productName || "N/A";
           const supplier = p.supplier || "N/A";
@@ -1116,68 +803,29 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
           totalQuantity += qty;
           totalCost += total;
 
-          // Draw row
-          doc.rect(40, y, 520, rowHeight).stroke();
-          
-          // Date
-          doc.text(dateStr, columns[0].x + 3, y + 6);
-          
-          // Product name with ellipsis
-          doc.text(productName, columns[1].x + 3, y + 6, { 
-            width: columns[1].width - 6,
-            ellipsis: true 
-          });
-          
-          // SKU
-          doc.text(p.sku || "", columns[2].x + 3, y + 6);
-          
-          // Supplier with ellipsis
-          doc.text(supplier, columns[3].x + 3, y + 6, { 
-            width: columns[3].width - 6,
-            ellipsis: true 
-          });
-          
-          // Quantity
-          doc.text(String(qty), columns[4].x + 3, y + 6, { width: columns[4].width - 6, align: 'right' });
-          
-          // Unit Cost
-          doc.text(`RM ${unitCost.toFixed(2)}`, columns[5].x + 3, y + 6, { width: columns[5].width - 6, align: 'right' });
-          
-          // Total Cost
-          doc.text(`RM ${total.toFixed(2)}`, columns[6].x + 3, y + 6, { width: columns[6].width - 6, align: 'right' });
-
-          // Draw vertical lines
-          columns.forEach((col, i) => {
-            if (i > 0) {
-              doc.moveTo(col.x, y).lineTo(col.x, y + rowHeight).stroke();
-            }
-          });
+          doc.text(dateStr, 40, y);
+          doc.text(productName, 100, y, { width: 140, ellipsis: true });
+          doc.text(p.sku || "", 250, y);
+          doc.text(supplier, 300, y, { width: 60, ellipsis: true });
+          doc.text(String(qty), 370, y);
+          doc.text(`RM ${unitCost.toFixed(2)}`, 400, y);
+          doc.text(`RM ${total.toFixed(2)}`, 470, y);
 
           y += rowHeight;
+          if (y > 700) {
+            doc.addPage();
+            y = 40;
+          }
         });
 
-        // Summary section
+        // Summary
         y += 10;
-        if (y > pageHeight - 50) {
-          doc.addPage();
-          y = 40;
-        }
-        
-        doc.moveTo(40, y).lineTo(560, y).stroke();
+        doc.moveTo(40, y).lineTo(550, y).stroke();
         y += 15;
-        
         doc.font("Helvetica-Bold").fontSize(9);
-        doc.text(`Total Quantity: ${totalQuantity} units`, 400, y, { width: 160, align: 'right' });
+        doc.text(`Total Quantity: ${totalQuantity} units`, 400, y);
         y += 15;
-        doc.text(`Total Purchase Cost: RM ${totalCost.toFixed(2)}`, 400, y, { width: 160, align: 'right' });
-
-        // Add page numbers
-        const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
-          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
-        }
+        doc.text(`Total Purchase Cost: RM ${totalCost.toFixed(2)}`, 400, y);
 
         doc.end();
       } catch (error) {
@@ -1208,7 +856,7 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    SALES REPORT PDF - PORTRAIT (FIXED ALIGNMENT)
+//                    SALES REPORT PDF - PORTRAIT (FIXED)
 // ============================================================================
 app.get("/api/sales/report/pdf", async (req, res) => {
   try {
@@ -1231,97 +879,52 @@ app.get("/api/sales/report/pdf", async (req, res) => {
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
         let pdfChunks = [];
-        const doc = new PDFDocument({ 
-          size: "A4", 
-          layout: "portrait", 
-          margin: 40,
-          bufferPages: true 
-        });
+        const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 40 });
 
         doc.on("data", chunk => pdfChunks.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(pdfChunks)));
         doc.on("error", reject);
 
-        // Company Information - FIXED ALIGNMENT
-        doc.fontSize(20).font("Helvetica-Bold")
-           .text(company.name || "L&B Company", 40, 40, { width: 500, align: 'left' });
-        
+        // Company Information
+        doc.fontSize(20).font("Helvetica-Bold").text(company.name || "L&B Company", 40, 40);
         doc.fontSize(10).font("Helvetica");
-        doc.text(company.address || "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70, { width: 500, align: 'left' });
-        doc.text(`Phone: ${company.phone || "01133127622"}`, 40, 85, { width: 500, align: 'left' });
-        doc.text(`Email: ${company.email || "lbcompany@gmail.com"}`, 40, 100, { width: 500, align: 'left' });
+        doc.text(company.address || "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+        doc.text(`Phone: ${company.phone || "01133127622"}`, 40, 85);
+        doc.text(`Email: ${company.email || "lbcompany@gmail.com"}`, 40, 100);
 
-        // Report Title and Info - RIGHT ALIGNED
-        doc.font("Helvetica-Bold").fontSize(16)
-           .text("SALES REPORT", 0, 40, { width: 550, align: 'right' });
-        
+        doc.font("Helvetica-Bold").fontSize(16).text("SALES REPORT", 40, 130);
         doc.font("Helvetica").fontSize(10);
-        doc.text(`Print Date: ${printDate}`, 0, 65, { width: 550, align: 'right' });
-        doc.text(`Report ID: ${reportId}`, 0, 80, { width: 550, align: 'right' });
-        doc.text(`Printed by: ${printedBy}`, 0, 95, { width: 550, align: 'right' });
+        doc.text(`Print Date: ${printDate}`, 400, 130);
+        doc.text(`Report ID: ${reportId}`, 400, 145);
+        doc.text(`Printed by: ${printedBy}`, 400, 160);
 
-        doc.moveTo(40, 120).lineTo(550, 120).stroke();
+        doc.moveTo(40, 180).lineTo(550, 180).stroke();
 
-        let y = 140;
+        let y = 200;
         const rowHeight = 20;
-        const pageHeight = 750;
 
-        // Table Headers with better alignment
+        // Table Headers
         doc.font("Helvetica-Bold").fontSize(9);
-        
-        // Fixed column positions for better alignment
-        const columns = [
-          { name: "Date", x: 40, width: 70 },
-          { name: "Product", x: 120, width: 120 },
-          { name: "SKU", x: 250, width: 80 },
-          { name: "Customer", x: 340, width: 80 },
-          { name: "Qty", x: 430, width: 40 },
-          { name: "Unit Price", x: 480, width: 70 },
-          { name: "Total Revenue", x: 560, width: 70 }
-        ];
-
-        // Draw header
-        doc.rect(40, y, 520, rowHeight).stroke();
-        columns.forEach(col => {
-          doc.text(col.name, col.x + 3, y + 6);
-          if (col.x > 40) {
-            doc.moveTo(col.x, y).lineTo(col.x, y + rowHeight).stroke();
-          }
-        });
+        doc.text("Date", 40, y);
+        doc.text("Product", 100, y);
+        doc.text("SKU", 250, y);
+        doc.text("Customer", 300, y);
+        doc.text("Qty", 370, y);
+        doc.text("Unit Price", 400, y);
+        doc.text("Total Revenue", 470, y);
 
         y += rowHeight;
         doc.font("Helvetica").fontSize(8);
 
         let totalQuantity = 0;
         let totalRevenue = 0;
-        let pageNumber = 1;
 
         // Handle case when there are no sales
         if (sales.length === 0) {
-          doc.rect(40, y, 520, rowHeight).stroke();
-          doc.text("No sales records found", 45, y + 6);
+          doc.text("No sales records found", 40, y);
           y += rowHeight;
         } else {
-          sales.forEach((s, index) => {
-            // Check if we need a new page
-            if (y > pageHeight) {
-              doc.addPage();
-              y = 40;
-              pageNumber++;
-              
-              // Redraw header on new page
-              doc.font("Helvetica-Bold").fontSize(9);
-              doc.rect(40, y, 520, rowHeight).stroke();
-              columns.forEach(col => {
-                doc.text(col.name, col.x + 3, y + 6);
-                if (col.x > 40) {
-                  doc.moveTo(col.x, y).lineTo(col.x, y + rowHeight).stroke();
-                }
-              });
-              y += rowHeight;
-              doc.font("Helvetica").fontSize(8);
-            }
-
+          sales.forEach(s => {
             const dateStr = new Date(s.date).toLocaleDateString();
             const productName = s.productName || "N/A";
             const customer = s.customer || "N/A";
@@ -1332,69 +935,30 @@ app.get("/api/sales/report/pdf", async (req, res) => {
             totalQuantity += qty;
             totalRevenue += total;
 
-            // Draw row
-            doc.rect(40, y, 520, rowHeight).stroke();
-            
-            // Date
-            doc.text(dateStr, columns[0].x + 3, y + 6);
-            
-            // Product name with ellipsis
-            doc.text(productName, columns[1].x + 3, y + 6, { 
-              width: columns[1].width - 6,
-              ellipsis: true 
-            });
-            
-            // SKU
-            doc.text(s.sku || "", columns[2].x + 3, y + 6);
-            
-            // Customer with ellipsis
-            doc.text(customer, columns[3].x + 3, y + 6, { 
-              width: columns[3].width - 6,
-              ellipsis: true 
-            });
-            
-            // Quantity
-            doc.text(String(qty), columns[4].x + 3, y + 6, { width: columns[4].width - 6, align: 'right' });
-            
-            // Unit Price
-            doc.text(`RM ${unitPrice.toFixed(2)}`, columns[5].x + 3, y + 6, { width: columns[5].width - 6, align: 'right' });
-            
-            // Total Revenue
-            doc.text(`RM ${total.toFixed(2)}`, columns[6].x + 3, y + 6, { width: columns[6].width - 6, align: 'right' });
-
-            // Draw vertical lines
-            columns.forEach((col, i) => {
-              if (i > 0) {
-                doc.moveTo(col.x, y).lineTo(col.x, y + rowHeight).stroke();
-              }
-            });
+            doc.text(dateStr, 40, y);
+            doc.text(productName, 100, y, { width: 140, ellipsis: true });
+            doc.text(s.sku || "", 250, y);
+            doc.text(customer, 300, y, { width: 60, ellipsis: true });
+            doc.text(String(qty), 370, y);
+            doc.text(`RM ${unitPrice.toFixed(2)}`, 400, y);
+            doc.text(`RM ${total.toFixed(2)}`, 470, y);
 
             y += rowHeight;
+            if (y > 700) {
+              doc.addPage();
+              y = 40;
+            }
           });
         }
 
-        // Summary section
+        // Summary
         y += 10;
-        if (y > pageHeight - 50) {
-          doc.addPage();
-          y = 40;
-        }
-        
-        doc.moveTo(40, y).lineTo(560, y).stroke();
+        doc.moveTo(40, y).lineTo(550, y).stroke();
         y += 15;
-        
         doc.font("Helvetica-Bold").fontSize(9);
-        doc.text(`Total Quantity Sold: ${totalQuantity} units`, 400, y, { width: 160, align: 'right' });
+        doc.text(`Total Quantity Sold: ${totalQuantity} units`, 400, y);
         y += 15;
-        doc.text(`Total Sales Revenue: RM ${totalRevenue.toFixed(2)}`, 400, y, { width: 160, align: 'right' });
-
-        // Add page numbers
-        const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
-          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
-        }
+        doc.text(`Total Sales Revenue: RM ${totalRevenue.toFixed(2)}`, 400, y);
 
         doc.end();
       } catch (error) {
