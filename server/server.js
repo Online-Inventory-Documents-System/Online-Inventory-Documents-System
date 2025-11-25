@@ -15,8 +15,8 @@ const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
 // ===== Middleware =====
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // ===== MongoDB Connection =====
 if (!MONGODB_URI) {
@@ -72,7 +72,7 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
-// ===== NEW SCHEMAS =====
+// ===== PURCHASE AND SALES SCHEMAS =====
 const PurchaseSchema = new Schema({
   productId: { type: Schema.Types.ObjectId, ref: 'Inventory', required: true },
   productName: String,
@@ -380,7 +380,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                               PURCHASE MANAGEMENT
+//                    PURCHASE MANAGEMENT - ENHANCED
 // ============================================================================
 app.get("/api/purchases", async (req, res) => {
   try {
@@ -392,6 +392,22 @@ app.get("/api/purchases", async (req, res) => {
     res.json(normalized);
   } catch (err) {
     console.error("purchases get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).populate('productId').lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase record not found" });
+    }
+    res.json({
+      ...purchase,
+      id: purchase._id.toString()
+    });
+  } catch (err) {
+    console.error("purchase get error", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -435,8 +451,77 @@ app.post("/api/purchases", async (req, res) => {
   }
 });
 
+app.put("/api/purchases/:id", async (req, res) => {
+  try {
+    const { quantityReceived, unitCost, supplier, date } = req.body;
+    const purchase = await Purchase.findById(req.params.id).populate('productId');
+    
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase record not found" });
+    }
+
+    // Calculate difference in quantity
+    const quantityDiff = quantityReceived - purchase.quantityReceived;
+
+    // Update inventory
+    const product = await Inventory.findById(purchase.productId);
+    if (product) {
+      product.quantity += quantityDiff;
+      await product.save();
+    }
+
+    // Update purchase record
+    const updatedPurchase = await Purchase.findByIdAndUpdate(
+      req.params.id,
+      {
+        quantityReceived,
+        unitCost,
+        supplier,
+        date: date ? new Date(date) : purchase.date,
+        totalCost: quantityReceived * unitCost
+      },
+      { new: true }
+    ).populate('productId');
+
+    await logActivity(req.headers["x-username"], `Updated purchase: ${updatedPurchase.productName} (Qty: ${quantityReceived})`);
+
+    res.json({
+      ...updatedPurchase.toObject(),
+      id: updatedPurchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase record not found" });
+    }
+
+    // Restore inventory quantity
+    const product = await Inventory.findById(purchase.productId);
+    if (product) {
+      product.quantity -= purchase.quantityReceived;
+      await product.save();
+    }
+
+    await Purchase.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName}`);
+
+    res.status(204).send();
+  } catch (err) {
+    console.error("purchase delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // ============================================================================
-//                               SALES MANAGEMENT
+//                    SALES MANAGEMENT - ENHANCED
 // ============================================================================
 app.get("/api/sales", async (req, res) => {
   try {
@@ -448,6 +533,22 @@ app.get("/api/sales", async (req, res) => {
     res.json(normalized);
   } catch (err) {
     console.error("sales get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/sales/:id", async (req, res) => {
+  try {
+    const sale = await Sale.findById(req.params.id).populate('productId').lean();
+    if (!sale) {
+      return res.status(404).json({ message: "Sale record not found" });
+    }
+    res.json({
+      ...sale,
+      id: sale._id.toString()
+    });
+  } catch (err) {
+    console.error("sale get error", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -496,8 +597,180 @@ app.post("/api/sales", async (req, res) => {
   }
 });
 
+app.put("/api/sales/:id", async (req, res) => {
+  try {
+    const { quantitySold, unitPrice, customer, date } = req.body;
+    const sale = await Sale.findById(req.params.id).populate('productId');
+    
+    if (!sale) {
+      return res.status(404).json({ message: "Sale record not found" });
+    }
+
+    // Calculate difference in quantity
+    const quantityDiff = quantitySold - sale.quantitySold;
+
+    // Update inventory
+    const product = await Inventory.findById(sale.productId);
+    if (product) {
+      product.quantity += quantityDiff; // Add back the difference
+      await product.save();
+    }
+
+    // Update sale record
+    const updatedSale = await Sale.findByIdAndUpdate(
+      req.params.id,
+      {
+        quantitySold,
+        unitPrice,
+        customer,
+        date: date ? new Date(date) : sale.date,
+        totalRevenue: quantitySold * unitPrice
+      },
+      { new: true }
+    ).populate('productId');
+
+    await logActivity(req.headers["x-username"], `Updated sale: ${updatedSale.productName} (Qty: ${quantitySold})`);
+
+    res.json({
+      ...updatedSale.toObject(),
+      id: updatedSale._id.toString()
+    });
+
+  } catch (err) {
+    console.error("sale update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/sales/:id", async (req, res) => {
+  try {
+    const sale = await Sale.findById(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale record not found" });
+    }
+
+    // Restore inventory quantity
+    const product = await Inventory.findById(sale.productId);
+    if (product) {
+      product.quantity += sale.quantitySold;
+      await product.save();
+    }
+
+    await Sale.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted sale: ${sale.productName}`);
+
+    res.status(204).send();
+  } catch (err) {
+    console.error("sale delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // ============================================================================
-//                    INVENTORY REPORT PDF - UPDATED WITH COMPANY INFO
+//                    BULK PURCHASE AND SALES
+// ============================================================================
+app.post("/api/purchases/bulk", async (req, res) => {
+  try {
+    const { purchases } = req.body;
+    const results = [];
+
+    for (const purchaseData of purchases) {
+      const { productId, quantityReceived, unitCost, supplier, date } = purchaseData;
+      
+      // Get product details
+      const product = await Inventory.findById(productId);
+      if (!product) {
+        results.push({ error: `Product not found: ${productId}` });
+        continue;
+      }
+
+      // Update inventory quantity
+      product.quantity += quantityReceived;
+      await product.save();
+
+      // Create purchase record
+      const purchase = await Purchase.create({
+        productId,
+        productName: product.name,
+        sku: product.sku,
+        quantityReceived,
+        unitCost,
+        supplier,
+        date: date ? new Date(date) : new Date(),
+        totalCost: quantityReceived * unitCost
+      });
+
+      results.push(purchase);
+    }
+
+    await logActivity(req.headers["x-username"], `Bulk purchase: ${purchases.length} items`);
+
+    res.status(201).json(results.map(p => ({
+      ...p.toObject(),
+      id: p._id.toString()
+    })));
+
+  } catch (err) {
+    console.error("bulk purchase error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/sales/bulk", async (req, res) => {
+  try {
+    const { sales } = req.body;
+    const results = [];
+
+    for (const saleData of sales) {
+      const { productId, quantitySold, unitPrice, customer, date } = saleData;
+      
+      // Get product details
+      const product = await Inventory.findById(productId);
+      if (!product) {
+        results.push({ error: `Product not found: ${productId}` });
+        continue;
+      }
+
+      // Check if enough stock
+      if (product.quantity < quantitySold) {
+        results.push({ error: `Insufficient stock for ${product.name}` });
+        continue;
+      }
+
+      // Update inventory quantity
+      product.quantity -= quantitySold;
+      await product.save();
+
+      // Create sale record
+      const sale = await Sale.create({
+        productId,
+        productName: product.name,
+        sku: product.sku,
+        quantitySold,
+        unitPrice,
+        customer,
+        date: date ? new Date(date) : new Date(),
+        totalRevenue: quantitySold * unitPrice
+      });
+
+      results.push(sale);
+    }
+
+    await logActivity(req.headers["x-username"], `Bulk sale: ${sales.length} items`);
+
+    res.status(201).json(results.map(s => ({
+      ...s.toObject(),
+      id: s._id.toString()
+    })));
+
+  } catch (err) {
+    console.error("bulk sale error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                    INVENTORY REPORT PDF
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -548,7 +821,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           reject(error);
         });
 
-        // ==================== PDF CONTENT GENERATION ====================
+        // PDF CONTENT GENERATION
         doc.fontSize(22).font("Helvetica-Bold").text(company.name || "L&B Company", 40, 40);
         doc.fontSize(10).font("Helvetica");
         doc.text(company.address || "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
@@ -568,7 +841,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
-        // PERFECT COLUMN ALIGNMENT - FIXED CALCULATIONS
+        // COLUMN ALIGNMENT
         const columns = [
           { name: "SKU", x: 40, width: 70 },
           { name: "Product Name", x: 110, width: 110 },
@@ -584,17 +857,14 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         let y = 150;
 
         function drawTableHeader() {
-          // Draw header background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Header text
           doc.font("Helvetica-Bold").fontSize(9);
           columns.forEach(col => {
             doc.text(col.name, col.x + 3, y + 5);
@@ -611,17 +881,14 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           const potentialRevenue = qty * price;
           const potentialProfit = potentialRevenue - inventoryValue;
 
-          // Draw row background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Data text
           doc.font("Helvetica").fontSize(8);
           doc.text(item.sku || "", columns[0].x + 3, y + 5);
           doc.text(item.name || "", columns[1].x + 3, y + 5);
@@ -673,10 +940,8 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
         const lastPageIndex = doc.bufferedPageRange().count - 1;
         doc.switchToPage(lastPageIndex);
         
-        // FIXED: Better positioning for summary box
         let boxY = y + 20;
         if (boxY > 450) {
-          // If we're running out of space, add a new page for summary
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           boxY = 40;
         }
@@ -731,7 +996,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    PURCHASE REPORT PDF - PORTRAIT
+//                    PURCHASE REPORT PDF
 // ============================================================================
 app.get("/api/purchases/report/pdf", async (req, res) => {
   try {
@@ -856,7 +1121,7 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    SALES REPORT PDF - PORTRAIT (FIXED)
+//                    SALES REPORT PDF
 // ============================================================================
 app.get("/api/sales/report/pdf", async (req, res) => {
   try {
@@ -992,7 +1257,7 @@ app.get("/api/sales/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                           XLSX REPORT - UPDATED WITH POTENTIAL PROFIT
+//                           XLSX REPORT
 // ============================================================================
 app.get("/api/inventory/report", async (req, res) => {
   try {
@@ -1079,7 +1344,7 @@ app.get("/api/inventory/report", async (req, res) => {
 });
 
 // ============================================================================
-//                       DOCUMENTS UPLOAD - COMPLETELY REWRITTEN
+//                       DOCUMENTS UPLOAD
 // ============================================================================
 app.post("/api/documents", async (req, res) => {
   console.log("📤 Document upload request received");
@@ -1261,7 +1526,7 @@ app.delete("/api/documents/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                             DOCUMENTS DOWNLOAD - FIXED VERSION
+//                             DOCUMENTS DOWNLOAD
 // ============================================================================
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
