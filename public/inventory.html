@@ -41,11 +41,21 @@
       </div>
 
       <div class="search-controls">
-        <!-- NEW: Date Search Controls -->
-        <div class="date-search-container">
-          <label for="searchDate">📅 Search by Date:</label>
-          <input id="searchDate" type="date" />
-          <button id="clearDateBtn" class="secondary-btn">Clear Date</button>
+        <!-- UPDATED: Date Range Search Controls -->
+        <div class="date-range-container">
+          <label for="startDate">📅 Date Range:</label>
+          <div class="date-inputs">
+            <div class="date-input-group">
+              <span class="date-label">From:</span>
+              <input id="startDate" type="date" />
+            </div>
+            <div class="date-input-group">
+              <span class="date-label">To:</span>
+              <input id="endDate" type="date" />
+            </div>
+            <button id="applyDateRangeBtn" class="primary-btn">Apply</button>
+            <button id="clearDateRangeBtn" class="secondary-btn">Clear Dates</button>
+          </div>
         </div>
         
         <!-- Existing Text Search -->
