@@ -15,6 +15,8 @@ const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 let inventory = [];
 let activityLog = [];
 let documents = [];
+let purchases = [];
+let sales = [];
 const currentPage = window.location.pathname.split('/').pop();
 
 // Fetch wrapper
@@ -530,6 +532,27 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
+// NEW: Fetch purchases and sales
+async function fetchPurchases() {
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases`);
+    if(!res.ok) throw new Error('Failed to fetch purchases');
+    const data = await res.json();
+    purchases = data.map(p => ({ ...p, id: p.id || p._id }));
+    if (typeof renderPurchases === 'function') renderPurchases(purchases);
+  } catch(err) { console.error(err); }
+}
+
+async function fetchSales() {
+  try {
+    const res = await apiFetch(`${API_BASE}/sales`);
+    if(!res.ok) throw new Error('Failed to fetch sales');
+    const data = await res.json();
+    sales = data.map(s => ({ ...s, id: s.id || s._id }));
+    if (typeof renderSales === 'function') renderSales(sales);
+  } catch(err) { console.error(err); }
+}
+
 // Init
 window.addEventListener('load', async () => {
   const adminName = getUsername();
@@ -546,6 +569,14 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('documents')) { 
       await fetchDocuments(); 
       bindDocumentsUI(); 
+    }
+    if(currentPage.includes('purchase-management')) { 
+      await fetchPurchases(); 
+      bindPurchaseManagementUI();
+    }
+    if(currentPage.includes('sales-management')) { 
+      await fetchSales(); 
+      bindSalesManagementUI();
     }
     if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
       await fetchLogs(); 
@@ -730,7 +761,381 @@ async function confirmAndGeneratePDF() {
 }
 
 // ============================================================================
-//                    NEW PURCHASE AND SALE FUNCTIONS
+//                    NEW BULK PURCHASE AND SALE FUNCTIONS
+// ============================================================================
+
+// Bulk Purchase Functions
+function loadProductsIntoBulkPurchaseDropdown(selectElement) {
+  // Clear existing options except the first
+  while (selectElement.options.length > 1) {
+    selectElement.remove(1);
+  }
+  
+  inventory.forEach(product => {
+    const option = document.createElement('option');
+    option.value = product.id;
+    option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+    selectElement.appendChild(option);
+  });
+}
+
+function loadProductsForBulkPurchase() {
+  // Load products into all existing dropdowns
+  document.querySelectorAll('#bulkPurchaseProducts .bulkPurchaseProduct').forEach(select => {
+    loadProductsIntoBulkPurchaseDropdown(select);
+  });
+  
+  // Set today's date as default
+  document.getElementById('bulkPurchaseDate').value = new Date().toISOString().split('T')[0];
+  calculateBulkPurchaseTotal();
+}
+
+function resetBulkPurchaseForm() {
+  document.getElementById('bulkPurchaseSupplier').value = '';
+  document.getElementById('bulkPurchaseDate').value = new Date().toISOString().split('T')[0];
+  
+  // Reset to one row
+  const container = document.getElementById('bulkPurchaseProducts');
+  container.innerHTML = `
+    <div class="product-row">
+      <select class="bulkPurchaseProduct" required onchange="updateBulkPurchasePrice(this)">
+        <option value="">Select Product</option>
+      </select>
+      <input type="number" class="bulkPurchaseQuantity" min="1" placeholder="Qty" required oninput="calculateBulkPurchaseTotal()">
+      <input type="number" class="bulkPurchaseUnitCost" step="0.01" min="0" placeholder="Unit Cost" required oninput="calculateBulkPurchaseTotal()">
+      <span class="product-total">RM 0.00</span>
+      <button type="button" class="danger-btn" onclick="removeBulkPurchaseRow(this)">Remove</button>
+    </div>
+  `;
+  loadProductsForBulkPurchase();
+}
+
+async function confirmBulkPurchase() {
+  const supplier = document.getElementById('bulkPurchaseSupplier').value;
+  const date = document.getElementById('bulkPurchaseDate').value;
+
+  if (!supplier) {
+    alert('Please enter supplier');
+    return;
+  }
+
+  const purchaseItems = [];
+  let isValid = true;
+
+  document.querySelectorAll('#bulkPurchaseProducts .product-row').forEach(row => {
+    const productSelect = row.querySelector('.bulkPurchaseProduct');
+    const quantityInput = row.querySelector('.bulkPurchaseQuantity');
+    const unitCostInput = row.querySelector('.bulkPurchaseUnitCost');
+
+    const productId = productSelect.value;
+    const quantity = parseInt(quantityInput.value);
+    const unitCost = parseFloat(unitCostInput.value);
+
+    if (!productId || !quantity || !unitCost) {
+      isValid = false;
+      return;
+    }
+
+    purchaseItems.push({
+      productId,
+      quantityReceived: quantity,
+      unitCost
+    });
+  });
+
+  if (!isValid) {
+    alert('Please fill in all product fields');
+    return;
+  }
+
+  if (purchaseItems.length === 0) {
+    alert('Please add at least one product');
+    return;
+  }
+
+  if (!confirm(`Confirm bulk purchase of ${purchaseItems.length} products from ${supplier}?`)) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({
+        purchases: purchaseItems,
+        supplier,
+        date
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      alert(`✅ Bulk purchase completed! ${data.message}`);
+      closeBulkPurchaseModal();
+      await fetchInventory(); // Refresh inventory
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to process bulk purchase: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Bulk purchase error:', err);
+    alert('❌ Server error while processing bulk purchase');
+  }
+}
+
+// Bulk Sale Functions
+function loadProductsIntoBulkSaleDropdown(selectElement) {
+  // Clear existing options except the first
+  while (selectElement.options.length > 1) {
+    selectElement.remove(1);
+  }
+  
+  // Only show products with stock
+  inventory.filter(product => product.quantity > 0).forEach(product => {
+    const option = document.createElement('option');
+    option.value = product.id;
+    option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+    selectElement.appendChild(option);
+  });
+}
+
+function loadProductsForBulkSale() {
+  // Load products into all existing dropdowns
+  document.querySelectorAll('#bulkSaleProducts .bulkSaleProduct').forEach(select => {
+    loadProductsIntoBulkSaleDropdown(select);
+  });
+  
+  // Set today's date as default
+  document.getElementById('bulkSaleDate').value = new Date().toISOString().split('T')[0];
+  calculateBulkSaleTotal();
+}
+
+function resetBulkSaleForm() {
+  document.getElementById('bulkSaleCustomer').value = '';
+  document.getElementById('bulkSaleDate').value = new Date().toISOString().split('T')[0];
+  
+  // Reset to one row
+  const container = document.getElementById('bulkSaleProducts');
+  container.innerHTML = `
+    <div class="product-row">
+      <select class="bulkSaleProduct" required onchange="updateBulkSalePrice(this)">
+        <option value="">Select Product</option>
+      </select>
+      <input type="number" class="bulkSaleQuantity" min="1" placeholder="Qty" required oninput="calculateBulkSaleTotal()">
+      <input type="number" class="bulkSaleUnitPrice" step="0.01" min="0" placeholder="Unit Price" required oninput="calculateBulkSaleTotal()">
+      <span class="product-total">RM 0.00</span>
+      <button type="button" class="danger-btn" onclick="removeBulkSaleRow(this)">Remove</button>
+    </div>
+  `;
+  loadProductsForBulkSale();
+}
+
+async function confirmBulkSale() {
+  const customer = document.getElementById('bulkSaleCustomer').value;
+  const date = document.getElementById('bulkSaleDate').value;
+
+  if (!customer) {
+    alert('Please enter customer');
+    return;
+  }
+
+  const saleItems = [];
+  let isValid = true;
+  let hasStockIssues = false;
+  let stockIssues = [];
+
+  // First validate all items have sufficient stock
+  document.querySelectorAll('#bulkSaleProducts .product-row').forEach(row => {
+    const productSelect = row.querySelector('.bulkSaleProduct');
+    const quantityInput = row.querySelector('.bulkSaleQuantity');
+    const unitPriceInput = row.querySelector('.bulkSaleUnitPrice');
+
+    const productId = productSelect.value;
+    const quantity = parseInt(quantityInput.value);
+    const unitPrice = parseFloat(unitPriceInput.value);
+
+    if (!productId || !quantity || !unitPrice) {
+      isValid = false;
+      return;
+    }
+
+    // Check stock availability
+    const product = inventory.find(p => p.id === productId);
+    if (product && product.quantity < quantity) {
+      hasStockIssues = true;
+      stockIssues.push(`${product.name}: Available ${product.quantity}, Requested ${quantity}`);
+    }
+
+    saleItems.push({
+      productId,
+      quantitySold: quantity,
+      unitPrice
+    });
+  });
+
+  if (!isValid) {
+    alert('Please fill in all product fields');
+    return;
+  }
+
+  if (saleItems.length === 0) {
+    alert('Please add at least one product');
+    return;
+  }
+
+  if (hasStockIssues) {
+    alert(`❌ Insufficient stock for:\n${stockIssues.join('\n')}`);
+    return;
+  }
+
+  if (!confirm(`Confirm bulk sale of ${saleItems.length} products to ${customer}?`)) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/bulk`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sales: saleItems,
+        customer,
+        date
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      alert(`✅ Bulk sale completed! ${data.message}`);
+      closeBulkSaleModal();
+      await fetchInventory(); // Refresh inventory
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to process bulk sale: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Bulk sale error:', err);
+    alert('❌ Server error while processing bulk sale');
+  }
+}
+
+// ============================================================================
+//                    PURCHASE AND SALES MANAGEMENT FUNCTIONS
+// ============================================================================
+
+// Purchase Management Functions
+function renderPurchases(purchasesList) {
+  const list = qs('#purchasesList');
+  if(!list) return;
+  list.innerHTML = '';
+  
+  let totalQuantity = 0;
+  let totalCost = 0;
+
+  purchasesList.forEach(p => {
+    const id = p.id || p._id;
+    const quantity = p.quantityReceived || 0;
+    const unitCost = p.unitCost || 0;
+    const total = p.totalCost || 0;
+    
+    totalQuantity += quantity;
+    totalCost += total;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(p.date).toLocaleDateString()}</td>
+      <td>${escapeHtml(p.productName || '')}</td>
+      <td>${escapeHtml(p.sku || '')}</td>
+      <td>${escapeHtml(p.supplier || '')}</td>
+      <td>${quantity}</td>
+      <td class="money">RM ${unitCost.toFixed(2)}</td>
+      <td class="money">RM ${total.toFixed(2)}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="openEditPurchasePage('${id}')">✏️ Edit</button>
+        <button class="danger-btn small-btn" onclick="confirmAndDeletePurchase('${id}')">🗑️ Delete</button>
+      </td>
+    `;
+    list.appendChild(tr);
+  });
+
+  if(qs('#purchaseTotalQuantity')) qs('#purchaseTotalQuantity').textContent = totalQuantity;
+  if(qs('#purchaseTotalCost')) qs('#purchaseTotalCost').textContent = totalCost.toFixed(2);
+}
+
+async function confirmAndDeletePurchase(id) {
+  const purchase = purchases.find(x => String(x.id) === String(id));
+  if(!purchase) return;
+  if(!confirm(`Confirm Delete Purchase: "${purchase.productName}" (${purchase.quantityReceived} units)?`)) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
+    if(res.status === 204) {
+      await fetchPurchases();
+      await fetchInventory(); // Refresh inventory as well
+      alert('🗑️ Purchase deleted!');
+    } else {
+      alert('❌ Failed to delete purchase.');
+    }
+  } catch(e) { 
+    console.error(e); 
+    alert('❌ Server connection error while deleting purchase.'); 
+  }
+}
+
+// Sales Management Functions
+function renderSales(salesList) {
+  const list = qs('#salesList');
+  if(!list) return;
+  list.innerHTML = '';
+  
+  let totalQuantity = 0;
+  let totalRevenue = 0;
+
+  salesList.forEach(s => {
+    const id = s.id || s._id;
+    const quantity = s.quantitySold || 0;
+    const unitPrice = s.unitPrice || 0;
+    const total = s.totalRevenue || 0;
+    
+    totalQuantity += quantity;
+    totalRevenue += total;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(s.date).toLocaleDateString()}</td>
+      <td>${escapeHtml(s.productName || '')}</td>
+      <td>${escapeHtml(s.sku || '')}</td>
+      <td>${escapeHtml(s.customer || '')}</td>
+      <td>${quantity}</td>
+      <td class="money">RM ${unitPrice.toFixed(2)}</td>
+      <td class="money">RM ${total.toFixed(2)}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="openEditSalePage('${id}')">✏️ Edit</button>
+        <button class="danger-btn small-btn" onclick="confirmAndDeleteSale('${id}')">🗑️ Delete</button>
+      </td>
+    `;
+    list.appendChild(tr);
+  });
+
+  if(qs('#saleTotalQuantity')) qs('#saleTotalQuantity').textContent = totalQuantity;
+  if(qs('#saleTotalRevenue')) qs('#saleTotalRevenue').textContent = totalRevenue.toFixed(2);
+}
+
+async function confirmAndDeleteSale(id) {
+  const sale = sales.find(x => String(x.id) === String(id));
+  if(!sale) return;
+  if(!confirm(`Confirm Delete Sale: "${sale.productName}" (${sale.quantitySold} units)?`)) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/${id}`, { method: 'DELETE' });
+    if(res.status === 204) {
+      await fetchSales();
+      await fetchInventory(); // Refresh inventory as well
+      alert('🗑️ Sale deleted!');
+    } else {
+      alert('❌ Failed to delete sale.');
+    }
+  } catch(e) { 
+    console.error(e); 
+    alert('❌ Server connection error while deleting sale.'); 
+  }
+}
+
+// ============================================================================
+//                    EXISTING SINGLE PURCHASE AND SALE FUNCTIONS
 // ============================================================================
 
 // Purchase Functions
@@ -1083,7 +1488,9 @@ async function deleteAccount() {
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#purchaseBtn')?.addEventListener('click', openPurchaseModal);
+  qs('#bulkPurchaseBtn')?.addEventListener('click', openBulkPurchaseModal);
   qs('#saleBtn')?.addEventListener('click', openSaleModal);
+  qs('#bulkSaleBtn')?.addEventListener('click', openBulkSaleModal);
   qs('#reportSelectionBtn')?.addEventListener('click', openReportSelectionModal);
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
@@ -1150,6 +1557,12 @@ function searchInventory(){
 // Product (edit)
 function openEditPageForItem(id){ window.location.href = `product.html?id=${encodeURIComponent(id)}`; }
 
+// Purchase Management (edit)
+function openEditPurchasePage(id){ window.location.href = `purchase-edit.html?id=${encodeURIComponent(id)}`; }
+
+// Sales Management (edit)
+function openEditSalePage(id){ window.location.href = `sale-edit.html?id=${encodeURIComponent(id)}`; }
+
 async function bindProductPage(){
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
@@ -1188,6 +1601,38 @@ async function bindProductPage(){
   });
 
   qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
+}
+
+// Purchase Management UI
+function bindPurchaseManagementUI() {
+  qs('#searchPurchases')?.addEventListener('input', searchPurchases);
+}
+
+function searchPurchases() {
+  const q = (qs('#searchPurchases')?.value || '').toLowerCase().trim();
+  const filtered = purchases.filter(p => 
+    (p.productName||'').toLowerCase().includes(q) || 
+    (p.sku||'').toLowerCase().includes(q) ||
+    (p.supplier||'').toLowerCase().includes(q) ||
+    (p.date ? new Date(p.date).toLocaleDateString().toLowerCase() : '').includes(q)
+  );
+  renderPurchases(filtered);
+}
+
+// Sales Management UI
+function bindSalesManagementUI() {
+  qs('#searchSales')?.addEventListener('input', searchSales);
+}
+
+function searchSales() {
+  const q = (qs('#searchSales')?.value || '').toLowerCase().trim();
+  const filtered = sales.filter(s => 
+    (s.productName||'').toLowerCase().includes(q) || 
+    (s.sku||'').toLowerCase().includes(q) ||
+    (s.customer||'').toLowerCase().includes(q) ||
+    (s.date ? new Date(s.date).toLocaleDateString().toLowerCase() : '').includes(q)
+  );
+  renderSales(filtered);
 }
 
 // Documents
@@ -1361,15 +1806,31 @@ window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 // New exposed functions
 window.openPurchaseModal = openPurchaseModal;
 window.closePurchaseModal = closePurchaseModal;
+window.openBulkPurchaseModal = openBulkPurchaseModal;
+window.closeBulkPurchaseModal = closeBulkPurchaseModal;
 window.openSaleModal = openSaleModal;
 window.closeSaleModal = closeSaleModal;
+window.openBulkSaleModal = openBulkSaleModal;
+window.closeBulkSaleModal = closeBulkSaleModal;
 window.openReportSelectionModal = openReportSelectionModal;
 window.closeReportSelectionModal = closeReportSelectionModal;
 window.selectReport = selectReport;
 window.generateSelectedReport = generateSelectedReport;
 window.confirmPurchase = confirmPurchase;
+window.confirmBulkPurchase = confirmBulkPurchase;
 window.confirmSale = confirmSale;
+window.confirmBulkSale = confirmBulkSale;
+window.addBulkPurchaseRow = addBulkPurchaseRow;
+window.removeBulkPurchaseRow = removeBulkPurchaseRow;
+window.updateBulkPurchasePrice = updateBulkPurchasePrice;
+window.calculateBulkPurchaseTotal = calculateBulkPurchaseTotal;
+window.addBulkSaleRow = addBulkSaleRow;
+window.removeBulkSaleRow = removeBulkSaleRow;
+window.updateBulkSalePrice = updateBulkSalePrice;
+window.calculateBulkSaleTotal = calculateBulkSaleTotal;
 window.loadCompanyInformation = loadCompanyInformation;
 window.saveCompanyInformation = saveCompanyInformation;
 window.changePassword = changePassword;
 window.deleteAccount = deleteAccount;
+window.confirmAndDeletePurchase = confirmAndDeletePurchase;
+window.confirmAndDeleteSale = confirmAndDeleteSale;
