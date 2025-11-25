@@ -111,7 +111,8 @@ section {
 input[type="text"], 
 input[type="number"], 
 input[type="password"],
-input[type="file"] {
+input[type="file"],
+input[type="date"] {
     width: 100%;
     padding: 12px;
     margin-top: 5px;
@@ -255,8 +256,57 @@ input:focus {
     align-items:center; 
     margin-bottom: 20px;
 }
-.search-controls { display: flex; gap: 8px; }
-#searchInput, #searchDocs { width: 280px; padding: 10px; }
+
+/* =========================================
+   NEW: Date Search Controls Styling
+========================================= */
+.search-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+}
+
+.date-search-container,
+.text-search-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.date-search-container label {
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap;
+}
+
+.date-search-container input[type="date"] {
+    width: auto;
+    min-width: 150px;
+    padding: 8px 10px;
+    margin: 0;
+}
+
+.text-search-container input[type="text"] {
+    width: 280px;
+    padding: 10px;
+    margin: 0;
+}
+
+/* Responsive adjustments for search controls */
+@media (min-width: 768px) {
+    .search-controls {
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    
+    .date-search-container,
+    .text-search-container {
+        flex: 0 0 auto;
+    }
+}
 
 /* =========================================
    LARGER TABLE STYLING FOR INVENTORY
@@ -560,6 +610,17 @@ input:focus {
 
 .dark-mode .info-card {
     background: #343a40;
+}
+
+/* Dark mode for date search */
+.dark-mode .date-search-container label {
+    color: #80bdff;
+}
+
+.dark-mode .date-search-container input[type="date"] {
+    background: #495057;
+    color: var(--text-dark);
+    border-color: #6c757d;
 }
 
 /* =========================================
