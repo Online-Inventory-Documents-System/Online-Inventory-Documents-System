@@ -23,8 +23,10 @@
       padding: 20px;
       border-radius: 10px;
       width: 90%;
-      max-width: 600px;
+      max-width: 800px;
       box-shadow: var(--shadow-md);
+      max-height: 90vh;
+      overflow-y: auto;
     }
     .dark-mode .modal-content {
       background-color: var(--card-dark);
@@ -70,6 +72,51 @@
       background: var(--primary-color);
       color: white;
     }
+    
+    /* Multiple Products Styles */
+    .products-container {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background: rgba(0,0,0,0.02);
+    }
+    .product-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .product-row:last-child {
+      border-bottom: none;
+    }
+    .product-total {
+      font-weight: bold;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    .dark-mode .product-total {
+      background: #343a40;
+    }
+    .summary-box {
+      background: var(--primary-color);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    .summary-box h4 {
+      margin: 0 0 10px 0;
+    }
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
   </style>
 </head>
 <body>
@@ -79,6 +126,8 @@
       <a href="index.html">Home</a>
       <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
+      <a href="purchase-management.html">Purchase Management</a>
+      <a href="sales-management.html">Sales Management</a>
       <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
@@ -104,7 +153,11 @@
       <div style="display:flex; gap:10px; flex-wrap: wrap;">
         <button id="purchaseBtn" class="success-btn">🛒 Purchase</button>
         <button id="saleBtn" class="primary-btn">💰 Sale</button>
+        <button id="bulkPurchaseBtn" class="success-btn">📦 Bulk Purchase</button>
+        <button id="bulkSaleBtn" class="primary-btn">🛍️ Bulk Sale</button>
         <button id="reportSelectionBtn" class="success-btn">📊 Generate Reports</button>
+        <a href="purchase-management.html" class="primary-btn">📋 Manage Purchases</a>
+        <a href="sales-management.html" class="primary-btn">📈 Manage Sales</a>
       </div>
 
       <div class="search-controls">
@@ -162,7 +215,7 @@
     </div>
   </section>
 
-  <!-- Purchase Modal -->
+  <!-- Single Purchase Modal -->
   <div id="purchaseModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closePurchaseModal()">&times;</span>
@@ -196,7 +249,60 @@
     </div>
   </div>
 
-  <!-- Sale Modal -->
+  <!-- Bulk Purchase Modal -->
+  <div id="bulkPurchaseModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeBulkPurchaseModal()">&times;</span>
+      <h2>📦 Bulk Stock Purchase</h2>
+      
+      <div class="form-group">
+        <label for="bulkPurchaseSupplier">Supplier:</label>
+        <input id="bulkPurchaseSupplier" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="bulkPurchaseDate">Date:</label>
+        <input id="bulkPurchaseDate" type="date">
+      </div>
+
+      <h3>Products</h3>
+      <div class="products-container" id="bulkPurchaseProducts">
+        <div class="product-row">
+          <select class="bulkPurchaseProduct" required onchange="updateBulkPurchasePrice(this)">
+            <option value="">Select Product</option>
+          </select>
+          <input type="number" class="bulkPurchaseQuantity" min="1" placeholder="Qty" required oninput="calculateBulkPurchaseTotal()">
+          <input type="number" class="bulkPurchaseUnitCost" step="0.01" min="0" placeholder="Unit Cost" required oninput="calculateBulkPurchaseTotal()">
+          <span class="product-total">RM 0.00</span>
+          <button type="button" class="danger-btn" onclick="removeBulkPurchaseRow(this)">Remove</button>
+        </div>
+      </div>
+      
+      <button type="button" class="secondary-btn" onclick="addBulkPurchaseRow()">+ Add Product</button>
+      
+      <div class="summary-box">
+        <h4>Purchase Summary</h4>
+        <div class="summary-item">
+          <span>Total Products:</span>
+          <span id="bulkPurchaseProductCount">1</span>
+        </div>
+        <div class="summary-item">
+          <span>Total Quantity:</span>
+          <span id="bulkPurchaseTotalQuantity">0</span>
+        </div>
+        <div class="summary-item">
+          <span>Total Cost:</span>
+          <span id="bulkPurchaseTotalCost">RM 0.00</span>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="confirmBulkPurchase()" class="success-btn" style="flex: 1;">Confirm Bulk Purchase</button>
+        <button onclick="closeBulkPurchaseModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Single Sale Modal -->
   <div id="saleModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeSaleModal()">&times;</span>
@@ -226,6 +332,59 @@
       <div style="display: flex; gap: 10px; margin-top: 20px;">
         <button onclick="confirmSale()" class="primary-btn" style="flex: 1;">Confirm Sale</button>
         <button onclick="closeSaleModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Sale Modal -->
+  <div id="bulkSaleModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeBulkSaleModal()">&times;</span>
+      <h2>🛍️ Bulk Stock Sale</h2>
+      
+      <div class="form-group">
+        <label for="bulkSaleCustomer">Customer:</label>
+        <input id="bulkSaleCustomer" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="bulkSaleDate">Date:</label>
+        <input id="bulkSaleDate" type="date">
+      </div>
+
+      <h3>Products</h3>
+      <div class="products-container" id="bulkSaleProducts">
+        <div class="product-row">
+          <select class="bulkSaleProduct" required onchange="updateBulkSalePrice(this)">
+            <option value="">Select Product</option>
+          </select>
+          <input type="number" class="bulkSaleQuantity" min="1" placeholder="Qty" required oninput="calculateBulkSaleTotal()">
+          <input type="number" class="bulkSaleUnitPrice" step="0.01" min="0" placeholder="Unit Price" required oninput="calculateBulkSaleTotal()">
+          <span class="product-total">RM 0.00</span>
+          <button type="button" class="danger-btn" onclick="removeBulkSaleRow(this)">Remove</button>
+        </div>
+      </div>
+      
+      <button type="button" class="secondary-btn" onclick="addBulkSaleRow()">+ Add Product</button>
+      
+      <div class="summary-box">
+        <h4>Sale Summary</h4>
+        <div class="summary-item">
+          <span>Total Products:</span>
+          <span id="bulkSaleProductCount">1</span>
+        </div>
+        <div class="summary-item">
+          <span>Total Quantity:</span>
+          <span id="bulkSaleTotalQuantity">0</span>
+        </div>
+        <div class="summary-item">
+          <span>Total Revenue:</span>
+          <span id="bulkSaleTotalRevenue">RM 0.00</span>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="confirmBulkSale()" class="primary-btn" style="flex: 1;">Confirm Bulk Sale</button>
+        <button onclick="closeBulkSaleModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
       </div>
     </div>
   </div>
@@ -281,6 +440,16 @@
       resetPurchaseForm();
     }
     
+    function openBulkPurchaseModal() {
+      document.getElementById('bulkPurchaseModal').style.display = 'block';
+      loadProductsForBulkPurchase();
+    }
+    
+    function closeBulkPurchaseModal() {
+      document.getElementById('bulkPurchaseModal').style.display = 'none';
+      resetBulkPurchaseForm();
+    }
+    
     function openSaleModal() {
       document.getElementById('saleModal').style.display = 'block';
       loadProductsForSale();
@@ -289,6 +458,16 @@
     function closeSaleModal() {
       document.getElementById('saleModal').style.display = 'none';
       resetSaleForm();
+    }
+    
+    function openBulkSaleModal() {
+      document.getElementById('bulkSaleModal').style.display = 'block';
+      loadProductsForBulkSale();
+    }
+    
+    function closeBulkSaleModal() {
+      document.getElementById('bulkSaleModal').style.display = 'none';
+      resetBulkSaleForm();
     }
     
     function openReportSelectionModal() {
@@ -321,15 +500,153 @@
       }
     }
     
+    // Bulk purchase functions
+    function addBulkPurchaseRow() {
+      const container = document.getElementById('bulkPurchaseProducts');
+      const newRow = document.createElement('div');
+      newRow.className = 'product-row';
+      newRow.innerHTML = `
+        <select class="bulkPurchaseProduct" required onchange="updateBulkPurchasePrice(this)">
+          <option value="">Select Product</option>
+        </select>
+        <input type="number" class="bulkPurchaseQuantity" min="1" placeholder="Qty" required oninput="calculateBulkPurchaseTotal()">
+        <input type="number" class="bulkPurchaseUnitCost" step="0.01" min="0" placeholder="Unit Cost" required oninput="calculateBulkPurchaseTotal()">
+        <span class="product-total">RM 0.00</span>
+        <button type="button" class="danger-btn" onclick="removeBulkPurchaseRow(this)">Remove</button>
+      `;
+      container.appendChild(newRow);
+      loadProductsIntoBulkPurchaseDropdown(newRow.querySelector('.bulkPurchaseProduct'));
+      calculateBulkPurchaseTotal();
+    }
+    
+    function removeBulkPurchaseRow(button) {
+      const container = document.getElementById('bulkPurchaseProducts');
+      if (container.children.length > 1) {
+        button.closest('.product-row').remove();
+        calculateBulkPurchaseTotal();
+      } else {
+        alert('At least one product is required.');
+      }
+    }
+    
+    function updateBulkPurchasePrice(select) {
+      const productId = select.value;
+      if (productId) {
+        const product = window.inventory.find(p => p.id === productId);
+        if (product) {
+          const row = select.closest('.product-row');
+          const unitCostInput = row.querySelector('.bulkPurchaseUnitCost');
+          unitCostInput.value = product.unitCost || 0;
+          calculateBulkPurchaseTotal();
+        }
+      }
+    }
+    
+    function calculateBulkPurchaseTotal() {
+      let totalQuantity = 0;
+      let totalCost = 0;
+      let productCount = 0;
+      
+      document.querySelectorAll('#bulkPurchaseProducts .product-row').forEach(row => {
+        const quantity = parseFloat(row.querySelector('.bulkPurchaseQuantity').value) || 0;
+        const unitCost = parseFloat(row.querySelector('.bulkPurchaseUnitCost').value) || 0;
+        const total = quantity * unitCost;
+        
+        // Update row total
+        row.querySelector('.product-total').textContent = `RM ${total.toFixed(2)}`;
+        
+        if (quantity > 0 && unitCost > 0) {
+          totalQuantity += quantity;
+          totalCost += total;
+          productCount++;
+        }
+      });
+      
+      document.getElementById('bulkPurchaseProductCount').textContent = productCount;
+      document.getElementById('bulkPurchaseTotalQuantity').textContent = totalQuantity;
+      document.getElementById('bulkPurchaseTotalCost').textContent = `RM ${totalCost.toFixed(2)}`;
+    }
+    
+    // Bulk sale functions
+    function addBulkSaleRow() {
+      const container = document.getElementById('bulkSaleProducts');
+      const newRow = document.createElement('div');
+      newRow.className = 'product-row';
+      newRow.innerHTML = `
+        <select class="bulkSaleProduct" required onchange="updateBulkSalePrice(this)">
+          <option value="">Select Product</option>
+        </select>
+        <input type="number" class="bulkSaleQuantity" min="1" placeholder="Qty" required oninput="calculateBulkSaleTotal()">
+        <input type="number" class="bulkSaleUnitPrice" step="0.01" min="0" placeholder="Unit Price" required oninput="calculateBulkSaleTotal()">
+        <span class="product-total">RM 0.00</span>
+        <button type="button" class="danger-btn" onclick="removeBulkSaleRow(this)">Remove</button>
+      `;
+      container.appendChild(newRow);
+      loadProductsIntoBulkSaleDropdown(newRow.querySelector('.bulkSaleProduct'));
+      calculateBulkSaleTotal();
+    }
+    
+    function removeBulkSaleRow(button) {
+      const container = document.getElementById('bulkSaleProducts');
+      if (container.children.length > 1) {
+        button.closest('.product-row').remove();
+        calculateBulkSaleTotal();
+      } else {
+        alert('At least one product is required.');
+      }
+    }
+    
+    function updateBulkSalePrice(select) {
+      const productId = select.value;
+      if (productId) {
+        const product = window.inventory.find(p => p.id === productId);
+        if (product) {
+          const row = select.closest('.product-row');
+          const unitPriceInput = row.querySelector('.bulkSaleUnitPrice');
+          unitPriceInput.value = product.unitPrice || 0;
+          calculateBulkSaleTotal();
+        }
+      }
+    }
+    
+    function calculateBulkSaleTotal() {
+      let totalQuantity = 0;
+      let totalRevenue = 0;
+      let productCount = 0;
+      
+      document.querySelectorAll('#bulkSaleProducts .product-row').forEach(row => {
+        const quantity = parseFloat(row.querySelector('.bulkSaleQuantity').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.bulkSaleUnitPrice').value) || 0;
+        const total = quantity * unitPrice;
+        
+        // Update row total
+        row.querySelector('.product-total').textContent = `RM ${total.toFixed(2)}`;
+        
+        if (quantity > 0 && unitPrice > 0) {
+          totalQuantity += quantity;
+          totalRevenue += total;
+          productCount++;
+        }
+      });
+      
+      document.getElementById('bulkSaleProductCount').textContent = productCount;
+      document.getElementById('bulkSaleTotalQuantity').textContent = totalQuantity;
+      document.getElementById('bulkSaleTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+    }
+    
     // Close modals when clicking outside
     window.onclick = function(event) {
-      const purchaseModal = document.getElementById('purchaseModal');
-      const saleModal = document.getElementById('saleModal');
-      const reportModal = document.getElementById('reportSelectionModal');
-      
-      if (event.target === purchaseModal) closePurchaseModal();
-      if (event.target === saleModal) closeSaleModal();
-      if (event.target === reportModal) closeReportSelectionModal();
+      const modals = ['purchaseModal', 'bulkPurchaseModal', 'saleModal', 'bulkSaleModal', 'reportSelectionModal'];
+      modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (event.target === modal) {
+          if (modalId === 'purchaseModal') closePurchaseModal();
+          if (modalId === 'bulkPurchaseModal') closeBulkPurchaseModal();
+          if (modalId === 'saleModal') closeSaleModal();
+          if (modalId === 'bulkSaleModal') closeBulkSaleModal();
+          if (modalId === 'reportSelectionModal') closeReportSelectionModal();
+        }
+      });
     }
   </script>
 </body>
