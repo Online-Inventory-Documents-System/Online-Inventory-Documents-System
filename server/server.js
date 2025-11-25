@@ -396,6 +396,62 @@ app.get("/api/purchases", async (req, res) => {
   }
 });
 
+// NEW: Bulk purchase endpoint
+app.post("/api/purchases/bulk", async (req, res) => {
+  try {
+    const { purchases, supplier, date } = req.body;
+    
+    if (!purchases || !Array.isArray(purchases) || purchases.length === 0) {
+      return res.status(400).json({ message: "No purchase data provided" });
+    }
+
+    const createdPurchases = [];
+    
+    for (const purchaseItem of purchases) {
+      const { productId, quantityReceived, unitCost } = purchaseItem;
+      
+      // Get product details
+      const product = await Inventory.findById(productId);
+      if (!product) {
+        return res.status(404).json({ message: `Product not found: ${productId}` });
+      }
+
+      // Update inventory quantity
+      product.quantity += quantityReceived;
+      await product.save();
+
+      // Create purchase record
+      const purchase = await Purchase.create({
+        productId,
+        productName: product.name,
+        sku: product.sku,
+        quantityReceived,
+        unitCost,
+        supplier,
+        date: date ? new Date(date) : new Date(),
+        totalCost: quantityReceived * unitCost
+      });
+
+      createdPurchases.push(purchase);
+    }
+
+    await logActivity(req.headers["x-username"], `Bulk purchase from ${supplier} for ${purchases.length} products`);
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully processed ${createdPurchases.length} purchases`,
+      purchases: createdPurchases.map(p => ({
+        ...p.toObject(),
+        id: p._id.toString()
+      }))
+    });
+
+  } catch (err) {
+    console.error("bulk purchase error", err);
+    res.status(500).json({ message: "Server error during bulk purchase" });
+  }
+});
+
 app.post("/api/purchases", async (req, res) => {
   try {
     const { productId, quantityReceived, unitCost, supplier, date } = req.body;
@@ -435,6 +491,77 @@ app.post("/api/purchases", async (req, res) => {
   }
 });
 
+// NEW: Update purchase endpoint
+app.put("/api/purchases/:id", async (req, res) => {
+  try {
+    const { quantityReceived, unitCost, supplier, date } = req.body;
+    
+    const purchase = await Purchase.findById(req.params.id);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    // Get the product
+    const product = await Inventory.findById(purchase.productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Calculate the difference in quantity
+    const quantityDiff = quantityReceived - purchase.quantityReceived;
+
+    // Update inventory quantity
+    product.quantity += quantityDiff;
+    await product.save();
+
+    // Update purchase record
+    purchase.quantityReceived = quantityReceived;
+    purchase.unitCost = unitCost;
+    purchase.supplier = supplier;
+    purchase.date = date ? new Date(date) : purchase.date;
+    purchase.totalCost = quantityReceived * unitCost;
+    await purchase.save();
+
+    await logActivity(req.headers["x-username"], `Updated purchase: ${product.name} (Qty: ${quantityReceived})`);
+
+    res.json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// NEW: Delete purchase endpoint
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    // Get the product
+    const product = await Inventory.findById(purchase.productId);
+    if (product) {
+      // Restore inventory quantity
+      product.quantity -= purchase.quantityReceived;
+      await product.save();
+    }
+
+    await Purchase.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName}`);
+
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("purchase delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // ============================================================================
 //                               SALES MANAGEMENT
 // ============================================================================
@@ -449,6 +576,75 @@ app.get("/api/sales", async (req, res) => {
   } catch (err) {
     console.error("sales get error", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// NEW: Bulk sales endpoint
+app.post("/api/sales/bulk", async (req, res) => {
+  try {
+    const { sales, customer, date } = req.body;
+    
+    if (!sales || !Array.isArray(sales) || sales.length === 0) {
+      return res.status(400).json({ message: "No sales data provided" });
+    }
+
+    const createdSales = [];
+    
+    // First, check all products have sufficient stock
+    for (const saleItem of sales) {
+      const { productId, quantitySold } = saleItem;
+      
+      const product = await Inventory.findById(productId);
+      if (!product) {
+        return res.status(404).json({ message: `Product not found: ${productId}` });
+      }
+
+      if (product.quantity < quantitySold) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${product.name}. Available: ${product.quantity}, Requested: ${quantitySold}` 
+        });
+      }
+    }
+
+    // Process all sales
+    for (const saleItem of sales) {
+      const { productId, quantitySold, unitPrice } = saleItem;
+      
+      const product = await Inventory.findById(productId);
+
+      // Update inventory quantity
+      product.quantity -= quantitySold;
+      await product.save();
+
+      // Create sale record
+      const sale = await Sale.create({
+        productId,
+        productName: product.name,
+        sku: product.sku,
+        quantitySold,
+        unitPrice,
+        customer,
+        date: date ? new Date(date) : new Date(),
+        totalRevenue: quantitySold * unitPrice
+      });
+
+      createdSales.push(sale);
+    }
+
+    await logActivity(req.headers["x-username"], `Bulk sale to ${customer} for ${sales.length} products`);
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully processed ${createdSales.length} sales`,
+      sales: createdSales.map(s => ({
+        ...s.toObject(),
+        id: s._id.toString()
+      }))
+    });
+
+  } catch (err) {
+    console.error("bulk sale error", err);
+    res.status(500).json({ message: "Server error during bulk sale" });
   }
 });
 
@@ -492,6 +688,82 @@ app.post("/api/sales", async (req, res) => {
 
   } catch (err) {
     console.error("sale post error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// NEW: Update sale endpoint
+app.put("/api/sales/:id", async (req, res) => {
+  try {
+    const { quantitySold, unitPrice, customer, date } = req.body;
+    
+    const sale = await Sale.findById(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+
+    // Get the product
+    const product = await Inventory.findById(sale.productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Calculate the difference in quantity
+    const quantityDiff = quantitySold - sale.quantitySold;
+
+    // Check if enough stock for the increase
+    if (quantityDiff > 0 && product.quantity < quantityDiff) {
+      return res.status(400).json({ message: "Insufficient stock for this update" });
+    }
+
+    // Update inventory quantity
+    product.quantity -= quantityDiff;
+    await product.save();
+
+    // Update sale record
+    sale.quantitySold = quantitySold;
+    sale.unitPrice = unitPrice;
+    sale.customer = customer;
+    sale.date = date ? new Date(date) : sale.date;
+    sale.totalRevenue = quantitySold * unitPrice;
+    await sale.save();
+
+    await logActivity(req.headers["x-username"], `Updated sale: ${product.name} (Qty: ${quantitySold})`);
+
+    res.json({
+      ...sale.toObject(),
+      id: sale._id.toString()
+    });
+
+  } catch (err) {
+    console.error("sale update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// NEW: Delete sale endpoint
+app.delete("/api/sales/:id", async (req, res) => {
+  try {
+    const sale = await Sale.findById(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+
+    // Get the product
+    const product = await Inventory.findById(sale.productId);
+    if (product) {
+      // Restore inventory quantity
+      product.quantity += sale.quantitySold;
+      await product.save();
+    }
+
+    await Sale.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted sale: ${sale.productName}`);
+
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("sale delete error", err);
     res.status(500).json({ message: "Server error" });
   }
 });
