@@ -90,7 +90,7 @@ nav button:hover {
 ========================================= */
 section {
   margin: 20px auto;
-  max-width: 95%;
+  max-width: 95%; /* Changed from 1200px to 95% for more width */
   background: var(--card-light);
   padding: 25px;
   border-radius: 10px;
@@ -382,20 +382,20 @@ input:focus {
     border-radius: 8px;
     border: 1px solid var(--border-color); 
     background: var(--card-light);
-    max-width: 100%;
+    max-width: 100%; /* Ensure it takes full available width */
 }
 
 #inventoryTable, #documentsTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    font-size: 0.82em;
-    min-width: 1100px;
+    font-size: 0.82em; /* Slightly smaller font to fit more content */
+    min-width: 1100px; /* Increased to accommodate all columns comfortably */
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
 #inventoryTable th, #inventoryTable td {
-    padding: 10px 12px;
+    padding: 10px 12px; /* Reduced padding to save space */
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     border-right: 1px solid #000000;
@@ -416,8 +416,8 @@ input:focus {
     position: sticky; 
     top: 0;
     border-right: 1px solid rgba(255, 255, 255, 0.3);
-    font-size: 0.8em;
-    padding: 12px 10px;
+    font-size: 0.8em; /* Smaller header font */
+    padding: 12px 10px; /* Adjusted header padding */
 }
 
 #inventoryTable thead th:last-child {
@@ -525,7 +525,7 @@ input:focus {
     min-width: 150px;
 }
 .small-btn {
-    padding: 5px 8px;
+    padding: 5px 8px; /* Smaller buttons */
     font-size: 0.8em;
 }
 
@@ -789,162 +789,4 @@ input:focus {
 /* Reduce top margin for inventory section */
 #inventory {
     margin-top: 10px;
-}
-
-/* =========================================
-   MODAL STYLES
-========================================= */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
-}
-.modal-content {
-  background-color: var(--card-light);
-  margin: 5% auto;
-  padding: 20px;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 900px;
-  box-shadow: var(--shadow-md);
-  max-height: 90vh;
-  overflow-y: auto;
-}
-.dark-mode .modal-content {
-  background-color: var(--card-dark);
-}
-.close {
-  color: #aaa;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.close:hover {
-  color: var(--danger-color);
-}
-.form-group {
-  margin-bottom: 15px;
-}
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 600;
-}
-
-/* Grid layout improvements */
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-.grid-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 15px;
-}
-.grid-4 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 15px;
-}
-
-/* Item list styles */
-.purchase-item, .sale-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  margin: 5px 0;
-  background: #f8f9fa;
-  border-radius: 5px;
-  border-left: 4px solid #28a745;
-  transition: all 0.3s ease;
-}
-.sale-item {
-  border-left-color: #007bff;
-}
-.purchase-item:hover, .sale-item:hover {
-  transform: translateX(5px);
-  background: #e9ecef !important;
-}
-.dark-mode .purchase-item, 
-.dark-mode .sale-item {
-  background: #343a40 !important;
-  color: #f8f9fa;
-}
-.dark-mode .purchase-item:hover,
-.dark-mode .sale-item:hover {
-  background: #495057 !important;
-}
-
-/* Search input improvements */
-#purchaseProductSearch, 
-#saleProductSearch {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  margin-bottom: 10px;
-}
-.dark-mode #purchaseProductSearch,
-.dark-mode #saleProductSearch {
-  background: #495057;
-  color: #f8f9fa;
-  border-color: #6c757d;
-}
-
-/* Report selection styles */
-.report-selection {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-.report-option {
-  flex: 1;
-  padding: 15px;
-  text-align: center;
-  background: var(--background-light);
-  border: 2px solid var(--primary-color);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.report-option:hover {
-  background: var(--primary-color);
-  color: white;
-}
-.report-option.selected {
-  background: var(--primary-color);
-  color: white;
-}
-
-@media (max-width: 768px) {
-  .grid-2, .grid-3, .grid-4 {
-    grid-template-columns: 1fr;
-  }
-  .modal-content {
-    margin: 5% auto;
-    width: 95%;
-  }
-  .report-selection {
-    flex-direction: column;
-  }
-}
-
-/* Button group improvements */
-.button-group {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.button-group button {
-  flex: 1;
-  min-width: 120px;
 }
