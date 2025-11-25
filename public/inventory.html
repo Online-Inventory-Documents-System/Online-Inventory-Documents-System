@@ -23,9 +23,7 @@
       padding: 20px;
       border-radius: 10px;
       width: 90%;
-      max-width: 800px;
-      max-height: 85vh;
-      overflow-y: auto;
+      max-width: 600px;
       box-shadow: var(--shadow-md);
     }
     .dark-mode .modal-content {
@@ -72,51 +70,6 @@
       background: var(--primary-color);
       color: white;
     }
-    
-    /* Multi-product table styles */
-    .multi-product-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 15px 0;
-    }
-    .multi-product-table th,
-    .multi-product-table td {
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      text-align: left;
-    }
-    .multi-product-table th {
-      background: var(--primary-color);
-      color: white;
-    }
-    .multi-product-table input {
-      width: 100%;
-      padding: 5px;
-      box-sizing: border-box;
-    }
-    .product-search-container {
-      margin-bottom: 15px;
-    }
-    .product-search {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 10px;
-    }
-    .totals-display {
-      background: #f8f9fa;
-      padding: 10px;
-      border-radius: 5px;
-      margin: 10px 0;
-      font-weight: bold;
-    }
-    .dark-mode .totals-display {
-      background: #343a40;
-    }
-    .action-buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-    }
   </style>
 </head>
 <body>
@@ -127,8 +80,6 @@
       <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
-      <a href="purchases-management.html" style="text-decoration: none;"><button>📥 Manage Purchases</button></a>
-      <a href="sales-management.html" style="text-decoration: none;"><button>📤 Manage Sales</button></a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
       <button onclick="logout()">🚪 Logout</button>
@@ -215,8 +166,21 @@
   <div id="purchaseModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closePurchaseModal()">&times;</span>
-      <h2>🛒 Bulk Stock Purchase</h2>
-      
+      <h2>🛒 Stock Purchase</h2>
+      <div class="form-group">
+        <label for="purchaseProduct">Product:</label>
+        <select id="purchaseProduct" required>
+          <option value="">Select Product</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="purchaseQuantity">Quantity Received:</label>
+        <input id="purchaseQuantity" type="number" min="1" required>
+      </div>
+      <div class="form-group">
+        <label for="purchaseUnitCost">Unit Cost (RM):</label>
+        <input id="purchaseUnitCost" type="number" step="0.01" min="0" required>
+      </div>
       <div class="form-group">
         <label for="purchaseSupplier">Supplier:</label>
         <input id="purchaseSupplier" type="text" required>
@@ -225,35 +189,8 @@
         <label for="purchaseDate">Date:</label>
         <input id="purchaseDate" type="date">
       </div>
-
-      <div class="product-search-container">
-        <input type="text" id="purchaseProductSearch" class="product-search" placeholder="Search products...">
-      </div>
-
-      <table class="multi-product-table">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Current Stock</th>
-            <th>Quantity</th>
-            <th>Unit Cost (RM)</th>
-            <th>Total Cost (RM)</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="purchaseProductsTable">
-          <!-- Rows will be added dynamically -->
-        </tbody>
-      </table>
-
-      <div class="totals-display">
-        Total Purchase Cost: RM <span id="purchaseTotalCost">0.00</span>
-      </div>
-
-      <div class="action-buttons">
-        <button onclick="addPurchaseRow()" class="secondary-btn">+ Add Product</button>
-        <button onclick="confirmBulkPurchase()" class="success-btn" style="flex: 1;">Confirm Bulk Purchase</button>
-        <button onclick="generatePurchaseReport()" class="primary-btn">📊 Generate Purchase Report</button>
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="confirmPurchase()" class="success-btn" style="flex: 1;">Confirm Purchase</button>
         <button onclick="closePurchaseModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
       </div>
     </div>
@@ -263,8 +200,21 @@
   <div id="saleModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeSaleModal()">&times;</span>
-      <h2>💰 Bulk Stock Sale</h2>
-      
+      <h2>💰 Stock Sale</h2>
+      <div class="form-group">
+        <label for="saleProduct">Product:</label>
+        <select id="saleProduct" required>
+          <option value="">Select Product</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="saleQuantity">Quantity Sold:</label>
+        <input id="saleQuantity" type="number" min="1" required>
+      </div>
+      <div class="form-group">
+        <label for="saleUnitPrice">Unit Price (RM):</label>
+        <input id="saleUnitPrice" type="number" step="0.01" min="0" required>
+      </div>
       <div class="form-group">
         <label for="saleCustomer">Customer:</label>
         <input id="saleCustomer" type="text" required>
@@ -273,35 +223,8 @@
         <label for="saleDate">Date:</label>
         <input id="saleDate" type="date">
       </div>
-
-      <div class="product-search-container">
-        <input type="text" id="saleProductSearch" class="product-search" placeholder="Search products...">
-      </div>
-
-      <table class="multi-product-table">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Available Stock</th>
-            <th>Quantity</th>
-            <th>Unit Price (RM)</th>
-            <th>Total Revenue (RM)</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="saleProductsTable">
-          <!-- Rows will be added dynamically -->
-        </tbody>
-      </table>
-
-      <div class="totals-display">
-        Total Sales Revenue: RM <span id="saleTotalRevenue">0.00</span>
-      </div>
-
-      <div class="action-buttons">
-        <button onclick="addSaleRow()" class="secondary-btn">+ Add Product</button>
-        <button onclick="confirmBulkSale()" class="primary-btn" style="flex: 1;">Confirm Bulk Sale</button>
-        <button onclick="generateSalesReport()" class="success-btn">📊 Generate Sales Report</button>
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button onclick="confirmSale()" class="primary-btn" style="flex: 1;">Confirm Sale</button>
         <button onclick="closeSaleModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
       </div>
     </div>
@@ -346,16 +269,11 @@
     
     // New global variables
     let selectedReportType = '';
-    let purchaseProducts = [];
-    let saleProducts = [];
     
     // Modal functions
     function openPurchaseModal() {
       document.getElementById('purchaseModal').style.display = 'block';
       loadProductsForPurchase();
-      purchaseProducts = [];
-      updatePurchaseTable();
-      updatePurchaseTotal();
     }
     
     function closePurchaseModal() {
@@ -366,9 +284,6 @@
     function openSaleModal() {
       document.getElementById('saleModal').style.display = 'block';
       loadProductsForSale();
-      saleProducts = [];
-      updateSaleTable();
-      updateSaleTotal();
     }
     
     function closeSaleModal() {
@@ -406,214 +321,6 @@
       }
     }
     
-    // Multi-product purchase functions
-    function addPurchaseRow() {
-      purchaseProducts.push({
-        productId: '',
-        productName: '',
-        currentStock: 0,
-        quantity: 1,
-        unitCost: 0,
-        totalCost: 0
-      });
-      updatePurchaseTable();
-    }
-    
-    function updatePurchaseTable() {
-      const tbody = document.getElementById('purchaseProductsTable');
-      tbody.innerHTML = '';
-      
-      purchaseProducts.forEach((product, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>
-            <select class="purchase-product-select" data-index="${index}" onchange="updatePurchaseProduct(${index}, this.value)">
-              <option value="">Select Product</option>
-              ${window.inventory.map(p => 
-                `<option value="${p.id}" data-stock="${p.quantity}" data-cost="${p.unitCost}">
-                  ${p.name} (${p.sku}) - Stock: ${p.quantity}
-                </option>`
-              ).join('')}
-            </select>
-          </td>
-          <td class="current-stock-${index}">${product.currentStock}</td>
-          <td>
-            <input type="number" class="purchase-quantity" data-index="${index}" 
-                   value="${product.quantity}" min="1" 
-                   onchange="updatePurchaseQuantity(${index}, this.value)" 
-                   oninput="updatePurchaseQuantity(${index}, this.value)">
-          </td>
-          <td>
-            <input type="number" class="purchase-unit-cost" data-index="${index}" 
-                   value="${product.unitCost}" step="0.01" min="0" 
-                   onchange="updatePurchaseUnitCost(${index}, this.value)" 
-                   oninput="updatePurchaseUnitCost(${index}, this.value)">
-          </td>
-          <td class="purchase-total-cost-${index}">${product.totalCost.toFixed(2)}</td>
-          <td>
-            <button class="danger-btn small-btn" onclick="removePurchaseRow(${index})">Remove</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-        
-        // Set selected value if product is already selected
-        if (product.productId) {
-          row.querySelector(`.purchase-product-select`).value = product.productId;
-        }
-      });
-    }
-    
-    function updatePurchaseProduct(index, productId) {
-      const product = window.inventory.find(p => p.id === productId);
-      if (product) {
-        purchaseProducts[index].productId = productId;
-        purchaseProducts[index].productName = product.name;
-        purchaseProducts[index].currentStock = product.quantity;
-        purchaseProducts[index].unitCost = product.unitCost || 0;
-        
-        document.querySelector(`.current-stock-${index}`).textContent = product.quantity;
-        document.querySelector(`.purchase-unit-cost[data-index="${index}"]`).value = product.unitCost || 0;
-        
-        updatePurchaseRowTotal(index);
-        updatePurchaseTotal();
-      }
-    }
-    
-    function updatePurchaseQuantity(index, quantity) {
-      purchaseProducts[index].quantity = parseInt(quantity) || 0;
-      updatePurchaseRowTotal(index);
-      updatePurchaseTotal();
-    }
-    
-    function updatePurchaseUnitCost(index, unitCost) {
-      purchaseProducts[index].unitCost = parseFloat(unitCost) || 0;
-      updatePurchaseRowTotal(index);
-      updatePurchaseTotal();
-    }
-    
-    function updatePurchaseRowTotal(index) {
-      const product = purchaseProducts[index];
-      product.totalCost = product.quantity * product.unitCost;
-      document.querySelector(`.purchase-total-cost-${index}`).textContent = product.totalCost.toFixed(2);
-    }
-    
-    function updatePurchaseTotal() {
-      const total = purchaseProducts.reduce((sum, product) => sum + product.totalCost, 0);
-      document.getElementById('purchaseTotalCost').textContent = total.toFixed(2);
-    }
-    
-    function removePurchaseRow(index) {
-      purchaseProducts.splice(index, 1);
-      updatePurchaseTable();
-      updatePurchaseTotal();
-    }
-    
-    // Multi-product sale functions
-    function addSaleRow() {
-      saleProducts.push({
-        productId: '',
-        productName: '',
-        availableStock: 0,
-        quantity: 1,
-        unitPrice: 0,
-        totalRevenue: 0
-      });
-      updateSaleTable();
-    }
-    
-    function updateSaleTable() {
-      const tbody = document.getElementById('saleProductsTable');
-      tbody.innerHTML = '';
-      
-      saleProducts.forEach((product, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>
-            <select class="sale-product-select" data-index="${index}" onchange="updateSaleProduct(${index}, this.value)">
-              <option value="">Select Product</option>
-              ${window.inventory.filter(p => p.quantity > 0).map(p => 
-                `<option value="${p.id}" data-stock="${p.quantity}" data-price="${p.unitPrice}">
-                  ${p.name} (${p.sku}) - Stock: ${p.quantity}
-                </option>`
-              ).join('')}
-            </select>
-          </td>
-          <td class="available-stock-${index}">${product.availableStock}</td>
-          <td>
-            <input type="number" class="sale-quantity" data-index="${index}" 
-                   value="${product.quantity}" min="1" max="${product.availableStock}"
-                   onchange="updateSaleQuantity(${index}, this.value)" 
-                   oninput="updateSaleQuantity(${index}, this.value)">
-          </td>
-          <td>
-            <input type="number" class="sale-unit-price" data-index="${index}" 
-                   value="${product.unitPrice}" step="0.01" min="0" 
-                   onchange="updateSaleUnitPrice(${index}, this.value)" 
-                   oninput="updateSaleUnitPrice(${index}, this.value)">
-          </td>
-          <td class="sale-total-revenue-${index}">${product.totalRevenue.toFixed(2)}</td>
-          <td>
-            <button class="danger-btn small-btn" onclick="removeSaleRow(${index})">Remove</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-        
-        // Set selected value if product is already selected
-        if (product.productId) {
-          row.querySelector(`.sale-product-select`).value = product.productId;
-        }
-      });
-    }
-    
-    function updateSaleProduct(index, productId) {
-      const product = window.inventory.find(p => p.id === productId);
-      if (product) {
-        saleProducts[index].productId = productId;
-        saleProducts[index].productName = product.name;
-        saleProducts[index].availableStock = product.quantity;
-        saleProducts[index].unitPrice = product.unitPrice || 0;
-        
-        document.querySelector(`.available-stock-${index}`).textContent = product.quantity;
-        document.querySelector(`.sale-unit-price[data-index="${index}"]`).value = product.unitPrice || 0;
-        document.querySelector(`.sale-quantity[data-index="${index}"]`).max = product.quantity;
-        
-        updateSaleRowTotal(index);
-        updateSaleTotal();
-      }
-    }
-    
-    function updateSaleQuantity(index, quantity) {
-      const maxQuantity = saleProducts[index].availableStock;
-      const actualQuantity = Math.min(parseInt(quantity) || 0, maxQuantity);
-      saleProducts[index].quantity = actualQuantity;
-      document.querySelector(`.sale-quantity[data-index="${index}"]`).value = actualQuantity;
-      updateSaleRowTotal(index);
-      updateSaleTotal();
-    }
-    
-    function updateSaleUnitPrice(index, unitPrice) {
-      saleProducts[index].unitPrice = parseFloat(unitPrice) || 0;
-      updateSaleRowTotal(index);
-      updateSaleTotal();
-    }
-    
-    function updateSaleRowTotal(index) {
-      const product = saleProducts[index];
-      product.totalRevenue = product.quantity * product.unitPrice;
-      document.querySelector(`.sale-total-revenue-${index}`).textContent = product.totalRevenue.toFixed(2);
-    }
-    
-    function updateSaleTotal() {
-      const total = saleProducts.reduce((sum, product) => sum + product.totalRevenue, 0);
-      document.getElementById('saleTotalRevenue').textContent = total.toFixed(2);
-    }
-    
-    function removeSaleRow(index) {
-      saleProducts.splice(index, 1);
-      updateSaleTable();
-      updateSaleTotal();
-    }
-    
     // Close modals when clicking outside
     window.onclick = function(event) {
       const purchaseModal = document.getElementById('purchaseModal');
@@ -624,49 +331,6 @@
       if (event.target === saleModal) closeSaleModal();
       if (event.target === reportModal) closeReportSelectionModal();
     }
-    
-    // Initialize search functionality
-    document.addEventListener('DOMContentLoaded', function() {
-      // Purchase product search
-      const purchaseSearch = document.getElementById('purchaseProductSearch');
-      if (purchaseSearch) {
-        purchaseSearch.addEventListener('input', function() {
-          const searchTerm = this.value.toLowerCase();
-          const selects = document.querySelectorAll('.purchase-product-select');
-          
-          selects.forEach(select => {
-            const options = select.querySelectorAll('option');
-            options.forEach(option => {
-              if (option.textContent.toLowerCase().includes(searchTerm)) {
-                option.style.display = '';
-              } else {
-                option.style.display = 'none';
-              }
-            });
-          });
-        });
-      }
-      
-      // Sale product search
-      const saleSearch = document.getElementById('saleProductSearch');
-      if (saleSearch) {
-        saleSearch.addEventListener('input', function() {
-          const searchTerm = this.value.toLowerCase();
-          const selects = document.querySelectorAll('.sale-product-select');
-          
-          selects.forEach(select => {
-            const options = select.querySelectorAll('option');
-            options.forEach(option => {
-              if (option.textContent.toLowerCase().includes(searchTerm)) {
-                option.style.display = '';
-              } else {
-                option.style.display = 'none';
-              }
-            });
-          });
-        });
-      }
-    });
   </script>
 </body>
 </html>
