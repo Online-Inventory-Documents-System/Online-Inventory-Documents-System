@@ -729,10 +729,278 @@ async function confirmAndGeneratePDF() {
   }
 }
 
+// ============================================================================
+//                    NEW PURCHASE AND SALE FUNCTIONS
+// ============================================================================
+
+// Purchase Functions
+async function loadProductsForPurchase() {
+  try {
+    const select = document.getElementById('purchaseProduct');
+    select.innerHTML = '<option value="">Select Product</option>';
+    
+    inventory.forEach(product => {
+      const option = document.createElement('option');
+      option.value = product.id;
+      option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+      select.appendChild(option);
+    });
+    
+    // Set today's date as default
+    document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+  } catch (err) {
+    console.error('Error loading products for purchase:', err);
+  }
+}
+
+function resetPurchaseForm() {
+  document.getElementById('purchaseProduct').value = '';
+  document.getElementById('purchaseQuantity').value = '';
+  document.getElementById('purchaseUnitCost').value = '';
+  document.getElementById('purchaseSupplier').value = '';
+  document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+}
+
+async function confirmPurchase() {
+  const productId = document.getElementById('purchaseProduct').value;
+  const quantity = parseInt(document.getElementById('purchaseQuantity').value);
+  const unitCost = parseFloat(document.getElementById('purchaseUnitCost').value);
+  const supplier = document.getElementById('purchaseSupplier').value;
+  const date = document.getElementById('purchaseDate').value;
+
+  if (!productId || !quantity || !unitCost || !supplier) {
+    alert('Please fill in all required fields');
+    return;
+  }
+
+  if (!confirm(`Confirm purchase of ${quantity} units?`)) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases`, {
+      method: 'POST',
+      body: JSON.stringify({
+        productId,
+        quantityReceived: quantity,
+        unitCost,
+        supplier,
+        date
+      })
+    });
+
+    if (res.ok) {
+      alert('✅ Purchase recorded successfully!');
+      closePurchaseModal();
+      await fetchInventory(); // Refresh inventory
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to record purchase: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Purchase error:', err);
+    alert('❌ Server error while recording purchase');
+  }
+}
+
+// Sale Functions
+async function loadProductsForSale() {
+  try {
+    const select = document.getElementById('saleProduct');
+    select.innerHTML = '<option value="">Select Product</option>';
+    
+    // Only show products with stock
+    inventory.filter(product => product.quantity > 0).forEach(product => {
+      const option = document.createElement('option');
+      option.value = product.id;
+      option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+      option.setAttribute('data-price', product.unitPrice);
+      select.appendChild(option);
+    });
+    
+    // Set today's date as default
+    document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
+    
+    // Auto-fill unit price when product is selected
+    select.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      if (selectedOption.value) {
+        document.getElementById('saleUnitPrice').value = selectedOption.getAttribute('data-price');
+      }
+    });
+  } catch (err) {
+    console.error('Error loading products for sale:', err);
+  }
+}
+
+function resetSaleForm() {
+  document.getElementById('saleProduct').value = '';
+  document.getElementById('saleQuantity').value = '';
+  document.getElementById('saleUnitPrice').value = '';
+  document.getElementById('saleCustomer').value = '';
+  document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
+}
+
+async function confirmSale() {
+  const productId = document.getElementById('saleProduct').value;
+  const quantity = parseInt(document.getElementById('saleQuantity').value);
+  const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value);
+  const customer = document.getElementById('saleCustomer').value;
+  const date = document.getElementById('saleDate').value;
+
+  if (!productId || !quantity || !unitPrice || !customer) {
+    alert('Please fill in all required fields');
+    return;
+  }
+
+  // Check stock availability
+  const product = inventory.find(p => p.id === productId);
+  if (product && product.quantity < quantity) {
+    alert(`❌ Insufficient stock! Available: ${product.quantity}, Requested: ${quantity}`);
+    return;
+  }
+
+  if (!confirm(`Confirm sale of ${quantity} units to ${customer}?`)) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/sales`, {
+      method: 'POST',
+      body: JSON.stringify({
+        productId,
+        quantitySold: quantity,
+        unitPrice,
+        customer,
+        date
+      })
+    });
+
+    if (res.ok) {
+      alert('✅ Sale recorded successfully!');
+      closeSaleModal();
+      await fetchInventory(); // Refresh inventory
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to record sale: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Sale error:', err);
+    alert('❌ Server error while recording sale');
+  }
+}
+
+// Report Generation Functions
+async function generateSelectedReport() {
+  if (!selectedReportType) {
+    alert('Please select a report type');
+    return;
+  }
+
+  if (!confirm(`Generate ${selectedReportType} report?`)) return;
+
+  try {
+    let url;
+    switch (selectedReportType) {
+      case 'inventory':
+        url = `${API_BASE}/inventory/report/pdf`;
+        break;
+      case 'purchase':
+        url = `${API_BASE}/purchases/report/pdf`;
+        break;
+      case 'sales':
+        url = `${API_BASE}/sales/report/pdf`;
+        break;
+      default:
+        alert('Invalid report type');
+        return;
+    }
+
+    const res = await apiFetch(url, { method: 'GET' });
+
+    if (!res.ok) {
+      throw new Error(`Server returned ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    
+    // Get filename from content disposition
+    const contentDisposition = res.headers.get('Content-Disposition');
+    let filename = `${selectedReportType}_report.pdf`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
+      if (filenameMatch) filename = filenameMatch[1];
+    }
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    closeReportSelectionModal();
+    await fetchDocuments(); // Refresh documents list
+    alert(`✅ ${selectedReportType.charAt(0).toUpperCase() + selectedReportType.slice(1)} Report generated successfully!`);
+
+  } catch (err) {
+    console.error('Report generation error:', err);
+    alert(`❌ Failed to generate ${selectedReportType} report`);
+  }
+}
+
+// Company Information Functions
+async function loadCompanyInformation() {
+  try {
+    const res = await apiFetch(`${API_BASE}/company`);
+    if (res.ok) {
+      const company = await res.json();
+      document.getElementById('companyName').value = company.name || '';
+      document.getElementById('companyAddress').value = company.address || '';
+      document.getElementById('companyPhone').value = company.phone || '';
+      document.getElementById('companyEmail').value = company.email || '';
+    }
+  } catch (err) {
+    console.error('Error loading company information:', err);
+  }
+}
+
+async function saveCompanyInformation() {
+  const name = document.getElementById('companyName').value.trim();
+  const address = document.getElementById('companyAddress').value.trim();
+  const phone = document.getElementById('companyPhone').value.trim();
+  const email = document.getElementById('companyEmail').value.trim();
+  const msgEl = document.getElementById('companyMessage');
+
+  if (!name || !address || !phone || !email) {
+    showMsg(msgEl, 'Please fill in all company information fields', 'red');
+    return;
+  }
+
+  if (!confirm('Update company information?')) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/company`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, address, phone, email })
+    });
+
+    if (res.ok) {
+      showMsg(msgEl, '✅ Company information updated successfully!', 'green');
+      setTimeout(() => showMsg(msgEl, '', 'green'), 3000);
+    } else {
+      const error = await res.json();
+      showMsg(msgEl, `❌ Failed to update: ${error.message}`, 'red');
+    }
+  } catch (err) {
+    console.error('Company update error:', err);
+    showMsg(msgEl, '❌ Server error while updating company information', 'red');
+  }
+}
+
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
-  qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
-  qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
+  qs('#purchaseBtn')?.addEventListener('click', openPurchaseModal);
+  qs('#saleBtn')?.addEventListener('click', openSaleModal);
+  qs('#reportSelectionBtn')?.addEventListener('click', openReportSelectionModal);
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
     if(qs('#searchInput')) { 
@@ -741,7 +1009,6 @@ function bindInventoryUI(){
     } 
   });
   
-  // UPDATED: Bind date range filter events
   bindDateRangeFilterEvents();
 }
 
@@ -982,6 +1249,12 @@ function bindSettingPage(){
   const currentUsername = getUsername();
   if(qs('#currentUser')) qs('#currentUser').textContent = currentUsername;
 
+  // Load company information
+  loadCompanyInformation();
+
+  // Company information save button
+  qs('#saveCompanyInfo')?.addEventListener('click', saveCompanyInformation);
+
   qs('#changePasswordBtn')?.addEventListener('click', async ()=> {
     const newPass = qs('#newPassword')?.value;
     const confPass = qs('#confirmPassword')?.value;
@@ -1040,3 +1313,17 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
+
+// New exposed functions
+window.openPurchaseModal = openPurchaseModal;
+window.closePurchaseModal = closePurchaseModal;
+window.openSaleModal = openSaleModal;
+window.closeSaleModal = closeSaleModal;
+window.openReportSelectionModal = openReportSelectionModal;
+window.closeReportSelectionModal = closeReportSelectionModal;
+window.selectReport = selectReport;
+window.generateSelectedReport = generateSelectedReport;
+window.confirmPurchase = confirmPurchase;
+window.confirmSale = confirmSale;
+window.loadCompanyInformation = loadCompanyInformation;
+window.saveCompanyInformation = saveCompanyInformation;
