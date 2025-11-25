@@ -607,9 +607,9 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           const qty = Number(item.quantity || 0);
           const cost = Number(item.unitCost || 0);
           const price = Number(item.unitPrice || 0);
-          const inventoryValue = qty * cost; // FIXED: This was wrong in your PDF
+          const inventoryValue = qty * cost;
           const potentialRevenue = qty * price;
-          const potentialProfit = potentialRevenue - inventoryValue; // FIXED: This was wrong in your PDF
+          const potentialProfit = potentialRevenue - inventoryValue;
 
           // Draw row background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
@@ -856,7 +856,7 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    SALES REPORT PDF - PORTRAIT
+//                    SALES REPORT PDF - PORTRAIT (FIXED)
 // ============================================================================
 app.get("/api/sales/report/pdf", async (req, res) => {
   try {
@@ -873,6 +873,8 @@ app.get("/api/sales/report/pdf", async (req, res) => {
     const reportId = `SAL-${Date.now()}`;
     const printedBy = req.headers["x-username"] || "System";
     const filename = `Sales_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+    console.log(`💰 Generating Sales PDF report: ${filename}, Sales count: ${sales.length}`);
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
@@ -917,31 +919,37 @@ app.get("/api/sales/report/pdf", async (req, res) => {
         let totalQuantity = 0;
         let totalRevenue = 0;
 
-        sales.forEach(s => {
-          const dateStr = new Date(s.date).toLocaleDateString();
-          const productName = s.productName || "N/A";
-          const customer = s.customer || "N/A";
-          const qty = s.quantitySold;
-          const unitPrice = s.unitPrice;
-          const total = s.totalRevenue;
-
-          totalQuantity += qty;
-          totalRevenue += total;
-
-          doc.text(dateStr, 40, y);
-          doc.text(productName, 100, y, { width: 140, ellipsis: true });
-          doc.text(s.sku || "", 250, y);
-          doc.text(customer, 300, y, { width: 60, ellipsis: true });
-          doc.text(String(qty), 370, y);
-          doc.text(`RM ${unitPrice.toFixed(2)}`, 400, y);
-          doc.text(`RM ${total.toFixed(2)}`, 470, y);
-
+        // Handle case when there are no sales
+        if (sales.length === 0) {
+          doc.text("No sales records found", 40, y);
           y += rowHeight;
-          if (y > 700) {
-            doc.addPage();
-            y = 40;
-          }
-        });
+        } else {
+          sales.forEach(s => {
+            const dateStr = new Date(s.date).toLocaleDateString();
+            const productName = s.productName || "N/A";
+            const customer = s.customer || "N/A";
+            const qty = s.quantitySold || 0;
+            const unitPrice = s.unitPrice || 0;
+            const total = s.totalRevenue || 0;
+
+            totalQuantity += qty;
+            totalRevenue += total;
+
+            doc.text(dateStr, 40, y);
+            doc.text(productName, 100, y, { width: 140, ellipsis: true });
+            doc.text(s.sku || "", 250, y);
+            doc.text(customer, 300, y, { width: 60, ellipsis: true });
+            doc.text(String(qty), 370, y);
+            doc.text(`RM ${unitPrice.toFixed(2)}`, 400, y);
+            doc.text(`RM ${total.toFixed(2)}`, 470, y);
+
+            y += rowHeight;
+            if (y > 700) {
+              doc.addPage();
+              y = 40;
+            }
+          });
+        }
 
         // Summary
         y += 10;
@@ -954,6 +962,7 @@ app.get("/api/sales/report/pdf", async (req, res) => {
 
         doc.end();
       } catch (error) {
+        console.error('PDF generation error:', error);
         reject(error);
       }
     });
@@ -974,9 +983,11 @@ app.get("/api/sales/report/pdf", async (req, res) => {
     res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
 
+    console.log(`✅ Sales PDF sent to browser: ${filename}`);
+
   } catch (err) {
-    console.error("Sales PDF error:", err);
-    res.status(500).json({ message: "PDF generation failed: " + err.message });
+    console.error("❌ Sales PDF Generation Error:", err);
+    res.status(500).json({ message: "Sales PDF generation failed: " + err.message });
   }
 });
 
