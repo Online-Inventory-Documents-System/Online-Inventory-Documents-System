@@ -258,7 +258,7 @@ input:focus {
 }
 
 /* =========================================
-   NEW: Date Search Controls Styling
+   UPDATED: Date Range Search Controls Styling
 ========================================= */
 .search-controls {
     display: flex;
@@ -267,7 +267,7 @@ input:focus {
     width: 100%;
 }
 
-.date-search-container,
+.date-range-container,
 .text-search-container {
     display: flex;
     align-items: center;
@@ -275,23 +275,72 @@ input:focus {
     flex-wrap: wrap;
 }
 
-.date-search-container label {
+.date-range-container label {
     font-weight: 600;
     color: var(--primary-color);
     white-space: nowrap;
 }
 
-.date-search-container input[type="date"] {
+.date-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.date-input-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.date-label {
+    font-size: 0.85rem;
+    color: var(--secondary-color);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.date-range-container input[type="date"] {
     width: auto;
-    min-width: 150px;
+    min-width: 140px;
     padding: 8px 10px;
     margin: 0;
+    font-size: 0.9rem;
+}
+
+.date-range-container .primary-btn,
+.date-range-container .secondary-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    white-space: nowrap;
 }
 
 .text-search-container input[type="text"] {
     width: 280px;
     padding: 10px;
     margin: 0;
+}
+
+/* Active date range filter indicator */
+.date-range-container.active {
+    background: rgba(0, 123, 255, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--primary-color);
+}
+
+/* Date range status display */
+.date-range-status {
+    font-size: 0.8rem;
+    color: var(--success-color);
+    font-weight: 500;
+    margin-left: 10px;
+    display: none;
+}
+
+.date-range-status.active {
+    display: inline;
 }
 
 /* Responsive adjustments for search controls */
@@ -302,9 +351,24 @@ input:focus {
         align-items: center;
     }
     
-    .date-search-container,
+    .date-range-container,
     .text-search-container {
         flex: 0 0 auto;
+    }
+}
+
+@media (max-width: 992px) {
+    .date-inputs {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .date-input-group {
+        width: 100%;
+    }
+    
+    .date-range-container input[type="date"] {
+        min-width: 120px;
     }
 }
 
@@ -612,15 +676,24 @@ input:focus {
     background: #343a40;
 }
 
-/* Dark mode for date search */
-.dark-mode .date-search-container label {
+/* Dark mode for date range search */
+.dark-mode .date-range-container label {
     color: #80bdff;
 }
 
-.dark-mode .date-search-container input[type="date"] {
+.dark-mode .date-range-container input[type="date"] {
     background: #495057;
     color: var(--text-dark);
     border-color: #6c757d;
+}
+
+.dark-mode .date-label {
+    color: #adb5bd;
+}
+
+.dark-mode .date-range-container.active {
+    background: rgba(0, 123, 255, 0.2);
+    border-color: #80bdff;
 }
 
 /* =========================================
