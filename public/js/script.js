@@ -101,6 +101,49 @@ function renderInventory(items) {
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
+// =========================================
+// NEW: Date Filtering Functions
+// =========================================
+function filterByDate(selectedDate) {
+  if (!selectedDate) {
+    renderInventory(inventory);
+    return;
+  }
+
+  const filtered = inventory.filter(item => {
+    if (!item.createdAt) return false;
+    
+    const itemDate = new Date(item.createdAt);
+    const searchDate = new Date(selectedDate);
+    
+    // Compare year, month, and day only (ignore time)
+    return itemDate.getFullYear() === searchDate.getFullYear() &&
+           itemDate.getMonth() === searchDate.getMonth() &&
+           itemDate.getDate() === searchDate.getDate();
+  });
+  
+  renderInventory(filtered);
+}
+
+function clearDateFilter() {
+  if (qs('#searchDate')) {
+    qs('#searchDate').value = '';
+  }
+  renderInventory(inventory);
+}
+
+function bindDateFilterEvents() {
+  // Date input change event
+  qs('#searchDate')?.addEventListener('change', function() {
+    filterByDate(this.value);
+  });
+  
+  // Clear date button event
+  qs('#clearDateBtn')?.addEventListener('click', clearDateFilter);
+}
+
+// =========================================
+
 // Update the renderDocuments function to be more accurate
 function renderDocuments(docs) {
   const list = qs('#docList');
@@ -407,9 +450,18 @@ window.addEventListener('load', async () => {
   if(theme === 'dark') document.body.classList.add('dark-mode');
 
   try {
-    if(currentPage.includes('inventory')) { await fetchInventory(); bindInventoryUI(); }
-    if(currentPage.includes('documents')) { await fetchDocuments(); bindDocumentsUI(); }
-    if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { await fetchLogs(); await fetchInventory(); }
+    if(currentPage.includes('inventory')) { 
+      await fetchInventory(); 
+      bindInventoryUI(); 
+    }
+    if(currentPage.includes('documents')) { 
+      await fetchDocuments(); 
+      bindDocumentsUI(); 
+    }
+    if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
+      await fetchLogs(); 
+      await fetchInventory(); 
+    }
     if(currentPage.includes('product')) bindProductPage();
     if(currentPage.includes('setting')) bindSettingPage();
   } catch(e) { console.error('Init error', e); }
@@ -593,12 +645,46 @@ function bindInventoryUI(){
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
   qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
   qs('#searchInput')?.addEventListener('input', searchInventory);
-  qs('#clearSearchBtn')?.addEventListener('click', ()=> { if(qs('#searchInput')) { qs('#searchInput').value=''; searchInventory(); } });
+  qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
+    if(qs('#searchInput')) { 
+      qs('#searchInput').value=''; 
+      searchInventory(); 
+    } 
+  });
+  
+  // NEW: Bind date filter events
+  bindDateFilterEvents();
 }
 
 function searchInventory(){
-  const q = (qs('#searchInput')?.value || '').toLowerCase().trim();
-  const filtered = inventory.filter(item => (item.sku||'').toLowerCase().includes(q) || (item.name||'').toLowerCase().includes(q) || (item.category||'').toLowerCase().includes(q));
+  const textQuery = (qs('#searchInput')?.value || '').toLowerCase().trim();
+  const dateQuery = qs('#searchDate')?.value || '';
+  
+  let filtered = inventory;
+  
+  // Apply text filter if exists
+  if (textQuery) {
+    filtered = filtered.filter(item => 
+      (item.sku||'').toLowerCase().includes(textQuery) || 
+      (item.name||'').toLowerCase().includes(textQuery) || 
+      (item.category||'').toLowerCase().includes(textQuery)
+    );
+  }
+  
+  // Apply date filter if exists
+  if (dateQuery) {
+    filtered = filtered.filter(item => {
+      if (!item.createdAt) return false;
+      
+      const itemDate = new Date(item.createdAt);
+      const searchDate = new Date(dateQuery);
+      
+      return itemDate.getFullYear() === searchDate.getFullYear() &&
+             itemDate.getMonth() === searchDate.getMonth() &&
+             itemDate.getDate() === searchDate.getDate();
+    });
+  }
+  
   renderInventory(filtered);
 }
 
@@ -846,5 +932,3 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
-
-
