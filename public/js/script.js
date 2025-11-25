@@ -69,7 +69,7 @@ function renderInventory(items) {
     totalProfit += profit;
     totalStock += qty;
 
-    // Format the date - NEW DATE COLUMN
+    // Format the date
     const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
 
     const tr = document.createElement('tr');
@@ -101,9 +101,7 @@ function renderInventory(items) {
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
-// =========================================
-// UPDATED: Date Range Filtering Functions
-// =========================================
+// Date Range Filtering Functions
 function filterByDateRange(startDate, endDate) {
   if (!startDate && !endDate) {
     renderInventory(inventory);
@@ -125,7 +123,7 @@ function filterByDateRange(startDate, endDate) {
     // If only end date is provided, filter items up to that date
     if (!startDate && endDate) {
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
+      end.setHours(23, 59, 59, 999);
       return itemDate <= end;
     }
     
@@ -133,7 +131,7 @@ function filterByDateRange(startDate, endDate) {
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
+      end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     }
     
@@ -230,8 +228,6 @@ function bindDateRangeFilterEvents() {
     }
   });
 }
-
-// =========================================
 
 // Update the renderDocuments function to be more accurate
 function renderDocuments(docs) {
@@ -730,10 +726,10 @@ async function confirmAndGeneratePDF() {
 }
 
 // ============================================================================
-//                    NEW PURCHASE AND SALE FUNCTIONS
+//                    ENHANCED PURCHASE AND SALES MANAGEMENT
 // ============================================================================
 
-// Purchase Functions
+// Enhanced Purchase Functions
 async function loadProductsForPurchase() {
   try {
     const select = document.getElementById('purchaseProduct');
@@ -743,11 +739,20 @@ async function loadProductsForPurchase() {
       const option = document.createElement('option');
       option.value = product.id;
       option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
+      option.setAttribute('data-cost', product.unitCost);
       select.appendChild(option);
     });
     
     // Set today's date as default
     document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+    
+    // Auto-fill unit cost when product is selected
+    select.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      if (selectedOption.value) {
+        document.getElementById('purchaseUnitCost').value = selectedOption.getAttribute('data-cost');
+      }
+    });
   } catch (err) {
     console.error('Error loading products for purchase:', err);
   }
@@ -761,615 +766,39 @@ function resetPurchaseForm() {
   document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
 }
 
-async function confirmPurchase() {
-  const productId = document.getElementById('purchaseProduct').value;
-  const quantity = parseInt(document.getElementById('purchaseQuantity').value);
-  const unitCost = parseFloat(document.getElementById('purchaseUnitCost').value);
-  const supplier = document.getElementById('purchaseSupplier').value;
+async function confirmBulkPurchase() {
   const date = document.getElementById('purchaseDate').value;
 
-  if (!productId || !quantity || !unitCost || !supplier) {
-    alert('Please fill in all required fields');
+  if (window.purchaseItems.length === 0) {
+    alert('Please add at least one item to purchase');
     return;
   }
 
-  if (!confirm(`Confirm purchase of ${quantity} units?`)) return;
+  if (!confirm(`Confirm purchase of ${window.purchaseItems.length} items? Total cost: RM ${window.purchaseItems.reduce((sum, item) => sum + item.totalCost, 0).toFixed(2)}`)) return;
 
   try {
-    const res = await apiFetch(`${API_BASE}/purchases`, {
+    const purchases = window.purchaseItems.map(item => ({
+      productId: item.productId,
+      quantityReceived: item.quantity,
+      unitCost: item.unitCost,
+      supplier: item.supplier,
+      date: date
+    }));
+
+    const res = await apiFetch(`${API_BASE}/purchases/bulk`, {
       method: 'POST',
-      body: JSON.stringify({
-        productId,
-        quantityReceived: quantity,
-        unitCost,
-        supplier,
-        date
-      })
+      body: JSON.stringify({ purchases })
     });
 
     if (res.ok) {
-      alert('✅ Purchase recorded successfully!');
+      alert(`✅ ${window.purchaseItems.length} purchase items recorded successfully!`);
       closePurchaseModal();
-      await fetchInventory(); // Refresh inventory
+      await fetchInventory();
+      window.purchaseItems = [];
     } else {
       const error = await res.json();
-      alert(`❌ Failed to record purchase: ${error.message}`);
+      alert(`❌ Failed to record purchases: ${error.message}`);
     }
   } catch (err) {
-    console.error('Purchase error:', err);
-    alert('❌ Server error while recording purchase');
-  }
-}
-
-// Sale Functions
-async function loadProductsForSale() {
-  try {
-    const select = document.getElementById('saleProduct');
-    select.innerHTML = '<option value="">Select Product</option>';
-    
-    // Only show products with stock
-    inventory.filter(product => product.quantity > 0).forEach(product => {
-      const option = document.createElement('option');
-      option.value = product.id;
-      option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
-      option.setAttribute('data-price', product.unitPrice);
-      select.appendChild(option);
-    });
-    
-    // Set today's date as default
-    document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
-    
-    // Auto-fill unit price when product is selected
-    select.addEventListener('change', function() {
-      const selectedOption = this.options[this.selectedIndex];
-      if (selectedOption.value) {
-        document.getElementById('saleUnitPrice').value = selectedOption.getAttribute('data-price');
-      }
-    });
-  } catch (err) {
-    console.error('Error loading products for sale:', err);
-  }
-}
-
-function resetSaleForm() {
-  document.getElementById('saleProduct').value = '';
-  document.getElementById('saleQuantity').value = '';
-  document.getElementById('saleUnitPrice').value = '';
-  document.getElementById('saleCustomer').value = '';
-  document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
-}
-
-async function confirmSale() {
-  const productId = document.getElementById('saleProduct').value;
-  const quantity = parseInt(document.getElementById('saleQuantity').value);
-  const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value);
-  const customer = document.getElementById('saleCustomer').value;
-  const date = document.getElementById('saleDate').value;
-
-  if (!productId || !quantity || !unitPrice || !customer) {
-    alert('Please fill in all required fields');
-    return;
-  }
-
-  // Check stock availability
-  const product = inventory.find(p => p.id === productId);
-  if (product && product.quantity < quantity) {
-    alert(`❌ Insufficient stock! Available: ${product.quantity}, Requested: ${quantity}`);
-    return;
-  }
-
-  if (!confirm(`Confirm sale of ${quantity} units to ${customer}?`)) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/sales`, {
-      method: 'POST',
-      body: JSON.stringify({
-        productId,
-        quantitySold: quantity,
-        unitPrice,
-        customer,
-        date
-      })
-    });
-
-    if (res.ok) {
-      alert('✅ Sale recorded successfully!');
-      closeSaleModal();
-      await fetchInventory(); // Refresh inventory
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to record sale: ${error.message}`);
-    }
-  } catch (err) {
-    console.error('Sale error:', err);
-    alert('❌ Server error while recording sale');
-  }
-}
-
-// Report Generation Functions
-async function generateSelectedReport() {
-  if (!selectedReportType) {
-    alert('Please select a report type');
-    return;
-  }
-
-  if (!confirm(`Generate ${selectedReportType} report?`)) return;
-
-  try {
-    let url;
-    switch (selectedReportType) {
-      case 'inventory':
-        url = `${API_BASE}/inventory/report/pdf`;
-        break;
-      case 'purchase':
-        url = `${API_BASE}/purchases/report/pdf`;
-        break;
-      case 'sales':
-        url = `${API_BASE}/sales/report/pdf`;
-        break;
-      default:
-        alert('Invalid report type');
-        return;
-    }
-
-    const res = await apiFetch(url, { method: 'GET' });
-
-    if (!res.ok) {
-      let errorMessage = 'Report generation failed';
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        errorMessage = `Server error: ${res.status}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const blob = await res.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    
-    // Get filename from content disposition
-    const contentDisposition = res.headers.get('Content-Disposition');
-    let filename = `${selectedReportType}_report.pdf`;
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
-      if (filenameMatch) filename = filenameMatch[1];
-    }
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(downloadUrl);
-
-    closeReportSelectionModal();
-    await fetchDocuments(); // Refresh documents list
-    alert(`✅ ${selectedReportType.charAt(0).toUpperCase() + selectedReportType.slice(1)} Report generated successfully!`);
-
-  } catch (err) {
-    console.error('Report generation error:', err);
-    alert(`❌ Failed to generate ${selectedReportType} report: ${err.message}`);
-  }
-}
-
-// Company Information Functions
-async function loadCompanyInformation() {
-  try {
-    const res = await apiFetch(`${API_BASE}/company`);
-    if (res.ok) {
-      const company = await res.json();
-      document.getElementById('companyName').value = company.name || '';
-      document.getElementById('companyAddress').value = company.address || '';
-      document.getElementById('companyPhone').value = company.phone || '';
-      document.getElementById('companyEmail').value = company.email || '';
-    }
-  } catch (err) {
-    console.error('Error loading company information:', err);
-  }
-}
-
-async function saveCompanyInformation() {
-  const name = document.getElementById('companyName').value.trim();
-  const address = document.getElementById('companyAddress').value.trim();
-  const phone = document.getElementById('companyPhone').value.trim();
-  const email = document.getElementById('companyEmail').value.trim();
-  const msgEl = document.getElementById('companyMessage');
-
-  if (!name || !address || !phone || !email) {
-    showMsg(msgEl, 'Please fill in all company information fields', 'red');
-    return;
-  }
-
-  if (!confirm('Update company information?')) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/company`, {
-      method: 'PUT',
-      body: JSON.stringify({ name, address, phone, email })
-    });
-
-    if (res.ok) {
-      showMsg(msgEl, '✅ Company information updated successfully!', 'green');
-      setTimeout(() => showMsg(msgEl, '', 'green'), 3000);
-    } else {
-      const error = await res.json();
-      showMsg(msgEl, `❌ Failed to update: ${error.message}`, 'red');
-    }
-  } catch (err) {
-    console.error('Company update error:', err);
-    showMsg(msgEl, '❌ Server error while updating company information', 'red');
-  }
-}
-
-// Password change function for settings page
-async function changePassword() {
-  const newPass = document.getElementById('newPassword')?.value;
-  const confPass = document.getElementById('confirmPassword')?.value;
-  const code = document.getElementById('securityCode')?.value;
-  const msgEl = document.getElementById('passwordMessage');
-  showMsg(msgEl, '');
-  
-  if(!newPass || !confPass || !code) { 
-    return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); 
-  }
-  
-  if(newPass !== confPass) { 
-    return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); 
-  }
-  
-  if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/account/password`, { 
-      method: 'PUT', 
-      body: JSON.stringify({ 
-        username: getUsername(), 
-        newPassword: newPass, 
-        securityCode: code 
-      }) 
-    });
-    
-    const data = await res.json();
-    
-    if(res.ok) {
-      showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
-      document.getElementById('newPassword').value = '';
-      document.getElementById('confirmPassword').value = '';
-      document.getElementById('securityCode').value = '';
-      setTimeout(logout, 1500);
-    } else {
-      showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
-    }
-  } catch(e) { 
-    showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); 
-  }
-}
-
-// Delete account function for settings page
-async function deleteAccount() {
-  const code = document.getElementById('deleteSecurityCode')?.value;
-  
-  if(!code) {
-    alert('Please enter security code to confirm deletion');
-    return;
-  }
-  
-  if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${getUsername()}"? This action cannot be undone.`)) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/account`, { 
-      method: 'DELETE', 
-      body: JSON.stringify({ 
-        username: getUsername(), 
-        securityCode: code 
-      }) 
-    });
-    
-    const data = await res.json();
-    
-    if(res.ok) { 
-      alert('🗑️ Account deleted successfully. You will now be logged out.'); 
-      logout(); 
-    } else {
-      alert(`❌ ${data.message || 'Failed to delete account.'}`);
-    }
-  } catch(e) { 
-    alert('❌ Server connection failed during account deletion.'); 
-  }
-}
-
-function bindInventoryUI(){
-  qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
-  qs('#purchaseBtn')?.addEventListener('click', openPurchaseModal);
-  qs('#saleBtn')?.addEventListener('click', openSaleModal);
-  qs('#reportSelectionBtn')?.addEventListener('click', openReportSelectionModal);
-  qs('#searchInput')?.addEventListener('input', searchInventory);
-  qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
-    if(qs('#searchInput')) { 
-      qs('#searchInput').value=''; 
-      searchInventory(); 
-    } 
-  });
-  
-  bindDateRangeFilterEvents();
-}
-
-function searchInventory(){
-  const textQuery = (qs('#searchInput')?.value || '').toLowerCase().trim();
-  const startDate = qs('#startDate')?.value || '';
-  const endDate = qs('#endDate')?.value || '';
-  
-  let filtered = inventory;
-  
-  // Apply text filter if exists
-  if (textQuery) {
-    filtered = filtered.filter(item => 
-      (item.sku||'').toLowerCase().includes(textQuery) || 
-      (item.name||'').toLowerCase().includes(textQuery) || 
-      (item.category||'').toLowerCase().includes(textQuery)
-    );
-  }
-  
-  // Apply date range filter if exists
-  if (startDate || endDate) {
-    filtered = filtered.filter(item => {
-      if (!item.createdAt) return false;
-      
-      const itemDate = new Date(item.createdAt);
-      
-      // If only start date is provided, filter items from that date forward
-      if (startDate && !endDate) {
-        const start = new Date(startDate);
-        return itemDate >= start;
-      }
-      
-      // If only end date is provided, filter items up to that date
-      if (!startDate && endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // Include the entire end date
-        return itemDate <= end;
-      }
-      
-      // If both dates are provided, filter items within the range
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // Include the entire end date
-        return itemDate >= start && itemDate <= end;
-      }
-      
-      return true;
-    });
-  }
-  
-  renderInventory(filtered);
-}
-
-// Product (edit)
-function openEditPageForItem(id){ window.location.href = `product.html?id=${encodeURIComponent(id)}`; }
-
-async function bindProductPage(){
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get('id');
-  if(id) {
-    try {
-      const res = await apiFetch(`${API_BASE}/inventory`);
-      const items = await res.json();
-      const it = items.find(x => String(x.id) === String(id));
-      if(!it) { alert('Item not found'); return; }
-      if(qs('#prod_id')) qs('#prod_id').value = it.id || it._id;
-      if(qs('#prod_sku')) qs('#prod_sku').value = it.sku || '';
-      if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
-      if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
-      if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
-      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
-    } catch(e) { alert('Failed to load product details.'); return; }
-  }
-
-  qs('#saveProductBtn')?.addEventListener('click', async ()=> {
-    if(!confirm('Confirm: Save Changes?')) return;
-    const idVal = qs('#prod_id')?.value;
-    const body = {
-      sku: qs('#prod_sku')?.value,
-      name: qs('#prod_name')?.value,
-      category: qs('#prod_category')?.value,
-      quantity: Number(qs('#prod_quantity')?.value || 0),
-      unitCost: Number(qs('#prod_unitCost')?.value || 0),
-      unitPrice: Number(qs('#prod_unitPrice')?.value || 0)
-    };
-    try {
-      const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
-      if(res.ok) { alert('✅ Item updated'); window.location.href = 'inventory.html'; }
-      else { const err = await res.json(); alert('❌ Failed to update item: ' + (err.message || 'Unknown')); }
-    } catch(e) { console.error(e); alert('❌ Server connection error during update.'); }
-  });
-
-  qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
-}
-
-// Documents
-async function uploadDocuments(){
-  const fileInput = qs('#docUpload');
-  const files = fileInput?.files;
-  let msgEl = qs('#uploadMessage');
-  
-  if(!msgEl){ 
-    msgEl = document.createElement('p'); 
-    msgEl.id = 'uploadMessage'; 
-    if(qs('.controls')) qs('.controls').appendChild(msgEl); 
-  }
-
-  if(!files || files.length === 0) { 
-    showMsg(msgEl, '⚠️ Please select a file to upload.', 'red'); 
-    return; 
-  }
-  
-  if (files.length > 1) {
-    showMsg(msgEl, '⚠️ Only single file uploads are supported. Please select only one file.', 'red');
-    fileInput.value = '';
-    return;
-  }
-  
-  const file = files[0];
-  
-  // Validate file size
-  if (file.size === 0) {
-    showMsg(msgEl, '⚠️ The selected file is empty (0 bytes).', 'red');
-    return;
-  }
-
-  if (file.size > 50 * 1024 * 1024) {
-    showMsg(msgEl, '⚠️ File size exceeds 50MB limit.', 'red');
-    return;
-  }
-
-  if(!confirm(`Confirm Upload: Upload file "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)?`)) { 
-    showMsg(msgEl, 'Upload cancelled.', 'orange'); 
-    return; 
-  }
-  
-  showMsg(msgEl, `📤 Uploading file "${file.name}"...`, 'orange');
-
-  try {
-    console.log(`Starting upload: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
-    
-    // Read file as ArrayBuffer
-    const fileBuffer = await file.arrayBuffer();
-    
-    if (!fileBuffer || fileBuffer.byteLength === 0) {
-      throw new Error("File reading failed - empty buffer");
-    }
-
-    console.log(`File read successfully: ${fileBuffer.byteLength} bytes`);
-    
-    // Convert ArrayBuffer to Buffer for upload
-    const uint8Array = new Uint8Array(fileBuffer);
-    
-    const res = await fetch(`${API_BASE}/documents`, { 
-        method: 'POST', 
-        body: uint8Array,
-        headers: {
-            'Content-Type': file.type || 'application/octet-stream', 
-            'X-Username': getUsername(),
-            'X-File-Name': encodeURIComponent(file.name),
-            'Content-Length': fileBuffer.byteLength.toString()
-        }
-    });
-
-    console.log(`Upload response status: ${res.status}`);
-
-    if(res.ok) {
-      const result = await res.json();
-      console.log('Upload successful, server response:', result);
-      
-      showMsg(msgEl, `✅ Successfully uploaded: "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)`, 'green');
-      
-      // Refresh documents list
-      await fetchDocuments();
-      
-    } else {
-      const errorData = await res.json().catch(() => ({ message: 'Unknown server error' }));
-      throw new Error(errorData.message || `Server error: ${res.status}`);
-    }
-  } catch(e) {
-    console.error('❌ Upload error:', e);
-    showMsg(msgEl, `❌ Upload failed: ${e.message}`, 'red');
-    if(fileInput) fileInput.value = '';
-    return;
-  }
-  
-  // Clear input and remove message
-  if(fileInput) fileInput.value = '';
-  setTimeout(() => { 
-    if(msgEl) {
-      msgEl.remove(); 
-    }
-  }, 3000);
-}
-
-// Update delete function
-async function deleteDocumentConfirm(id) {
-  const doc = documents.find(d => String(d.id) === String(id));
-  if(!doc) {
-    alert('Document not found in local list');
-    return;
-  }
-  
-  if(!confirm(`Delete document: ${doc.name}?`)) return;
-  
-  try {
-    console.log(`Deleting document: ${id}`);
-    const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
-    
-    if(res.status === 204 || res.ok) { 
-      await fetchDocuments(); 
-      alert('🗑️ Document deleted successfully!'); 
-    } else {
-      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
-      alert('❌ Failed to delete document: ' + errorData.message);
-    }
-  } catch(e) { 
-    console.error('Delete error:', e); 
-    alert('❌ Server error while deleting document: ' + e.message); 
-  }
-}
-
-function searchDocuments() {
-  const q = (qs('#searchDocs')?.value || '').toLowerCase().trim();
-  const filtered = documents.filter(d => (d.name||'').toLowerCase().includes(q) || (d.date? new Date(d.date).toLocaleString().toLowerCase() : '').includes(q));
-  renderDocuments(filtered);
-}
-
-function bindDocumentsUI(){
-  qs('#uploadDocsBtn')?.addEventListener('click', uploadDocuments);
-  qs('#searchDocs')?.addEventListener('input', searchDocuments);
-}
-
-// Settings
-function bindSettingPage(){
-  const currentUsername = getUsername();
-  if(qs('#currentUser')) qs('#currentUser').textContent = currentUsername;
-
-  // Load company information
-  loadCompanyInformation();
-}
-
-// DOM bindings
-document.addEventListener('DOMContentLoaded', ()=> {
-  if(currentPage.includes('login.html')) {
-    qs('#loginBtn')?.addEventListener('click', login);
-    qs('#registerBtn')?.addEventListener('click', register);
-    qs('#toggleToRegister')?.addEventListener('click', toggleForm);
-    qs('#toggleToLogin')?.addEventListener('click', toggleForm);
-    if (qs('#contactPhone') && window.CONFIG && CONFIG.CONTACT_PHONE) qs('#contactPhone').textContent = CONFIG.CONTACT_PHONE;
-  }
-});
-
-// Expose functions for inline onclick handlers
-window.logout = logout;
-window.toggleTheme = toggleTheme;
-window.openEditPageForItem = openEditPageForItem;
-window.confirmAndDeleteItem = confirmAndDeleteItem;
-window.downloadDocument = downloadDocument;
-window.deleteDocumentConfirm = deleteDocumentConfirm;
-window.verifyDocument = verifyDocument;
-window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
-
-// New exposed functions
-window.openPurchaseModal = openPurchaseModal;
-window.closePurchaseModal = closePurchaseModal;
-window.openSaleModal = openSaleModal;
-window.closeSaleModal = closeSaleModal;
-window.openReportSelectionModal = openReportSelectionModal;
-window.closeReportSelectionModal = closeReportSelectionModal;
-window.selectReport = selectReport;
-window.generateSelectedReport = generateSelectedReport;
-window.confirmPurchase = confirmPurchase;
-window.confirmSale = confirmSale;
-window.loadCompanyInformation = loadCompanyInformation;
-window.saveCompanyInformation = saveCompanyInformation;
-window.changePassword = changePassword;
-window.deleteAccount = deleteAccount;
+    console.error('Bulk purchase error:', err);
+    alert('
