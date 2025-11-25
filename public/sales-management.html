@@ -3,67 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Manage Sales | Inventory System</title>
+  <title>Sales Management | Inventory System</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.5);
-    }
-    .modal-content {
-      background-color: var(--card-light);
-      margin: 5% auto;
-      padding: 20px;
-      border-radius: 10px;
-      width: 90%;
-      max-width: 600px;
-      box-shadow: var(--shadow-md);
-    }
-    .dark-mode .modal-content {
-      background-color: var(--card-dark);
-    }
-    .close {
-      color: #aaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .close:hover {
-      color: var(--danger-color);
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: 600;
-    }
-    .search-controls {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-    }
-  </style>
 </head>
 <body>
   <header>
-    <h1>📤 Sales Management</h1>
+    <h1>📈 Sales Management</h1>
     <nav>
       <a href="index.html">Home</a>
       <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
+      <a href="purchase-management.html">Purchase Management</a>
+      <a href="sales-management.html">Sales Management</a>
       <a href="log.html">Activity Log</a>
-      <a href="purchases-management.html" style="text-decoration: none;"><button>📥 Manage Purchases</button></a>
-      <a href="sales-management.html" style="text-decoration: none;"><button>📤 Manage Sales</button></a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
       <button onclick="logout()">🚪 Logout</button>
@@ -74,14 +26,19 @@
   <section>
     <h2>Sales History</h2>
     
-    <div class="search-controls">
-      <input type="text" id="saleSearch" placeholder="Search by product, customer..." style="flex: 1;">
-      <input type="date" id="saleStartDate">
-      <input type="date" id="saleEndDate">
-      <button onclick="filterSales()" class="primary-btn">Filter</button>
-      <button onclick="clearSaleFilters()" class="secondary-btn">Clear</button>
-    </div>
+    <div class="controls">
+      <div style="display:flex; gap:10px; flex-wrap: wrap;">
+        <a href="inventory.html" class="primary-btn">💰 New Sale</a>
+        <a href="inventory.html" class="success-btn">🛍️ Bulk Sale</a>
+      </div>
 
+      <div class="search-controls">
+        <div class="text-search-container">
+          <input id="searchSales" placeholder="Search product, SKU, or customer..." type="text" />
+        </div>
+      </div>
+    </div>
+    
     <div class="table-container">
       <table id="salesTable">
         <thead>
@@ -91,9 +48,9 @@
             <th>SKU</th>
             <th>Customer</th>
             <th>Quantity</th>
-            <th>Unit Price</th>
-            <th>Total Revenue</th>
-            <th>Actions</th>
+            <th class="money">Unit Price</th>
+            <th class="money">Total Revenue</th>
+            <th class="actions">Actions</th>
           </tr>
         </thead>
         <tbody id="salesList"></tbody>
@@ -101,226 +58,12 @@
     </div>
 
     <div class="totals">
-      <div>Total Sales: <span id="totalSales">0</span> records</div>
-      <div>Total Quantity: <span id="totalSaleQuantity">0</span> units</div>
-      <div>Total Revenue: RM <span id="totalSaleRevenue">0.00</span></div>
+      <div>Total Quantity Sold: <span id="saleTotalQuantity">0</span></div>
+      <div>Total Sales Revenue: RM <span id="saleTotalRevenue">0.00</span></div>
     </div>
   </section>
 
-  <!-- Edit Sale Modal -->
-  <div id="editSaleModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeEditSaleModal()">&times;</span>
-      <h2>Edit Sale</h2>
-      
-      <div class="form-group">
-        <label>Product:</label>
-        <input type="text" id="editSaleProduct" readonly>
-      </div>
-      
-      <div class="form-group">
-        <label for="editSaleQuantity">Quantity:</label>
-        <input type="number" id="editSaleQuantity" min="1" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="editSaleUnitPrice">Unit Price (RM):</label>
-        <input type="number" id="editSaleUnitPrice" step="0.01" min="0" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="editSaleCustomer">Customer:</label>
-        <input type="text" id="editSaleCustomer" required>
-      </div>
-      
-      <div class="form-group">
-        <label for="editSaleDate">Date:</label>
-        <input type="date" id="editSaleDate">
-      </div>
-
-      <div style="display: flex; gap: 10px; margin-top: 20px;">
-        <button onclick="updateSale()" class="primary-btn" style="flex: 1;">Update Sale</button>
-        <button onclick="closeEditSaleModal()" class="secondary-btn" style="flex: 1;">Cancel</button>
-      </div>
-    </div>
-  </div>
-
   <script src="js/setting.js" defer></script>
   <script src="js/script.js" defer></script>
-  <script>
-    document.documentElement.dataset.page = 'sales-management';
-    let sales = [];
-    let currentEditSaleId = null;
-
-    async function loadSales() {
-      try {
-        const response = await fetch(`${window.API_BASE}/sales`);
-        if (response.ok) {
-          sales = await response.json();
-          renderSales();
-        }
-      } catch (error) {
-        console.error('Error loading sales:', error);
-      }
-    }
-
-    function renderSales(filteredSales = null) {
-      const list = document.getElementById('salesList');
-      const data = filteredSales || sales;
-      
-      list.innerHTML = '';
-      
-      let totalQuantity = 0;
-      let totalRevenue = 0;
-
-      data.forEach(sale => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${new Date(sale.date).toLocaleDateString()}</td>
-          <td>${sale.productName}</td>
-          <td>${sale.sku}</td>
-          <td>${sale.customer}</td>
-          <td>${sale.quantitySold}</td>
-          <td>RM ${sale.unitPrice.toFixed(2)}</td>
-          <td>RM ${sale.totalRevenue.toFixed(2)}</td>
-          <td>
-            <button class="primary-btn small-btn" onclick="openEditSaleModal('${sale.id}')">Edit</button>
-            <button class="danger-btn small-btn" onclick="deleteSale('${sale.id}')">Delete</button>
-          </td>
-        `;
-        list.appendChild(row);
-        
-        totalQuantity += sale.quantitySold;
-        totalRevenue += sale.totalRevenue;
-      });
-
-      document.getElementById('totalSales').textContent = data.length;
-      document.getElementById('totalSaleQuantity').textContent = totalQuantity;
-      document.getElementById('totalSaleRevenue').textContent = totalRevenue.toFixed(2);
-    }
-
-    function filterSales() {
-      const searchTerm = document.getElementById('saleSearch').value.toLowerCase();
-      const startDate = document.getElementById('saleStartDate').value;
-      const endDate = document.getElementById('saleEndDate').value;
-
-      const filtered = sales.filter(sale => {
-        const matchesSearch = !searchTerm || 
-          sale.productName.toLowerCase().includes(searchTerm) ||
-          sale.sku.toLowerCase().includes(searchTerm) ||
-          sale.customer.toLowerCase().includes(searchTerm);
-        
-        const saleDate = new Date(sale.date);
-        const matchesStartDate = !startDate || saleDate >= new Date(startDate);
-        const matchesEndDate = !endDate || saleDate <= new Date(endDate + 'T23:59:59');
-        
-        return matchesSearch && matchesStartDate && matchesEndDate;
-      });
-
-      renderSales(filtered);
-    }
-
-    function clearSaleFilters() {
-      document.getElementById('saleSearch').value = '';
-      document.getElementById('saleStartDate').value = '';
-      document.getElementById('saleEndDate').value = '';
-      renderSales();
-    }
-
-    function openEditSaleModal(saleId) {
-      const sale = sales.find(s => s.id === saleId);
-      if (sale) {
-        currentEditSaleId = saleId;
-        document.getElementById('editSaleProduct').value = sale.productName;
-        document.getElementById('editSaleQuantity').value = sale.quantitySold;
-        document.getElementById('editSaleUnitPrice').value = sale.unitPrice;
-        document.getElementById('editSaleCustomer').value = sale.customer;
-        document.getElementById('editSaleDate').value = new Date(sale.date).toISOString().split('T')[0];
-        document.getElementById('editSaleModal').style.display = 'block';
-      }
-    }
-
-    function closeEditSaleModal() {
-      document.getElementById('editSaleModal').style.display = 'none';
-      currentEditSaleId = null;
-    }
-
-    async function updateSale() {
-      if (!currentEditSaleId) return;
-
-      const quantity = parseInt(document.getElementById('editSaleQuantity').value);
-      const unitPrice = parseFloat(document.getElementById('editSaleUnitPrice').value);
-      const customer = document.getElementById('editSaleCustomer').value;
-      const date = document.getElementById('editSaleDate').value;
-
-      if (!quantity || !unitPrice || !customer) {
-        alert('Please fill in all required fields');
-        return;
-      }
-
-      try {
-        const response = await fetch(`${window.API_BASE}/sales/${currentEditSaleId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Username': window.getUsername()
-          },
-          body: JSON.stringify({
-            quantitySold: quantity,
-            unitPrice: unitPrice,
-            customer: customer,
-            date: date
-          })
-        });
-
-        if (response.ok) {
-          alert('Sale updated successfully!');
-          closeEditSaleModal();
-          await loadSales();
-        } else {
-          const error = await response.json();
-          alert('Error updating sale: ' + error.message);
-        }
-      } catch (error) {
-        console.error('Error updating sale:', error);
-        alert('Error updating sale');
-      }
-    }
-
-    async function deleteSale(saleId) {
-      if (!confirm('Are you sure you want to delete this sale?')) return;
-
-      try {
-        const response = await fetch(`${window.API_BASE}/sales/${saleId}`, {
-          method: 'DELETE',
-          headers: {
-            'X-Username': window.getUsername()
-          }
-        });
-
-        if (response.ok) {
-          alert('Sale deleted successfully!');
-          await loadSales();
-        } else {
-          const error = await response.json();
-          alert('Error deleting sale: ' + error.message);
-        }
-      } catch (error) {
-        console.error('Error deleting sale:', error);
-        alert('Error deleting sale');
-      }
-    }
-
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-      const modal = document.getElementById('editSaleModal');
-      if (event.target === modal) {
-        closeEditSaleModal();
-      }
-    }
-
-    // Load sales when page loads
-    document.addEventListener('DOMContentLoaded', loadSales);
-  </script>
 </body>
 </html>
