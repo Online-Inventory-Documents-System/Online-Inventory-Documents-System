@@ -35,19 +35,25 @@
 
     <h2>Current Inventory List</h2> 
     <div class="controls">
-
       <div style="display:flex; gap:10px;">
         <button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button>
-
-        <!-- ✅ Added New PDF Button -->
         <button id="pdfReportBtn" class="primary-btn">📄 Generate PDF Inventory Report</button>
       </div>
 
       <div class="search-controls">
-        <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
-        <button id="clearSearchBtn" class="secondary-btn">Clear</button>
+        <!-- NEW: Date Search Controls -->
+        <div class="date-search-container">
+          <label for="searchDate">📅 Search by Date:</label>
+          <input id="searchDate" type="date" />
+          <button id="clearDateBtn" class="secondary-btn">Clear Date</button>
+        </div>
+        
+        <!-- Existing Text Search -->
+        <div class="text-search-container">
+          <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
+          <button id="clearSearchBtn" class="secondary-btn">Clear Text</button>
+        </div>
       </div>
-
     </div>
     
     <div class="table-container"> 
@@ -87,4 +93,3 @@
   </script>
 </body>
 </html>
-
