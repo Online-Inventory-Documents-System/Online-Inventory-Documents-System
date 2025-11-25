@@ -915,7 +915,14 @@ async function generateSelectedReport() {
     const res = await apiFetch(url, { method: 'GET' });
 
     if (!res.ok) {
-      throw new Error(`Server returned ${res.status}`);
+      let errorMessage = 'Report generation failed';
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = `Server error: ${res.status}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const blob = await res.blob();
@@ -943,7 +950,7 @@ async function generateSelectedReport() {
 
   } catch (err) {
     console.error('Report generation error:', err);
-    alert(`❌ Failed to generate ${selectedReportType} report`);
+    alert(`❌ Failed to generate ${selectedReportType} report: ${err.message}`);
   }
 }
 
@@ -993,6 +1000,83 @@ async function saveCompanyInformation() {
   } catch (err) {
     console.error('Company update error:', err);
     showMsg(msgEl, '❌ Server error while updating company information', 'red');
+  }
+}
+
+// Password change function for settings page
+async function changePassword() {
+  const newPass = document.getElementById('newPassword')?.value;
+  const confPass = document.getElementById('confirmPassword')?.value;
+  const code = document.getElementById('securityCode')?.value;
+  const msgEl = document.getElementById('passwordMessage');
+  showMsg(msgEl, '');
+  
+  if(!newPass || !confPass || !code) { 
+    return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); 
+  }
+  
+  if(newPass !== confPass) { 
+    return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); 
+  }
+  
+  if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/account/password`, { 
+      method: 'PUT', 
+      body: JSON.stringify({ 
+        username: getUsername(), 
+        newPassword: newPass, 
+        securityCode: code 
+      }) 
+    });
+    
+    const data = await res.json();
+    
+    if(res.ok) {
+      showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+      document.getElementById('securityCode').value = '';
+      setTimeout(logout, 1500);
+    } else {
+      showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
+    }
+  } catch(e) { 
+    showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); 
+  }
+}
+
+// Delete account function for settings page
+async function deleteAccount() {
+  const code = document.getElementById('deleteSecurityCode')?.value;
+  
+  if(!code) {
+    alert('Please enter security code to confirm deletion');
+    return;
+  }
+  
+  if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${getUsername()}"? This action cannot be undone.`)) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/account`, { 
+      method: 'DELETE', 
+      body: JSON.stringify({ 
+        username: getUsername(), 
+        securityCode: code 
+      }) 
+    });
+    
+    const data = await res.json();
+    
+    if(res.ok) { 
+      alert('🗑️ Account deleted successfully. You will now be logged out.'); 
+      logout(); 
+    } else {
+      alert(`❌ ${data.message || 'Failed to delete account.'}`);
+    }
+  } catch(e) { 
+    alert('❌ Server connection failed during account deletion.'); 
   }
 }
 
@@ -1251,46 +1335,6 @@ function bindSettingPage(){
 
   // Load company information
   loadCompanyInformation();
-
-  // Company information save button
-  qs('#saveCompanyInfo')?.addEventListener('click', saveCompanyInformation);
-
-  qs('#changePasswordBtn')?.addEventListener('click', async ()=> {
-    const newPass = qs('#newPassword')?.value;
-    const confPass = qs('#confirmPassword')?.value;
-    const code = qs('#securityCode')?.value;
-    const msgEl = qs('#passwordMessage');
-    showMsg(msgEl, '');
-    if(!newPass || !confPass || !code) { return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); }
-    if(newPass !== confPass) { return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); }
-    if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
-
-    try {
-      const res = await apiFetch(`${API_BASE}/account/password`, { method: 'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok) {
-        showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
-        qs('#newPassword').value = '';
-        qs('#confirmPassword').value = '';
-        qs('#securityCode').value = '';
-        setTimeout(logout, 1500);
-      } else {
-        showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
-      }
-    } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); }
-  });
-
-  qs('#deleteAccountBtn')?.addEventListener('click', async ()=> {
-    if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${currentUsername}"?`)) return;
-    const code = prompt('Enter Admin Security Code to CONFIRM account deletion:');
-    if(!code) return alert('Deletion cancelled.');
-    try {
-      const res = await apiFetch(`${API_BASE}/account`, { method: 'DELETE', body: JSON.stringify({ username: currentUsername, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok) { alert('🗑️ Account deleted successfully. You will now be logged out.'); logout(); }
-      else alert(`❌ ${data.message || 'Failed to delete account.'}`);
-    } catch(e) { alert('❌ Server connection failed during account deletion.'); }
-  });
 }
 
 // DOM bindings
@@ -1327,3 +1371,5 @@ window.confirmPurchase = confirmPurchase;
 window.confirmSale = confirmSale;
 window.loadCompanyInformation = loadCompanyInformation;
 window.saveCompanyInformation = saveCompanyInformation;
+window.changePassword = changePassword;
+window.deleteAccount = deleteAccount;
