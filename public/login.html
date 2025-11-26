@@ -1,60 +1,670 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Login | Inventory System</title>
-<link rel="stylesheet" href="css/style.css"/> 
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Login | Inventory System</title>
+    <style>
+        /* =========================================
+           Modern Login Page Styling with Animations
+        ========================================= */
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --background-light: #4F517D;
+            --background-dark: #1f2833;
+            --card-light: #ffffff;
+            --card-dark: #2c3a47;
+            --text-light: #212529;
+            --text-dark: #f8f9fa;
+            --border-color: #333333;
+            --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: var(--gradient-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            transition: background 0.5s ease;
+        }
+
+        .main-title-container {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+        }
+
+        .main-title-container h1 {
+            font-size: 2.5rem;
+            color: white;
+            font-weight: 800;
+            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.3);
+            margin: 0;
+            animation: fadeInDown 1s ease;
+        }
+
+        .login-wrapper {
+            display: flex;
+            width: 900px;
+            max-width: 95%;
+            height: 550px;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+            animation: scaleIn 0.8s ease;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes fadeInDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideInLeft {
+            from { transform: translateX(-100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .login-left {
+            flex: 1;
+            background: var(--gradient-primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-left::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(30deg);
+            animation: shimmer 15s infinite linear;
+        }
+
+        @keyframes shimmer {
+            0% { transform: rotate(30deg) translateX(-100%); }
+            100% { transform: rotate(30deg) translateX(100%); }
+        }
+
+        .login-left-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            animation: slideInLeft 1s ease;
+        }
+
+        .login-left h2 {
+            font-size: 2.2rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .login-left p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .features-list {
+            text-align: left;
+            margin-top: 30px;
+        }
+
+        .features-list li {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            animation: fadeInUp 0.8s ease;
+            animation-fill-mode: both;
+        }
+
+        .features-list li:nth-child(1) { animation-delay: 0.3s; }
+        .features-list li:nth-child(2) { animation-delay: 0.5s; }
+        .features-list li:nth-child(3) { animation-delay: 0.7s; }
+
+        .features-list i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+
+        .login-right {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            background: white;
+            animation: slideInRight 1s ease;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .form-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-header h2 {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .form-header p {
+            color: var(--secondary-color);
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary-color);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            outline: none;
+        }
+
+        .form-group input:focus + .input-icon {
+            color: var(--primary-color);
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 15px;
+            top: 42px;
+            color: var(--secondary-color);
+            transition: all 0.3s ease;
+        }
+
+        .primary-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .success-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--gradient-secondary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+        }
+
+        .success-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(240, 147, 251, 0.6);
+        }
+
+        .toggle-link {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--primary-color);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-link:hover {
+            text-decoration: underline;
+        }
+
+        .info {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+            text-align: center;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        #loginMessage, #registerMessage {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 500;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* Animation for form switching */
+        .form-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form {
+            transition: transform 0.5s ease, opacity 0.5s ease;
+        }
+
+        .form.hidden {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .form.active {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        /* Floating animation */
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Responsive styles */
+        @media (max-width: 768px) {
+            .login-wrapper {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .login-left {
+                padding: 30px 20px;
+            }
+
+            .login-right {
+                padding: 30px 20px;
+            }
+
+            .main-title-container h1 {
+                font-size: 2rem;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .login-right {
+                background: var(--card-dark);
+                color: var(--text-dark);
+            }
+
+            .form-header h2 {
+                color: var(--text-dark);
+            }
+
+            .form-group label {
+                color: var(--text-dark);
+            }
+
+            .form-group input {
+                background: #343a40;
+                border-color: #495057;
+                color: var(--text-dark);
+            }
+
+            .form-group input:focus {
+                background: #495057;
+            }
+        }
+    </style>
 </head>
 <body>
-  
-  <div class="main-title-container">
-      <h1>Online Inventory & Documents Management System</h1>
-  </div>
-  
-  <div class="login-container">
-    <h2 id="formTitle">🔐 User Login</h2>
+    <div class="main-title-container">
+        <h1>Online Inventory & Documents Management System</h1>
+    </div>
+    
+    <div class="login-wrapper">
+        <div class="login-left">
+            <div class="login-left-content">
+                <h2>Welcome Back!</h2>
+                <p>Access your inventory and documents management system with ease. Manage your products, track inventory, and handle documents all in one place.</p>
+                
+                <ul class="features-list">
+                    <li><i>✓</i> Real-time inventory tracking</li>
+                    <li><i>✓</i> Document management system</li>
+                    <li><i>✓</i> Advanced reporting and analytics</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="login-right">
+            <div class="login-container">
+                <div class="form-container">
+                    <!-- LOGIN FORM -->
+                    <div id="loginForm" class="form active">
+                        <div class="form-header">
+                            <h2>🔐 User Login</h2>
+                            <p>Sign in to your account</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" placeholder="Enter username" />
+                            <span class="input-icon">👤</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" placeholder="Enter password" />
+                            <span class="input-icon">🔒</span>
+                        </div>
+                        
+                        <button id="loginBtn" type="button" class="primary-btn floating">Login</button>
+                        
+                        <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
+                        <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
+                        
+                        <p id="loginMessage"></p>
+                    </div>
 
-    <!-- LOGIN FORM -->
-    <div id="loginForm">
-      <label for="username">Username</label>
-      <input type="text" id="username" placeholder="Enter username" />
-      
-      <label for="password">Password</label>
-      <input type="password" id="password" placeholder="Enter password" />
-      
-      <button id="loginBtn" type="button" class="primary-btn">Login</button>
-      
-      <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com <b id="contactPhone"></b></p>
-      <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
-      
-      <p id="loginMessage"></p>
+                    <!-- REGISTER FORM -->
+                    <div id="registerForm" class="form hidden">
+                        <div class="form-header">
+                            <h2>🧾 Create Account</h2>
+                            <p>Register for a new account</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="newUsername">New Username</label>
+                            <input type="text" id="newUsername" placeholder="Enter username" />
+                            <span class="input-icon">👤</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <input type="password" id="newPassword" placeholder="Enter password" />
+                            <span class="input-icon">🔒</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="securityCode">Security Code</label>
+                            <input type="text" id="securityCode" placeholder="Enter company security code" />
+                            <span class="input-icon">🔑</span>
+                        </div>
+                        
+                        <button id="registerBtn" type="button" class="success-btn floating">Register Account</button>
+                        
+                        <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
+                        
+                        <p id="registerMessage"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- REGISTER FORM -->
-    <div id="registerForm" style="display:none;">
-      <label for="newUsername">New Username</label>
-      <input type="text" id="newUsername" placeholder="Enter username" />
-      
-      <label for="newPassword">New Password</label>
-      <input type="password" id="newPassword" placeholder="Enter password" />
-      
-      <label for="securityCode">Security Code</label>
-      <input type="text" id="securityCode" placeholder="Enter company security code" />
-      
-      <button id="registerBtn" type="button" class="success-btn">Register Account</button>
-      
-      <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
-      
-      <p id="registerMessage"></p>
-    </div>
-  </div>
+    <script>
+        // API Configuration
+        const API_BASE = window.location.hostname.includes('localhost')
+            ? "http://localhost:3000/api"
+            : "https://online-inventory-documents-system-olzt.onrender.com/api";
 
-  <script src="js/setting.js" defer></script>
-  <script src="js/script.js" defer></script>
+        // DOM Elements
+        const qs = (s) => document.querySelector(s);
+        const showMsg = (el, text, color = 'red') => { 
+            if (!el) return; 
+            el.textContent = text; 
+            el.style.color = color; 
+        };
+
+        // Form Toggle Functionality
+        function toggleForm() {
+            const loginForm = qs('#loginForm');
+            const registerForm = qs('#registerForm');
+            
+            if (loginForm.classList.contains('active')) {
+                loginForm.classList.remove('active');
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                registerForm.classList.add('active');
+            } else {
+                registerForm.classList.remove('active');
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                loginForm.classList.add('active');
+            }
+        }
+
+        // Login Function
+        async function login() {
+            const user = qs('#username')?.value?.trim();
+            const pass = qs('#password')?.value?.trim();
+            const msg = qs('#loginMessage');
+            showMsg(msg, '');
+            
+            if (!user || !pass) { 
+                showMsg(msg, '⚠️ Please enter username and password.', 'red'); 
+                return; 
+            }
+
+            try {
+                // Add loading state
+                const loginBtn = qs('#loginBtn');
+                const originalText = loginBtn.textContent;
+                loginBtn.textContent = 'Logging in...';
+                loginBtn.disabled = true;
+
+                const res = await fetch(`${API_BASE}/login`, { 
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: user, password: pass }) 
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    sessionStorage.setItem('adminName', user);
+                    showMsg(msg, '✅ Login successful! Redirecting...', 'green');
+                    
+                    // Add success animation
+                    loginBtn.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                    
+                    setTimeout(() => { 
+                        window.location.href = 'index.html'; 
+                    }, 1000);
+                } else {
+                    showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
+                    // Add shake animation for error
+                    loginBtn.style.animation = 'shake 0.5s';
+                    setTimeout(() => {
+                        loginBtn.style.animation = '';
+                    }, 500);
+                }
+            } catch (e) {
+                showMsg(msg, '❌ Server connection failed.', 'red');
+                console.error(e);
+            } finally {
+                // Reset button state
+                const loginBtn = qs('#loginBtn');
+                loginBtn.textContent = originalText;
+                loginBtn.disabled = false;
+            }
+        }
+
+        // Register Function
+        async function register() {
+            const user = qs('#newUsername')?.value?.trim();
+            const pass = qs('#newPassword')?.value?.trim();
+            const code = qs('#securityCode')?.value?.trim();
+            const msg = qs('#registerMessage');
+            showMsg(msg, '');
+            
+            if (!user || !pass || !code) { 
+                showMsg(msg, '⚠️ Please fill in all fields.', 'red'); 
+                return; 
+            }
+
+            try {
+                // Add loading state
+                const registerBtn = qs('#registerBtn');
+                const originalText = registerBtn.textContent;
+                registerBtn.textContent = 'Registering...';
+                registerBtn.disabled = true;
+
+                const res = await fetch(`${API_BASE}/register`, { 
+                    method: 'POST', 
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: user, password: pass, securityCode: code }) 
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showMsg(msg, '✅ Registered successfully! You can now log in.', 'green');
+                    
+                    // Add success animation
+                    registerBtn.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                    
+                    setTimeout(() => { 
+                        toggleForm(); 
+                    }, 1500);
+                } else {
+                    showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
+                    // Add shake animation for error
+                    registerBtn.style.animation = 'shake 0.5s';
+                    setTimeout(() => {
+                        registerBtn.style.animation = '';
+                    }, 500);
+                }
+            } catch (e) { 
+                showMsg(msg, '❌ Server connection failed.', 'red'); 
+                console.error(e); 
+            } finally {
+                // Reset button state
+                const registerBtn = qs('#registerBtn');
+                registerBtn.textContent = originalText;
+                registerBtn.disabled = false;
+            }
+        }
+
+        // Add shake animation for errors
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                20%, 40%, 60%, 80% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            qs('#loginBtn')?.addEventListener('click', login);
+            qs('#registerBtn')?.addEventListener('click', register);
+            qs('#toggleToRegister')?.addEventListener('click', toggleForm);
+            qs('#toggleToLogin')?.addEventListener('click', toggleForm);
+            
+            // Add enter key support
+            qs('#username')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login();
+            });
+            
+            qs('#password')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login();
+            });
+            
+            qs('#newUsername')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') register();
+            });
+            
+            qs('#newPassword')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') register();
+            });
+            
+            qs('#securityCode')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') register();
+            });
+        });
+    </script>
 </body>
 </html>
-
-
-
-
