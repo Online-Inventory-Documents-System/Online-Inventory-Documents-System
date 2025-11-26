@@ -35,21 +35,24 @@
         body {
             background: #0f0f1b;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow-x: hidden;
             position: relative;
             padding: 20px;
         }
 
         /* Background Polygon Animation */
         .polygon-container {
-            position: absolute;
+            position: fixed;
             width: 100%;
             height: 100%;
             overflow: hidden;
             z-index: -1;
+            top: 0;
+            left: 0;
         }
 
         .polygon {
@@ -130,12 +133,10 @@
 
         /* Main Title */
         .main-title-container {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            width: 100%;
             text-align: center;
-            z-index: 1;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
         }
 
         .main-title-container h1 {
@@ -167,9 +168,8 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             animation: slideUp 1s ease;
-            margin-top: 40px;
         }
 
         @keyframes slideUp {
@@ -365,21 +365,23 @@
             font-weight: 500;
             transition: all 0.3s ease;
             position: relative;
-            display: inline-block;
+            display: block;
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             font-size: 1rem;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-decoration: none;
         }
 
         .toggle-link:hover {
             color: rgba(102, 126, 234, 1);
             text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
         }
 
         .info {
@@ -405,27 +407,22 @@
         /* Form Switching Animation */
         .form-container {
             position: relative;
-            overflow: hidden;
-            min-height: 450px;
+            overflow: visible;
+            min-height: auto;
         }
 
         .form {
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: relative;
             width: 100%;
             transition: transform 0.6s ease, opacity 0.6s ease;
         }
 
         .form.hidden {
-            transform: translateX(-100%);
-            opacity: 0;
-            pointer-events: none;
+            display: none;
         }
 
         .form.active {
-            transform: translateX(0);
-            opacity: 1;
+            display: block;
         }
 
         /* Responsive styles */
@@ -433,7 +430,6 @@
             .login-container {
                 width: 95%;
                 padding: 25px 20px;
-                margin-top: 60px;
             }
             
             .main-title-container h1 {
@@ -447,24 +443,40 @@
             .polygon-1, .polygon-5 {
                 display: block;
             }
-            
-            .form-container {
-                min-height: 420px;
-            }
         }
 
         @media (max-height: 700px) {
+            body {
+                padding: 10px;
+            }
+            
             .main-title-container {
-                position: relative;
-                margin-bottom: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .main-title-container h1 {
+                font-size: 1.8rem;
             }
             
             .login-container {
-                margin-top: 0;
+                padding: 20px 15px;
             }
             
-            .form-container {
-                min-height: 380px;
+            .form-group {
+                margin-bottom: 15px;
+            }
+            
+            .form-group input {
+                padding: 12px 15px;
+            }
+            
+            .primary-btn, .success-btn {
+                padding: 12px;
+            }
+            
+            .toggle-link {
+                margin-top: 15px;
+                padding: 10px;
             }
         }
 
@@ -518,7 +530,10 @@
                 <button id="loginBtn" type="button" class="primary-btn">Login</button>
                 
                 <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
-                <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
+                
+                <div class="toggle-link" id="toggleToRegister">
+                    <strong>Don't have an account? Register here</strong>
+                </div>
                 
                 <p id="loginMessage"></p>
             </div>
@@ -550,7 +565,9 @@
                 
                 <button id="registerBtn" type="button" class="success-btn">Register Account</button>
                 
-                <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
+                <div class="toggle-link" id="toggleToLogin">
+                    <strong>Already have an account? Login here</strong>
+                </div>
                 
                 <p id="registerMessage"></p>
             </div>
