@@ -690,11 +690,31 @@
             showMsg(qs('#registerMessage'), '');
         }
 
+        // Reset login button to original state
+        function resetLoginButton() {
+            const loginBtn = qs('#loginBtn');
+            loginBtn.textContent = 'Login';
+            loginBtn.disabled = false;
+            loginBtn.style.background = '';
+            loginBtn.style.animation = '';
+        }
+
+        // Reset register button to original state
+        function resetRegisterButton() {
+            const registerBtn = qs('#registerBtn');
+            registerBtn.textContent = 'Register Account';
+            registerBtn.disabled = false;
+            registerBtn.style.background = '';
+            registerBtn.style.animation = '';
+        }
+
         // Login Function
         async function login() {
             const user = qs('#username')?.value?.trim();
             const pass = qs('#password')?.value?.trim();
             const msg = qs('#loginMessage');
+            const loginBtn = qs('#loginBtn');
+            
             showMsg(msg, '');
             
             if (!user || !pass) { 
@@ -704,8 +724,6 @@
 
             try {
                 // Add loading state
-                const loginBtn = qs('#loginBtn');
-                const originalText = loginBtn.textContent;
                 loginBtn.textContent = 'Logging in...';
                 loginBtn.disabled = true;
 
@@ -731,6 +749,8 @@
                         window.location.href = 'index.html'; 
                     }, 1000);
                 } else {
+                    // Reset button immediately on failure
+                    resetLoginButton();
                     showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
                     // Add shake animation for error
                     loginBtn.style.animation = 'shake 0.5s';
@@ -739,13 +759,10 @@
                     }, 500);
                 }
             } catch (e) {
+                // Reset button immediately on error
+                resetLoginButton();
                 showMsg(msg, '❌ Server connection failed.', 'red');
                 console.error(e);
-            } finally {
-                // Reset button state
-                const loginBtn = qs('#loginBtn');
-                loginBtn.textContent = originalText;
-                loginBtn.disabled = false;
             }
         }
 
@@ -755,6 +772,8 @@
             const pass = qs('#newPassword')?.value?.trim();
             const code = qs('#securityCode')?.value?.trim();
             const msg = qs('#registerMessage');
+            const registerBtn = qs('#registerBtn');
+            
             showMsg(msg, '');
             
             if (!user || !pass || !code) { 
@@ -764,8 +783,6 @@
 
             try {
                 // Add loading state
-                const registerBtn = qs('#registerBtn');
-                const originalText = registerBtn.textContent;
                 registerBtn.textContent = 'Registering...';
                 registerBtn.disabled = true;
 
@@ -788,9 +805,12 @@
                     setTimeout(() => { 
                         // Clear the register form and switch to login
                         clearRegisterForm();
+                        resetRegisterButton();
                         toggleForm(); 
                     }, 1500);
                 } else {
+                    // Reset button immediately on failure
+                    resetRegisterButton();
                     showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
                     // Add shake animation for error
                     registerBtn.style.animation = 'shake 0.5s';
@@ -799,13 +819,10 @@
                     }, 500);
                 }
             } catch (e) { 
+                // Reset button immediately on error
+                resetRegisterButton();
                 showMsg(msg, '❌ Server connection failed.', 'red'); 
                 console.error(e); 
-            } finally {
-                // Reset button state
-                const registerBtn = qs('#registerBtn');
-                registerBtn.textContent = originalText;
-                registerBtn.disabled = false;
             }
         }
 
