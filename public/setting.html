@@ -5,98 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Settings | Inventory System</title>
 <link rel="stylesheet" href="css/style.css"/>
-<style>
-    .settings-section {
-      margin-bottom: 30px;
-      padding: 20px;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      background: var(--card-light);
-    }
-    .dark-mode .settings-section {
-      background: var(--card-dark);
-    }
-    .settings-section h3 {
-      margin-top: 0;
-      color: var(--primary-color);
-      border-bottom: 2px solid var(--primary-color);
-      padding-bottom: 10px;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    .form-group label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: 600;
-    }
-    textarea {
-      width: 100%;
-      padding: 12px;
-      margin-top: 5px;
-      margin-bottom: 15px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      box-sizing: border-box;
-      transition: border-color 0.2s;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    textarea:focus {
-      border-color: var(--primary-color);
-      outline: none;
-      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    
-    /* Modal Styles */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.5);
-    }
-    .modal-content {
-      background-color: var(--card-light);
-      margin: 5% auto;
-      padding: 25px;
-      border-radius: 10px;
-      width: 90%;
-      max-width: 600px;
-      box-shadow: var(--shadow-md);
-      position: relative;
-    }
-    .dark-mode .modal-content {
-      background-color: var(--card-dark);
-    }
-    .close {
-      color: #aaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-      position: absolute;
-      right: 15px;
-      top: 10px;
-    }
-    .close:hover {
-      color: var(--danger-color);
-    }
-    .modal-buttons {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    .modal-buttons button {
-      flex: 1;
-    }
-</style>
 </head>
 <body>
 <header>
-  <h1>⚙️ System Settings</h1>
+  <h1>⚙️ Account Settings</h1>
   <nav>
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
@@ -110,180 +22,44 @@
 </header>
 
 <section>
-  <!-- Account Information Section -->
-  <div class="settings-section">
-    <h3>👤 Account Information</h3>
-    <p><strong>Current User:</strong> <span id="currentUser"></span></p>
+  <h2>Manager Account</h2>
+  <div class="info-card">
+    <p>Logged-in User: <strong id="currentUser"></strong></p>
+  </div>
+
+  <form id="passwordForm" style="margin-top: 20px;">
+    <h3>Change Password</h3>
+    <label for="newPassword">New Password</label>
+    <input id="newPassword" type="password" required /><br/>
     
-    <div style="display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap;">
-      <button id="companyInfoBtn" class="primary-btn">🏢 Company Information</button>
-      <button id="changePasswordBtn" class="secondary-btn">🔐 Change Password</button>
-      <button id="deleteAccountBtn" class="danger-btn">🗑️ Delete Account</button>
-    </div>
-  </div>
+    <label for="confirmPassword">Confirm New Password</label>
+    <input id="confirmPassword" type="password" required /><br/>
+    
+    <label for="securityCode">Admin Security Code</label>
+    <input id="securityCode" type="password" placeholder="Required to confirm change" required /><br/>
+    
+    <button id="changePasswordBtn" type="button" class="primary-btn" style="margin-top: 15px;">🔒 Confirm Change Password</button>
+    <p id="passwordMessage" style="margin-top: 10px;"></p>
+  </form>
 
-  <!-- Password Change Section (Initially Hidden) -->
-  <div id="passwordSection" class="settings-section" style="display: none;">
-    <h3>🔐 Change Password</h3>
-    <div class="form-group">
-      <label for="newPassword">New Password:</label>
-      <input type="password" id="newPassword" placeholder="Enter new password">
-    </div>
-    <div class="form-group">
-      <label for="confirmPassword">Confirm Password:</label>
-      <input type="password" id="confirmPassword" placeholder="Confirm new password">
-    </div>
-    <div class="form-group">
-      <label for="securityCode">Security Code:</label>
-      <input type="password" id="securityCode" placeholder="Enter security code">
-    </div>
-    <div class="modal-buttons">
-      <button id="confirmPasswordChange" class="success-btn">Confirm Change</button>
-      <button id="cancelPasswordChange" class="secondary-btn">Cancel</button>
-    </div>
-    <div id="passwordMessage" style="margin-top: 10px;"></div>
-  </div>
-
-  <!-- Account Management Section (Initially Hidden) -->
-  <div id="deleteAccountSection" class="settings-section" style="display: none;">
-    <h3>🗑️ Delete Account</h3>
-    <p class="info">⚠️ WARNING: This action is permanent and cannot be undone. All your data will be lost.</p>
-    <div class="form-group">
-      <label for="deleteSecurityCode">Security Code:</label>
-      <input type="password" id="deleteSecurityCode" placeholder="Enter security code to confirm deletion">
-    </div>
-    <div class="modal-buttons">
-      <button id="confirmDeleteAccount" class="danger-btn">Confirm Delete</button>
-      <button id="cancelDeleteAccount" class="secondary-btn">Cancel</button>
-    </div>
+  <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+    <h3>Account Actions</h3>
+    <button id="logoutBtn" type="button" class="secondary-btn" onclick="logout()">🚪 Logout</button>
+    <button id="deleteAccountBtn" type="button" class="danger-btn" style="margin-left: 10px;">🗑️ Delete Account</button>
   </div>
 </section>
-
-<!-- Company Information Modal -->
-<div id="companyInfoModal" class="modal">
-  <div class="modal-content">
-    <span class="close" onclick="closeCompanyInfoModal()">&times;</span>
-    <h2>🏢 Company Information</h2>
-    <p>Update your company details that will appear on all reports.</p>
-    
-    <div class="form-group">
-      <label for="companyName">Company Name:</label>
-      <input type="text" id="companyName" placeholder="Enter company name">
-    </div>
-    
-    <div class="form-group">
-      <label for="companyAddress">Address:</label>
-      <textarea id="companyAddress" placeholder="Enter company address" rows="3"></textarea>
-    </div>
-    
-    <div class="form-group">
-      <label for="companyPhone">Phone Number:</label>
-      <input type="text" id="companyPhone" placeholder="Enter phone number">
-    </div>
-    
-    <div class="form-group">
-      <label for="companyEmail">Email:</label>
-      <input type="email" id="companyEmail" placeholder="Enter email address">
-    </div>
-    
-    <div class="modal-buttons">
-      <button id="saveCompanyInfo" class="success-btn">💾 Save Company Information</button>
-      <button onclick="closeCompanyInfoModal()" class="secondary-btn">Cancel</button>
-    </div>
-    <div id="companyMessage" style="margin-top: 10px;"></div>
-  </div>
-</div>
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 <script>
+  // Tell script.js we are on the settings page so it can bind the password & delete account logic
   document.documentElement.dataset.page = 'setting';
-  
-  // Modal functions
-  function openCompanyInfoModal() {
-    document.getElementById('companyInfoModal').style.display = 'block';
-    // Load current company information
-    if (window.loadCompanyInformation) {
-      window.loadCompanyInformation();
-    }
-  }
-  
-  function closeCompanyInfoModal() {
-    document.getElementById('companyInfoModal').style.display = 'none';
-  }
-  
-  // Toggle password section
-  function togglePasswordSection() {
-    const passwordSection = document.getElementById('passwordSection');
-    const deleteSection = document.getElementById('deleteAccountSection');
-    
-    passwordSection.style.display = passwordSection.style.display === 'none' ? 'block' : 'none';
-    deleteSection.style.display = 'none';
-  }
-  
-  // Toggle delete account section
-  function toggleDeleteAccountSection() {
-    const deleteSection = document.getElementById('deleteAccountSection');
-    const passwordSection = document.getElementById('passwordSection');
-    
-    deleteSection.style.display = deleteSection.style.display === 'none' ? 'block' : 'none';
-    passwordSection.style.display = 'none';
-  }
-  
-  // Close modals when clicking outside
-  window.onclick = function(event) {
-    const companyModal = document.getElementById('companyInfoModal');
-    if (event.target === companyModal) {
-      closeCompanyInfoModal();
-    }
-  }
-  
-  // DOM Event Listeners
-  document.addEventListener('DOMContentLoaded', function() {
-    // Company Information Button
-    document.getElementById('companyInfoBtn').addEventListener('click', openCompanyInfoModal);
-    
-    // Password Change Button
-    document.getElementById('changePasswordBtn').addEventListener('click', togglePasswordSection);
-    
-    // Delete Account Button
-    document.getElementById('deleteAccountBtn').addEventListener('click', toggleDeleteAccountSection);
-    
-    // Cancel Password Change
-    document.getElementById('cancelPasswordChange').addEventListener('click', function() {
-      document.getElementById('passwordSection').style.display = 'none';
-      document.getElementById('newPassword').value = '';
-      document.getElementById('confirmPassword').value = '';
-      document.getElementById('securityCode').value = '';
-      document.getElementById('passwordMessage').textContent = '';
-    });
-    
-    // Cancel Delete Account
-    document.getElementById('cancelDeleteAccount').addEventListener('click', function() {
-      document.getElementById('deleteAccountSection').style.display = 'none';
-      document.getElementById('deleteSecurityCode').value = '';
-    });
-    
-    // Confirm Password Change
-    document.getElementById('confirmPasswordChange').addEventListener('click', function() {
-      if (window.changePassword) {
-        window.changePassword();
-      }
-    });
-    
-    // Confirm Delete Account
-    document.getElementById('confirmDeleteAccount').addEventListener('click', function() {
-      if (window.deleteAccount) {
-        window.deleteAccount();
-      }
-    });
-    
-    // Save Company Information
-    document.getElementById('saveCompanyInfo').addEventListener('click', function() {
-      if (window.saveCompanyInformation) {
-        window.saveCompanyInformation();
-      }
-    });
+
+  // Pre-fill current user
+  document.addEventListener('DOMContentLoaded', () => {
+    const adminName = sessionStorage.getItem('adminName') || 'Guest';
+    if (document.getElementById('adminName')) document.getElementById('adminName').textContent = adminName;
+    if (document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
   });
 </script>
 </body>
