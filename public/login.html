@@ -6,7 +6,7 @@
     <title>Login | Inventory System</title>
     <style>
         /* =========================================
-           Modern Login Page Styling with Animations
+           Modern Polygon Login Form Styling
         ========================================= */
         :root {
             --primary-color: #007bff;
@@ -33,15 +33,101 @@
         }
 
         body {
-            background: var(--gradient-primary);
+            background: #0f0f1b;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
-            transition: background 0.5s ease;
+            overflow: hidden;
+            position: relative;
         }
 
+        /* Background Polygon Animation */
+        .polygon-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .polygon {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: float 15s infinite linear;
+        }
+
+        .polygon-1 {
+            width: 300px;
+            height: 300px;
+            clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+            top: 10%;
+            left: 5%;
+            background: rgba(102, 126, 234, 0.1);
+            animation-delay: 0s;
+        }
+
+        .polygon-2 {
+            width: 200px;
+            height: 200px;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            top: 60%;
+            left: 80%;
+            background: rgba(240, 147, 251, 0.1);
+            animation-delay: 2s;
+        }
+
+        .polygon-3 {
+            width: 250px;
+            height: 250px;
+            clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
+            top: 20%;
+            left: 75%;
+            background: rgba(245, 87, 108, 0.1);
+            animation-delay: 4s;
+        }
+
+        .polygon-4 {
+            width: 180px;
+            height: 180px;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            top: 70%;
+            left: 10%;
+            background: rgba(102, 126, 234, 0.1);
+            animation-delay: 6s;
+        }
+
+        .polygon-5 {
+            width: 220px;
+            height: 220px;
+            clip-path: polygon(0% 15%, 15% 15%, 15% 0%, 85% 0%, 85% 15%, 100% 15%, 100% 85%, 85% 85%, 85% 100%, 15% 100%, 15% 85%, 0% 85%);
+            top: 50%;
+            left: 50%;
+            background: rgba(240, 147, 251, 0.1);
+            animation-delay: 8s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0.7;
+            }
+            33% {
+                transform: translateY(-20px) rotate(120deg);
+                opacity: 0.9;
+            }
+            66% {
+                transform: translateY(10px) rotate(240deg);
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(0) rotate(360deg);
+                opacity: 0.7;
+            }
+        }
+
+        /* Main Title */
         .main-title-container {
             position: absolute;
             top: 30px;
@@ -55,133 +141,71 @@
             font-size: 2.5rem;
             color: white;
             font-weight: 800;
-            text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 0 10px rgba(102, 126, 234, 0.7);
             margin: 0;
-            animation: fadeInDown 1s ease;
+            animation: glow 3s ease-in-out infinite alternate;
         }
 
-        .login-wrapper {
-            display: flex;
-            width: 900px;
-            max-width: 95%;
-            height: 550px;
-            background: white;
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 10px rgba(102, 126, 234, 0.7);
+            }
+            to {
+                text-shadow: 0 0 20px rgba(102, 126, 234, 0.9), 0 0 30px rgba(102, 126, 234, 0.6);
+            }
+        }
+
+        /* Login Container */
+        .login-container {
+            width: 420px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
             border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
-            animation: scaleIn 0.8s ease;
-        }
-
-        @keyframes scaleIn {
-            from { transform: scale(0.9); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        @keyframes fadeInDown {
-            from { transform: translateY(-30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        @keyframes fadeInUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        @keyframes slideInLeft {
-            from { transform: translateX(-100px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        @keyframes slideInRight {
-            from { transform: translateX(100px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .login-left {
-            flex: 1;
-            background: var(--gradient-primary);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
             padding: 40px;
-            color: white;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             position: relative;
             overflow: hidden;
+            animation: slideUp 1s ease;
         }
 
-        .login-left::before {
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .login-container::before {
             content: '';
             position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
-            background: rgba(255, 255, 255, 0.1);
-            transform: rotate(30deg);
-            animation: shimmer 15s infinite linear;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(102, 126, 234, 0.1),
+                rgba(240, 147, 251, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shine 6s infinite linear;
+            z-index: -1;
         }
 
-        @keyframes shimmer {
-            0% { transform: rotate(30deg) translateX(-100%); }
-            100% { transform: rotate(30deg) translateX(100%); }
-        }
-
-        .login-left-content {
-            position: relative;
-            z-index: 1;
-            text-align: center;
-            animation: slideInLeft 1s ease;
-        }
-
-        .login-left h2 {
-            font-size: 2.2rem;
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-
-        .login-left p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        .features-list {
-            text-align: left;
-            margin-top: 30px;
-        }
-
-        .features-list li {
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            animation: fadeInUp 0.8s ease;
-            animation-fill-mode: both;
-        }
-
-        .features-list li:nth-child(1) { animation-delay: 0.3s; }
-        .features-list li:nth-child(2) { animation-delay: 0.5s; }
-        .features-list li:nth-child(3) { animation-delay: 0.7s; }
-
-        .features-list i {
-            margin-right: 10px;
-            font-size: 1.2rem;
-        }
-
-        .login-right {
-            flex: 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            background: white;
-            animation: slideInRight 1s ease;
-        }
-
-        .login-container {
-            width: 100%;
-            max-width: 350px;
+        @keyframes shine {
+            0% {
+                transform: rotate(45deg) translateX(-100%);
+            }
+            100% {
+                transform: rotate(45deg) translateX(100%);
+            }
         }
 
         .form-header {
@@ -191,12 +215,13 @@
 
         .form-header h2 {
             font-size: 1.8rem;
-            color: #333;
+            color: white;
             margin-bottom: 10px;
+            font-weight: 700;
         }
 
         .form-header p {
-            color: var(--secondary-color);
+            color: rgba(255, 255, 255, 0.7);
             font-size: 0.95rem;
         }
 
@@ -209,37 +234,42 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #444;
+            color: rgba(255, 255, 255, 0.9);
             transition: all 0.3s ease;
         }
 
         .form-group input {
             width: 100%;
             padding: 14px 15px;
-            border: 2px solid #e1e5e9;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 10px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            background: #f8f9fa;
+            color: white;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .form-group input:focus {
-            border-color: var(--primary-color);
-            background: white;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+            border-color: rgba(102, 126, 234, 0.8);
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
             outline: none;
-        }
-
-        .form-group input:focus + .input-icon {
-            color: var(--primary-color);
         }
 
         .input-icon {
             position: absolute;
             right: 15px;
             top: 42px;
-            color: var(--secondary-color);
+            color: rgba(255, 255, 255, 0.7);
             transition: all 0.3s ease;
+        }
+
+        .form-group input:focus + .input-icon {
+            color: rgba(102, 126, 234, 1);
         }
 
         .primary-btn {
@@ -254,11 +284,32 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            position: relative;
+            overflow: hidden;
         }
 
         .primary-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .primary-btn:active {
+            transform: translateY(0);
+        }
+
+        .primary-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+
+        .primary-btn:hover::after {
+            left: 100%;
         }
 
         .success-btn {
@@ -273,6 +324,8 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+            position: relative;
+            overflow: hidden;
         }
 
         .success-btn:hover {
@@ -280,22 +333,60 @@
             box-shadow: 0 7px 20px rgba(240, 147, 251, 0.6);
         }
 
+        .success-btn:active {
+            transform: translateY(0);
+        }
+
+        .success-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+
+        .success-btn:hover::after {
+            left: 100%;
+        }
+
         .toggle-link {
             text-align: center;
             margin-top: 20px;
-            color: var(--primary-color);
+            color: rgba(102, 126, 234, 0.9);
             cursor: pointer;
             font-weight: 500;
             transition: all 0.3s ease;
+            position: relative;
+            display: inline-block;
+            width: 100%;
         }
 
         .toggle-link:hover {
-            text-decoration: underline;
+            color: rgba(102, 126, 234, 1);
+            text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .toggle-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: rgba(102, 126, 234, 0.9);
+            transition: width 0.3s ease;
+        }
+
+        .toggle-link:hover::after {
+            width: 100%;
         }
 
         .info {
             font-size: 0.8rem;
-            color: var(--secondary-color);
+            color: rgba(255, 255, 255, 0.7);
             text-align: center;
             margin-top: 20px;
             line-height: 1.5;
@@ -307,24 +398,26 @@
             font-weight: 500;
             padding: 10px;
             border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Animation for form switching */
+        /* Form Switching Animation */
         .form-container {
             position: relative;
             overflow: hidden;
+            height: 400px;
         }
 
         .form {
-            transition: transform 0.5s ease, opacity 0.5s ease;
-        }
-
-        .form.hidden {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            transform: translateX(100%);
+            transition: transform 0.6s ease, opacity 0.6s ease;
+        }
+
+        .form.hidden {
+            transform: translateX(-100%);
             opacity: 0;
             pointer-events: none;
         }
@@ -334,61 +427,35 @@
             opacity: 1;
         }
 
-        /* Floating animation */
-        .floating {
-            animation: floating 3s ease-in-out infinite;
-        }
-
-        @keyframes floating {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-            100% { transform: translateY(0px); }
-        }
-
         /* Responsive styles */
         @media (max-width: 768px) {
-            .login-wrapper {
-                flex-direction: column;
-                height: auto;
-            }
-
-            .login-left {
+            .login-container {
+                width: 90%;
                 padding: 30px 20px;
             }
-
-            .login-right {
-                padding: 30px 20px;
-            }
-
+            
             .main-title-container h1 {
                 font-size: 2rem;
             }
+            
+            .polygon {
+                display: none;
+            }
+            
+            .polygon-1, .polygon-5 {
+                display: block;
+            }
         }
 
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            .login-right {
-                background: var(--card-dark);
-                color: var(--text-dark);
-            }
+        /* Shake animation for errors */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
 
-            .form-header h2 {
-                color: var(--text-dark);
-            }
-
-            .form-group label {
-                color: var(--text-dark);
-            }
-
-            .form-group input {
-                background: #343a40;
-                border-color: #495057;
-                color: var(--text-dark);
-            }
-
-            .form-group input:focus {
-                background: #495057;
-            }
+        .shake {
+            animation: shake 0.5s;
         }
     </style>
 </head>
@@ -397,82 +464,74 @@
         <h1>Online Inventory & Documents Management System</h1>
     </div>
     
-    <div class="login-wrapper">
-        <div class="login-left">
-            <div class="login-left-content">
-                <h2>Welcome Back!</h2>
-                <p>Access your inventory and documents management system with ease. Manage your products, track inventory, and handle documents all in one place.</p>
-                
-                <ul class="features-list">
-                    <li><i>✓</i> Real-time inventory tracking</li>
-                    <li><i>✓</i> Document management system</li>
-                    <li><i>✓</i> Advanced reporting and analytics</li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="login-right">
-            <div class="login-container">
-                <div class="form-container">
-                    <!-- LOGIN FORM -->
-                    <div id="loginForm" class="form active">
-                        <div class="form-header">
-                            <h2>🔐 User Login</h2>
-                            <p>Sign in to your account</p>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="username">Username</label>
-                            <input type="text" id="username" placeholder="Enter username" />
-                            <span class="input-icon">👤</span>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="password">Password</label>
-                            <input type="password" id="password" placeholder="Enter password" />
-                            <span class="input-icon">🔒</span>
-                        </div>
-                        
-                        <button id="loginBtn" type="button" class="primary-btn floating">Login</button>
-                        
-                        <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
-                        <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
-                        
-                        <p id="loginMessage"></p>
-                    </div>
-
-                    <!-- REGISTER FORM -->
-                    <div id="registerForm" class="form hidden">
-                        <div class="form-header">
-                            <h2>🧾 Create Account</h2>
-                            <p>Register for a new account</p>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="newUsername">New Username</label>
-                            <input type="text" id="newUsername" placeholder="Enter username" />
-                            <span class="input-icon">👤</span>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="newPassword">New Password</label>
-                            <input type="password" id="newPassword" placeholder="Enter password" />
-                            <span class="input-icon">🔒</span>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="securityCode">Security Code</label>
-                            <input type="text" id="securityCode" placeholder="Enter company security code" />
-                            <span class="input-icon">🔑</span>
-                        </div>
-                        
-                        <button id="registerBtn" type="button" class="success-btn floating">Register Account</button>
-                        
-                        <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
-                        
-                        <p id="registerMessage"></p>
-                    </div>
+    <!-- Background Polygons -->
+    <div class="polygon-container">
+        <div class="polygon polygon-1"></div>
+        <div class="polygon polygon-2"></div>
+        <div class="polygon polygon-3"></div>
+        <div class="polygon polygon-4"></div>
+        <div class="polygon polygon-5"></div>
+    </div>
+    
+    <div class="login-container">
+        <div class="form-container">
+            <!-- LOGIN FORM -->
+            <div id="loginForm" class="form active">
+                <div class="form-header">
+                    <h2>🔐 User Login</h2>
+                    <p>Sign in to your account</p>
                 </div>
+                
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter username" />
+                    <span class="input-icon">👤</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password" />
+                    <span class="input-icon">🔒</span>
+                </div>
+                
+                <button id="loginBtn" type="button" class="primary-btn">Login</button>
+                
+                <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
+                <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
+                
+                <p id="loginMessage"></p>
+            </div>
+
+            <!-- REGISTER FORM -->
+            <div id="registerForm" class="form hidden">
+                <div class="form-header">
+                    <h2>🧾 Create Account</h2>
+                    <p>Register for a new account</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="newUsername">New Username</label>
+                    <input type="text" id="newUsername" placeholder="Enter username" />
+                    <span class="input-icon">👤</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter password" />
+                    <span class="input-icon">🔒</span>
+                </div>
+                
+                <div class="form-group">
+                    <label for="securityCode">Security Code</label>
+                    <input type="text" id="securityCode" placeholder="Enter company security code" />
+                    <span class="input-icon">🔑</span>
+                </div>
+                
+                <button id="registerBtn" type="button" class="success-btn">Register Account</button>
+                
+                <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
+                
+                <p id="registerMessage"></p>
             </div>
         </div>
     </div>
@@ -485,7 +544,7 @@
 
         // DOM Elements
         const qs = (s) => document.querySelector(s);
-        const showMsg = (el, text, color = 'red') => { 
+        const showMsg = (el, text, color = '#ff6b6b') => { 
             if (!el) return; 
             el.textContent = text; 
             el.style.color = color; 
@@ -517,7 +576,9 @@
             showMsg(msg, '');
             
             if (!user || !pass) { 
-                showMsg(msg, '⚠️ Please enter username and password.', 'red'); 
+                showMsg(msg, '⚠️ Please enter username and password.', '#ff6b6b'); 
+                qs('#loginBtn').classList.add('shake');
+                setTimeout(() => qs('#loginBtn').classList.remove('shake'), 500);
                 return; 
             }
 
@@ -541,29 +602,29 @@
                 if (res.ok) {
                     sessionStorage.setItem('isLoggedIn', 'true');
                     sessionStorage.setItem('adminName', user);
-                    showMsg(msg, '✅ Login successful! Redirecting...', 'green');
+                    showMsg(msg, '✅ Login successful! Redirecting...', '#51cf66');
                     
                     // Add success animation
-                    loginBtn.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                    loginBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
                     
                     setTimeout(() => { 
                         window.location.href = 'index.html'; 
                     }, 1000);
                 } else {
-                    showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
+                    showMsg(msg, `❌ ${data.message || 'Login failed.'}`, '#ff6b6b');
                     // Add shake animation for error
-                    loginBtn.style.animation = 'shake 0.5s';
+                    loginBtn.classList.add('shake');
                     setTimeout(() => {
-                        loginBtn.style.animation = '';
+                        loginBtn.classList.remove('shake');
                     }, 500);
                 }
             } catch (e) {
-                showMsg(msg, '❌ Server connection failed.', 'red');
+                showMsg(msg, '❌ Server connection failed.', '#ff6b6b');
                 console.error(e);
             } finally {
                 // Reset button state
                 const loginBtn = qs('#loginBtn');
-                loginBtn.textContent = originalText;
+                loginBtn.textContent = 'Login';
                 loginBtn.disabled = false;
             }
         }
@@ -577,7 +638,9 @@
             showMsg(msg, '');
             
             if (!user || !pass || !code) { 
-                showMsg(msg, '⚠️ Please fill in all fields.', 'red'); 
+                showMsg(msg, '⚠️ Please fill in all fields.', '#ff6b6b'); 
+                qs('#registerBtn').classList.add('shake');
+                setTimeout(() => qs('#registerBtn').classList.remove('shake'), 500);
                 return; 
             }
 
@@ -599,43 +662,32 @@
                 const data = await res.json();
                 
                 if (res.ok) {
-                    showMsg(msg, '✅ Registered successfully! You can now log in.', 'green');
+                    showMsg(msg, '✅ Registered successfully! You can now log in.', '#51cf66');
                     
                     // Add success animation
-                    registerBtn.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
+                    registerBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
                     
                     setTimeout(() => { 
                         toggleForm(); 
                     }, 1500);
                 } else {
-                    showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
+                    showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, '#ff6b6b');
                     // Add shake animation for error
-                    registerBtn.style.animation = 'shake 0.5s';
+                    registerBtn.classList.add('shake');
                     setTimeout(() => {
-                        registerBtn.style.animation = '';
+                        registerBtn.classList.remove('shake');
                     }, 500);
                 }
             } catch (e) { 
-                showMsg(msg, '❌ Server connection failed.', 'red'); 
+                showMsg(msg, '❌ Server connection failed.', '#ff6b6b'); 
                 console.error(e); 
             } finally {
                 // Reset button state
                 const registerBtn = qs('#registerBtn');
-                registerBtn.textContent = originalText;
+                registerBtn.textContent = 'Register Account';
                 registerBtn.disabled = false;
             }
         }
-
-        // Add shake animation for errors
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes shake {
-                0%, 100% { transform: translateX(0); }
-                10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-                20%, 40%, 60%, 80% { transform: translateX(5px); }
-            }
-        `;
-        document.head.appendChild(style);
 
         // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
