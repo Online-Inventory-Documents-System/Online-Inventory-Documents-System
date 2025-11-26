@@ -1,514 +1,597 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Inventory & Documents Management System</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        :root {
-            --primary: #6a11cb;
-            --secondary: #2575fc;
-            --accent: #ff4d94;
-            --light: #f8f9fa;
-            --dark: #343a40;
-            --success: #28a745;
-        }
-        
-        body {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-            color: var(--dark);
-        }
-        
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Login | Inventory System</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    :root {
+        --primary: #6a11cb;
+        --secondary: #2575fc;
+        --accent: #ff4d94;
+        --light: #f8f9fa;
+        --dark: #343a40;
+        --success: #28a745;
+        --danger: #dc3545;
+    }
+    
+    body {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+        color: var(--dark);
+    }
+    
+    .container {
+        display: flex;
+        width: 100%;
+        max-width: 900px;
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    .left-panel {
+        flex: 1;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        color: white;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        animation: slideInLeft 0.8s ease-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .left-panel::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+        animation: rotate 20s linear infinite;
+    }
+    
+    .left-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .logo {
+        font-size: 3rem;
+        margin-bottom: 20px;
+        color: white;
+        animation: bounce 2s infinite;
+    }
+    
+    .left-panel h1 {
+        font-size: 2.2rem;
+        margin-bottom: 15px;
+        font-weight: 700;
+    }
+    
+    .left-panel h2 {
+        font-size: 1.8rem;
+        font-weight: 500;
+        margin-bottom: 30px;
+    }
+    
+    .left-panel p {
+        font-size: 1rem;
+        line-height: 1.6;
+        opacity: 0.9;
+        max-width: 90%;
+    }
+    
+    .features {
+        margin-top: 30px;
+        text-align: left;
+        width: 100%;
+    }
+    
+    .feature {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        animation: fadeInUp 0.5s ease-out;
+        animation-fill-mode: both;
+    }
+    
+    .feature:nth-child(1) { animation-delay: 0.5s; }
+    .feature:nth-child(2) { animation-delay: 0.7s; }
+    .feature:nth-child(3) { animation-delay: 0.9s; }
+    
+    .feature i {
+        margin-right: 10px;
+        color: #ffcc00;
+    }
+    
+    .right-panel {
+        flex: 1;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        animation: slideInRight 0.8s ease-out;
+        background: var(--light);
+    }
+    
+    .login-form {
+        width: 100%;
+    }
+    
+    .login-form h2 {
+        color: var(--dark);
+        margin-bottom: 30px;
+        font-size: 2rem;
+        font-weight: 600;
+        text-align: center;
+        position: relative;
+    }
+    
+    .login-form h2::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50px;
+        height: 3px;
+        background: linear-gradient(to right, var(--primary), var(--secondary));
+        border-radius: 3px;
+    }
+    
+    .input-group {
+        margin-bottom: 20px;
+        position: relative;
+    }
+    
+    .input-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 500;
+    }
+    
+    .input-group input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .input-group input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(106, 17, 203, 0.2);
+        outline: none;
+    }
+    
+    .input-icon {
+        position: absolute;
+        right: 15px;
+        top: 38px;
+        color: #777;
+    }
+    
+    .primary-btn, .success-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .success-btn {
+        background: linear-gradient(135deg, var(--success) 0%, #20c997 100%);
+    }
+    
+    .primary-btn::before, .success-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: 0.5s;
+    }
+    
+    .primary-btn:hover::before, .success-btn:hover::before {
+        left: 100%;
+    }
+    
+    .primary-btn:hover, .success-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
+    }
+    
+    .success-btn:hover {
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+    }
+    
+    .info {
+        margin-top: 25px;
+        text-align: center;
+        color: #555;
+        font-size: 0.9rem;
+    }
+    
+    .admin-email {
+        background: white;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-top: 10px;
+        display: inline-block;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        font-weight: bold;
+        color: var(--primary);
+    }
+    
+    .toggle-link {
+        margin-top: 20px;
+        text-align: center;
+        color: var(--primary);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(106, 17, 203, 0.1);
+        animation: pulse 2s infinite;
+    }
+    
+    .toggle-link:hover {
+        color: var(--secondary);
+        background: rgba(106, 17, 203, 0.2);
+        text-decoration: underline;
+    }
+    
+    #loginMessage, #registerMessage {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 500;
+    }
+    
+    .success-message {
+        background: rgba(40, 167, 69, 0.1);
+        color: var(--success);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    
+    .error-message {
+        background: rgba(220, 53, 69, 0.1);
+        color: var(--danger);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+    
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes slideInLeft {
+        from { transform: translateX(-50px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideInRight {
+        from { transform: translateX(50px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(106, 17, 203, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(106, 17, 203, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(106, 17, 203, 0); }
+    }
+    
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
         .container {
-            display: flex;
+            flex-direction: column;
             width: 100%;
-            max-width: 900px;
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
-            animation: fadeIn 0.8s ease-out;
         }
         
         .left-panel {
-            flex: 1;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            animation: slideInLeft 0.8s ease-out;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .left-panel::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
-            animation: rotate 20s linear infinite;
-        }
-        
-        .left-content {
-            position: relative;
-            z-index: 1;
-        }
-        
-        .logo {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: white;
-            animation: bounce 2s infinite;
+            padding: 30px 20px;
         }
         
         .left-panel h1 {
-            font-size: 2.2rem;
-            margin-bottom: 15px;
-            font-weight: 700;
+            font-size: 1.8rem;
         }
         
         .left-panel h2 {
-            font-size: 1.8rem;
-            font-weight: 500;
-            margin-bottom: 30px;
-        }
-        
-        .left-panel p {
-            font-size: 1rem;
-            line-height: 1.6;
-            opacity: 0.9;
-            max-width: 90%;
-        }
-        
-        .features {
-            margin-top: 30px;
-            text-align: left;
-            width: 100%;
-        }
-        
-        .feature {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            animation: fadeInUp 0.5s ease-out;
-            animation-fill-mode: both;
-        }
-        
-        .feature:nth-child(1) { animation-delay: 0.5s; }
-        .feature:nth-child(2) { animation-delay: 0.7s; }
-        .feature:nth-child(3) { animation-delay: 0.9s; }
-        
-        .feature i {
-            margin-right: 10px;
-            color: #ffcc00;
+            font-size: 1.5rem;
         }
         
         .right-panel {
-            flex: 1;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            animation: slideInRight 0.8s ease-out;
-            background: var(--light);
+            padding: 30px 20px;
         }
         
-        .login-form {
-            width: 100%;
+        .logo {
+            font-size: 2.5rem;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .left-panel h1 {
+            font-size: 1.5rem;
+        }
+        
+        .left-panel h2 {
+            font-size: 1.3rem;
         }
         
         .login-form h2 {
-            color: var(--dark);
-            margin-bottom: 30px;
+            font-size: 1.7rem;
+        }
+        
+        .logo {
             font-size: 2rem;
-            font-weight: 600;
-            text-align: center;
-            position: relative;
         }
-        
-        .login-form h2::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 3px;
-            background: linear-gradient(to right, var(--primary), var(--secondary));
-            border-radius: 3px;
-        }
-        
-        .input-group {
-            margin-bottom: 20px;
-            position: relative;
-        }
-        
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: 500;
-        }
-        
-        .input-group input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        .input-group input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(106, 17, 203, 0.2);
-            outline: none;
-        }
-        
-        .input-icon {
-            position: absolute;
-            right: 15px;
-            top: 38px;
-            color: #777;
-        }
-        
-        .login-btn {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .login-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: 0.5s;
-        }
-        
-        .login-btn:hover::before {
-            left: 100%;
-        }
-        
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
-        }
-        
-        .links {
-            margin-top: 25px;
-            text-align: center;
-        }
-        
-        .links a {
-            color: var(--primary);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            display: block;
-            margin-bottom: 10px;
-        }
-        
-        .links a:hover {
-            color: var(--secondary);
-            text-decoration: underline;
-        }
-        
-        .register-container {
-            margin-top: 30px;
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-        }
-        
-        .register-link {
-            padding: 12px 25px;
-            background: transparent;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            animation: pulse 2s infinite;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .register-link::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(106, 17, 203, 0.2), transparent);
-            transition: 0.5s;
-        }
-        
-        .register-link:hover::before {
-            left: 100%;
-        }
-        
-        .register-link:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
-            animation: none;
-        }
-        
-        .admin-email {
-            background: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-            display: inline-block;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideInLeft {
-            from { transform: translateX(-50px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        @keyframes slideInRight {
-            from { transform: translateX(50px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(106, 17, 203, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(106, 17, 203, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(106, 17, 203, 0); }
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                width: 100%;
-            }
-            
-            .left-panel {
-                padding: 30px 20px;
-            }
-            
-            .left-panel h1 {
-                font-size: 1.8rem;
-            }
-            
-            .left-panel h2 {
-                font-size: 1.5rem;
-            }
-            
-            .right-panel {
-                padding: 30px 20px;
-            }
-            
-            .logo {
-                font-size: 2.5rem;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .left-panel h1 {
-                font-size: 1.5rem;
-            }
-            
-            .left-panel h2 {
-                font-size: 1.3rem;
-            }
-            
-            .login-form h2 {
-                font-size: 1.7rem;
-            }
-            
-            .logo {
-                font-size: 2rem;
-            }
-        }
-    </style>
+    }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="left-panel">
-            <div class="left-content">
-                <div class="logo">
-                    <i class="fas fa-boxes"></i>
-                </div>
-                <h1>Online Inventory & Documents Management System</h1>
-                <h2>User Login</h2>
-                <p>Securely access your documents and manage your inventory with our advanced management system.</p>
-                
-                <div class="features">
-                    <div class="feature">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>Secure document storage</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-search"></i>
-                        <span>Advanced search capabilities</span>
-                    </div>
-                    <div class="feature">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Real-time inventory tracking</span>
-                    </div>
-                </div>
+  
+  <div class="container">
+    <div class="left-panel">
+        <div class="left-content">
+            <div class="logo">
+                <i class="fas fa-boxes"></i>
             </div>
-        </div>
-        
-        <div class="right-panel">
-            <div class="login-form">
-                <h2>Login</h2>
-                <form id="loginForm">
-                    <div class="input-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" placeholder="Enter your username" required>
-                        <div class="input-icon">
-                            <i class="fas fa-user"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="input-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" placeholder="Enter your password" required>
-                        <div class="input-icon">
-                            <i class="fas fa-lock"></i>
-                        </div>
-                    </div>
-                    
-                    <button type="submit" class="login-btn">
-                        <span>Login</span>
-                    </button>
-                    
-                    <div class="links">
-                        <a href="#">Forgot password? Contact the admin email:</a>
-                        <div class="admin-email">benzgiamen200@gmail.com</div>
-                    </div>
-                </form>
-                
-                <div class="register-container">
-                    <a href="#" class="register-link">
-                        <i class="fas fa-user-plus"></i> Don't have an account? Register here
-                    </a>
+            <h1>Online Inventory & Documents Management System</h1>
+            <h2>User Login</h2>
+            <p>Securely access your documents and manage your inventory with our advanced management system.</p>
+            
+            <div class="features">
+                <div class="feature">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Secure document storage</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-search"></i>
+                    <span>Advanced search capabilities</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Real-time inventory tracking</span>
                 </div>
             </div>
         </div>
     </div>
+    
+    <div class="right-panel">
+      <div class="login-form">
+        <h2 id="formTitle">🔐 User Login</h2>
 
-    <script>
-        // Form validation and submission
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        <!-- LOGIN FORM -->
+        <div id="loginForm">
+          <div class="input-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="Enter username" />
+            <div class="input-icon">
+                <i class="fas fa-user"></i>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Enter password" />
+            <div class="input-icon">
+                <i class="fas fa-lock"></i>
+            </div>
+          </div>
+          
+          <button id="loginBtn" type="button" class="primary-btn">Login</button>
+          
+          <p class="info">Forgot password? Contact the admin email: <span class="admin-email">leongjiawei360@gmail.com</span></p>
+          <div class="toggle-link" id="toggleToRegister">Don't have an account? Register here</div>
+          
+          <p id="loginMessage"></p>
+        </div>
+
+        <!-- REGISTER FORM -->
+        <div id="registerForm" style="display:none;">
+          <div class="input-group">
+            <label for="newUsername">New Username</label>
+            <input type="text" id="newUsername" placeholder="Enter username" />
+            <div class="input-icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="newPassword">New Password</label>
+            <input type="password" id="newPassword" placeholder="Enter password" />
+            <div class="input-icon">
+                <i class="fas fa-lock"></i>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="securityCode">Security Code</label>
+            <input type="text" id="securityCode" placeholder="Enter company security code" />
+            <div class="input-icon">
+                <i class="fas fa-key"></i>
+            </div>
+          </div>
+          
+          <button id="registerBtn" type="button" class="success-btn">Register Account</button>
+          
+          <div class="toggle-link" id="toggleToLogin">Already have an account? Login here</div>
+          
+          <p id="registerMessage"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Form toggle functionality
+    document.getElementById('toggleToRegister').addEventListener('click', function() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+        document.getElementById('formTitle').textContent = '👤 Create Account';
+    });
+    
+    document.getElementById('toggleToLogin').addEventListener('click', function() {
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('formTitle').textContent = '🔐 User Login';
+    });
+    
+    // Login functionality
+    document.getElementById('loginBtn').addEventListener('click', function() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const messageEl = document.getElementById('loginMessage');
+        
+        if (!username || !password) {
+            messageEl.textContent = 'Please fill in all fields';
+            messageEl.className = 'error-message';
+            return;
+        }
+        
+        // Show loading state
+        const btn = document.getElementById('loginBtn');
+        const originalText = btn.textContent;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+        btn.disabled = true;
+        
+        // Simulate API call
+        setTimeout(() => {
+            // Reset button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
             
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const loginBtn = document.querySelector('.login-btn');
-            
-            if(username && password) {
-                // Show loading state
-                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
-                loginBtn.disabled = true;
+            // For demo purposes, accept any non-empty credentials
+            if (username && password) {
+                messageEl.textContent = 'Login successful! Redirecting...';
+                messageEl.className = 'success-message';
                 
-                // Simulate API call
+                // Clear form
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                
+                // Simulate redirect
                 setTimeout(() => {
-                    // In a real application, you would send this data to a server
-                    alert('Login successful! Redirecting to dashboard...');
-                    
-                    // Reset button
-                    loginBtn.innerHTML = '<span>Login</span>';
-                    loginBtn.disabled = false;
-                    
-                    // Clear form
-                    document.getElementById('loginForm').reset();
-                }, 1500);
+                    alert('Welcome to the Inventory System!');
+                }, 1000);
             } else {
-                alert('Please fill in all fields');
+                messageEl.textContent = 'Invalid username or password';
+                messageEl.className = 'error-message';
             }
-        });
+        }, 1500);
+    });
+    
+    // Register functionality
+    document.getElementById('registerBtn').addEventListener('click', function() {
+        const username = document.getElementById('newUsername').value;
+        const password = document.getElementById('newPassword').value;
+        const securityCode = document.getElementById('securityCode').value;
+        const messageEl = document.getElementById('registerMessage');
         
-        // Add animation to the register link on hover
-        const registerLink = document.querySelector('.register-link');
-        registerLink.addEventListener('mouseenter', function() {
-            this.style.animation = 'none';
-        });
+        if (!username || !password || !securityCode) {
+            messageEl.textContent = 'Please fill in all fields';
+            messageEl.className = 'error-message';
+            return;
+        }
         
-        registerLink.addEventListener('mouseleave', function() {
-            this.style.animation = 'pulse 2s infinite';
-        });
+        // Show loading state
+        const btn = document.getElementById('registerBtn');
+        const originalText = btn.textContent;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
+        btn.disabled = true;
         
-        // Add focus effects to inputs
-        const inputs = document.querySelectorAll('input');
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                this.parentElement.classList.add('focused');
-            });
+        // Simulate API call
+        setTimeout(() => {
+            // Reset button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
             
-            input.addEventListener('blur', function() {
-                if(this.value === '') {
-                    this.parentElement.classList.remove('focused');
-                }
-            });
-        });
-    </script>
+            // For demo purposes, accept any non-empty credentials
+            if (username && password && securityCode) {
+                messageEl.textContent = 'Registration successful! You can now login.';
+                messageEl.className = 'success-message';
+                
+                // Clear form
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('securityCode').value = '';
+                
+                // Switch back to login form after delay
+                setTimeout(() => {
+                    document.getElementById('registerForm').style.display = 'none';
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('formTitle').textContent = '🔐 User Login';
+                    document.getElementById('loginMessage').textContent = 'Registration successful! Please login.';
+                    document.getElementById('loginMessage').className = 'success-message';
+                }, 2000);
+            } else {
+                messageEl.textContent = 'Registration failed. Please try again.';
+                messageEl.className = 'error-message';
+            }
+        }, 1500);
+    });
+    
+    // Add enter key support
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            if (document.getElementById('loginForm').style.display !== 'none') {
+                document.getElementById('loginBtn').click();
+            } else {
+                document.getElementById('registerBtn').click();
+            }
+        }
+    });
+  </script>
 </body>
 </html>
