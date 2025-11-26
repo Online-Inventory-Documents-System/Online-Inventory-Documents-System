@@ -40,6 +40,7 @@
             min-height: 100vh;
             overflow: hidden;
             position: relative;
+            padding: 20px;
         }
 
         /* Background Polygon Animation */
@@ -130,7 +131,7 @@
         /* Main Title */
         .main-title-container {
             position: absolute;
-            top: 30px;
+            top: 20px;
             left: 0;
             width: 100%;
             text-align: center;
@@ -138,7 +139,7 @@
         }
 
         .main-title-container h1 {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             color: white;
             font-weight: 800;
             text-shadow: 0 0 10px rgba(102, 126, 234, 0.7);
@@ -158,15 +159,17 @@
         /* Login Container */
         .login-container {
             width: 420px;
+            max-width: 90vw;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 40px;
+            padding: 30px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
             position: relative;
             overflow: hidden;
             animation: slideUp 1s ease;
+            margin-top: 40px;
         }
 
         @keyframes slideUp {
@@ -210,7 +213,7 @@
 
         .form-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .form-header h2 {
@@ -226,7 +229,7 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px;
             position: relative;
         }
 
@@ -286,6 +289,7 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
             position: relative;
             overflow: hidden;
+            margin-top: 10px;
         }
 
         .primary-btn:hover {
@@ -326,6 +330,7 @@
             box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
             position: relative;
             overflow: hidden;
+            margin-top: 10px;
         }
 
         .success-btn:hover {
@@ -362,26 +367,19 @@
             position: relative;
             display: inline-block;
             width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .toggle-link:hover {
             color: rgba(102, 126, 234, 1);
             text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
-        }
-
-        .toggle-link::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: rgba(102, 126, 234, 0.9);
-            transition: width 0.3s ease;
-        }
-
-        .toggle-link:hover::after {
-            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
         .info {
@@ -390,6 +388,9 @@
             text-align: center;
             margin-top: 20px;
             line-height: 1.5;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
         }
 
         #loginMessage, #registerMessage {
@@ -405,7 +406,7 @@
         .form-container {
             position: relative;
             overflow: hidden;
-            height: 400px;
+            min-height: 450px;
         }
 
         .form {
@@ -430,12 +431,13 @@
         /* Responsive styles */
         @media (max-width: 768px) {
             .login-container {
-                width: 90%;
-                padding: 30px 20px;
+                width: 95%;
+                padding: 25px 20px;
+                margin-top: 60px;
             }
             
             .main-title-container h1 {
-                font-size: 2rem;
+                font-size: 1.8rem;
             }
             
             .polygon {
@@ -444,6 +446,25 @@
             
             .polygon-1, .polygon-5 {
                 display: block;
+            }
+            
+            .form-container {
+                min-height: 420px;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .main-title-container {
+                position: relative;
+                margin-bottom: 20px;
+            }
+            
+            .login-container {
+                margin-top: 0;
+            }
+            
+            .form-container {
+                min-height: 380px;
             }
         }
 
