@@ -1020,7 +1020,11 @@ app.put("/api/company-info", async (req, res) => {
 app.get("/api/purchases", async (req, res) => {
   try {
     const purchases = await Purchase.find({}).sort({ date: -1 }).lean();
-    res.json(purchases);
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString()
+    }));
+    res.json(normalized);
   } catch (err) {
     console.error("Purchases get error:", err);
     res.status(500).json({ message: "Server error" });
@@ -1029,25 +1033,52 @@ app.get("/api/purchases", async (req, res) => {
 
 app.post("/api/purchases", async (req, res) => {
   try {
+    console.log("📥 Received purchase request:", req.body);
+    
     const { items, supplier, totalAmount } = req.body;
     const purchaseId = `PUR-${Date.now()}`;
     const createdBy = req.headers["x-username"] || "System";
     
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        message: "Purchase must contain at least one item" 
+      });
+    }
+
+    if (!totalAmount || totalAmount <= 0) {
+      return res.status(400).json({ 
+        message: "Invalid total amount" 
+      });
+    }
+
+    console.log(`🔍 Processing purchase with ${items.length} items...`);
+
     const purchase = await Purchase.create({
       purchaseId,
-      items,
-      supplier,
+      items: items.map(item => ({
+        sku: item.sku,
+        name: item.name,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        totalCost: item.totalCost
+      })),
+      supplier: supplier || "Unknown Supplier",
       totalAmount,
       createdBy
     });
+
+    console.log("✅ Purchase created, updating inventory...");
 
     // Update inventory quantities
     for (const item of items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
+        const oldQuantity = inventoryItem.quantity;
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
         inventoryItem.unitCost = item.unitCost; // Update cost to latest
         await inventoryItem.save();
+        console.log(`📦 Updated ${inventoryItem.name}: ${oldQuantity} -> ${inventoryItem.quantity}`);
       } else {
         // Create new inventory item if it doesn't exist
         await Inventory.create({
@@ -1057,14 +1088,32 @@ app.post("/api/purchases", async (req, res) => {
           unitCost: item.unitCost,
           unitPrice: item.unitCost * 1.3 // 30% markup by default
         });
+        console.log(`🆕 Created new inventory item: ${item.name}`);
       }
     }
 
-    await logActivity(createdBy, `Created purchase: ${purchaseId}`);
-    res.status(201).json(purchase);
+    // Convert to plain object and add id field for frontend
+    const purchaseResponse = purchase.toObject();
+    purchaseResponse.id = purchaseResponse._id.toString();
+
+    await logActivity(createdBy, `Created purchase: ${purchaseId} for ${totalAmount}`);
+
+    console.log("✅ Purchase completed successfully!");
+    res.status(201).json(purchaseResponse);
+
   } catch (err) {
-    console.error("Purchase create error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Purchase create error:", err);
+    
+    // More specific error messages
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: "Validation error: " + Object.values(err.errors).map(e => e.message).join(', ') 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: "Server error while creating purchase: " + err.message 
+    });
   }
 });
 
@@ -1082,12 +1131,17 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                           SALES MANAGEMENT
+//                           SALES MANAGEMENT - FIXED VERSION
 // ============================================================================
 app.get("/api/sales", async (req, res) => {
   try {
     const sales = await Sale.find({}).sort({ date: -1 }).lean();
-    res.json(sales);
+    // Convert MongoDB _id to id for frontend compatibility
+    const normalizedSales = sales.map(sale => ({
+      ...sale,
+      id: sale._id.toString()
+    }));
+    res.json(normalizedSales);
   } catch (err) {
     console.error("Sales get error:", err);
     res.status(500).json({ message: "Server error" });
@@ -1096,40 +1150,107 @@ app.get("/api/sales", async (req, res) => {
 
 app.post("/api/sales", async (req, res) => {
   try {
+    console.log("📥 Received sale request:", req.body);
+    
     const { items, customer, totalAmount } = req.body;
     const saleId = `SALE-${Date.now()}`;
     const createdBy = req.headers["x-username"] || "System";
     
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        message: "Sale must contain at least one item" 
+      });
+    }
+
+    if (!totalAmount || totalAmount <= 0) {
+      return res.status(400).json({ 
+        message: "Invalid total amount" 
+      });
+    }
+
+    console.log(`🔍 Checking inventory for ${items.length} items...`);
+
     // Check inventory availability first
     for (const item of items) {
+      console.log(`Checking item: ${item.sku}, quantity: ${item.quantity}`);
+      
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
-      if (!inventoryItem || inventoryItem.quantity < item.quantity) {
+      
+      if (!inventoryItem) {
+        console.log(`❌ Item not found: ${item.sku}`);
         return res.status(400).json({ 
-          message: `Insufficient stock for ${item.name}. Available: ${inventoryItem ? inventoryItem.quantity : 0}` 
+          message: `Product "${item.name}" (SKU: ${item.sku}) not found in inventory` 
+        });
+      }
+
+      console.log(`Found inventory item: ${inventoryItem.name}, available: ${inventoryItem.quantity}, requested: ${item.quantity}`);
+
+      if (inventoryItem.quantity < item.quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for "${item.name}". Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
         });
       }
     }
 
+    console.log("✅ All items are available, creating sale...");
+
+    // Create the sale
     const sale = await Sale.create({
       saleId,
-      items,
-      customer,
+      items: items.map(item => ({
+        sku: item.sku,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice
+      })),
+      customer: customer || "Walk-in Customer",
       totalAmount,
       createdBy
     });
 
+    console.log("✅ Sale created, updating inventory...");
+
     // Update inventory quantities
     for (const item of items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
-      inventoryItem.quantity -= item.quantity;
-      await inventoryItem.save();
+      if (inventoryItem) {
+        const oldQuantity = inventoryItem.quantity;
+        inventoryItem.quantity -= item.quantity;
+        await inventoryItem.save();
+        console.log(`📦 Updated ${inventoryItem.name}: ${oldQuantity} -> ${inventoryItem.quantity}`);
+      }
     }
 
-    await logActivity(createdBy, `Created sale: ${saleId}`);
-    res.status(201).json(sale);
+    // Convert to plain object and add id field for frontend
+    const saleResponse = sale.toObject();
+    saleResponse.id = saleResponse._id.toString();
+
+    await logActivity(createdBy, `Created sale: ${saleId} for ${totalAmount}`);
+
+    console.log("✅ Sale completed successfully!");
+    res.status(201).json(saleResponse);
+
   } catch (err) {
-    console.error("Sale create error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Sale create error:", err);
+    
+    // More specific error messages
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: "Validation error: " + Object.values(err.errors).map(e => e.message).join(', ') 
+      });
+    }
+    
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        message: "Duplicate sale ID detected. Please try again." 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: "Server error while creating sale: " + err.message 
+    });
   }
 });
 
@@ -1260,18 +1381,23 @@ app.get("/api/purchases/report/pdf/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SALES REPORT PDF - INVOICE STYLE
+//                    SALES REPORT PDF - IMPROVED VERSION
 // ============================================================================
 app.get("/api/sales/report/pdf/:id", async (req, res) => {
   try {
+    console.log(`📊 Generating sales report PDF for: ${req.params.id}`);
+    
     const sale = await Sale.findById(req.params.id);
     if (!sale) {
+      console.log('❌ Sale not found');
       return res.status(404).json({ message: "Sale not found" });
     }
 
     const companyInfo = await CompanyInfo.findOne({});
     const printedBy = req.headers["x-username"] || "System";
     const filename = `Sales_Invoice_${sale.saleId}.pdf`;
+
+    console.log(`📄 Generating PDF: ${filename}`);
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
@@ -1284,8 +1410,14 @@ app.get("/api/sales/report/pdf/:id", async (req, res) => {
         });
 
         doc.on("data", chunk => pdfChunks.push(chunk));
-        doc.on("end", () => resolve(Buffer.concat(pdfChunks)));
-        doc.on("error", reject);
+        doc.on("end", () => {
+          console.log(`✅ PDF generated: ${pdfChunks.length} bytes`);
+          resolve(Buffer.concat(pdfChunks));
+        });
+        doc.on("error", (error) => {
+          console.error('❌ PDF generation error:', error);
+          reject(error);
+        });
 
         // ==================== SALES INVOICE CONTENT ====================
         // Company Header
@@ -1311,8 +1443,8 @@ app.get("/api/sales/report/pdf/:id", async (req, res) => {
 
         // Items Table Header
         let y = 240;
-        doc.rect(50, y, 495, 20).stroke();
-        doc.font("Helvetica-Bold").fontSize(9);
+        doc.rect(50, y, 495, 20).fillAndStroke("#f0f0f0", "#000000");
+        doc.font("Helvetica-Bold").fontSize(9).fillColor("#000000");
         doc.text("SKU", 55, y + 5);
         doc.text("Product Name", 120, y + 5);
         doc.text("Quantity", 300, y + 5);
@@ -1323,33 +1455,43 @@ app.get("/api/sales/report/pdf/:id", async (req, res) => {
 
         // Items Table Rows
         doc.font("Helvetica").fontSize(9);
-        sale.items.forEach(item => {
-          doc.rect(50, y, 495, 20).stroke();
+        sale.items.forEach((item, index) => {
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.rect(50, y, 495, 20).fillAndStroke("#ffffff", "#000000");
+          } else {
+            doc.rect(50, y, 495, 20).fillAndStroke("#f8f8f8", "#000000");
+          }
+          
+          doc.fillColor("#000000");
           doc.text(item.sku || "", 55, y + 5);
           doc.text(item.name || "", 120, y + 5);
           doc.text(String(item.quantity), 300, y + 5);
-          doc.text(`RM ${Number(item.unitPrice).toFixed(2)}`, 360, y + 5);
-          doc.text(`RM ${Number(item.totalPrice).toFixed(2)}`, 450, y + 5);
+          doc.text(`RM ${Number(item.unitPrice || 0).toFixed(2)}`, 360, y + 5);
+          doc.text(`RM ${Number(item.totalPrice || 0).toFixed(2)}`, 450, y + 5);
           y += 20;
         });
 
         // Total Amount
         y += 10;
-        doc.rect(350, y, 195, 25).stroke();
-        doc.font("Helvetica-Bold").fontSize(12);
-        doc.text(`TOTAL AMOUNT: RM ${Number(sale.totalAmount).toFixed(2)}`, 360, y + 8);
+        doc.rect(350, y, 195, 25).fillAndStroke("#e8f4fd", "#000000");
+        doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000");
+        doc.text(`TOTAL AMOUNT: RM ${Number(sale.totalAmount || 0).toFixed(2)}`, 360, y + 8);
 
         // Footer
         y += 50;
-        doc.fontSize(8).font("Helvetica");
+        doc.fontSize(8).font("Helvetica").fillColor("#666666");
         doc.text("Thank you for your purchase!", 50, y, { align: "center" });
         doc.text(`Generated by ${companyInfo.name} Inventory System`, 50, doc.page.height - 40, { align: "center" });
 
         doc.end();
       } catch (error) {
+        console.error('❌ PDF content error:', error);
         reject(error);
       }
     });
+
+    console.log(`💾 Saving PDF to database...`);
 
     // Save PDF to documents
     await Doc.create({
@@ -1364,11 +1506,16 @@ app.get("/api/sales/report/pdf/:id", async (req, res) => {
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
 
+    console.log(`📤 PDF sent to client: ${filename}`);
+
   } catch (err) {
-    console.error("Sales PDF Generation Error:", err);
-    res.status(500).json({ message: "PDF generation failed: " + err.message });
+    console.error("❌ Sales PDF Generation Error:", err);
+    res.status(500).json({ 
+      message: "PDF generation failed: " + err.message 
+    });
   }
 });
 
