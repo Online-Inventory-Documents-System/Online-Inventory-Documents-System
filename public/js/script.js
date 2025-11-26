@@ -789,15 +789,19 @@ async function confirmAndGeneratePDF() {
 function openPurchaseModal() {
   purchaseItems = [];
   currentPurchaseId = null;
-  qs('#purchaseModal').style.display = 'block';
-  qs('#purchaseSupplier').value = '';
-  updatePurchaseItemsList();
-  updatePurchaseTotal();
-  qs('#generatePurchaseReportBtn').disabled = true;
+  const modal = qs('#purchaseModal');
+  if (modal) {
+    modal.style.display = 'block';
+    qs('#purchaseSupplier').value = '';
+    updatePurchaseItemsList();
+    updatePurchaseTotal();
+    qs('#generatePurchaseReportBtn').disabled = true;
+  }
 }
 
 function closePurchaseModal() {
-  qs('#purchaseModal').style.display = 'none';
+  const modal = qs('#purchaseModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function addPurchaseItem() {
@@ -833,6 +837,8 @@ function removePurchaseItem(index) {
 
 function updatePurchaseItemsList() {
   const list = qs('#purchaseItemsList');
+  if (!list) return;
+  
   list.innerHTML = '';
 
   purchaseItems.forEach((item, index) => {
@@ -883,7 +889,7 @@ async function savePurchase() {
 
     if (res.ok) {
       const purchase = await res.json();
-      currentPurchaseId = purchase._id;
+      currentPurchaseId = purchase.id || purchase._id;
       qs('#generatePurchaseReportBtn').disabled = false;
       alert('✅ Purchase saved successfully!');
       await fetchInventory(); // Refresh inventory
@@ -929,20 +935,26 @@ async function generatePurchaseReport() {
 function openSaleModal() {
   saleItems = [];
   currentSaleId = null;
-  qs('#saleModal').style.display = 'block';
-  qs('#saleCustomer').value = '';
-  updateSaleItemsList();
-  updateSaleTotal();
-  qs('#generateSaleReportBtn').disabled = true;
-  populateProductSelect();
+  const modal = qs('#saleModal');
+  if (modal) {
+    modal.style.display = 'block';
+    qs('#saleCustomer').value = '';
+    updateSaleItemsList();
+    updateSaleTotal();
+    qs('#generateSaleReportBtn').disabled = true;
+    populateProductSelect();
+  }
 }
 
 function closeSaleModal() {
-  qs('#saleModal').style.display = 'none';
+  const modal = qs('#saleModal');
+  if (modal) modal.style.display = 'none';
 }
 
 function populateProductSelect() {
   const select = qs('#saleProductSelect');
+  if (!select) return;
+  
   select.innerHTML = '<option value="">Select Product</option>';
   
   inventory.forEach(item => {
@@ -952,6 +964,7 @@ function populateProductSelect() {
       option.textContent = `${item.sku} - ${item.name} (Stock: ${item.quantity})`;
       option.dataset.price = item.unitPrice;
       option.dataset.stock = item.quantity;
+      option.dataset.name = item.name;
       select.appendChild(option);
     }
   });
@@ -959,14 +972,14 @@ function populateProductSelect() {
 
 function updateProductDetails() {
   const select = qs('#saleProductSelect');
-  const selectedOption = select.options[select.selectedIndex];
+  const selectedOption = select?.options[select.selectedIndex];
   const unitPrice = qs('#saleUnitPrice');
   const availableStock = qs('#availableStock');
 
-  if (selectedOption && selectedOption.value) {
-    unitPrice.value = selectedOption.dataset.price;
-    availableStock.textContent = `Available: ${selectedOption.dataset.stock}`;
-  } else {
+  if (selectedOption && selectedOption.value && unitPrice && availableStock) {
+    unitPrice.value = selectedOption.dataset.price || '0';
+    availableStock.textContent = `Available: ${selectedOption.dataset.stock || '0'}`;
+  } else if (unitPrice && availableStock) {
     unitPrice.value = '';
     availableStock.textContent = 'Available: 0';
   }
@@ -974,12 +987,17 @@ function updateProductDetails() {
 
 function addSaleItem() {
   const select = qs('#saleProductSelect');
-  const selectedOption = select.options[select.selectedIndex];
-  const quantity = parseInt(qs('#saleQuantity').value);
-  const unitPrice = parseFloat(qs('#saleUnitPrice').value);
+  const selectedOption = select?.options[select.selectedIndex];
+  const quantityInput = qs('#saleQuantity');
+  const unitPriceInput = qs('#saleUnitPrice');
+  
+  if (!select || !quantityInput || !unitPriceInput) return;
 
-  if (!selectedOption.value || !quantity || !unitPrice) {
-    alert('Please select a product and enter quantity');
+  const quantity = parseInt(quantityInput.value);
+  const unitPrice = parseFloat(unitPriceInput.value);
+
+  if (!selectedOption?.value || !quantity || quantity <= 0 || !unitPrice || unitPrice <= 0) {
+    alert('Please select a product and enter valid quantity');
     return;
   }
 
@@ -990,29 +1008,42 @@ function addSaleItem() {
   }
 
   const sku = selectedOption.value;
-  const name = selectedOption.textContent.split(' - ')[1].split(' (Stock:')[0];
+  const name = selectedOption.dataset.name || selectedOption.textContent.split(' - ')[1]?.split(' (Stock:')[0] || 'Unknown Product';
   const totalPrice = quantity * unitPrice;
-  const item = { sku, name, quantity, unitPrice, totalPrice };
+  
+  const item = { 
+    sku, 
+    name, 
+    quantity, 
+    unitPrice, 
+    totalPrice 
+  };
+  
   saleItems.push(item);
 
   // Clear form
   select.selectedIndex = 0;
-  qs('#saleQuantity').value = '';
-  qs('#saleUnitPrice').value = '';
-  qs('#availableStock').textContent = 'Available: 0';
+  quantityInput.value = '';
+  unitPriceInput.value = '';
+  const availableStockEl = qs('#availableStock');
+  if (availableStockEl) availableStockEl.textContent = 'Available: 0';
 
   updateSaleItemsList();
   updateSaleTotal();
 }
 
 function removeSaleItem(index) {
-  saleItems.splice(index, 1);
-  updateSaleItemsList();
-  updateSaleTotal();
+  if (index >= 0 && index < saleItems.length) {
+    saleItems.splice(index, 1);
+    updateSaleItemsList();
+    updateSaleTotal();
+  }
 }
 
 function updateSaleItemsList() {
   const list = qs('#saleItemsList');
+  if (!list) return;
+  
   list.innerHTML = '';
 
   saleItems.forEach((item, index) => {
@@ -1032,19 +1063,31 @@ function updateSaleItemsList() {
 }
 
 function updateSaleTotal() {
-  const total = saleItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  qs('#saleTotalAmount').textContent = total.toFixed(2);
+  const total = saleItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  const totalElement = qs('#saleTotalAmount');
+  if (totalElement) {
+    totalElement.textContent = total.toFixed(2);
+  }
 }
 
+// IMPROVED: Save Sale Function
 async function saveSale() {
-  const customer = qs('#saleCustomer').value.trim() || 'Walk-in Customer';
+  const customerInput = qs('#saleCustomer');
+  const customer = customerInput?.value.trim() || 'Walk-in Customer';
   
   if (saleItems.length === 0) {
-    alert('Please add at least one item');
+    alert('Please add at least one item to the sale');
     return;
   }
 
-  const totalAmount = saleItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  const totalAmount = saleItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+
+  if (totalAmount <= 0) {
+    alert('Total amount must be greater than zero');
+    return;
+  }
+
+  console.log('💾 Saving sale:', { items: saleItems, customer, totalAmount });
 
   try {
     const res = await apiFetch(`${API_BASE}/sales`, {
@@ -1056,30 +1099,42 @@ async function saveSale() {
       })
     });
 
+    console.log('📥 Sale response status:', res.status);
+
     if (res.ok) {
       const sale = await res.json();
-      currentSaleId = sale._id;
-      qs('#generateSaleReportBtn').disabled = false;
+      currentSaleId = sale.id || sale._id;
+      console.log('✅ Sale saved successfully, ID:', currentSaleId);
+      
+      const generateReportBtn = qs('#generateSaleReportBtn');
+      if (generateReportBtn) generateReportBtn.disabled = false;
+      
       alert('✅ Sale saved successfully!');
       await fetchInventory(); // Refresh inventory
+      
     } else {
-      const error = await res.json();
-      alert('❌ Failed to save sale: ' + error.message);
+      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
+      console.error('❌ Sale save error:', errorData);
+      alert(`❌ Failed to save sale: ${errorData.message || 'Unknown error'}`);
     }
   } catch (e) {
-    console.error('Save sale error:', e);
-    alert('❌ Server error while saving sale');
+    console.error('❌ Network error while saving sale:', e);
+    alert('❌ Server connection error while saving sale: ' + e.message);
   }
 }
 
+// IMPROVED: Generate Sale Report
 async function generateSaleReport() {
   if (!currentSaleId) {
-    alert('No sale selected for report generation');
+    alert('No sale selected for report generation. Please save the sale first.');
     return;
   }
 
+  console.log(`📄 Generating report for sale: ${currentSaleId}`);
+
   try {
     const res = await apiFetch(`${API_BASE}/sales/report/pdf/${currentSaleId}`);
+    
     if (res.ok) {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -1090,13 +1145,18 @@ async function generateSaleReport() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      await fetchDocuments();
+      
+      await fetchDocuments(); // Refresh documents list
+      alert('📄 Sales report generated successfully!');
+      
     } else {
-      alert('Failed to generate sales report');
+      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
+      console.error('❌ Report generation error:', errorData);
+      alert(`❌ Failed to generate sales report: ${errorData.message || 'Unknown error'}`);
     }
   } catch (e) {
-    console.error('Sales report error:', e);
-    alert('Error generating sales report');
+    console.error('❌ Network error during report generation:', e);
+    alert('❌ Error generating sales report: ' + e.message);
   }
 }
 
