@@ -313,6 +313,7 @@
         .form-container {
             position: relative;
             overflow: hidden;
+            min-height: 450px; /* Added fixed height for consistent layout */
         }
 
         .form {
@@ -362,6 +363,10 @@
 
             .main-title-container h1 {
                 font-size: 2rem;
+            }
+            
+            .form-container {
+                min-height: 400px; /* Adjusted for mobile */
             }
         }
 
@@ -509,6 +514,14 @@
             }
         }
 
+        // Clear register form fields
+        function clearRegisterForm() {
+            qs('#newUsername').value = '';
+            qs('#newPassword').value = '';
+            qs('#securityCode').value = '';
+            showMsg(qs('#registerMessage'), '');
+        }
+
         // Login Function
         async function login() {
             const user = qs('#username')?.value?.trim();
@@ -605,6 +618,8 @@
                     registerBtn.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
                     
                     setTimeout(() => { 
+                        // Clear the register form and switch to login
+                        clearRegisterForm();
                         toggleForm(); 
                     }, 1500);
                 } else {
