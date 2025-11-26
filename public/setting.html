@@ -42,41 +42,6 @@
     <p id="passwordMessage" style="margin-top: 10px;"></p>
   </form>
 
-  <!-- NEW: Company Information Section -->
-  <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
-    <h2>🏢 Company Information</h2>
-    <p style="color: var(--secondary-color); margin-bottom: 20px;">
-      Update your company details that will appear on all reports (Inventory, Purchase, Sales)
-    </p>
-
-    <form id="companyInfoForm">
-      <div class="form-group">
-        <label for="companyName">Company Name</label>
-        <input type="text" id="companyName" required />
-      </div>
-
-      <div class="form-group">
-        <label for="companyAddress">Address</label>
-        <textarea id="companyAddress" rows="3" style="width: 100%; padding: 12px; margin-top: 5px;" required></textarea>
-      </div>
-
-      <div class="form-group">
-        <label for="companyPhone">Phone Number</label>
-        <input type="text" id="companyPhone" required />
-      </div>
-
-      <div class="form-group">
-        <label for="companyEmail">Email Address</label>
-        <input type="email" id="companyEmail" required />
-      </div>
-
-      <button type="button" id="saveCompanyInfoBtn" class="primary-btn" style="margin-top: 15px;">
-        💾 Save Company Information
-      </button>
-      <p id="companyInfoMessage" style="margin-top: 10px;"></p>
-    </form>
-  </div>
-
   <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
     <h3>Account Actions</h3>
     <button id="logoutBtn" type="button" class="secondary-btn" onclick="logout()">🚪 Logout</button>
