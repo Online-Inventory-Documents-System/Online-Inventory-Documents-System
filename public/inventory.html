@@ -40,6 +40,12 @@
         <button id="pdfReportBtn" class="primary-btn">📄 Generate PDF Inventory Report</button>
       </div>
 
+      <!-- NEW: Purchase and Sale Buttons -->
+      <div style="display:flex; gap:10px; margin-top: 10px;">
+        <button id="purchaseBtn" class="success-btn">🛒 New Purchase</button>
+        <button id="saleBtn" class="primary-btn">💰 New Sale</button>
+      </div>
+
       <div class="search-controls">
         <!-- UPDATED: Date Range Search Controls -->
         <div class="date-range-container">
@@ -94,6 +100,104 @@
       <div>Total Stock Quantity: <span id="totalStock">0</span></div>
     </div>
   </section>
+
+  <!-- Purchase Modal -->
+  <div id="purchaseModal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+      <span class="close">&times;</span>
+      <h2>🛒 New Purchase</h2>
+      
+      <div class="form-group">
+        <label>Supplier:</label>
+        <input type="text" id="purchaseSupplier" placeholder="Supplier name">
+      </div>
+
+      <h3>Purchase Items</h3>
+      <div class="purchase-item-form">
+        <input type="text" id="purchaseSku" placeholder="SKU" style="width: 100px;">
+        <input type="text" id="purchaseName" placeholder="Product Name" style="width: 200px;">
+        <input type="number" id="purchaseQuantity" placeholder="Qty" min="1" style="width: 80px;">
+        <input type="number" id="purchaseUnitCost" placeholder="Unit Cost" step="0.01" style="width: 100px;">
+        <button id="addPurchaseItemBtn" class="primary-btn">Add Item</button>
+      </div>
+
+      <div class="table-container">
+        <table id="purchaseItemsTable">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Quantity</th>
+              <th>Unit Cost</th>
+              <th>Total Cost</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="purchaseItemsList"></tbody>
+        </table>
+      </div>
+
+      <div class="purchase-totals">
+        <h3>Total Amount: RM <span id="purchaseTotalAmount">0.00</span></h3>
+      </div>
+
+      <div class="modal-actions">
+        <button id="savePurchaseBtn" class="success-btn">💾 Save Purchase</button>
+        <button id="generatePurchaseReportBtn" class="primary-btn" disabled>📄 Generate Purchase Report</button>
+        <button class="secondary-btn" onclick="closePurchaseModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sale Modal -->
+  <div id="saleModal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+      <span class="close">&times;</span>
+      <h2>💰 New Sale</h2>
+      
+      <div class="form-group">
+        <label>Customer:</label>
+        <input type="text" id="saleCustomer" placeholder="Customer name">
+      </div>
+
+      <h3>Sale Items</h3>
+      <div class="sale-item-form">
+        <select id="saleProductSelect" style="width: 150px;">
+          <option value="">Select Product</option>
+        </select>
+        <input type="number" id="saleQuantity" placeholder="Qty" min="1" style="width: 80px;">
+        <input type="number" id="saleUnitPrice" placeholder="Unit Price" step="0.01" style="width: 100px;" readonly>
+        <span id="availableStock" style="margin: 0 10px;">Available: 0</span>
+        <button id="addSaleItemBtn" class="primary-btn">Add Item</button>
+      </div>
+
+      <div class="table-container">
+        <table id="saleItemsTable">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Quantity</th>
+              <th>Unit Price</th>
+              <th>Total Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="saleItemsList"></tbody>
+        </table>
+      </div>
+
+      <div class="sale-totals">
+        <h3>Total Amount: RM <span id="saleTotalAmount">0.00</span></h3>
+      </div>
+
+      <div class="modal-actions">
+        <button id="saveSaleBtn" class="success-btn">💾 Save Sale</button>
+        <button id="generateSaleReportBtn" class="primary-btn" disabled>📄 Generate Sales Report</button>
+        <button class="secondary-btn" onclick="closeSaleModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <!-- JS -->
   <script src="js/setting.js" defer></script>
