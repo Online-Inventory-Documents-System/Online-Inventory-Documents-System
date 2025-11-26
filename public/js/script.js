@@ -15,8 +15,6 @@ const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 let inventory = [];
 let activityLog = [];
 let documents = [];
-let purchases = [];
-let sales = [];
 const currentPage = window.location.pathname.split('/').pop();
 
 // Fetch wrapper
@@ -532,27 +530,6 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
-// NEW: Fetch purchases and sales
-async function fetchPurchases() {
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases`);
-    if(!res.ok) throw new Error('Failed to fetch purchases');
-    const data = await res.json();
-    purchases = data.map(p => ({ ...p, id: p.id || p._id }));
-    if (typeof renderPurchases === 'function') renderPurchases(purchases);
-  } catch(err) { console.error(err); }
-}
-
-async function fetchSales() {
-  try {
-    const res = await apiFetch(`${API_BASE}/sales`);
-    if(!res.ok) throw new Error('Failed to fetch sales');
-    const data = await res.json();
-    sales = data.map(s => ({ ...s, id: s.id || s._id }));
-    if (typeof renderSales === 'function') renderSales(sales);
-  } catch(err) { console.error(err); }
-}
-
 // Init
 window.addEventListener('load', async () => {
   const adminName = getUsername();
@@ -569,14 +546,6 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('documents')) { 
       await fetchDocuments(); 
       bindDocumentsUI(); 
-    }
-    if(currentPage.includes('purchase-management')) { 
-      await fetchPurchases(); 
-      bindPurchaseManagementUI();
-    }
-    if(currentPage.includes('sales-management')) { 
-      await fetchSales(); 
-      bindSalesManagementUI();
     }
     if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
       await fetchLogs(); 
@@ -760,580 +729,10 @@ async function confirmAndGeneratePDF() {
   }
 }
 
-// ============================================================================
-//                    UPDATED: SIMPLIFIED PURCHASE AND SALE FUNCTIONS
-// ============================================================================
-
-// Purchase Functions - UPDATED: Simplified names and removed bulk prefix
-function loadProductsIntoPurchaseDropdown(selectElement) {
-  // Clear existing options except the first
-  while (selectElement.options.length > 1) {
-    selectElement.remove(1);
-  }
-  
-  inventory.forEach(product => {
-    const option = document.createElement('option');
-    option.value = product.id;
-    option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
-    selectElement.appendChild(option);
-  });
-}
-
-function loadProductsForPurchase() {
-  // Load products into all existing dropdowns
-  document.querySelectorAll('#purchaseProducts .purchaseProduct').forEach(select => {
-    loadProductsIntoPurchaseDropdown(select);
-  });
-  
-  // Set today's date as default
-  document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
-  calculatePurchaseTotal();
-}
-
-function resetPurchaseForm() {
-  document.getElementById('purchaseSupplier').value = '';
-  document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
-  
-  // Reset to one row
-  const container = document.getElementById('purchaseProducts');
-  container.innerHTML = `
-    <div class="product-row">
-      <select class="purchaseProduct" required onchange="updatePurchasePrice(this)">
-        <option value="">Select Product</option>
-      </select>
-      <input type="number" class="purchaseQuantity" min="1" placeholder="Qty" required oninput="calculatePurchaseTotal()">
-      <input type="number" class="purchaseUnitCost" step="0.01" min="0" placeholder="Unit Cost" required oninput="calculatePurchaseTotal()">
-      <span class="product-total">RM 0.00</span>
-      <button type="button" class="danger-btn" onclick="removePurchaseRow(this)">Remove</button>
-    </div>
-  `;
-  loadProductsForPurchase();
-}
-
-async function confirmPurchase() {
-  const supplier = document.getElementById('purchaseSupplier').value;
-  const date = document.getElementById('purchaseDate').value;
-
-  if (!supplier) {
-    alert('Please enter supplier');
-    return;
-  }
-
-  const purchaseItems = [];
-  let isValid = true;
-
-  document.querySelectorAll('#purchaseProducts .product-row').forEach(row => {
-    const productSelect = row.querySelector('.purchaseProduct');
-    const quantityInput = row.querySelector('.purchaseQuantity');
-    const unitCostInput = row.querySelector('.purchaseUnitCost');
-
-    const productId = productSelect.value;
-    const quantity = parseInt(quantityInput.value);
-    const unitCost = parseFloat(unitCostInput.value);
-
-    if (!productId || !quantity || !unitCost) {
-      isValid = false;
-      return;
-    }
-
-    purchaseItems.push({
-      productId,
-      quantityReceived: quantity,
-      unitCost
-    });
-  });
-
-  if (!isValid) {
-    alert('Please fill in all product fields');
-    return;
-  }
-
-  if (purchaseItems.length === 0) {
-    alert('Please add at least one product');
-    return;
-  }
-
-  if (!confirm(`Confirm purchase of ${purchaseItems.length} products from ${supplier}?`)) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/bulk`, {
-      method: 'POST',
-      body: JSON.stringify({
-        purchases: purchaseItems,
-        supplier,
-        date
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      alert(`✅ Purchase completed! ${data.message}`);
-      closePurchaseModal();
-      await fetchInventory(); // Refresh inventory
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to process purchase: ${error.message}`);
-    }
-  } catch (err) {
-    console.error('Purchase error:', err);
-    alert('❌ Server error while processing purchase');
-  }
-}
-
-// Sale Functions - UPDATED: Simplified names and removed bulk prefix
-function loadProductsIntoSaleDropdown(selectElement) {
-  // Clear existing options except the first
-  while (selectElement.options.length > 1) {
-    selectElement.remove(1);
-  }
-  
-  // Only show products with stock
-  inventory.filter(product => product.quantity > 0).forEach(product => {
-    const option = document.createElement('option');
-    option.value = product.id;
-    option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity}`;
-    selectElement.appendChild(option);
-  });
-}
-
-function loadProductsForSale() {
-  // Load products into all existing dropdowns
-  document.querySelectorAll('#saleProducts .saleProduct').forEach(select => {
-    loadProductsIntoSaleDropdown(select);
-  });
-  
-  // Set today's date as default
-  document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
-  calculateSaleTotal();
-}
-
-function resetSaleForm() {
-  document.getElementById('saleCustomer').value = '';
-  document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
-  
-  // Reset to one row
-  const container = document.getElementById('saleProducts');
-  container.innerHTML = `
-    <div class="product-row">
-      <select class="saleProduct" required onchange="updateSalePrice(this)">
-        <option value="">Select Product</option>
-      </select>
-      <input type="number" class="saleQuantity" min="1" placeholder="Qty" required oninput="calculateSaleTotal()">
-      <input type="number" class="saleUnitPrice" step="0.01" min="0" placeholder="Unit Price" required oninput="calculateSaleTotal()">
-      <span class="product-total">RM 0.00</span>
-      <button type="button" class="danger-btn" onclick="removeSaleRow(this)">Remove</button>
-    </div>
-  `;
-  loadProductsForSale();
-}
-
-async function confirmSale() {
-  const customer = document.getElementById('saleCustomer').value;
-  const date = document.getElementById('saleDate').value;
-
-  if (!customer) {
-    alert('Please enter customer');
-    return;
-  }
-
-  const saleItems = [];
-  let isValid = true;
-  let hasStockIssues = false;
-  let stockIssues = [];
-
-  // First validate all items have sufficient stock
-  document.querySelectorAll('#saleProducts .product-row').forEach(row => {
-    const productSelect = row.querySelector('.saleProduct');
-    const quantityInput = row.querySelector('.saleQuantity');
-    const unitPriceInput = row.querySelector('.saleUnitPrice');
-
-    const productId = productSelect.value;
-    const quantity = parseInt(quantityInput.value);
-    const unitPrice = parseFloat(unitPriceInput.value);
-
-    if (!productId || !quantity || !unitPrice) {
-      isValid = false;
-      return;
-    }
-
-    // Check stock availability
-    const product = inventory.find(p => p.id === productId);
-    if (product && product.quantity < quantity) {
-      hasStockIssues = true;
-      stockIssues.push(`${product.name}: Available ${product.quantity}, Requested ${quantity}`);
-    }
-
-    saleItems.push({
-      productId,
-      quantitySold: quantity,
-      unitPrice
-    });
-  });
-
-  if (!isValid) {
-    alert('Please fill in all product fields');
-    return;
-  }
-
-  if (saleItems.length === 0) {
-    alert('Please add at least one product');
-    return;
-  }
-
-  if (hasStockIssues) {
-    alert(`❌ Insufficient stock for:\n${stockIssues.join('\n')}`);
-    return;
-  }
-
-  if (!confirm(`Confirm sale of ${saleItems.length} products to ${customer}?`)) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/bulk`, {
-      method: 'POST',
-      body: JSON.stringify({
-        sales: saleItems,
-        customer,
-        date
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      alert(`✅ Sale completed! ${data.message}`);
-      closeSaleModal();
-      await fetchInventory(); // Refresh inventory
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to process sale: ${error.message}`);
-    }
-  } catch (err) {
-    console.error('Sale error:', err);
-    alert('❌ Server error while processing sale');
-  }
-}
-
-// ============================================================================
-//                    PURCHASE AND SALES MANAGEMENT FUNCTIONS
-// ============================================================================
-
-// Purchase Management Functions
-function renderPurchases(purchasesList) {
-  const list = qs('#purchasesList');
-  if(!list) return;
-  list.innerHTML = '';
-  
-  let totalQuantity = 0;
-  let totalCost = 0;
-
-  purchasesList.forEach(p => {
-    const id = p.id || p._id;
-    const quantity = p.quantityReceived || 0;
-    const unitCost = p.unitCost || 0;
-    const total = p.totalCost || 0;
-    
-    totalQuantity += quantity;
-    totalCost += total;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${new Date(p.date).toLocaleDateString()}</td>
-      <td>${escapeHtml(p.productName || '')}</td>
-      <td>${escapeHtml(p.sku || '')}</td>
-      <td>${escapeHtml(p.supplier || '')}</td>
-      <td>${quantity}</td>
-      <td class="money">RM ${unitCost.toFixed(2)}</td>
-      <td class="money">RM ${total.toFixed(2)}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="openEditPurchasePage('${id}')">✏️ Edit</button>
-        <button class="danger-btn small-btn" onclick="confirmAndDeletePurchase('${id}')">🗑️ Delete</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-
-  if(qs('#purchaseTotalQuantity')) qs('#purchaseTotalQuantity').textContent = totalQuantity;
-  if(qs('#purchaseTotalCost')) qs('#purchaseTotalCost').textContent = totalCost.toFixed(2);
-}
-
-async function confirmAndDeletePurchase(id) {
-  const purchase = purchases.find(x => String(x.id) === String(id));
-  if(!purchase) return;
-  if(!confirm(`Confirm Delete Purchase: "${purchase.productName}" (${purchase.quantityReceived} units)?`)) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
-    if(res.status === 204) {
-      await fetchPurchases();
-      await fetchInventory(); // Refresh inventory as well
-      alert('🗑️ Purchase deleted!');
-    } else {
-      alert('❌ Failed to delete purchase.');
-    }
-  } catch(e) { 
-    console.error(e); 
-    alert('❌ Server connection error while deleting purchase.'); 
-  }
-}
-
-// Sales Management Functions
-function renderSales(salesList) {
-  const list = qs('#salesList');
-  if(!list) return;
-  list.innerHTML = '';
-  
-  let totalQuantity = 0;
-  let totalRevenue = 0;
-
-  salesList.forEach(s => {
-    const id = s.id || s._id;
-    const quantity = s.quantitySold || 0;
-    const unitPrice = s.unitPrice || 0;
-    const total = s.totalRevenue || 0;
-    
-    totalQuantity += quantity;
-    totalRevenue += total;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${new Date(s.date).toLocaleDateString()}</td>
-      <td>${escapeHtml(s.productName || '')}</td>
-      <td>${escapeHtml(s.sku || '')}</td>
-      <td>${escapeHtml(s.customer || '')}</td>
-      <td>${quantity}</td>
-      <td class="money">RM ${unitPrice.toFixed(2)}</td>
-      <td class="money">RM ${total.toFixed(2)}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="openEditSalePage('${id}')">✏️ Edit</button>
-        <button class="danger-btn small-btn" onclick="confirmAndDeleteSale('${id}')">🗑️ Delete</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-
-  if(qs('#saleTotalQuantity')) qs('#saleTotalQuantity').textContent = totalQuantity;
-  if(qs('#saleTotalRevenue')) qs('#saleTotalRevenue').textContent = totalRevenue.toFixed(2);
-}
-
-async function confirmAndDeleteSale(id) {
-  const sale = sales.find(x => String(x.id) === String(id));
-  if(!sale) return;
-  if(!confirm(`Confirm Delete Sale: "${sale.productName}" (${sale.quantitySold} units)?`)) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/${id}`, { method: 'DELETE' });
-    if(res.status === 204) {
-      await fetchSales();
-      await fetchInventory(); // Refresh inventory as well
-      alert('🗑️ Sale deleted!');
-    } else {
-      alert('❌ Failed to delete sale.');
-    }
-  } catch(e) { 
-    console.error(e); 
-    alert('❌ Server connection error while deleting sale.'); 
-  }
-}
-
-// Report Generation Functions
-async function generateSelectedReport() {
-  if (!selectedReportType) {
-    alert('Please select a report type');
-    return;
-  }
-
-  if (!confirm(`Generate ${selectedReportType} report?`)) return;
-
-  try {
-    let url;
-    switch (selectedReportType) {
-      case 'inventory':
-        url = `${API_BASE}/inventory/report/pdf`;
-        break;
-      case 'purchase':
-        url = `${API_BASE}/purchases/report/pdf`;
-        break;
-      case 'sales':
-        url = `${API_BASE}/sales/report/pdf`;
-        break;
-      default:
-        alert('Invalid report type');
-        return;
-    }
-
-    const res = await apiFetch(url, { method: 'GET' });
-
-    if (!res.ok) {
-      let errorMessage = 'Report generation failed';
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        errorMessage = `Server error: ${res.status}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const blob = await res.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    
-    // Get filename from content disposition
-    const contentDisposition = res.headers.get('Content-Disposition');
-    let filename = `${selectedReportType}_report.pdf`;
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
-      if (filenameMatch) filename = filenameMatch[1];
-    }
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(downloadUrl);
-
-    closeReportSelectionModal();
-    await fetchDocuments(); // Refresh documents list
-    alert(`✅ ${selectedReportType.charAt(0).toUpperCase() + selectedReportType.slice(1)} Report generated successfully!`);
-
-  } catch (err) {
-    console.error('Report generation error:', err);
-    alert(`❌ Failed to generate ${selectedReportType} report: ${err.message}`);
-  }
-}
-
-// Company Information Functions
-async function loadCompanyInformation() {
-  try {
-    const res = await apiFetch(`${API_BASE}/company`);
-    if (res.ok) {
-      const company = await res.json();
-      document.getElementById('companyName').value = company.name || '';
-      document.getElementById('companyAddress').value = company.address || '';
-      document.getElementById('companyPhone').value = company.phone || '';
-      document.getElementById('companyEmail').value = company.email || '';
-    }
-  } catch (err) {
-    console.error('Error loading company information:', err);
-  }
-}
-
-async function saveCompanyInformation() {
-  const name = document.getElementById('companyName').value.trim();
-  const address = document.getElementById('companyAddress').value.trim();
-  const phone = document.getElementById('companyPhone').value.trim();
-  const email = document.getElementById('companyEmail').value.trim();
-  const msgEl = document.getElementById('companyMessage');
-
-  if (!name || !address || !phone || !email) {
-    showMsg(msgEl, 'Please fill in all company information fields', 'red');
-    return;
-  }
-
-  if (!confirm('Update company information?')) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/company`, {
-      method: 'PUT',
-      body: JSON.stringify({ name, address, phone, email })
-    });
-
-    if (res.ok) {
-      showMsg(msgEl, '✅ Company information updated successfully!', 'green');
-      setTimeout(() => showMsg(msgEl, '', 'green'), 3000);
-    } else {
-      const error = await res.json();
-      showMsg(msgEl, `❌ Failed to update: ${error.message}`, 'red');
-    }
-  } catch (err) {
-    console.error('Company update error:', err);
-    showMsg(msgEl, '❌ Server error while updating company information', 'red');
-  }
-}
-
-// Password change function for settings page
-async function changePassword() {
-  const newPass = document.getElementById('newPassword')?.value;
-  const confPass = document.getElementById('confirmPassword')?.value;
-  const code = document.getElementById('securityCode')?.value;
-  const msgEl = document.getElementById('passwordMessage');
-  showMsg(msgEl, '');
-  
-  if(!newPass || !confPass || !code) { 
-    return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); 
-  }
-  
-  if(newPass !== confPass) { 
-    return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); 
-  }
-  
-  if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/account/password`, { 
-      method: 'PUT', 
-      body: JSON.stringify({ 
-        username: getUsername(), 
-        newPassword: newPass, 
-        securityCode: code 
-      }) 
-    });
-    
-    const data = await res.json();
-    
-    if(res.ok) {
-      showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
-      document.getElementById('newPassword').value = '';
-      document.getElementById('confirmPassword').value = '';
-      document.getElementById('securityCode').value = '';
-      setTimeout(logout, 1500);
-    } else {
-      showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
-    }
-  } catch(e) { 
-    showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); 
-  }
-}
-
-// Delete account function for settings page
-async function deleteAccount() {
-  const code = document.getElementById('deleteSecurityCode')?.value;
-  
-  if(!code) {
-    alert('Please enter security code to confirm deletion');
-    return;
-  }
-  
-  if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${getUsername()}"? This action cannot be undone.`)) return;
-
-  try {
-    const res = await apiFetch(`${API_BASE}/account`, { 
-      method: 'DELETE', 
-      body: JSON.stringify({ 
-        username: getUsername(), 
-        securityCode: code 
-      }) 
-    });
-    
-    const data = await res.json();
-    
-    if(res.ok) { 
-      alert('🗑️ Account deleted successfully. You will now be logged out.'); 
-      logout(); 
-    } else {
-      alert(`❌ ${data.message || 'Failed to delete account.'}`);
-    }
-  } catch(e) { 
-    alert('❌ Server connection failed during account deletion.'); 
-  }
-}
-
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
-  // UPDATED: Removed single purchase/sale button bindings, kept bulk ones with simplified names
-  qs('#bulkPurchaseBtn')?.addEventListener('click', openPurchaseModal);
-  qs('#bulkSaleBtn')?.addEventListener('click', openSaleModal);
-  qs('#reportSelectionBtn')?.addEventListener('click', openReportSelectionModal);
+  qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
+  qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
     if(qs('#searchInput')) { 
@@ -1342,6 +741,7 @@ function bindInventoryUI(){
     } 
   });
   
+  // UPDATED: Bind date range filter events
   bindDateRangeFilterEvents();
 }
 
@@ -1399,12 +799,6 @@ function searchInventory(){
 // Product (edit)
 function openEditPageForItem(id){ window.location.href = `product.html?id=${encodeURIComponent(id)}`; }
 
-// Purchase Management (edit)
-function openEditPurchasePage(id){ window.location.href = `purchase-edit.html?id=${encodeURIComponent(id)}`; }
-
-// Sales Management (edit)
-function openEditSalePage(id){ window.location.href = `sale-edit.html?id=${encodeURIComponent(id)}`; }
-
 async function bindProductPage(){
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
@@ -1443,38 +837,6 @@ async function bindProductPage(){
   });
 
   qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
-}
-
-// Purchase Management UI
-function bindPurchaseManagementUI() {
-  qs('#searchPurchases')?.addEventListener('input', searchPurchases);
-}
-
-function searchPurchases() {
-  const q = (qs('#searchPurchases')?.value || '').toLowerCase().trim();
-  const filtered = purchases.filter(p => 
-    (p.productName||'').toLowerCase().includes(q) || 
-    (p.sku||'').toLowerCase().includes(q) ||
-    (p.supplier||'').toLowerCase().includes(q) ||
-    (p.date ? new Date(p.date).toLocaleDateString().toLowerCase() : '').includes(q)
-  );
-  renderPurchases(filtered);
-}
-
-// Sales Management UI
-function bindSalesManagementUI() {
-  qs('#searchSales')?.addEventListener('input', searchSales);
-}
-
-function searchSales() {
-  const q = (qs('#searchSales')?.value || '').toLowerCase().trim();
-  const filtered = sales.filter(s => 
-    (s.productName||'').toLowerCase().includes(q) || 
-    (s.sku||'').toLowerCase().includes(q) ||
-    (s.customer||'').toLowerCase().includes(q) ||
-    (s.date ? new Date(s.date).toLocaleDateString().toLowerCase() : '').includes(q)
-  );
-  renderSales(filtered);
 }
 
 // Documents
@@ -1620,8 +982,42 @@ function bindSettingPage(){
   const currentUsername = getUsername();
   if(qs('#currentUser')) qs('#currentUser').textContent = currentUsername;
 
-  // Load company information
-  loadCompanyInformation();
+  qs('#changePasswordBtn')?.addEventListener('click', async ()=> {
+    const newPass = qs('#newPassword')?.value;
+    const confPass = qs('#confirmPassword')?.value;
+    const code = qs('#securityCode')?.value;
+    const msgEl = qs('#passwordMessage');
+    showMsg(msgEl, '');
+    if(!newPass || !confPass || !code) { return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); }
+    if(newPass !== confPass) { return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); }
+    if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
+
+    try {
+      const res = await apiFetch(`${API_BASE}/account/password`, { method: 'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
+      const data = await res.json();
+      if(res.ok) {
+        showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
+        qs('#newPassword').value = '';
+        qs('#confirmPassword').value = '';
+        qs('#securityCode').value = '';
+        setTimeout(logout, 1500);
+      } else {
+        showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
+      }
+    } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); }
+  });
+
+  qs('#deleteAccountBtn')?.addEventListener('click', async ()=> {
+    if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${currentUsername}"?`)) return;
+    const code = prompt('Enter Admin Security Code to CONFIRM account deletion:');
+    if(!code) return alert('Deletion cancelled.');
+    try {
+      const res = await apiFetch(`${API_BASE}/account`, { method: 'DELETE', body: JSON.stringify({ username: currentUsername, securityCode: code }) });
+      const data = await res.json();
+      if(res.ok) { alert('🗑️ Account deleted successfully. You will now be logged out.'); logout(); }
+      else alert(`❌ ${data.message || 'Failed to delete account.'}`);
+    } catch(e) { alert('❌ Server connection failed during account deletion.'); }
+  });
 }
 
 // DOM bindings
@@ -1644,29 +1040,3 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
-
-// New exposed functions - UPDATED: Simplified function names
-window.openPurchaseModal = openPurchaseModal;
-window.closePurchaseModal = closePurchaseModal;
-window.openSaleModal = openSaleModal;
-window.closeSaleModal = closeSaleModal;
-window.openReportSelectionModal = openReportSelectionModal;
-window.closeReportSelectionModal = closeReportSelectionModal;
-window.selectReport = selectReport;
-window.generateSelectedReport = generateSelectedReport;
-window.confirmPurchase = confirmPurchase;
-window.confirmSale = confirmSale;
-window.addPurchaseRow = addPurchaseRow;
-window.removePurchaseRow = removePurchaseRow;
-window.updatePurchasePrice = updatePurchasePrice;
-window.calculatePurchaseTotal = calculatePurchaseTotal;
-window.addSaleRow = addSaleRow;
-window.removeSaleRow = removeSaleRow;
-window.updateSalePrice = updateSalePrice;
-window.calculateSaleTotal = calculateSaleTotal;
-window.loadCompanyInformation = loadCompanyInformation;
-window.saveCompanyInformation = saveCompanyInformation;
-window.changePassword = changePassword;
-window.deleteAccount = deleteAccount;
-window.confirmAndDeletePurchase = confirmAndDeletePurchase;
-window.confirmAndDeleteSale = confirmAndDeleteSale;
