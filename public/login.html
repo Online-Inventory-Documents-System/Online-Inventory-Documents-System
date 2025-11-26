@@ -168,7 +168,7 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
             position: relative;
-            overflow: visible;
+            overflow: hidden;
             animation: slideUp 1s ease;
         }
 
@@ -402,27 +402,36 @@
             padding: 10px;
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
         }
 
         /* Form Switching Animation */
         .form-container {
             position: relative;
-            overflow: visible;
-            min-height: auto;
+            overflow: hidden;
+            min-height: 450px;
         }
 
         .form {
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             transition: transform 0.6s ease, opacity 0.6s ease;
+            opacity: 1;
+            transform: translateX(0);
         }
 
         .form.hidden {
-            display: none;
+            opacity: 0;
+            transform: translateX(-100%);
+            pointer-events: none;
         }
 
         .form.active {
-            display: block;
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
         }
 
         /* Responsive styles */
@@ -442,6 +451,10 @@
             
             .polygon-1, .polygon-5 {
                 display: block;
+            }
+            
+            .form-container {
+                min-height: 420px;
             }
         }
 
@@ -478,6 +491,10 @@
                 margin-top: 15px;
                 padding: 10px;
             }
+            
+            .form-container {
+                min-height: 380px;
+            }
         }
 
         /* Shake animation for errors */
@@ -488,7 +505,44 @@
         }
 
         .shake {
-            animation: shake 0.5s;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Success animation */
+        @keyframes success {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .success {
+            animation: success 0.5s ease-in-out;
+        }
+
+        /* Loading animation */
+        @keyframes loading {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin-top: -10px;
+            margin-left: -10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: loading 1s linear infinite;
         }
     </style>
 </head>
@@ -586,6 +640,12 @@
             if (!el) return; 
             el.textContent = text; 
             el.style.color = color; 
+            
+            // Add animation to message
+            el.style.animation = 'none';
+            setTimeout(() => {
+                el.style.animation = 'fadeIn 0.5s ease';
+            }, 10);
         };
 
         // Clear form fields
@@ -604,7 +664,7 @@
             }
         }
 
-        // Form Toggle Functionality
+        // Form Toggle Functionality with smooth animation
         function toggleForm() {
             const loginForm = qs('#loginForm');
             const registerForm = qs('#registerForm');
@@ -613,16 +673,24 @@
                 // Switching to register form - clear login form
                 clearForm('loginForm');
                 loginForm.classList.remove('active');
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                registerForm.classList.add('active');
+                setTimeout(() => {
+                    loginForm.classList.add('hidden');
+                    registerForm.classList.remove('hidden');
+                    setTimeout(() => {
+                        registerForm.classList.add('active');
+                    }, 50);
+                }, 300);
             } else {
                 // Switching to login form - clear register form
                 clearForm('registerForm');
                 registerForm.classList.remove('active');
-                registerForm.classList.add('hidden');
-                loginForm.classList.remove('hidden');
-                loginForm.classList.add('active');
+                setTimeout(() => {
+                    registerForm.classList.add('hidden');
+                    loginForm.classList.remove('hidden');
+                    setTimeout(() => {
+                        loginForm.classList.add('active');
+                    }, 50);
+                }, 300);
             }
         }
 
@@ -643,8 +711,7 @@
             try {
                 // Add loading state
                 const loginBtn = qs('#loginBtn');
-                const originalText = loginBtn.textContent;
-                loginBtn.textContent = 'Logging in...';
+                loginBtn.classList.add('loading');
                 loginBtn.disabled = true;
 
                 const res = await fetch(`${API_BASE}/login`, { 
@@ -663,6 +730,8 @@
                     showMsg(msg, '✅ Login successful! Redirecting...', '#51cf66');
                     
                     // Add success animation
+                    loginBtn.classList.remove('loading');
+                    loginBtn.classList.add('success');
                     loginBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
                     
                     setTimeout(() => { 
@@ -671,6 +740,7 @@
                 } else {
                     showMsg(msg, `❌ ${data.message || 'Login failed.'}`, '#ff6b6b');
                     // Add shake animation for error
+                    loginBtn.classList.remove('loading');
                     loginBtn.classList.add('shake');
                     setTimeout(() => {
                         loginBtn.classList.remove('shake');
@@ -682,8 +752,9 @@
             } finally {
                 // Reset button state
                 const loginBtn = qs('#loginBtn');
-                loginBtn.textContent = 'Login';
+                loginBtn.classList.remove('loading', 'success');
                 loginBtn.disabled = false;
+                loginBtn.style.background = '';
             }
         }
 
@@ -705,8 +776,7 @@
             try {
                 // Add loading state
                 const registerBtn = qs('#registerBtn');
-                const originalText = registerBtn.textContent;
-                registerBtn.textContent = 'Registering...';
+                registerBtn.classList.add('loading');
                 registerBtn.disabled = true;
 
                 const res = await fetch(`${API_BASE}/register`, { 
@@ -723,6 +793,8 @@
                     showMsg(msg, '✅ Registered successfully! You can now log in.', '#51cf66');
                     
                     // Add success animation
+                    registerBtn.classList.remove('loading');
+                    registerBtn.classList.add('success');
                     registerBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
                     
                     // Clear the register form after successful registration
@@ -733,6 +805,7 @@
                 } else {
                     showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, '#ff6b6b');
                     // Add shake animation for error
+                    registerBtn.classList.remove('loading');
                     registerBtn.classList.add('shake');
                     setTimeout(() => {
                         registerBtn.classList.remove('shake');
@@ -744,8 +817,9 @@
             } finally {
                 // Reset button state
                 const registerBtn = qs('#registerBtn');
-                registerBtn.textContent = 'Register Account';
+                registerBtn.classList.remove('loading', 'success');
                 registerBtn.disabled = false;
+                registerBtn.style.background = '';
             }
         }
 
@@ -776,6 +850,16 @@
             qs('#securityCode')?.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') register();
             });
+            
+            // Add fadeIn animation for messages
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+            `;
+            document.head.appendChild(style);
         });
     </script>
 </body>
