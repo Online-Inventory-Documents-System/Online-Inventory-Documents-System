@@ -1,848 +1,513 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
-    <title>Login | Inventory System</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Inventory & Documents Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* =========================================
-           Modern Polygon Login Form Styling
-        ========================================= */
-        :root {
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --success-color: #28a745;
-            --background-light: #4F517D;
-            --background-dark: #1f2833;
-            --card-light: #ffffff;
-            --card-dark: #2c3a47;
-            --text-light: #212529;
-            --text-dark: #f8f9fa;
-            --border-color: #333333;
-            --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
+        
+        :root {
+            --primary: #6a11cb;
+            --secondary: #2575fc;
+            --accent: #ff4d94;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --success: #28a745;
+        }
+        
         body {
-            background: #0f0f1b;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--dark);
+        }
+        
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        .left-panel {
+            flex: 1;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 40px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-            padding: 20px;
-        }
-
-        /* Background Polygon Animation */
-        .polygon-container {
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: -1;
-            top: 0;
-            left: 0;
-        }
-
-        .polygon {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: float 15s infinite linear;
-        }
-
-        .polygon-1 {
-            width: 300px;
-            height: 300px;
-            clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
-            top: 10%;
-            left: 5%;
-            background: rgba(102, 126, 234, 0.1);
-            animation-delay: 0s;
-        }
-
-        .polygon-2 {
-            width: 200px;
-            height: 200px;
-            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-            top: 60%;
-            left: 80%;
-            background: rgba(240, 147, 251, 0.1);
-            animation-delay: 2s;
-        }
-
-        .polygon-3 {
-            width: 250px;
-            height: 250px;
-            clip-path: polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%);
-            top: 20%;
-            left: 75%;
-            background: rgba(245, 87, 108, 0.1);
-            animation-delay: 4s;
-        }
-
-        .polygon-4 {
-            width: 180px;
-            height: 180px;
-            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-            top: 70%;
-            left: 10%;
-            background: rgba(102, 126, 234, 0.1);
-            animation-delay: 6s;
-        }
-
-        .polygon-5 {
-            width: 220px;
-            height: 220px;
-            clip-path: polygon(0% 15%, 15% 15%, 15% 0%, 85% 0%, 85% 15%, 100% 15%, 100% 85%, 85% 85%, 85% 100%, 15% 100%, 15% 85%, 0% 85%);
-            top: 50%;
-            left: 50%;
-            background: rgba(240, 147, 251, 0.1);
-            animation-delay: 8s;
-        }
-
-        @keyframes float {
-            0% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 0.7;
-            }
-            33% {
-                transform: translateY(-20px) rotate(120deg);
-                opacity: 0.9;
-            }
-            66% {
-                transform: translateY(10px) rotate(240deg);
-                opacity: 0.5;
-            }
-            100% {
-                transform: translateY(0) rotate(360deg);
-                opacity: 0.7;
-            }
-        }
-
-        /* Main Title */
-        .main-title-container {
             text-align: center;
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 800px;
-        }
-
-        .main-title-container h1 {
-            font-size: 2.2rem;
-            color: white;
-            font-weight: 800;
-            text-shadow: 0 0 10px rgba(102, 126, 234, 0.7);
-            margin: 0;
-            animation: glow 3s ease-in-out infinite alternate;
-        }
-
-        @keyframes glow {
-            from {
-                text-shadow: 0 0 10px rgba(102, 126, 234, 0.7);
-            }
-            to {
-                text-shadow: 0 0 20px rgba(102, 126, 234, 0.9), 0 0 30px rgba(102, 126, 234, 0.6);
-            }
-        }
-
-        /* Login Container */
-        .login-container {
-            width: 420px;
-            max-width: 90vw;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideInLeft 0.8s ease-out;
             position: relative;
-            overflow: visible;
-            animation: slideUp 1s ease;
+            overflow: hidden;
         }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .login-container::before {
+        
+        .left-panel::before {
             content: '';
             position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
-            background: linear-gradient(
-                45deg,
-                transparent,
-                rgba(102, 126, 234, 0.1),
-                rgba(240, 147, 251, 0.1),
-                transparent
-            );
-            transform: rotate(45deg);
-            animation: shine 6s infinite linear;
-            z-index: -1;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            animation: rotate 20s linear infinite;
         }
-
-        @keyframes shine {
-            0% {
-                transform: rotate(45deg) translateX(-100%);
-            }
-            100% {
-                transform: rotate(45deg) translateX(100%);
-            }
+        
+        .left-content {
+            position: relative;
+            z-index: 1;
         }
-
-        .form-header {
-            text-align: center;
-            margin-bottom: 25px;
-        }
-
-        .form-header h2 {
-            font-size: 1.8rem;
+        
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 20px;
             color: white;
-            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+        
+        .left-panel h1 {
+            font-size: 2.2rem;
+            margin-bottom: 15px;
             font-weight: 700;
         }
-
-        .form-header p {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.95rem;
+        
+        .left-panel h2 {
+            font-size: 1.8rem;
+            font-weight: 500;
+            margin-bottom: 30px;
         }
-
-        .form-group {
-            margin-bottom: 18px;
+        
+        .left-panel p {
+            font-size: 1rem;
+            line-height: 1.6;
+            opacity: 0.9;
+            max-width: 90%;
+        }
+        
+        .features {
+            margin-top: 30px;
+            text-align: left;
+            width: 100%;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            animation: fadeInUp 0.5s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        .feature:nth-child(1) { animation-delay: 0.5s; }
+        .feature:nth-child(2) { animation-delay: 0.7s; }
+        .feature:nth-child(3) { animation-delay: 0.9s; }
+        
+        .feature i {
+            margin-right: 10px;
+            color: #ffcc00;
+        }
+        
+        .right-panel {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            animation: slideInRight 0.8s ease-out;
+            background: var(--light);
+        }
+        
+        .login-form {
+            width: 100%;
+        }
+        
+        .login-form h2 {
+            color: var(--dark);
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 600;
+            text-align: center;
             position: relative;
         }
-
-        .form-group label {
+        
+        .login-form h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 3px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            border-radius: 3px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .input-group label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
-            transition: all 0.3s ease;
+            color: #555;
+            font-weight: 500;
         }
-
-        .form-group input {
+        
+        .input-group input {
             width: 100%;
-            padding: 14px 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            color: white;
+            background: white;
         }
-
-        .form-group input::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
-        .form-group input:focus {
-            border-color: rgba(102, 126, 234, 0.8);
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        
+        .input-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(106, 17, 203, 0.2);
             outline: none;
         }
-
+        
         .input-icon {
             position: absolute;
             right: 15px;
-            top: 42px;
-            color: rgba(255, 255, 255, 0.7);
-            transition: all 0.3s ease;
+            top: 38px;
+            color: #777;
         }
-
-        .form-group input:focus + .input-icon {
-            color: rgba(102, 126, 234, 1);
-        }
-
-        .primary-btn {
+        
+        .login-btn {
             width: 100%;
-            padding: 14px;
-            background: var(--gradient-primary);
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            margin-top: 10px;
             position: relative;
             overflow: hidden;
-            margin-top: 10px;
         }
-
-        .primary-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
-        }
-
-        .primary-btn:active {
-            transform: translateY(0);
-        }
-
-        .primary-btn::after {
+        
+        .login-btn::before {
             content: '';
             position: absolute;
             top: 0;
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
             transition: 0.5s;
         }
-
-        .primary-btn:hover::after {
+        
+        .login-btn:hover::before {
             left: 100%;
         }
-
-        .success-btn {
-            width: 100%;
-            padding: 14px;
-            background: var(--gradient-secondary);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
-            position: relative;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .success-btn:hover {
+        
+        .login-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(240, 147, 251, 0.6);
+            box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
         }
-
-        .success-btn:active {
-            transform: translateY(0);
-        }
-
-        .success-btn::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: 0.5s;
-        }
-
-        .success-btn:hover::after {
-            left: 100%;
-        }
-
-        /* FIXED: Toggle link styling - making it more visible */
-        .toggle-link {
-            text-align: center;
+        
+        .links {
             margin-top: 25px;
-            color: rgba(102, 126, 234, 1);
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            position: relative;
-            display: block;
-            width: 100%;
-            padding: 15px;
-            font-size: 1.1rem;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
-            border: 2px solid rgba(102, 126, 234, 0.5);
+            text-align: center;
+        }
+        
+        .links a {
+            color: var(--primary);
             text-decoration: none;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .toggle-link:hover {
-            color: white;
-            text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
-            background: rgba(102, 126, 234, 0.3);
-            transform: translateY(-3px);
-            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
-            border-color: rgba(102, 126, 234, 0.8);
-        }
-
-        .info {
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.7);
-            text-align: center;
-            margin-top: 20px;
-            line-height: 1.5;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-        }
-
-        #loginMessage, #registerMessage {
-            margin-top: 15px;
-            text-align: center;
-            font-weight: 500;
-            padding: 10px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
             transition: all 0.3s ease;
-        }
-
-        /* FIXED: Form container with proper height management */
-        .form-container {
-            position: relative;
-            overflow: visible;
-            min-height: auto;
-            height: auto;
-        }
-
-        .form {
-            position: relative;
-            width: 100%;
-            transition: transform 0.6s ease, opacity 0.6s ease;
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .form.hidden {
-            display: none;
-        }
-
-        .form.active {
             display: block;
+            margin-bottom: 10px;
         }
-
-        /* Responsive styles */
-        @media (max-width: 768px) {
-            .login-container {
-                width: 95%;
-                padding: 25px 20px;
-            }
-            
-            .main-title-container h1 {
-                font-size: 1.8rem;
-            }
-            
-            .polygon {
-                display: none;
-            }
-            
-            .polygon-1, .polygon-5 {
-                display: block;
-            }
+        
+        .links a:hover {
+            color: var(--secondary);
+            text-decoration: underline;
         }
-
-        @media (max-height: 700px) {
-            body {
-                padding: 10px;
-            }
-            
-            .main-title-container {
-                margin-bottom: 15px;
-            }
-            
-            .main-title-container h1 {
-                font-size: 1.8rem;
-            }
-            
-            .login-container {
-                padding: 20px 15px;
-            }
-            
-            .form-group {
-                margin-bottom: 15px;
-            }
-            
-            .form-group input {
-                padding: 12px 15px;
-            }
-            
-            .primary-btn, .success-btn {
-                padding: 12px;
-            }
-            
-            .toggle-link {
-                margin-top: 20px;
-                padding: 12px;
-            }
+        
+        .register-container {
+            margin-top: 30px;
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
         }
-
-        /* Shake animation for errors */
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-
-        .shake {
-            animation: shake 0.5s ease-in-out;
-        }
-
-        /* Success animation */
-        @keyframes success {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .success {
-            animation: success 0.5s ease-in-out;
-        }
-
-        /* Loading animation */
-        @keyframes loading {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading {
+        
+        .register-link {
+            padding: 12px 25px;
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            animation: pulse 2s infinite;
             position: relative;
-            color: transparent !important;
+            overflow: hidden;
         }
-
-        .loading::after {
+        
+        .register-link::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            margin-top: -10px;
-            margin-left: -10px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top: 2px solid white;
-            border-radius: 50%;
-            animation: loading 1s linear infinite;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(106, 17, 203, 0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .register-link:hover::before {
+            left: 100%;
+        }
+        
+        .register-link:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
+            animation: none;
+        }
+        
+        .admin-email {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: inline-block;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideInLeft {
+            from { transform: translateX(-50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(106, 17, 203, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(106, 17, 203, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(106, 17, 203, 0); }
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .left-panel {
+                padding: 30px 20px;
+            }
+            
+            .left-panel h1 {
+                font-size: 1.8rem;
+            }
+            
+            .left-panel h2 {
+                font-size: 1.5rem;
+            }
+            
+            .right-panel {
+                padding: 30px 20px;
+            }
+            
+            .logo {
+                font-size: 2.5rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .left-panel h1 {
+                font-size: 1.5rem;
+            }
+            
+            .left-panel h2 {
+                font-size: 1.3rem;
+            }
+            
+            .login-form h2 {
+                font-size: 1.7rem;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="main-title-container">
-        <h1>Online Inventory & Documents Management System</h1>
-    </div>
-    
-    <!-- Background Polygons -->
-    <div class="polygon-container">
-        <div class="polygon polygon-1"></div>
-        <div class="polygon polygon-2"></div>
-        <div class="polygon polygon-3"></div>
-        <div class="polygon polygon-4"></div>
-        <div class="polygon polygon-5"></div>
-    </div>
-    
-    <div class="login-container">
-        <div class="form-container">
-            <!-- LOGIN FORM -->
-            <div id="loginForm" class="form active">
-                <div class="form-header">
-                    <h2>🔐 User Login</h2>
-                    <p>Sign in to your account</p>
+    <div class="container">
+        <div class="left-panel">
+            <div class="left-content">
+                <div class="logo">
+                    <i class="fas fa-boxes"></i>
                 </div>
+                <h1>Online Inventory & Documents Management System</h1>
+                <h2>User Login</h2>
+                <p>Securely access your documents and manage your inventory with our advanced management system.</p>
                 
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter username" />
-                    <span class="input-icon">👤</span>
+                <div class="features">
+                    <div class="feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Secure document storage</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-search"></i>
+                        <span>Advanced search capabilities</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Real-time inventory tracking</span>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter password" />
-                    <span class="input-icon">🔒</span>
-                </div>
-                
-                <button id="loginBtn" type="button" class="primary-btn">Login</button>
-                
-                <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
-                
-                <!-- FIXED: Register link with improved visibility -->
-                <div class="toggle-link" id="toggleToRegister">
-                    <strong>Don't have an account? Register here</strong>
-                </div>
-                
-                <p id="loginMessage"></p>
             </div>
-
-            <!-- REGISTER FORM -->
-            <div id="registerForm" class="form hidden">
-                <div class="form-header">
-                    <h2>🧾 Create Account</h2>
-                    <p>Register for a new account</p>
+        </div>
+        
+        <div class="right-panel">
+            <div class="login-form">
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" placeholder="Enter your username" required>
+                        <div class="input-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                        <div class="input-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-btn">
+                        <span>Login</span>
+                    </button>
+                    
+                    <div class="links">
+                        <a href="#">Forgot password? Contact the admin email:</a>
+                        <div class="admin-email">benzgiamen200@gmail.com</div>
+                    </div>
+                </form>
+                
+                <div class="register-container">
+                    <a href="#" class="register-link">
+                        <i class="fas fa-user-plus"></i> Don't have an account? Register here
+                    </a>
                 </div>
-                
-                <div class="form-group">
-                    <label for="newUsername">New Username</label>
-                    <input type="text" id="newUsername" placeholder="Enter username" />
-                    <span class="input-icon">👤</span>
-                </div>
-                
-                <div class="form-group">
-                    <label for="newPassword">New Password</label>
-                    <input type="password" id="newPassword" placeholder="Enter password" />
-                    <span class="input-icon">🔒</span>
-                </div>
-                
-                <div class="form-group">
-                    <label for="securityCode">Security Code</label>
-                    <input type="text" id="securityCode" placeholder="Enter company security code" />
-                    <span class="input-icon">🔑</span>
-                </div>
-                
-                <button id="registerBtn" type="button" class="success-btn">Register Account</button>
-                
-                <!-- FIXED: Login link with improved visibility -->
-                <div class="toggle-link" id="toggleToLogin">
-                    <strong>Already have an account? Login here</strong>
-                </div>
-                
-                <p id="registerMessage"></p>
             </div>
         </div>
     </div>
 
     <script>
-        // API Configuration
-        const API_BASE = window.location.hostname.includes('localhost')
-            ? "http://localhost:3000/api"
-            : "https://online-inventory-documents-system-olzt.onrender.com/api";
-
-        // DOM Elements
-        const qs = (s) => document.querySelector(s);
-        const showMsg = (el, text, color = '#ff6b6b') => { 
-            if (!el) return; 
-            el.textContent = text; 
-            el.style.color = color; 
+        // Form validation and submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
             
-            // Add animation to message
-            el.style.animation = 'none';
-            setTimeout(() => {
-                el.style.animation = 'fadeIn 0.5s ease';
-            }, 10);
-        };
-
-        // Clear form fields
-        function clearForm(formId) {
-            const form = qs(`#${formId}`);
-            if (!form) return;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.querySelector('.login-btn');
             
-            const inputs = form.querySelectorAll('input');
-            inputs.forEach(input => {
-                input.value = '';
-            });
-            
-            const message = form.querySelector('p[id$="Message"]');
-            if (message) {
-                message.textContent = '';
-            }
-        }
-
-        // Form Toggle Functionality with smooth animation
-        function toggleForm() {
-            const loginForm = qs('#loginForm');
-            const registerForm = qs('#registerForm');
-            
-            if (loginForm.classList.contains('active')) {
-                // Switching to register form - clear login form
-                clearForm('loginForm');
-                loginForm.classList.remove('active');
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                registerForm.classList.add('active');
-            } else {
-                // Switching to login form - clear register form
-                clearForm('registerForm');
-                registerForm.classList.remove('active');
-                registerForm.classList.add('hidden');
-                loginForm.classList.remove('hidden');
-                loginForm.classList.add('active');
-            }
-        }
-
-        // Login Function
-        async function login() {
-            const user = qs('#username')?.value?.trim();
-            const pass = qs('#password')?.value?.trim();
-            const msg = qs('#loginMessage');
-            showMsg(msg, '');
-            
-            if (!user || !pass) { 
-                showMsg(msg, '⚠️ Please enter username and password.', '#ff6b6b'); 
-                qs('#loginBtn').classList.add('shake');
-                setTimeout(() => qs('#loginBtn').classList.remove('shake'), 500);
-                return; 
-            }
-
-            try {
-                // Add loading state
-                const loginBtn = qs('#loginBtn');
-                loginBtn.classList.add('loading');
+            if(username && password) {
+                // Show loading state
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
                 loginBtn.disabled = true;
-
-                const res = await fetch(`${API_BASE}/login`, { 
-                    method: 'POST', 
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username: user, password: pass }) 
-                });
                 
-                const data = await res.json();
-                
-                if (res.ok) {
-                    sessionStorage.setItem('isLoggedIn', 'true');
-                    sessionStorage.setItem('adminName', user);
-                    showMsg(msg, '✅ Login successful! Redirecting...', '#51cf66');
+                // Simulate API call
+                setTimeout(() => {
+                    // In a real application, you would send this data to a server
+                    alert('Login successful! Redirecting to dashboard...');
                     
-                    // Add success animation
-                    loginBtn.classList.remove('loading');
-                    loginBtn.classList.add('success');
-                    loginBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
+                    // Reset button
+                    loginBtn.innerHTML = '<span>Login</span>';
+                    loginBtn.disabled = false;
                     
-                    setTimeout(() => { 
-                        window.location.href = 'index.html'; 
-                    }, 1000);
-                } else {
-                    showMsg(msg, `❌ ${data.message || 'Login failed.'}`, '#ff6b6b');
-                    // Add shake animation for error
-                    loginBtn.classList.remove('loading');
-                    loginBtn.classList.add('shake');
-                    setTimeout(() => {
-                        loginBtn.classList.remove('shake');
-                    }, 500);
-                }
-            } catch (e) {
-                showMsg(msg, '❌ Server connection failed.', '#ff6b6b');
-                console.error(e);
-            } finally {
-                // Reset button state
-                const loginBtn = qs('#loginBtn');
-                loginBtn.classList.remove('loading', 'success');
-                loginBtn.disabled = false;
-                loginBtn.style.background = '';
+                    // Clear form
+                    document.getElementById('loginForm').reset();
+                }, 1500);
+            } else {
+                alert('Please fill in all fields');
             }
-        }
-
-        // Register Function
-        async function register() {
-            const user = qs('#newUsername')?.value?.trim();
-            const pass = qs('#newPassword')?.value?.trim();
-            const code = qs('#securityCode')?.value?.trim();
-            const msg = qs('#registerMessage');
-            showMsg(msg, '');
+        });
+        
+        // Add animation to the register link on hover
+        const registerLink = document.querySelector('.register-link');
+        registerLink.addEventListener('mouseenter', function() {
+            this.style.animation = 'none';
+        });
+        
+        registerLink.addEventListener('mouseleave', function() {
+            this.style.animation = 'pulse 2s infinite';
+        });
+        
+        // Add focus effects to inputs
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.classList.add('focused');
+            });
             
-            if (!user || !pass || !code) { 
-                showMsg(msg, '⚠️ Please fill in all fields.', '#ff6b6b'); 
-                qs('#registerBtn').classList.add('shake');
-                setTimeout(() => qs('#registerBtn').classList.remove('shake'), 500);
-                return; 
-            }
-
-            try {
-                // Add loading state
-                const registerBtn = qs('#registerBtn');
-                registerBtn.classList.add('loading');
-                registerBtn.disabled = true;
-
-                const res = await fetch(`${API_BASE}/register`, { 
-                    method: 'POST', 
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username: user, password: pass, securityCode: code }) 
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    showMsg(msg, '✅ Registered successfully! You can now log in.', '#51cf66');
-                    
-                    // Add success animation
-                    registerBtn.classList.remove('loading');
-                    registerBtn.classList.add('success');
-                    registerBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
-                    
-                    // Clear the register form after successful registration
-                    setTimeout(() => { 
-                        clearForm('registerForm');
-                        toggleForm(); 
-                    }, 1500);
-                } else {
-                    showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, '#ff6b6b');
-                    // Add shake animation for error
-                    registerBtn.classList.remove('loading');
-                    registerBtn.classList.add('shake');
-                    setTimeout(() => {
-                        registerBtn.classList.remove('shake');
-                    }, 500);
+            input.addEventListener('blur', function() {
+                if(this.value === '') {
+                    this.parentElement.classList.remove('focused');
                 }
-            } catch (e) { 
-                showMsg(msg, '❌ Server connection failed.', '#ff6b6b'); 
-                console.error(e); 
-            } finally {
-                // Reset button state
-                const registerBtn = qs('#registerBtn');
-                registerBtn.classList.remove('loading', 'success');
-                registerBtn.disabled = false;
-                registerBtn.style.background = '';
-            }
-        }
-
-        // Event Listeners
-        document.addEventListener('DOMContentLoaded', () => {
-            qs('#loginBtn')?.addEventListener('click', login);
-            qs('#registerBtn')?.addEventListener('click', register);
-            qs('#toggleToRegister')?.addEventListener('click', toggleForm);
-            qs('#toggleToLogin')?.addEventListener('click', toggleForm);
-            
-            // Add enter key support
-            qs('#username')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') login();
             });
-            
-            qs('#password')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') login();
-            });
-            
-            qs('#newUsername')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') register();
-            });
-            
-            qs('#newPassword')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') register();
-            });
-            
-            qs('#securityCode')?.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') register();
-            });
-            
-            // Add fadeIn animation for messages
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(-10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-            `;
-            document.head.appendChild(style);
         });
     </script>
 </body>
