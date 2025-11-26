@@ -814,9 +814,10 @@
                         toggleForm(); 
                     }, 1500);
                 } else {
-                    // Reset button immediately on failure (including wrong security code)
+                    // Reset button and clear form immediately on failure (including wrong security code)
+                    clearRegisterForm();
                     resetRegisterButton();
-                    showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
+                    showMsg(msg, `❌ ${data.message || 'Registration failed. Please try again.'}`, 'red');
                     // Add shake animation for error
                     registerBtn.style.animation = 'shake 0.5s';
                     setTimeout(() => {
@@ -824,9 +825,10 @@
                     }, 500);
                 }
             } catch (e) { 
-                // Reset button immediately on error
+                // Reset button and clear form immediately on error
+                clearRegisterForm();
                 resetRegisterButton();
-                showMsg(msg, '❌ Server connection failed.', 'red'); 
+                showMsg(msg, '❌ Server connection failed. Please try again.', 'red'); 
                 console.error(e); 
             }
         }
