@@ -17,12 +17,6 @@ let activityLog = [];
 let documents = [];
 const currentPage = window.location.pathname.split('/').pop();
 
-// NEW: Purchase and Sale Management
-let purchaseItems = [];
-let saleItems = [];
-let currentPurchaseId = null;
-let currentSaleId = null;
-
 // Fetch wrapper
 async function apiFetch(url, options = {}) {
   const user = getUsername();
@@ -536,52 +530,6 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
-// NEW: Company Information Functions
-async function loadCompanyInfo() {
-  try {
-    const res = await apiFetch(`${API_BASE}/company-info`);
-    if (res.ok) {
-      const companyInfo = await res.json();
-      if (qs('#companyName')) qs('#companyName').value = companyInfo.name || '';
-      if (qs('#companyAddress')) qs('#companyAddress').value = companyInfo.address || '';
-      if (qs('#companyPhone')) qs('#companyPhone').value = companyInfo.phone || '';
-      if (qs('#companyEmail')) qs('#companyEmail').value = companyInfo.email || '';
-    }
-  } catch (e) {
-    console.error('Load company info error:', e);
-  }
-}
-
-async function saveCompanyInfo() {
-  const name = qs('#companyName')?.value.trim();
-  const address = qs('#companyAddress')?.value.trim();
-  const phone = qs('#companyPhone')?.value.trim();
-  const email = qs('#companyEmail')?.value.trim();
-  const messageEl = qs('#companyInfoMessage');
-
-  if (!name || !address || !phone || !email) {
-    showMsg(messageEl, '⚠️ Please fill in all company information fields.', 'red');
-    return;
-  }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/company-info`, {
-      method: 'PUT',
-      body: JSON.stringify({ name, address, phone, email })
-    });
-
-    if (res.ok) {
-      showMsg(messageEl, '✅ Company information updated successfully!', 'green');
-    } else {
-      const error = await res.json();
-      showMsg(messageEl, `❌ Failed to update: ${error.message}`, 'red');
-    }
-  } catch (e) {
-    console.error('Save company info error:', e);
-    showMsg(messageEl, '❌ Server error while updating company information.', 'red');
-  }
-}
-
 // Init
 window.addEventListener('load', async () => {
   const adminName = getUsername();
@@ -605,10 +553,6 @@ window.addEventListener('load', async () => {
     }
     if(currentPage.includes('product')) bindProductPage();
     if(currentPage.includes('setting')) bindSettingPage();
-    
-    // Load company info for reports (needed everywhere)
-    await loadCompanyInfo();
-    
   } catch(e) { console.error('Init error', e); }
 });
 
@@ -785,411 +729,6 @@ async function confirmAndGeneratePDF() {
   }
 }
 
-// NEW: Purchase Modal Functions
-function openPurchaseModal() {
-  purchaseItems = [];
-  currentPurchaseId = null;
-  const modal = qs('#purchaseModal');
-  if (modal) {
-    modal.style.display = 'block';
-    qs('#purchaseSupplier').value = '';
-    updatePurchaseItemsList();
-    updatePurchaseTotal();
-    qs('#generatePurchaseReportBtn').disabled = true;
-  }
-}
-
-function closePurchaseModal() {
-  const modal = qs('#purchaseModal');
-  if (modal) modal.style.display = 'none';
-}
-
-function addPurchaseItem() {
-  const sku = qs('#purchaseSku').value.trim();
-  const name = qs('#purchaseName').value.trim();
-  const quantity = parseInt(qs('#purchaseQuantity').value);
-  const unitCost = parseFloat(qs('#purchaseUnitCost').value);
-
-  if (!sku || !name || !quantity || !unitCost) {
-    alert('Please fill all item fields');
-    return;
-  }
-
-  const totalCost = quantity * unitCost;
-  const item = { sku, name, quantity, unitCost, totalCost };
-  purchaseItems.push(item);
-
-  // Clear form
-  qs('#purchaseSku').value = '';
-  qs('#purchaseName').value = '';
-  qs('#purchaseQuantity').value = '';
-  qs('#purchaseUnitCost').value = '';
-
-  updatePurchaseItemsList();
-  updatePurchaseTotal();
-}
-
-function removePurchaseItem(index) {
-  purchaseItems.splice(index, 1);
-  updatePurchaseItemsList();
-  updatePurchaseTotal();
-}
-
-function updatePurchaseItemsList() {
-  const list = qs('#purchaseItemsList');
-  if (!list) return;
-  
-  list.innerHTML = '';
-
-  purchaseItems.forEach((item, index) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(item.sku)}</td>
-      <td>${escapeHtml(item.name)}</td>
-      <td>${item.quantity}</td>
-      <td>RM ${item.unitCost.toFixed(2)}</td>
-      <td>RM ${item.totalCost.toFixed(2)}</td>
-      <td>
-        <button class="danger-btn small-btn" onclick="removePurchaseItem(${index})">🗑️</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-}
-
-function updatePurchaseTotal() {
-  const total = purchaseItems.reduce((sum, item) => sum + item.totalCost, 0);
-  qs('#purchaseTotalAmount').textContent = total.toFixed(2);
-}
-
-async function savePurchase() {
-  const supplier = qs('#purchaseSupplier').value.trim();
-  
-  if (purchaseItems.length === 0) {
-    alert('Please add at least one item');
-    return;
-  }
-
-  if (!supplier) {
-    alert('Please enter supplier name');
-    return;
-  }
-
-  const totalAmount = purchaseItems.reduce((sum, item) => sum + item.totalCost, 0);
-
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases`, {
-      method: 'POST',
-      body: JSON.stringify({
-        items: purchaseItems,
-        supplier,
-        totalAmount
-      })
-    });
-
-    if (res.ok) {
-      const purchase = await res.json();
-      currentPurchaseId = purchase.id || purchase._id;
-      qs('#generatePurchaseReportBtn').disabled = false;
-      alert('✅ Purchase saved successfully!');
-      await fetchInventory(); // Refresh inventory
-    } else {
-      const error = await res.json();
-      alert('❌ Failed to save purchase: ' + error.message);
-    }
-  } catch (e) {
-    console.error('Save purchase error:', e);
-    alert('❌ Server error while saving purchase');
-  }
-}
-
-async function generatePurchaseReport() {
-  if (!currentPurchaseId) {
-    alert('No purchase selected for report generation');
-    return;
-  }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/report/pdf/${currentPurchaseId}`);
-    if (res.ok) {
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Purchase_Invoice_${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      await fetchDocuments();
-    } else {
-      alert('Failed to generate purchase report');
-    }
-  } catch (e) {
-    console.error('Purchase report error:', e);
-    alert('Error generating purchase report');
-  }
-}
-
-// NEW: Sale Modal Functions
-function openSaleModal() {
-  saleItems = [];
-  currentSaleId = null;
-  const modal = qs('#saleModal');
-  if (modal) {
-    modal.style.display = 'block';
-    qs('#saleCustomer').value = '';
-    updateSaleItemsList();
-    updateSaleTotal();
-    qs('#generateSaleReportBtn').disabled = true;
-    populateProductSelect();
-  }
-}
-
-function closeSaleModal() {
-  const modal = qs('#saleModal');
-  if (modal) modal.style.display = 'none';
-}
-
-function populateProductSelect() {
-  const select = qs('#saleProductSelect');
-  if (!select) return;
-  
-  select.innerHTML = '<option value="">Select Product</option>';
-  
-  inventory.forEach(item => {
-    if (item.quantity > 0) {
-      const option = document.createElement('option');
-      option.value = item.sku;
-      option.textContent = `${item.sku} - ${item.name} (Stock: ${item.quantity})`;
-      option.dataset.price = item.unitPrice;
-      option.dataset.stock = item.quantity;
-      option.dataset.name = item.name;
-      select.appendChild(option);
-    }
-  });
-}
-
-function updateProductDetails() {
-  const select = qs('#saleProductSelect');
-  const selectedOption = select?.options[select.selectedIndex];
-  const unitPrice = qs('#saleUnitPrice');
-  const availableStock = qs('#availableStock');
-
-  if (selectedOption && selectedOption.value && unitPrice && availableStock) {
-    unitPrice.value = selectedOption.dataset.price || '0';
-    availableStock.textContent = `Available: ${selectedOption.dataset.stock || '0'}`;
-  } else if (unitPrice && availableStock) {
-    unitPrice.value = '';
-    availableStock.textContent = 'Available: 0';
-  }
-}
-
-function addSaleItem() {
-  const select = qs('#saleProductSelect');
-  const selectedOption = select?.options[select.selectedIndex];
-  const quantityInput = qs('#saleQuantity');
-  const unitPriceInput = qs('#saleUnitPrice');
-  
-  if (!select || !quantityInput || !unitPriceInput) return;
-
-  const quantity = parseInt(quantityInput.value);
-  const unitPrice = parseFloat(unitPriceInput.value);
-
-  if (!selectedOption?.value || !quantity || quantity <= 0 || !unitPrice || unitPrice <= 0) {
-    alert('Please select a product and enter valid quantity');
-    return;
-  }
-
-  const availableStock = parseInt(selectedOption.dataset.stock);
-  if (quantity > availableStock) {
-    alert(`Insufficient stock! Available: ${availableStock}`);
-    return;
-  }
-
-  const sku = selectedOption.value;
-  const name = selectedOption.dataset.name || selectedOption.textContent.split(' - ')[1]?.split(' (Stock:')[0] || 'Unknown Product';
-  const totalPrice = quantity * unitPrice;
-  
-  const item = { 
-    sku, 
-    name, 
-    quantity, 
-    unitPrice, 
-    totalPrice 
-  };
-  
-  saleItems.push(item);
-
-  // Clear form
-  select.selectedIndex = 0;
-  quantityInput.value = '';
-  unitPriceInput.value = '';
-  const availableStockEl = qs('#availableStock');
-  if (availableStockEl) availableStockEl.textContent = 'Available: 0';
-
-  updateSaleItemsList();
-  updateSaleTotal();
-}
-
-function removeSaleItem(index) {
-  if (index >= 0 && index < saleItems.length) {
-    saleItems.splice(index, 1);
-    updateSaleItemsList();
-    updateSaleTotal();
-  }
-}
-
-function updateSaleItemsList() {
-  const list = qs('#saleItemsList');
-  if (!list) return;
-  
-  list.innerHTML = '';
-
-  saleItems.forEach((item, index) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(item.sku)}</td>
-      <td>${escapeHtml(item.name)}</td>
-      <td>${item.quantity}</td>
-      <td>RM ${item.unitPrice.toFixed(2)}</td>
-      <td>RM ${item.totalPrice.toFixed(2)}</td>
-      <td>
-        <button class="danger-btn small-btn" onclick="removeSaleItem(${index})">🗑️</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-}
-
-function updateSaleTotal() {
-  const total = saleItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-  const totalElement = qs('#saleTotalAmount');
-  if (totalElement) {
-    totalElement.textContent = total.toFixed(2);
-  }
-}
-
-// IMPROVED: Save Sale Function
-async function saveSale() {
-  const customerInput = qs('#saleCustomer');
-  const customer = customerInput?.value.trim() || 'Walk-in Customer';
-  
-  if (saleItems.length === 0) {
-    alert('Please add at least one item to the sale');
-    return;
-  }
-
-  const totalAmount = saleItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-
-  if (totalAmount <= 0) {
-    alert('Total amount must be greater than zero');
-    return;
-  }
-
-  console.log('💾 Saving sale:', { items: saleItems, customer, totalAmount });
-
-  try {
-    const res = await apiFetch(`${API_BASE}/sales`, {
-      method: 'POST',
-      body: JSON.stringify({
-        items: saleItems,
-        customer,
-        totalAmount
-      })
-    });
-
-    console.log('📥 Sale response status:', res.status);
-
-    if (res.ok) {
-      const sale = await res.json();
-      currentSaleId = sale.id || sale._id;
-      console.log('✅ Sale saved successfully, ID:', currentSaleId);
-      
-      const generateReportBtn = qs('#generateSaleReportBtn');
-      if (generateReportBtn) generateReportBtn.disabled = false;
-      
-      alert('✅ Sale saved successfully!');
-      await fetchInventory(); // Refresh inventory
-      
-    } else {
-      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
-      console.error('❌ Sale save error:', errorData);
-      alert(`❌ Failed to save sale: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (e) {
-    console.error('❌ Network error while saving sale:', e);
-    alert('❌ Server connection error while saving sale: ' + e.message);
-  }
-}
-
-// IMPROVED: Generate Sale Report
-async function generateSaleReport() {
-  if (!currentSaleId) {
-    alert('No sale selected for report generation. Please save the sale first.');
-    return;
-  }
-
-  console.log(`📄 Generating report for sale: ${currentSaleId}`);
-
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/report/pdf/${currentSaleId}`);
-    
-    if (res.ok) {
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Sales_Invoice_${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      
-      await fetchDocuments(); // Refresh documents list
-      alert('📄 Sales report generated successfully!');
-      
-    } else {
-      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
-      console.error('❌ Report generation error:', errorData);
-      alert(`❌ Failed to generate sales report: ${errorData.message || 'Unknown error'}`);
-    }
-  } catch (e) {
-    console.error('❌ Network error during report generation:', e);
-    alert('❌ Error generating sales report: ' + e.message);
-  }
-}
-
-// Bind purchase and sale events
-function bindPurchaseSaleEvents() {
-  // Purchase modal events
-  qs('#purchaseBtn')?.addEventListener('click', openPurchaseModal);
-  qs('#addPurchaseItemBtn')?.addEventListener('click', addPurchaseItem);
-  qs('#savePurchaseBtn')?.addEventListener('click', savePurchase);
-  qs('#generatePurchaseReportBtn')?.addEventListener('click', generatePurchaseReport);
-  
-  // Sale modal events
-  qs('#saleBtn')?.addEventListener('click', openSaleModal);
-  qs('#saleProductSelect')?.addEventListener('change', updateProductDetails);
-  qs('#addSaleItemBtn')?.addEventListener('click', addSaleItem);
-  qs('#saveSaleBtn')?.addEventListener('click', saveSale);
-  qs('#generateSaleReportBtn')?.addEventListener('click', generateSaleReport);
-
-  // Close modal when clicking X
-  document.querySelectorAll('.close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', function() {
-      this.closest('.modal').style.display = 'none';
-    });
-  });
-
-  // Close modal when clicking outside
-  window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-      event.target.style.display = 'none';
-    }
-  });
-}
-
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
@@ -1202,8 +741,8 @@ function bindInventoryUI(){
     } 
   });
   
+  // UPDATED: Bind date range filter events
   bindDateRangeFilterEvents();
-  bindPurchaseSaleEvents(); // Add this line
 }
 
 function searchInventory(){
@@ -1443,9 +982,6 @@ function bindSettingPage(){
   const currentUsername = getUsername();
   if(qs('#currentUser')) qs('#currentUser').textContent = currentUsername;
 
-  // Load company info when settings page loads
-  loadCompanyInfo();
-
   qs('#changePasswordBtn')?.addEventListener('click', async ()=> {
     const newPass = qs('#newPassword')?.value;
     const confPass = qs('#confirmPassword')?.value;
@@ -1470,9 +1006,6 @@ function bindSettingPage(){
       }
     } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); }
   });
-
-  // Company info save
-  qs('#saveCompanyInfoBtn')?.addEventListener('click', saveCompanyInfo);
 
   qs('#deleteAccountBtn')?.addEventListener('click', async ()=> {
     if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${currentUsername}"?`)) return;
@@ -1507,14 +1040,3 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
-
-// NEW: Expose purchase/sale functions
-window.openPurchaseModal = openPurchaseModal;
-window.closePurchaseModal = closePurchaseModal;
-window.openSaleModal = openSaleModal;
-window.closeSaleModal = closeSaleModal;
-window.addPurchaseItem = addPurchaseItem;
-window.removePurchaseItem = removePurchaseItem;
-window.addSaleItem = addSaleItem;
-window.removeSaleItem = removeSaleItem;
-window.updateProductDetails = updateProductDetails;
