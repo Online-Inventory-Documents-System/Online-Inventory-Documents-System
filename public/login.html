@@ -664,24 +664,6 @@
             el.style.color = color; 
         };
 
-        // Form Toggle Functionality
-        function toggleForm() {
-            const loginForm = qs('#loginForm');
-            const registerForm = qs('#registerForm');
-            
-            if (loginForm.classList.contains('active')) {
-                loginForm.classList.remove('active');
-                loginForm.classList.add('hidden');
-                registerForm.classList.remove('hidden');
-                registerForm.classList.add('active');
-            } else {
-                registerForm.classList.remove('active');
-                registerForm.classList.add('hidden');
-                loginForm.classList.remove('hidden');
-                loginForm.classList.add('active');
-            }
-        }
-
         // Clear register form fields
         function clearRegisterForm() {
             qs('#newUsername').value = '';
@@ -706,6 +688,29 @@
             registerBtn.disabled = false;
             registerBtn.style.background = '';
             registerBtn.style.animation = '';
+        }
+
+        // Form Toggle Functionality
+        function toggleForm() {
+            const loginForm = qs('#loginForm');
+            const registerForm = qs('#registerForm');
+            
+            if (loginForm.classList.contains('active')) {
+                // Switching to register form - clear it first
+                clearRegisterForm();
+                resetRegisterButton();
+                
+                loginForm.classList.remove('active');
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                registerForm.classList.add('active');
+            } else {
+                // Switching to login form
+                registerForm.classList.remove('active');
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                loginForm.classList.add('active');
+            }
         }
 
         // Login Function
@@ -809,7 +814,7 @@
                         toggleForm(); 
                     }, 1500);
                 } else {
-                    // Reset button immediately on failure
+                    // Reset button immediately on failure (including wrong security code)
                     resetRegisterButton();
                     showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
                     // Add shake animation for error
