@@ -168,7 +168,7 @@
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             animation: slideUp 1s ease;
         }
 
@@ -357,31 +357,33 @@
             left: 100%;
         }
 
+        /* FIXED: Toggle link styling - making it more visible */
         .toggle-link {
             text-align: center;
-            margin-top: 20px;
-            color: rgba(102, 126, 234, 0.9);
+            margin-top: 25px;
+            color: rgba(102, 126, 234, 1);
             cursor: pointer;
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.3s ease;
             position: relative;
             display: block;
             width: 100%;
-            padding: 12px;
-            font-size: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            font-size: 1.1rem;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            border: 2px solid rgba(102, 126, 234, 0.5);
             text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
         .toggle-link:hover {
-            color: rgba(102, 126, 234, 1);
-            text-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            border-color: rgba(102, 126, 234, 0.5);
+            color: white;
+            text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+            background: rgba(102, 126, 234, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+            border-color: rgba(102, 126, 234, 0.8);
         }
 
         .info {
@@ -405,17 +407,16 @@
             transition: all 0.3s ease;
         }
 
-        /* Form Switching Animation */
+        /* FIXED: Form container with proper height management */
         .form-container {
             position: relative;
-            overflow: hidden;
-            min-height: 450px;
+            overflow: visible;
+            min-height: auto;
+            height: auto;
         }
 
         .form {
-            position: absolute;
-            top: 0;
-            left: 0;
+            position: relative;
             width: 100%;
             transition: transform 0.6s ease, opacity 0.6s ease;
             opacity: 1;
@@ -423,15 +424,11 @@
         }
 
         .form.hidden {
-            opacity: 0;
-            transform: translateX(-100%);
-            pointer-events: none;
+            display: none;
         }
 
         .form.active {
-            opacity: 1;
-            transform: translateX(0);
-            pointer-events: all;
+            display: block;
         }
 
         /* Responsive styles */
@@ -451,10 +448,6 @@
             
             .polygon-1, .polygon-5 {
                 display: block;
-            }
-            
-            .form-container {
-                min-height: 420px;
             }
         }
 
@@ -488,12 +481,8 @@
             }
             
             .toggle-link {
-                margin-top: 15px;
-                padding: 10px;
-            }
-            
-            .form-container {
-                min-height: 380px;
+                margin-top: 20px;
+                padding: 12px;
             }
         }
 
@@ -585,6 +574,7 @@
                 
                 <p class="info">Forgot password? Contact the admin email: leongjiawei360@gmail.com</p>
                 
+                <!-- FIXED: Register link with improved visibility -->
                 <div class="toggle-link" id="toggleToRegister">
                     <strong>Don't have an account? Register here</strong>
                 </div>
@@ -619,6 +609,7 @@
                 
                 <button id="registerBtn" type="button" class="success-btn">Register Account</button>
                 
+                <!-- FIXED: Login link with improved visibility -->
                 <div class="toggle-link" id="toggleToLogin">
                     <strong>Already have an account? Login here</strong>
                 </div>
@@ -673,24 +664,16 @@
                 // Switching to register form - clear login form
                 clearForm('loginForm');
                 loginForm.classList.remove('active');
-                setTimeout(() => {
-                    loginForm.classList.add('hidden');
-                    registerForm.classList.remove('hidden');
-                    setTimeout(() => {
-                        registerForm.classList.add('active');
-                    }, 50);
-                }, 300);
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                registerForm.classList.add('active');
             } else {
                 // Switching to login form - clear register form
                 clearForm('registerForm');
                 registerForm.classList.remove('active');
-                setTimeout(() => {
-                    registerForm.classList.add('hidden');
-                    loginForm.classList.remove('hidden');
-                    setTimeout(() => {
-                        loginForm.classList.add('active');
-                    }, 50);
-                }, 300);
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                loginForm.classList.add('active');
             }
         }
 
