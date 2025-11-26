@@ -588,17 +588,37 @@
             el.style.color = color; 
         };
 
+        // Clear form fields
+        function clearForm(formId) {
+            const form = qs(`#${formId}`);
+            if (!form) return;
+            
+            const inputs = form.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.value = '';
+            });
+            
+            const message = form.querySelector('p[id$="Message"]');
+            if (message) {
+                message.textContent = '';
+            }
+        }
+
         // Form Toggle Functionality
         function toggleForm() {
             const loginForm = qs('#loginForm');
             const registerForm = qs('#registerForm');
             
             if (loginForm.classList.contains('active')) {
+                // Switching to register form - clear login form
+                clearForm('loginForm');
                 loginForm.classList.remove('active');
                 loginForm.classList.add('hidden');
                 registerForm.classList.remove('hidden');
                 registerForm.classList.add('active');
             } else {
+                // Switching to login form - clear register form
+                clearForm('registerForm');
                 registerForm.classList.remove('active');
                 registerForm.classList.add('hidden');
                 loginForm.classList.remove('hidden');
@@ -705,7 +725,9 @@
                     // Add success animation
                     registerBtn.style.background = 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)';
                     
+                    // Clear the register form after successful registration
                     setTimeout(() => { 
+                        clearForm('registerForm');
                         toggleForm(); 
                     }, 1500);
                 } else {
