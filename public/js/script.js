@@ -50,15 +50,17 @@ function toggleTheme(){
   }
 }
 
-// Renderers
-function renderInventory(items) {
-  const list = qs('#inventoryList');
-  if(!list) return;
-  list.innerHTML = '';
-  let totalValue = 0, totalRevenue = 0, totalProfit = 0, totalStock = 0;
+// =========================================
+// NEW: Inventory Summary Functions
+// =========================================
+
+function updateInventorySummary(items = inventory) {
+  let totalValue = 0;
+  let totalRevenue = 0;
+  let totalProfit = 0;
+  let totalStock = 0;
 
   items.forEach(it => {
-    const id = it.id || it._id;
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
@@ -70,8 +72,70 @@ function renderInventory(items) {
     totalRevenue += rev;
     totalProfit += profit;
     totalStock += qty;
+  });
 
-    // Format the date - NEW DATE COLUMN
+  // Update summary cards with animation
+  updateSummaryCard('summaryTotalValue', totalValue.toFixed(2));
+  updateSummaryCard('summaryTotalRevenue', totalRevenue.toFixed(2));
+  updateSummaryCard('summaryTotalProfit', totalProfit.toFixed(2));
+  updateSummaryCard('summaryTotalStock', totalStock);
+}
+
+function updateSummaryCard(elementId, value) {
+  const element = qs(`#${elementId}`);
+  if (element) {
+    // Add animation class
+    element.classList.add('value-updated');
+    
+    // Update value
+    element.textContent = value;
+    
+    // Remove animation class after animation completes
+    setTimeout(() => {
+      element.classList.remove('value-updated');
+    }, 600);
+  }
+}
+
+function bindSummaryCardInteractions() {
+  // Add click handlers to summary cards for additional functionality
+  qs('.value-card')?.addEventListener('click', () => {
+    alert('💰 Total Inventory Value: The current worth of all items in stock based on their cost price.');
+  });
+  
+  qs('.revenue-card')?.addEventListener('click', () => {
+    alert('📈 Total Potential Revenue: The total revenue if all items were sold at their current selling price.');
+  });
+  
+  qs('.profit-card')?.addEventListener('click', () => {
+    alert('💸 Total Potential Profit: The profit you would make if all items were sold (Revenue minus Cost).');
+  });
+  
+  qs('.stock-card')?.addEventListener('click', () => {
+    alert('📦 Total Stock Quantity: The total number of items currently available in inventory.');
+  });
+}
+
+// Renderers
+function renderInventory(items) {
+  const list = qs('#inventoryList');
+  if(!list) return;
+
+  // Update summary cards first
+  updateInventorySummary(items);
+
+  list.innerHTML = '';
+
+  items.forEach(it => {
+    const id = it.id || it._id;
+    const qty = Number(it.quantity || 0);
+    const uc = Number(it.unitCost || 0);
+    const up = Number(it.unitPrice || 0);
+    const invVal = qty * uc;
+    const rev = qty * up;
+    const profit = rev - invVal;
+
+    // Format the date
     const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
 
     const tr = document.createElement('tr');
@@ -96,11 +160,6 @@ function renderInventory(items) {
     `;
     list.appendChild(tr);
   });
-
-  if(qs('#totalValue')) qs('#totalValue').textContent = totalValue.toFixed(2);
-  if(qs('#totalRevenue')) qs('#totalRevenue').textContent = totalRevenue.toFixed(2);
-  if(qs('#totalProfit')) qs('#totalProfit').textContent = totalProfit.toFixed(2);
-  if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
 }
 
 // =========================================
@@ -1375,6 +1434,7 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('inventory')) { 
       await fetchInventory(); 
       bindInventoryUI(); 
+      bindSummaryCardInteractions(); // NEW: Add card interactions
     }
     if(currentPage.includes('documents')) { 
       await fetchDocuments(); 
@@ -1387,7 +1447,7 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('product')) bindProductPage();
     if(currentPage.includes('setting')) bindSettingPage();
     
-    // NEW: Purchase and Sales pages
+    // Purchase and Sales pages
     if(currentPage.includes('purchase')) { 
       await fetchInventory();
       await fetchPurchases(); 
@@ -1983,6 +2043,10 @@ window.generatePurchaseReport = generatePurchaseReport;
 window.generatePurchaseInvoice = generatePurchaseInvoice;
 window.generateSalesReport = generateSalesReport;
 window.generateSalesInvoice = generateSalesInvoice;
+
+// NEW: Expose summary functions
+window.updateInventorySummary = updateInventorySummary;
+window.bindSummaryCardInteractions = bindSummaryCardInteractions;
 
 // Make fetch functions available globally
 window.fetchInventory = fetchInventory;
