@@ -15,6 +15,8 @@ const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 let inventory = [];
 let activityLog = [];
 let documents = [];
+let purchases = [];
+let sales = [];
 const currentPage = window.location.pathname.split('/').pop();
 
 // Fetch wrapper
@@ -533,6 +535,642 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
+// ============================================================================
+//                               PURCHASE FUNCTIONS
+// ============================================================================
+
+// Fetch purchases
+async function fetchPurchases() {
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases`);
+    if (!res.ok) throw new Error('Failed to fetch purchases');
+    purchases = await res.json();
+    return purchases;
+  } catch (err) {
+    console.error('Purchases fetch error:', err);
+    return [];
+  }
+}
+
+// Render purchases table
+function renderPurchases(purchaseList) {
+  const list = document.getElementById('purchaseList');
+  if (!list) return;
+  
+  list.innerHTML = '';
+  
+  purchaseList.forEach(purchase => {
+    const tr = document.createElement('tr');
+    tr.className = 'transaction-item';
+    
+    const purchaseDate = new Date(purchase.purchaseDate || purchase.createdAt).toLocaleDateString();
+    
+    tr.innerHTML = `
+      <td>${purchaseDate}</td>
+      <td>${escapeHtml(purchase.sku || '')}</td>
+      <td>${escapeHtml(purchase.productName || '')}</td>
+      <td>${escapeHtml(purchase.supplier || 'N/A')}</td>
+      <td>${purchase.quantity}</td>
+      <td class="money">RM ${(purchase.unitCost || 0).toFixed(2)}</td>
+      <td class="money">RM ${(purchase.totalCost || 0).toFixed(2)}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="editPurchase('${purchase.id}')">✏️ Edit</button>
+        <button class="danger-btn small-btn" onclick="deletePurchase('${purchase.id}')">🗑️ Delete</button>
+      </td>
+    `;
+    list.appendChild(tr);
+  });
+}
+
+// Update purchase summary cards
+function updatePurchaseSummary() {
+  const totalPurchases = purchases.length;
+  const totalQuantity = purchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+  const totalCost = purchases.reduce((sum, p) => sum + (p.totalCost || 0), 0);
+  const averagePurchase = totalPurchases > 0 ? totalCost / totalPurchases : 0;
+
+  if (qs('#cardTotalPurchases')) qs('#cardTotalPurchases').textContent = totalPurchases;
+  if (qs('#cardTotalQuantity')) qs('#cardTotalQuantity').textContent = totalQuantity;
+  if (qs('#cardTotalCost')) qs('#cardTotalCost').textContent = `RM ${totalCost.toFixed(2)}`;
+  if (qs('#cardAveragePurchase')) qs('#cardAveragePurchase').textContent = `RM ${averagePurchase.toFixed(2)}`;
+}
+
+// Calculate total cost for purchase form
+function calculateTotalCost() {
+  const quantity = parseInt(qs('#purchaseQuantity')?.value) || 0;
+  const unitCost = parseFloat(qs('#purchaseUnitCost')?.value) || 0;
+  const totalCost = quantity * unitCost;
+  
+  if (qs('#totalCostDisplay')) {
+    qs('#totalCostDisplay').textContent = `Total Cost: RM ${totalCost.toFixed(2)}`;
+  }
+}
+
+// Add new purchase
+async function addPurchase() {
+  const productSelect = qs('#purchaseProduct');
+  const productId = productSelect?.value;
+  const quantity = parseInt(qs('#purchaseQuantity')?.value);
+  const unitCost = parseFloat(qs('#purchaseUnitCost')?.value);
+  const supplier = qs('#purchaseSupplier')?.value;
+  const purchaseDate = qs('#purchaseDate')?.value;
+
+  if (!productId || !quantity || !unitCost) {
+    alert('⚠️ Please fill in all required fields (Product, Quantity, Unit Cost)');
+    return;
+  }
+
+  if (quantity <= 0) {
+    alert('⚠️ Quantity must be greater than 0');
+    return;
+  }
+
+  if (unitCost <= 0) {
+    alert('⚠️ Unit cost must be greater than 0');
+    return;
+  }
+
+  const selectedOption = productSelect.options[productSelect.selectedIndex];
+  if (!confirm(`Confirm Purchase:\nProduct: ${selectedOption.text}\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nTotal Cost: RM ${(quantity * unitCost).toFixed(2)}`)) {
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases`, {
+      method: 'POST',
+      body: JSON.stringify({
+        productId,
+        quantity,
+        unitCost,
+        supplier,
+        purchaseDate: purchaseDate || new Date().toISOString().split('T')[0]
+      })
+    });
+
+    if (res.ok) {
+      // Clear form
+      if (qs('#purchaseQuantity')) qs('#purchaseQuantity').value = '1';
+      if (qs('#purchaseSupplier')) qs('#purchaseSupplier').value = '';
+      if (qs('#purchaseDate')) qs('#purchaseDate').value = '';
+      calculateTotalCost();
+      
+      await fetchPurchases();
+      await fetchInventory(); // Refresh inventory for updated stock
+      alert('✅ Purchase added successfully!');
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to add purchase: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Purchase add error:', err);
+    alert('❌ Server error while adding purchase');
+  }
+}
+
+// Edit purchase
+async function editPurchase(purchaseId) {
+  const purchase = purchases.find(p => p.id === purchaseId);
+  if (!purchase) return;
+
+  const newQuantity = prompt('Enter new quantity:', purchase.quantity);
+  if (newQuantity === null) return;
+
+  const newUnitCost = prompt('Enter new unit cost:', purchase.unitCost);
+  if (newUnitCost === null) return;
+
+  const newSupplier = prompt('Enter new supplier:', purchase.supplier || '');
+
+  if (!newQuantity || !newUnitCost || parseInt(newQuantity) <= 0 || parseFloat(newUnitCost) <= 0) {
+    alert('⚠️ Invalid input. Quantity and unit cost must be positive numbers.');
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        quantity: parseInt(newQuantity),
+        unitCost: parseFloat(newUnitCost),
+        supplier: newSupplier,
+        purchaseDate: purchase.purchaseDate
+      })
+    });
+
+    if (res.ok) {
+      await fetchPurchases();
+      await fetchInventory();
+      alert('✅ Purchase updated successfully!');
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to update purchase: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Purchase update error:', err);
+    alert('❌ Server error while updating purchase');
+  }
+}
+
+// Delete purchase
+async function deletePurchase(purchaseId) {
+  const purchase = purchases.find(p => p.id === purchaseId);
+  if (!purchase) return;
+
+  if (!confirm(`Confirm Delete Purchase:\n${purchase.productName}\nQuantity: ${purchase.quantity}\nTotal Cost: RM ${purchase.totalCost.toFixed(2)}`)) {
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      await fetchPurchases();
+      await fetchInventory();
+      alert('🗑️ Purchase deleted successfully!');
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to delete purchase: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Purchase delete error:', err);
+    alert('❌ Server error while deleting purchase');
+  }
+}
+
+// Generate purchase PDF report
+async function generatePurchasePDF() {
+  if (!confirm('Generate Purchase PDF Report?')) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/report/pdf`, { method: 'GET' });
+
+    if (!res.ok) {
+      try {
+        const err = await res.json();
+        alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
+      } catch (_) {
+        alert("Failed to generate PDF.");
+      }
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
+    const filename = filenameMatch ? filenameMatch[1] : `Purchase_Report_${Date.now()}.pdf`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+    alert("Purchase PDF Report Generated Successfully!");
+  } catch (e) {
+    console.error(e);
+    alert("Purchase PDF Generation Failed.");
+  }
+}
+
+// View purchase history
+function viewPurchaseHistory() {
+  alert(`Purchase History:\nTotal Transactions: ${purchases.length}\nTotal Items: ${purchases.reduce((sum, p) => sum + p.quantity, 0)}\nTotal Spent: RM ${purchases.reduce((sum, p) => sum + p.totalCost, 0).toFixed(2)}`);
+}
+
+// Search purchases
+function searchPurchases() {
+  const searchText = (qs('#purchaseSearchInput')?.value || '').toLowerCase();
+  const startDate = qs('#purchaseStartDate')?.value;
+  const endDate = qs('#purchaseEndDate')?.value;
+
+  let filtered = purchases;
+
+  // Text search
+  if (searchText) {
+    filtered = filtered.filter(p => 
+      (p.productName || '').toLowerCase().includes(searchText) ||
+      (p.sku || '').toLowerCase().includes(searchText) ||
+      (p.supplier || '').toLowerCase().includes(searchText)
+    );
+  }
+
+  // Date range filter
+  if (startDate || endDate) {
+    filtered = filtered.filter(p => {
+      const purchaseDate = new Date(p.purchaseDate || p.createdAt);
+      
+      if (startDate && !endDate) {
+        return purchaseDate >= new Date(startDate);
+      }
+      
+      if (!startDate && endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return purchaseDate <= end;
+      }
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return purchaseDate >= start && purchaseDate <= end;
+      }
+      
+      return true;
+    });
+  }
+
+  renderPurchases(filtered);
+}
+
+// Clear purchase search
+function clearPurchaseSearch() {
+  if (qs('#purchaseSearchInput')) qs('#purchaseSearchInput').value = '';
+  if (qs('#purchaseStartDate')) qs('#purchaseStartDate').value = '';
+  if (qs('#purchaseEndDate')) qs('#purchaseEndDate').value = '';
+  renderPurchases(purchases);
+}
+
+// ============================================================================
+//                               SALES FUNCTIONS
+// ============================================================================
+
+// Fetch sales
+async function fetchSales() {
+  try {
+    const res = await apiFetch(`${API_BASE}/sales`);
+    if (!res.ok) throw new Error('Failed to fetch sales');
+    sales = await res.json();
+    return sales;
+  } catch (err) {
+    console.error('Sales fetch error:', err);
+    return [];
+  }
+}
+
+// Render sales table
+function renderSales(salesList) {
+  const list = document.getElementById('salesList');
+  if (!list) return;
+  
+  list.innerHTML = '';
+  
+  salesList.forEach(sale => {
+    const tr = document.createElement('tr');
+    tr.className = 'transaction-item';
+    
+    const saleDate = new Date(sale.saleDate || sale.createdAt).toLocaleDateString();
+    
+    tr.innerHTML = `
+      <td>${saleDate}</td>
+      <td>${escapeHtml(sale.sku || '')}</td>
+      <td>${escapeHtml(sale.productName || '')}</td>
+      <td>${escapeHtml(sale.customer || 'N/A')}</td>
+      <td>${sale.quantity}</td>
+      <td class="money">RM ${(sale.unitPrice || 0).toFixed(2)}</td>
+      <td class="money">RM ${(sale.totalRevenue || 0).toFixed(2)}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="editSale('${sale.id}')">✏️ Edit</button>
+        <button class="danger-btn small-btn" onclick="deleteSale('${sale.id}')">🗑️ Delete</button>
+      </td>
+    `;
+    list.appendChild(tr);
+  });
+}
+
+// Update sales summary cards
+function updateSalesSummary() {
+  const totalSales = sales.length;
+  const totalSold = sales.reduce((sum, s) => sum + (s.quantity || 0), 0);
+  const totalRevenue = sales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+  const averageSale = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+  if (qs('#cardTotalSales')) qs('#cardTotalSales').textContent = totalSales;
+  if (qs('#cardTotalSold')) qs('#cardTotalSold').textContent = totalSold;
+  if (qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+  if (qs('#cardAverageSale')) qs('#cardAverageSale').textContent = `RM ${averageSale.toFixed(2)}`;
+}
+
+// Calculate total revenue for sales form
+function calculateTotalRevenue() {
+  const quantity = parseInt(qs('#salesQuantity')?.value) || 0;
+  const unitPrice = parseFloat(qs('#salesUnitPrice')?.value) || 0;
+  const totalRevenue = quantity * unitPrice;
+  
+  if (qs('#totalRevenueDisplay')) {
+    qs('#totalRevenueDisplay').textContent = `Total Revenue: RM ${totalRevenue.toFixed(2)}`;
+  }
+  
+  // Check stock availability
+  checkStockAvailability();
+}
+
+// Check stock availability for sales
+function checkStockAvailability() {
+  const productSelect = qs('#salesProduct');
+  const quantityInput = qs('#salesQuantity');
+  const warningElement = qs('#stockWarning');
+  
+  if (!productSelect?.value || !warningElement) {
+    return;
+  }
+  
+  const selectedOption = productSelect.options[productSelect.selectedIndex];
+  const availableStock = parseInt(selectedOption.dataset.stock) || 0;
+  const requestedQuantity = parseInt(quantityInput?.value) || 0;
+  
+  if (requestedQuantity > availableStock) {
+    warningElement.textContent = `⚠️ Insufficient stock! Available: ${availableStock}`;
+    warningElement.style.display = 'block';
+  } else {
+    warningElement.style.display = 'none';
+  }
+}
+
+// Add new sale
+async function addSale() {
+  const productSelect = qs('#salesProduct');
+  const productId = productSelect?.value;
+  const quantity = parseInt(qs('#salesQuantity')?.value);
+  const unitPrice = parseFloat(qs('#salesUnitPrice')?.value);
+  const customer = qs('#salesCustomer')?.value;
+  const saleDate = qs('#salesDate')?.value;
+
+  if (!productId || !quantity || !unitPrice) {
+    alert('⚠️ Please fill in all required fields (Product, Quantity, Unit Price)');
+    return;
+  }
+
+  if (quantity <= 0) {
+    alert('⚠️ Quantity must be greater than 0');
+    return;
+  }
+
+  if (unitPrice <= 0) {
+    alert('⚠️ Unit price must be greater than 0');
+    return;
+  }
+
+  // Check stock availability
+  const selectedOption = productSelect.options[productSelect.selectedIndex];
+  const availableStock = parseInt(selectedOption.dataset.stock) || 0;
+  if (quantity > availableStock) {
+    alert(`❌ Insufficient stock! Available: ${availableStock}, Requested: ${quantity}`);
+    return;
+  }
+
+  if (!confirm(`Confirm Sale:\nProduct: ${selectedOption.text}\nQuantity: ${quantity}\nUnit Price: RM ${unitPrice.toFixed(2)}\nTotal Revenue: RM ${(quantity * unitPrice).toFixed(2)}`)) {
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/sales`, {
+      method: 'POST',
+      body: JSON.stringify({
+        productId,
+        quantity,
+        unitPrice,
+        customer,
+        saleDate: saleDate || new Date().toISOString().split('T')[0]
+      })
+    });
+
+    if (res.ok) {
+      // Clear form
+      if (qs('#salesQuantity')) qs('#salesQuantity').value = '1';
+      if (qs('#salesCustomer')) qs('#salesCustomer').value = '';
+      if (qs('#salesDate')) qs('#salesDate').value = '';
+      calculateTotalRevenue();
+      
+      await fetchSales();
+      await fetchInventory(); // Refresh inventory for updated stock
+      alert('✅ Sale added successfully!');
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to add sale: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Sale add error:', err);
+    alert('❌ Server error while adding sale');
+  }
+}
+
+// Edit sale
+async function editSale(saleId) {
+  const sale = sales.find(s => s.id === saleId);
+  if (!sale) return;
+
+  const newQuantity = prompt('Enter new quantity:', sale.quantity);
+  if (newQuantity === null) return;
+
+  const newUnitPrice = prompt('Enter new unit price:', sale.unitPrice);
+  if (newUnitPrice === null) return;
+
+  const newCustomer = prompt('Enter new customer:', sale.customer || '');
+
+  if (!newQuantity || !newUnitPrice || parseInt(newQuantity) <= 0 || parseFloat(newUnitPrice) <= 0) {
+    alert('⚠️ Invalid input. Quantity and unit price must be positive numbers.');
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/${saleId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        quantity: parseInt(newQuantity),
+        unitPrice: parseFloat(newUnitPrice),
+        customer: newCustomer,
+        saleDate: sale.saleDate
+      })
+    });
+
+    if (res.ok) {
+      await fetchSales();
+      await fetchInventory();
+      alert('✅ Sale updated successfully!');
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to update sale: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Sale update error:', err);
+    alert('❌ Server error while updating sale');
+  }
+}
+
+// Delete sale
+async function deleteSale(saleId) {
+  const sale = sales.find(s => s.id === saleId);
+  if (!sale) return;
+
+  if (!confirm(`Confirm Delete Sale:\n${sale.productName}\nQuantity: ${sale.quantity}\nTotal Revenue: RM ${sale.totalRevenue.toFixed(2)}`)) {
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/${saleId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      await fetchSales();
+      await fetchInventory();
+      alert('🗑️ Sale deleted successfully!');
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to delete sale: ${error.message}`);
+    }
+  } catch (err) {
+    console.error('Sale delete error:', err);
+    alert('❌ Server error while deleting sale');
+  }
+}
+
+// Generate sales PDF report
+async function generateSalesPDF() {
+  if (!confirm('Generate Sales PDF Report?')) return;
+
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/report/pdf`, { method: 'GET' });
+
+    if (!res.ok) {
+      try {
+        const err = await res.json();
+        alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
+      } catch (_) {
+        alert("Failed to generate PDF.");
+      }
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
+    const filename = filenameMatch ? filenameMatch[1] : `Sales_Report_${Date.now()}.pdf`;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+    alert("Sales PDF Report Generated Successfully!");
+  } catch (e) {
+    console.error(e);
+    alert("Sales PDF Generation Failed.");
+  }
+}
+
+// View sales history
+function viewSalesHistory() {
+  alert(`Sales History:\nTotal Transactions: ${sales.length}\nTotal Items Sold: ${sales.reduce((sum, s) => sum + s.quantity, 0)}\nTotal Revenue: RM ${sales.reduce((sum, s) => sum + s.totalRevenue, 0).toFixed(2)}`);
+}
+
+// Search sales
+function searchSales() {
+  const searchText = (qs('#salesSearchInput')?.value || '').toLowerCase();
+  const startDate = qs('#salesStartDate')?.value;
+  const endDate = qs('#salesEndDate')?.value;
+
+  let filtered = sales;
+
+  // Text search
+  if (searchText) {
+    filtered = filtered.filter(s => 
+      (s.productName || '').toLowerCase().includes(searchText) ||
+      (s.sku || '').toLowerCase().includes(searchText) ||
+      (s.customer || '').toLowerCase().includes(searchText)
+    );
+  }
+
+  // Date range filter
+  if (startDate || endDate) {
+    filtered = filtered.filter(s => {
+      const saleDate = new Date(s.saleDate || s.createdAt);
+      
+      if (startDate && !endDate) {
+        return saleDate >= new Date(startDate);
+      }
+      
+      if (!startDate && endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return saleDate <= end;
+      }
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return saleDate >= start && saleDate <= end;
+      }
+      
+      return true;
+    });
+  }
+
+  renderSales(filtered);
+}
+
+// Clear sales search
+function clearSalesSearch() {
+  if (qs('#salesSearchInput')) qs('#salesSearchInput').value = '';
+  if (qs('#salesStartDate')) qs('#salesStartDate').value = '';
+  if (qs('#salesEndDate')) qs('#salesEndDate').value = '';
+  renderSales(sales);
+}
+
+// ============================================================================
+//                               INITIALIZATION
+// ============================================================================
+
 // Init
 window.addEventListener('load', async () => {
   const adminName = getUsername();
@@ -556,8 +1194,139 @@ window.addEventListener('load', async () => {
     }
     if(currentPage.includes('product')) bindProductPage();
     if(currentPage.includes('setting')) bindSettingPage();
+    if(currentPage.includes('purchase')) await initPurchasePage();
+    if(currentPage.includes('sales')) await initSalesPage();
   } catch(e) { console.error('Init error', e); }
 });
+
+// Initialize purchase page
+async function initPurchasePage() {
+  await fetchInventory();
+  await fetchPurchases();
+  bindPurchaseUI();
+  updatePurchaseSummary();
+}
+
+// Initialize sales page
+async function initSalesPage() {
+  await fetchInventory();
+  await fetchSales();
+  bindSalesUI();
+  updateSalesSummary();
+}
+
+// Populate product dropdown for purchase
+function populatePurchaseProductDropdown() {
+  const dropdown = qs('#purchaseProduct');
+  if (!dropdown) return;
+  
+  dropdown.innerHTML = '<option value="">Select Product</option>';
+  
+  inventory.forEach(product => {
+    const option = document.createElement('option');
+    option.value = product.id;
+    option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity || 0}`;
+    option.dataset.unitCost = product.unitCost || 0;
+    dropdown.appendChild(option);
+  });
+}
+
+// Populate product dropdown for sales
+function populateSalesProductDropdown() {
+  const dropdown = qs('#salesProduct');
+  if (!dropdown) return;
+  
+  dropdown.innerHTML = '<option value="">Select Product</option>';
+  
+  inventory.forEach(product => {
+    if ((product.quantity || 0) > 0) { // Only show products with stock
+      const option = document.createElement('option');
+      option.value = product.id;
+      option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity || 0}`;
+      option.dataset.unitPrice = product.unitPrice || 0;
+      option.dataset.stock = product.quantity || 0;
+      dropdown.appendChild(option);
+    }
+  });
+}
+
+// Bind purchase UI events
+function bindPurchaseUI() {
+  qs('#addPurchaseBtn')?.addEventListener('click', addPurchase);
+  qs('#purchaseReportBtn')?.addEventListener('click', generatePurchasePDF);
+  qs('#purchaseHistoryBtn')?.addEventListener('click', viewPurchaseHistory);
+  qs('#purchaseSearchInput')?.addEventListener('input', searchPurchases);
+  qs('#clearPurchaseSearchBtn')?.addEventListener('click', clearPurchaseSearch);
+  qs('#applyPurchaseDateRangeBtn')?.addEventListener('click', searchPurchases);
+  qs('#clearPurchaseDateRangeBtn')?.addEventListener('click', clearPurchaseSearch);
+
+  // Auto-calculate total cost
+  qs('#purchaseQuantity')?.addEventListener('input', calculateTotalCost);
+  qs('#purchaseUnitCost')?.addEventListener('input', calculateTotalCost);
+
+  // Auto-fill unit cost when product is selected
+  qs('#purchaseProduct')?.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value && selectedOption.dataset.unitCost) {
+      qs('#purchaseUnitCost').value = selectedOption.dataset.unitCost;
+      calculateTotalCost();
+    }
+  });
+
+  // Set default date to today
+  if (qs('#purchaseDate')) {
+    qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
+  }
+  
+  // Populate product dropdown
+  populatePurchaseProductDropdown();
+}
+
+// Bind sales UI events
+function bindSalesUI() {
+  qs('#addSalesBtn')?.addEventListener('click', addSale);
+  qs('#salesReportBtn')?.addEventListener('click', generateSalesPDF);
+  qs('#salesHistoryBtn')?.addEventListener('click', viewSalesHistory);
+  qs('#salesSearchInput')?.addEventListener('input', searchSales);
+  qs('#clearSalesSearchBtn')?.addEventListener('click', clearSalesSearch);
+  qs('#applySalesDateRangeBtn')?.addEventListener('click', searchSales);
+  qs('#clearSalesDateRangeBtn')?.addEventListener('click', clearSalesSearch);
+
+  // Auto-calculate total revenue
+  qs('#salesQuantity')?.addEventListener('input', calculateTotalRevenue);
+  qs('#salesUnitPrice')?.addEventListener('input', calculateTotalRevenue);
+
+  // Auto-fill unit price and check stock when product is selected
+  qs('#salesProduct')?.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (selectedOption.value && selectedOption.dataset.unitPrice) {
+      qs('#salesUnitPrice').value = selectedOption.dataset.unitPrice;
+      calculateTotalRevenue();
+    }
+    
+    // Update stock info
+    const stockInfo = qs('#stockInfo');
+    if (selectedOption.value && stockInfo) {
+      const stock = selectedOption.dataset.stock || 0;
+      stockInfo.textContent = `Available stock: ${stock}`;
+      stockInfo.style.color = stock > 10 ? 'green' : stock > 0 ? 'orange' : 'red';
+    } else if (stockInfo) {
+      stockInfo.textContent = '';
+    }
+  });
+
+  // Set default date to today
+  if (qs('#salesDate')) {
+    qs('#salesDate').value = new Date().toISOString().split('T')[0];
+  }
+  
+  // Populate product dropdown
+  populateSalesProductDropdown();
+}
+
+// ============================================================================
+//                               AUTH SYSTEM
+// ============================================================================
 
 // Auth
 async function login(){
@@ -619,6 +1388,10 @@ function toggleForm(){
     formTitle.textContent = '🧾 Register Account';
   }
 }
+
+// ============================================================================
+//                               INVENTORY CRUD
+// ============================================================================
 
 // Inventory CRUD
 async function confirmAndAddProduct(){
@@ -842,6 +1615,10 @@ async function bindProductPage(){
   qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
 }
 
+// ============================================================================
+//                               DOCUMENTS SYSTEM
+// ============================================================================
+
 // Documents
 async function uploadDocuments(){
   const fileInput = qs('#docUpload');
@@ -980,6 +1757,10 @@ function bindDocumentsUI(){
   qs('#searchDocs')?.addEventListener('input', searchDocuments);
 }
 
+// ============================================================================
+//                               SETTINGS SYSTEM
+// ============================================================================
+
 // Settings
 function bindSettingPage(){
   const currentUsername = getUsername();
@@ -1023,6 +1804,10 @@ function bindSettingPage(){
   });
 }
 
+// ============================================================================
+//                               GLOBAL EXPORTS
+// ============================================================================
+
 // DOM bindings
 document.addEventListener('DOMContentLoaded', ()=> {
   if(currentPage.includes('login.html')) {
@@ -1050,3 +1835,7 @@ window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
+window.editPurchase = editPurchase;
+window.deletePurchase = deletePurchase;
+window.editSale = editSale;
+window.deleteSale = deleteSale;
