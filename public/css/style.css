@@ -385,7 +385,7 @@ input:focus {
     max-width: 100%; /* Ensure it takes full available width */
 }
 
-#inventoryTable, #documentsTable {
+#inventoryTable, #documentsTable, #purchaseTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
@@ -478,6 +478,29 @@ input:focus {
     max-width: 110px;
 }
 
+/* Purchase Table Styling */
+#purchaseTable th, #purchaseTable td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#purchaseTable thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky; 
+    top: 0;
+}
+
+#purchaseTable .money {
+    text-align: right;
+    font-family: 'Consolas', monospace;
+    font-weight: bold;
+}
+
 /* Documents table styling (no vertical borders) */
 #documentsTable th, #documentsTable td {
     padding: 12px 15px;
@@ -497,7 +520,8 @@ input:focus {
 
 /* Table row styles */
 #inventoryTable tbody tr:hover,
-#documentsTable tbody tr:hover {
+#documentsTable tbody tr:hover,
+#purchaseTable tbody tr:hover {
     background-color: #f1f1f1;
     transition: background-color 0.2s;
 }
@@ -632,15 +656,18 @@ input:focus {
     border-color: #495057;
 }
 .dark-mode #inventoryTable thead th,
-.dark-mode #documentsTable thead th {
+.dark-mode #documentsTable thead th,
+.dark-mode #purchaseTable thead th {
     background-color: #0056b3; 
 }
 .dark-mode #inventoryTable tbody tr:hover,
-.dark-mode #documentsTable tbody tr:hover {
+.dark-mode #documentsTable tbody tr:hover,
+.dark-mode #purchaseTable tbody tr:hover {
     background-color: #3f4a56;
 }
 .dark-mode #inventoryTable th, .dark-mode #inventoryTable td,
-.dark-mode #documentsTable th, .dark-mode #documentsTable td {
+.dark-mode #documentsTable th, .dark-mode #documentsTable td,
+.dark-mode #purchaseTable th, .dark-mode #purchaseTable td {
     border-bottom-color: #495057;
 }
 
@@ -956,137 +983,83 @@ input:focus {
 }
 
 /* =========================================
-   PURCHASE PAGE STYLING
+   PURCHASE SPECIFIC STYLES
 ========================================= */
-.purchase-container {
-  max-width: 1200px;
-  margin: 20px auto;
-  background: var(--card-light);
-  padding: 25px;
-  border-radius: 10px;
-  box-shadow: var(--shadow-md);
-}
-
 .purchase-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 30px;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
-.form-group {
-  margin-bottom: 15px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
-.form-group.full-width {
+.purchase-form .full-width {
   grid-column: 1 / -1;
 }
 
-.items-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 20px 0;
+.search-dropdown {
+  position: relative;
 }
 
-.items-table th,
-.items-table td {
-  padding: 10px;
-  border: 1px solid var(--border-color);
-  text-align: left;
+.search-dropdown-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: white;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid #ddd;
+  z-index: 50;
+  display: none;
 }
 
-.items-table th {
-  background: var(--primary-color);
-  color: white;
-}
-
-.calculation-section {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin: 20px 0;
-  text-align: right;
-}
-
-.calculation-row {
-  font-size: 1.2em;
-  font-weight: bold;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 30px;
-}
-
-.history-section {
-  margin-top: 40px;
-}
-
-.history-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-}
-
-.history-table th,
-.history-table td {
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  text-align: left;
-}
-
-.history-table th {
-  background: var(--primary-color);
-  color: white;
-}
-
-.delete-item-btn {
-  background: var(--danger-color);
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.add-item-btn {
-  background: var(--success-color);
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 15px;
-}
-
-.product-select {
-  width: 100%;
+.search-dropdown-item {
   padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
 }
 
-/* Dark mode adjustments for purchase page */
-.dark-mode .calculation-section {
-  background: #2c3a47;
+.search-dropdown-item:hover {
+  background: #f1f1f1;
 }
 
-.dark-mode .items-table th,
-.dark-mode .history-table th {
-  background: #0056b3;
+.print-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
 }
 
-.dark-mode .product-select {
-  background: #495057;
-  color: var(--text-dark);
-  border-color: #6c757d;
+.print-btn:hover {
+  background: #218838;
+}
+
+.purchase-summary {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  border-left: 4px solid var(--primary-color);
+}
+
+/* Dark mode adjustments for purchase */
+.dark-mode .search-dropdown-list {
+  background: var(--card-dark);
+  border-color: #495057;
+}
+
+.dark-mode .search-dropdown-item {
+  border-bottom-color: #495057;
+}
+
+.dark-mode .search-dropdown-item:hover {
+  background: #3f4a56;
+}
+
+.dark-mode .purchase-summary {
+  background: #343a40;
+  border-left-color: #80bdff;
 }
