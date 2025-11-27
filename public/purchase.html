@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Purchase | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* Purchase specific styles */
+    .purchase-summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .purchase-card {
+      position: relative;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 16px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-height: 140px;
+      display: flex;
+      align-items: center;
+      animation: slideInUp 0.6s ease;
+    }
+
+    .purchase-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+    }
+
+    .purchase-card:nth-child(2) {
+      background: linear-gradient(135deg, #f093fb, #f5576c);
+    }
+
+    .purchase-card:nth-child(3) {
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+    }
+
+    .purchase-card:nth-child(4) {
+      background: linear-gradient(135deg, #43e97b, #38f9d7);
+    }
+
+    .purchase-form {
+      background: var(--card-light);
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      margin-bottom: 25px;
+      animation: fadeIn 0.8s ease;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      align-items: end;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 12px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      outline: none;
+    }
+
+    .total-cost-display {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-top: 10px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    .transaction-item {
+      animation: slideInRight 0.5s ease;
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .dark-mode .purchase-form {
+      background: var(--card-dark);
+    }
+
+    .dark-mode .form-group input,
+    .dark-mode .form-group select {
+      background: #495057;
+      color: var(--text-dark);
+      border-color: #6c757d;
+    }
+
+    .dark-mode .form-group input:focus,
+    .dark-mode .form-group select:focus {
+      border-color: #80bdff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛒 Purchase Management</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="purchase.html" class="active">Purchase</a>
+      <a href="sales.html">Sales</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
+
+  <section>
+    <!-- MODERN SUMMARY CARDS -->
+    <div class="purchase-summary-cards">
+      <div class="purchase-card" onclick="showCardTooltip('Total number of purchase transactions')">
+        <div class="card-icon">📦</div>
+        <div class="card-content">
+          <div class="card-title">Total Purchases</div>
+          <div class="card-value" id="cardTotalPurchases">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="purchase-card" onclick="showCardTooltip('Total quantity of items purchased')">
+        <div class="card-icon">📊</div>
+        <div class="card-content">
+          <div class="card-title">Total Quantity</div>
+          <div class="card-value" id="cardTotalQuantity">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="purchase-card" onclick="showCardTooltip('Total amount spent on purchases')">
+        <div class="card-icon">💰</div>
+        <div class="card-content">
+          <div class="card-title">Total Cost</div>
+          <div class="card-value" id="cardTotalCost">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="purchase-card" onclick="showCardTooltip('Average cost per purchase transaction')">
+        <div class="card-icon">📈</div>
+        <div class="card-content">
+          <div class="card-title">Average Purchase</div>
+          <div class="card-value" id="cardAveragePurchase">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Add New Purchase</h2>
+    <div class="purchase-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="purchaseProduct">Product *</label>
+          <select id="purchaseProduct" required>
+            <option value="">Select Product</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="purchaseQuantity">Quantity *</label>
+          <input id="purchaseQuantity" type="number" min="1" value="1" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="purchaseUnitCost">Unit Cost (RM) *</label>
+          <input id="purchaseUnitCost" type="number" step="0.01" min="0" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="purchaseSupplier">Supplier</label>
+          <input id="purchaseSupplier" type="text" placeholder="Supplier name">
+        </div>
+        
+        <div class="form-group">
+          <label for="purchaseDate">Purchase Date</label>
+          <input id="purchaseDate" type="date">
+        </div>
+      </div>
+      
+      <div class="total-cost-display" id="totalCostDisplay">
+        Total Cost: RM 0.00
+      </div>
+      
+      <button id="addPurchaseBtn" class="primary-btn" style="margin-top: 15px; width: 100%;">
+        + Add Purchase
+      </button>
+    </div>
+
+    <h2>Purchase Transactions</h2>
+    <div class="controls">
+      <div style="display:flex; gap:10px; flex-wrap: wrap;">
+        <button id="purchaseReportBtn" class="success-btn">📄 Generate Purchase PDF Report</button>
+        <button id="purchaseHistoryBtn" class="primary-btn">📋 View Purchase History</button>
+      </div>
+
+      <div class="search-controls">
+        <!-- Date Range Search Controls -->
+        <div class="date-range-container">
+          <label for="purchaseStartDate">📅 Date Range:</label>
+          <div class="date-inputs">
+            <div class="date-input-group">
+              <span class="date-label">From:</span>
+              <input id="purchaseStartDate" type="date" />
+            </div>
+            <div class="date-input-group">
+              <span class="date-label">To:</span>
+              <input id="purchaseEndDate" type="date" />
+            </div>
+            <button id="applyPurchaseDateRangeBtn" class="primary-btn">Apply</button>
+            <button id="clearPurchaseDateRangeBtn" class="secondary-btn">Clear Dates</button>
+          </div>
+        </div>
+        
+        <!-- Text Search -->
+        <div class="text-search-container">
+          <input id="purchaseSearchInput" placeholder="Search product, supplier..." type="text" />
+          <button id="clearPurchaseSearchBtn" class="secondary-btn">Clear Text</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="table-container"> 
+      <table id="purchaseTable">
+          <thead>
+              <tr>
+                  <th>Date</th>
+                  <th>SKU</th>
+                  <th>Product Name</th>
+                  <th>Supplier</th>
+                  <th>Quantity</th>
+                  <th class="money">Unit Cost</th>
+                  <th class="money">Total Cost</th>
+                  <th class="actions">Actions</th>
+              </tr>
+          </thead>
+          <tbody id="purchaseList"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- JS -->
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'purchase';
+    
+    let purchases = [];
+    let inventory = [];
+
+    // Initialize purchase page
+    async function initPurchasePage() {
+      await fetchInventory();
+      await fetchPurchases();
+      bindPurchaseUI();
+      updatePurchaseSummary();
+    }
+
+    // Fetch inventory for product selection
+    async function fetchInventory() {
+      try {
+        const res = await apiFetch(`${API_BASE}/inventory`);
+        if (!res.ok) throw new Error('Failed to fetch inventory');
+        inventory = await res.json();
+        populateProductDropdown();
+      } catch (err) {
+        console.error('Inventory fetch error:', err);
+        alert('Failed to load products');
+      }
+    }
+
+    // Fetch purchases
+    async function fetchPurchases() {
+      try {
+        const res = await apiFetch(`${API_BASE}/purchases`);
+        if (!res.ok) throw new Error('Failed to fetch purchases');
+        purchases = await res.json();
+        renderPurchases(purchases);
+        updatePurchaseSummary();
+      } catch (err) {
+        console.error('Purchases fetch error:', err);
+      }
+    }
+
+    // Populate product dropdown
+    function populateProductDropdown() {
+      const dropdown = document.getElementById('purchaseProduct');
+      dropdown.innerHTML = '<option value="">Select Product</option>';
+      
+      inventory.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.id;
+        option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity || 0}`;
+        option.dataset.unitCost = product.unitCost || 0;
+        dropdown.appendChild(option);
+      });
+    }
+
+    // Render purchases table
+    function renderPurchases(purchaseList) {
+      const list = document.getElementById('purchaseList');
+      if (!list) return;
+      
+      list.innerHTML = '';
+      
+      purchaseList.forEach(purchase => {
+        const tr = document.createElement('tr');
+        tr.className = 'transaction-item';
+        
+        const purchaseDate = new Date(purchase.purchaseDate || purchase.createdAt).toLocaleDateString();
+        
+        tr.innerHTML = `
+          <td>${purchaseDate}</td>
+          <td>${escapeHtml(purchase.sku || '')}</td>
+          <td>${escapeHtml(purchase.productName || '')}</td>
+          <td>${escapeHtml(purchase.supplier || 'N/A')}</td>
+          <td>${purchase.quantity}</td>
+          <td class="money">RM ${(purchase.unitCost || 0).toFixed(2)}</td>
+          <td class="money">RM ${(purchase.totalCost || 0).toFixed(2)}</td>
+          <td class="actions">
+            <button class="primary-btn small-btn" onclick="editPurchase('${purchase.id}')">✏️ Edit</button>
+            <button class="danger-btn small-btn" onclick="deletePurchase('${purchase.id}')">🗑️ Delete</button>
+          </td>
+        `;
+        list.appendChild(tr);
+      });
+    }
+
+    // Update purchase summary cards
+    function updatePurchaseSummary() {
+      const totalPurchases = purchases.length;
+      const totalQuantity = purchases.reduce((sum, p) => sum + (p.quantity || 0), 0);
+      const totalCost = purchases.reduce((sum, p) => sum + (p.totalCost || 0), 0);
+      const averagePurchase = totalPurchases > 0 ? totalCost / totalPurchases : 0;
+
+      document.getElementById('cardTotalPurchases').textContent = totalPurchases;
+      document.getElementById('cardTotalQuantity').textContent = totalQuantity;
+      document.getElementById('cardTotalCost').textContent = `RM ${totalCost.toFixed(2)}`;
+      document.getElementById('cardAveragePurchase').textContent = `RM ${averagePurchase.toFixed(2)}`;
+    }
+
+    // Calculate total cost
+    function calculateTotalCost() {
+      const quantity = parseInt(document.getElementById('purchaseQuantity').value) || 0;
+      const unitCost = parseFloat(document.getElementById('purchaseUnitCost').value) || 0;
+      const totalCost = quantity * unitCost;
+      
+      document.getElementById('totalCostDisplay').textContent = `Total Cost: RM ${totalCost.toFixed(2)}`;
+    }
+
+    // Add new purchase
+    async function addPurchase() {
+      const productSelect = document.getElementById('purchaseProduct');
+      const productId = productSelect.value;
+      const quantity = parseInt(document.getElementById('purchaseQuantity').value);
+      const unitCost = parseFloat(document.getElementById('purchaseUnitCost').value);
+      const supplier = document.getElementById('purchaseSupplier').value;
+      const purchaseDate = document.getElementById('purchaseDate').value;
+
+      if (!productId || !quantity || !unitCost) {
+        alert('⚠️ Please fill in all required fields (Product, Quantity, Unit Cost)');
+        return;
+      }
+
+      if (quantity <= 0) {
+        alert('⚠️ Quantity must be greater than 0');
+        return;
+      }
+
+      if (unitCost <= 0) {
+        alert('⚠️ Unit cost must be greater than 0');
+        return;
+      }
+
+      if (!confirm(`Confirm Purchase:\nProduct: ${productSelect.options[productSelect.selectedIndex].text}\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nTotal Cost: RM ${(quantity * unitCost).toFixed(2)}`)) {
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/purchases`, {
+          method: 'POST',
+          body: JSON.stringify({
+            productId,
+            quantity,
+            unitCost,
+            supplier,
+            purchaseDate: purchaseDate || new Date().toISOString().split('T')[0]
+          })
+        });
+
+        if (res.ok) {
+          // Clear form
+          document.getElementById('purchaseQuantity').value = '1';
+          document.getElementById('purchaseSupplier').value = '';
+          document.getElementById('purchaseDate').value = '';
+          calculateTotalCost();
+          
+          await fetchPurchases();
+          await fetchInventory(); // Refresh inventory for updated stock
+          alert('✅ Purchase added successfully!');
+        } else {
+          const error = await res.json();
+          alert(`❌ Failed to add purchase: ${error.message}`);
+        }
+      } catch (err) {
+        console.error('Purchase add error:', err);
+        alert('❌ Server error while adding purchase');
+      }
+    }
+
+    // Edit purchase
+    async function editPurchase(purchaseId) {
+      const purchase = purchases.find(p => p.id === purchaseId);
+      if (!purchase) return;
+
+      const newQuantity = prompt('Enter new quantity:', purchase.quantity);
+      if (newQuantity === null) return;
+
+      const newUnitCost = prompt('Enter new unit cost:', purchase.unitCost);
+      if (newUnitCost === null) return;
+
+      const newSupplier = prompt('Enter new supplier:', purchase.supplier || '');
+
+      if (!newQuantity || !newUnitCost || parseInt(newQuantity) <= 0 || parseFloat(newUnitCost) <= 0) {
+        alert('⚠️ Invalid input. Quantity and unit cost must be positive numbers.');
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            quantity: parseInt(newQuantity),
+            unitCost: parseFloat(newUnitCost),
+            supplier: newSupplier,
+            purchaseDate: purchase.purchaseDate
+          })
+        });
+
+        if (res.ok) {
+          await fetchPurchases();
+          await fetchInventory();
+          alert('✅ Purchase updated successfully!');
+        } else {
+          const error = await res.json();
+          alert(`❌ Failed to update purchase: ${error.message}`);
+        }
+      } catch (err) {
+        console.error('Purchase update error:', err);
+        alert('❌ Server error while updating purchase');
+      }
+    }
+
+    // Delete purchase
+    async function deletePurchase(purchaseId) {
+      const purchase = purchases.find(p => p.id === purchaseId);
+      if (!purchase) return;
+
+      if (!confirm(`Confirm Delete Purchase:\n${purchase.productName}\nQuantity: ${purchase.quantity}\nTotal Cost: RM ${purchase.totalCost.toFixed(2)}`)) {
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`, {
+          method: 'DELETE'
+        });
+
+        if (res.ok) {
+          await fetchPurchases();
+          await fetchInventory();
+          alert('🗑️ Purchase deleted successfully!');
+        } else {
+          const error = await res.json();
+          alert(`❌ Failed to delete purchase: ${error.message}`);
+        }
+      } catch (err) {
+        console.error('Purchase delete error:', err);
+        alert('❌ Server error while deleting purchase');
+      }
+    }
+
+    // Generate purchase PDF report
+    async function generatePurchasePDF() {
+      if (!confirm('Generate Purchase PDF Report?')) return;
+
+      try {
+        const res = await apiFetch(`${API_BASE}/purchases/report/pdf`, { method: 'GET' });
+
+        if (!res.ok) {
+          try {
+            const err = await res.json();
+            alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
+          } catch (_) {
+            alert("Failed to generate PDF.");
+          }
+          return;
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        const contentDisposition = res.headers.get('Content-Disposition');
+        const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
+        const filename = filenameMatch ? filenameMatch[1] : `Purchase_Report_${Date.now()}.pdf`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        window.URL.revokeObjectURL(url);
+        alert("Purchase PDF Report Generated Successfully!");
+      } catch (e) {
+        console.error(e);
+        alert("Purchase PDF Generation Failed.");
+      }
+    }
+
+    // View purchase history
+    function viewPurchaseHistory() {
+      alert(`Purchase History:\nTotal Transactions: ${purchases.length}\nTotal Items: ${purchases.reduce((sum, p) => sum + p.quantity, 0)}\nTotal Spent: RM ${purchases.reduce((sum, p) => sum + p.totalCost, 0).toFixed(2)}`);
+    }
+
+    // Search purchases
+    function searchPurchases() {
+      const searchText = (document.getElementById('purchaseSearchInput')?.value || '').toLowerCase();
+      const startDate = document.getElementById('purchaseStartDate')?.value;
+      const endDate = document.getElementById('purchaseEndDate')?.value;
+
+      let filtered = purchases;
+
+      // Text search
+      if (searchText) {
+        filtered = filtered.filter(p => 
+          (p.productName || '').toLowerCase().includes(searchText) ||
+          (p.sku || '').toLowerCase().includes(searchText) ||
+          (p.supplier || '').toLowerCase().includes(searchText)
+        );
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        filtered = filtered.filter(p => {
+          const purchaseDate = new Date(p.purchaseDate || p.createdAt);
+          
+          if (startDate && !endDate) {
+            return purchaseDate >= new Date(startDate);
+          }
+          
+          if (!startDate && endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            return purchaseDate <= end;
+          }
+          
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            return purchaseDate >= start && purchaseDate <= end;
+          }
+          
+          return true;
+        });
+      }
+
+      renderPurchases(filtered);
+    }
+
+    // Clear search
+    function clearPurchaseSearch() {
+      document.getElementById('purchaseSearchInput').value = '';
+      document.getElementById('purchaseStartDate').value = '';
+      document.getElementById('purchaseEndDate').value = '';
+      renderPurchases(purchases);
+    }
+
+    // Bind UI events
+    function bindPurchaseUI() {
+      document.getElementById('addPurchaseBtn').addEventListener('click', addPurchase);
+      document.getElementById('purchaseReportBtn').addEventListener('click', generatePurchasePDF);
+      document.getElementById('purchaseHistoryBtn').addEventListener('click', viewPurchaseHistory);
+      document.getElementById('purchaseSearchInput').addEventListener('input', searchPurchases);
+      document.getElementById('clearPurchaseSearchBtn').addEventListener('click', clearPurchaseSearch);
+      document.getElementById('applyPurchaseDateRangeBtn').addEventListener('click', searchPurchases);
+      document.getElementById('clearPurchaseDateRangeBtn').addEventListener('click', clearPurchaseSearch);
+
+      // Auto-calculate total cost
+      document.getElementById('purchaseQuantity').addEventListener('input', calculateTotalCost);
+      document.getElementById('purchaseUnitCost').addEventListener('input', calculateTotalCost);
+
+      // Auto-fill unit cost when product is selected
+      document.getElementById('purchaseProduct').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value && selectedOption.dataset.unitCost) {
+          document.getElementById('purchaseUnitCost').value = selectedOption.dataset.unitCost;
+          calculateTotalCost();
+        }
+      });
+
+      // Set default date to today
+      document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    // Tooltip function
+    function showCardTooltip(message) {
+      // Can be enhanced with a proper tooltip library
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', initPurchasePage);
+
+    // Expose functions globally
+    window.editPurchase = editPurchase;
+    window.deletePurchase = deletePurchase;
+    window.showCardTooltip = showCardTooltip;
+  </script>
+</body>
+</html>
