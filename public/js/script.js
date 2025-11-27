@@ -1,5 +1,5 @@
 // public/js/script.js
-// Complete client-side script for Online Inventory & Documents Management System
+// Complete client-side script for Online Inventory & Documents System
 
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
