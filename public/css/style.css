@@ -112,7 +112,8 @@ input[type="text"],
 input[type="number"], 
 input[type="password"],
 input[type="file"],
-input[type="date"] {
+input[type="date"],
+input[type="month"] {
     width: 100%;
     padding: 12px;
     margin-top: 5px;
@@ -126,6 +127,19 @@ input:focus {
     border-color: var(--primary-color);
     outline: none;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+textarea {
+    width: 100%;
+    padding: 12px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
 }
 
 .primary-btn, .secondary-btn, .success-btn, .danger-btn {
@@ -385,7 +399,7 @@ input:focus {
     max-width: 100%; /* Ensure it takes full available width */
 }
 
-#inventoryTable, #documentsTable {
+#inventoryTable, #documentsTable, #purchaseTable, #salesTable, #purchaseTransactionTable, #salesTransactionTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
@@ -394,7 +408,9 @@ input:focus {
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
-#inventoryTable th, #inventoryTable td {
+#inventoryTable th, #inventoryTable td,
+#purchaseTable th, #purchaseTable td,
+#salesTable th, #salesTable td {
     padding: 10px 12px; /* Reduced padding to save space */
     text-align: left;
     border-bottom: 1px solid var(--border-color);
@@ -403,11 +419,17 @@ input:focus {
 
 /* Remove border only from last column */
 #inventoryTable th:last-child, 
-#inventoryTable td:last-child {
+#inventoryTable td:last-child,
+#purchaseTable th:last-child, 
+#purchaseTable td:last-child,
+#salesTable th:last-child, 
+#salesTable td:last-child {
     border-right: none;
 }
 
-#inventoryTable thead th {
+#inventoryTable thead th,
+#purchaseTable thead th,
+#salesTable thead th {
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
@@ -420,31 +442,49 @@ input:focus {
     padding: 12px 10px; /* Adjusted header padding */
 }
 
-#inventoryTable thead th:last-child {
+#inventoryTable thead th:last-child,
+#purchaseTable thead th:last-child,
+#salesTable thead th:last-child {
     border-right: none;
 }
 
 /* COMPACT COLUMN WIDTHS FOR BETTER FIT */
 #inventoryTable th:nth-child(1), /* SKU */
-#inventoryTable td:nth-child(1) {
+#inventoryTable td:nth-child(1),
+#purchaseTable th:nth-child(4), /* SKU */
+#purchaseTable td:nth-child(4),
+#salesTable th:nth-child(4), /* SKU */
+#salesTable td:nth-child(4) {
     min-width: 80px;
     max-width: 100px;
 }
 
 #inventoryTable th:nth-child(2), /* NAME */
-#inventoryTable td:nth-child(2) {
+#inventoryTable td:nth-child(2),
+#purchaseTable th:nth-child(5), /* NAME */
+#purchaseTable td:nth-child(5),
+#salesTable th:nth-child(5), /* NAME */
+#salesTable td:nth-child(5) {
     min-width: 120px;
     max-width: 150px;
 }
 
 #inventoryTable th:nth-child(3), /* CATEGORY */
-#inventoryTable td:nth-child(3) {
+#inventoryTable td:nth-child(3),
+#purchaseTable th:nth-child(6), /* CATEGORY */
+#purchaseTable td:nth-child(6),
+#salesTable th:nth-child(6), /* CATEGORY */
+#salesTable td:nth-child(6) {
     min-width: 90px;
     max-width: 120px;
 }
 
 #inventoryTable th:nth-child(4), /* QUANTITY */
-#inventoryTable td:nth-child(4) {
+#inventoryTable td:nth-child(4),
+#purchaseTable th:nth-child(7), /* QUANTITY */
+#purchaseTable td:nth-child(7),
+#salesTable th:nth-child(7), /* QUANTITY */
+#salesTable td:nth-child(7) {
     min-width: 70px;
     max-width: 80px;
     text-align: center;
@@ -455,7 +495,12 @@ input:focus {
 #inventoryTable td:nth-child(6), /* Unit Price */
 #inventoryTable td:nth-child(7), /* Inventory Value */
 #inventoryTable td:nth-child(8), /* Potential Revenue */
-#inventoryTable td:nth-child(9) { /* Potential Profit */
+#inventoryTable td:nth-child(9), /* Potential Profit */
+#purchaseTable td:nth-child(8), /* Unit Cost */
+#purchaseTable td:nth-child(9), /* Total Cost */
+#salesTable td:nth-child(8), /* Unit Price */
+#salesTable td:nth-child(9), /* Total Price */
+#salesTable td:nth-child(10) { /* Profit */
     white-space: nowrap;
     text-align: right;
     font-family: 'Consolas', monospace;
@@ -465,27 +510,35 @@ input:focus {
 }
 
 /* Date column */
-#inventoryTable td:nth-child(10) {
+#inventoryTable td:nth-child(10),
+#purchaseTable td:nth-child(1),
+#salesTable td:nth-child(1) {
     text-align: center;
     min-width: 90px;
     max-width: 100px;
 }
 
 /* Actions column */
-#inventoryTable td:nth-child(11) {
+#inventoryTable td:nth-child(11),
+#purchaseTable td:nth-child(10),
+#salesTable td:nth-child(11) {
     text-align: center;
     min-width: 100px;
     max-width: 110px;
 }
 
 /* Documents table styling (no vertical borders) */
-#documentsTable th, #documentsTable td {
+#documentsTable th, #documentsTable td,
+#purchaseTransactionTable th, #purchaseTransactionTable td,
+#salesTransactionTable th, #salesTransactionTable td {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
 }
 
-#documentsTable thead th {
+#documentsTable thead th,
+#purchaseTransactionTable thead th,
+#salesTransactionTable thead th {
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
@@ -497,7 +550,11 @@ input:focus {
 
 /* Table row styles */
 #inventoryTable tbody tr:hover,
-#documentsTable tbody tr:hover {
+#documentsTable tbody tr:hover,
+#purchaseTable tbody tr:hover,
+#salesTable tbody tr:hover,
+#purchaseTransactionTable tbody tr:hover,
+#salesTransactionTable tbody tr:hover {
     background-color: #f1f1f1;
     transition: background-color 0.2s;
 }
@@ -613,12 +670,12 @@ input:focus {
   background: #0056b3;
 }
 
-.dark-mode input {
+.dark-mode input, .dark-mode textarea {
     background: #495057;
     color: var(--text-dark);
     border-color: #6c757d;
 }
-.dark-mode input:focus {
+.dark-mode input:focus, .dark-mode textarea:focus {
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
 }
 
@@ -632,25 +689,43 @@ input:focus {
     border-color: #495057;
 }
 .dark-mode #inventoryTable thead th,
-.dark-mode #documentsTable thead th {
+.dark-mode #documentsTable thead th,
+.dark-mode #purchaseTable thead th,
+.dark-mode #salesTable thead th,
+.dark-mode #purchaseTransactionTable thead th,
+.dark-mode #salesTransactionTable thead th {
     background-color: #0056b3; 
 }
 .dark-mode #inventoryTable tbody tr:hover,
-.dark-mode #documentsTable tbody tr:hover {
+.dark-mode #documentsTable tbody tr:hover,
+.dark-mode #purchaseTable tbody tr:hover,
+.dark-mode #salesTable tbody tr:hover,
+.dark-mode #purchaseTransactionTable tbody tr:hover,
+.dark-mode #salesTransactionTable tbody tr:hover {
     background-color: #3f4a56;
 }
 .dark-mode #inventoryTable th, .dark-mode #inventoryTable td,
-.dark-mode #documentsTable th, .dark-mode #documentsTable td {
+.dark-mode #documentsTable th, .dark-mode #documentsTable td,
+.dark-mode #purchaseTable th, .dark-mode #purchaseTable td,
+.dark-mode #salesTable th, .dark-mode #salesTable td,
+.dark-mode #purchaseTransactionTable th, .dark-mode #purchaseTransactionTable td,
+.dark-mode #salesTransactionTable th, .dark-mode #salesTransactionTable td {
     border-bottom-color: #495057;
 }
 
 /* Keep black vertical borders in dark mode */
 .dark-mode #inventoryTable th, 
-.dark-mode #inventoryTable td {
+.dark-mode #inventoryTable td,
+.dark-mode #purchaseTable th, 
+.dark-mode #purchaseTable td,
+.dark-mode #salesTable th, 
+.dark-mode #salesTable td {
     border-right-color: #000000;
 }
 
-.dark-mode #inventoryTable thead th {
+.dark-mode #inventoryTable thead th,
+.dark-mode #purchaseTable thead th,
+.dark-mode #salesTable thead th {
     border-right-color: rgba(255, 255, 255, 0.3);
 }
 
@@ -681,7 +756,8 @@ input:focus {
     color: #80bdff;
 }
 
-.dark-mode .date-range-container input[type="date"] {
+.dark-mode .date-range-container input[type="date"],
+.dark-mode .date-range-container input[type="month"] {
     background: #495057;
     color: var(--text-dark);
     border-color: #6c757d;
@@ -766,6 +842,142 @@ input:focus {
 
 .dark-mode #activityTable tbody tr:hover {
   background: #3d3d3d;
+}
+
+/* =========================================
+   Purchase & Sales Specific Styling
+========================================= */
+
+.search-product-container {
+    position: relative;
+    grid-column: 1 / -1;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-result-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.dark-mode .search-results {
+    background: var(--card-dark);
+    border-color: #495057;
+}
+
+.dark-mode .search-result-item {
+    border-bottom-color: #495057;
+}
+
+.dark-mode .search-result-item:hover {
+    background-color: #3f4a56;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: var(--card-light);
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.dark-mode .modal-content {
+    background-color: var(--card-dark);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    right: 15px;
+    top: 10px;
+}
+
+.close:hover {
+    color: var(--danger-color);
+}
+
+.modal-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.modal-controls input[type="month"] {
+    width: auto;
+    margin: 0;
+}
+
+.modal-totals {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--background-light);
+    border-radius: 6px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.dark-mode .modal-totals {
+    background: #343a40;
+}
+
+/* Additional form styling */
+.product-bar input[readonly] {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.dark-mode .product-bar input[readonly] {
+    background-color: #495057;
+    color: #adb5bd;
+}
+
+/* Navigation updates for new pages */
+nav a[href="purchase.html"],
+nav a[href="sales.html"] {
+    font-weight: 600;
 }
 
 /* =========================================
