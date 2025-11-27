@@ -72,6 +72,33 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
+// ===== NEW: Purchase Schema =====
+const PurchaseSchema = new Schema({
+  invoiceNumber: { type: String, required: true, unique: true },
+  supplierName: { type: String, required: true },
+  supplierAddress: String,
+  supplierPhone: String,
+  supplierEmail: String,
+  purchaseDate: { type: Date, default: Date.now },
+  items: [{
+    sku: String,
+    productName: String,
+    quantity: { type: Number, required: true },
+    unitCost: { type: Number, required: true },
+    totalCost: { type: Number, required: true }
+  }],
+  subtotal: { type: Number, default: 0 },
+  taxRate: { type: Number, default: 0 },
+  taxAmount: { type: Number, default: 0 },
+  shippingCost: { type: Number, default: 0 },
+  totalAmount: { type: Number, required: true },
+  paymentMethod: { type: String, default: 'Cash' },
+  notes: String,
+  status: { type: String, default: 'Completed', enum: ['Pending', 'Completed', 'Cancelled'] },
+  createdAt: { type: Date, default: Date.now }
+});
+const Purchase = mongoose.model("Purchase", PurchaseSchema);
+
 // ===== Duplicate Log Protection =====
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
@@ -300,6 +327,325 @@ app.delete("/api/inventory/:id", async (req, res) => {
   } catch (err) {
     console.error("inventory delete error", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                              PURCHASE SYSTEM
+// ============================================================================
+
+// Generate unique invoice number
+function generateInvoiceNumber() {
+  const timestamp = Date.now().toString();
+  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  return `INV-${timestamp.slice(-6)}-${random}`;
+}
+
+// GET all purchases
+app.get("/api/purchases", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("purchases get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// GET single purchase
+app.get("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase)
+      return res.status(404).json({ message: "Purchase not found" });
+
+    res.json({
+      ...purchase,
+      id: purchase._id.toString()
+    });
+  } catch (err) {
+    console.error("purchase get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// CREATE new purchase
+app.post("/api/purchases", async (req, res) => {
+  try {
+    const invoiceNumber = generateInvoiceNumber();
+    const purchaseData = {
+      ...req.body,
+      invoiceNumber
+    };
+
+    const purchase = await Purchase.create(purchaseData);
+    
+    // Update inventory quantities
+    for (const item of purchase.items) {
+      await Inventory.findOneAndUpdate(
+        { sku: item.sku },
+        { 
+          $inc: { quantity: item.quantity },
+          $set: { unitCost: item.unitCost }
+        },
+        { upsert: false }
+      );
+    }
+
+    await logActivity(req.headers["x-username"], `Created purchase: ${invoiceNumber}`);
+    
+    res.status(201).json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase post error", err);
+    res.status(500).json({ message: "Server error: " + err.message });
+  }
+});
+
+// UPDATE purchase
+app.put("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!purchase)
+      return res.status(404).json({ message: "Purchase not found" });
+
+    await logActivity(req.headers["x-username"], `Updated purchase: ${purchase.invoiceNumber}`);
+    res.json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// DELETE purchase
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findByIdAndDelete(req.params.id);
+    if (!purchase)
+      return res.status(404).json({ message: "Purchase not found" });
+
+    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.invoiceNumber}`);
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("purchase delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                    PURCHASE PDF REPORT - INVOICE STYLE
+// ============================================================================
+app.get("/api/purchases/report/pdf/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const printedBy = req.headers["x-username"] || "System";
+    const filename = `Purchase_Invoice_${purchase.invoiceNumber}.pdf`;
+
+    console.log(`📊 Generating Purchase PDF: ${filename}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        let pdfChunks = [];
+
+        const doc = new PDFDocument({
+          size: "A4",
+          layout: "portrait",
+          margin: 50,
+          bufferPages: true
+        });
+
+        doc.on("data", chunk => {
+          pdfChunks.push(chunk);
+        });
+        
+        doc.on("end", () => {
+          const buffer = Buffer.concat(pdfChunks);
+          console.log(`✅ Purchase PDF generation completed: ${buffer.length} bytes`);
+          resolve(buffer);
+        });
+        
+        doc.on("error", (error) => {
+          console.error('❌ Purchase PDF generation error:', error);
+          reject(error);
+        });
+
+        // ==================== INVOICE HEADER ====================
+        // Company Header
+        doc.rect(50, 50, 500, 80).fill('#2c5aa0').stroke();
+        doc.fillColor('#ffffff')
+           .fontSize(24)
+           .font('Helvetica-Bold')
+           .text('L&B COMPANY', 70, 70);
+        
+        doc.fillColor('#ffffff')
+           .fontSize(10)
+           .font('Helvetica')
+           .text('Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', 70, 100)
+           .text('Phone: 01133127622 | Email: lbcompany@gmail.com', 70, 115);
+
+        // Invoice Title
+        doc.fillColor('#000000')
+           .fontSize(20)
+           .font('Helvetica-Bold')
+           .text('PURCHASE INVOICE', 400, 70);
+        
+        doc.fontSize(10)
+           .font('Helvetica')
+           .text(`Invoice: ${purchase.invoiceNumber}`, 400, 100)
+           .text(`Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}`, 400, 115)
+           .text(`Status: ${purchase.status}`, 400, 130);
+
+        doc.moveTo(50, 150).lineTo(550, 150).strokeColor('#2c5aa0').lineWidth(2).stroke();
+
+        // ==================== SUPPLIER INFORMATION ====================
+        let yPosition = 170;
+        
+        doc.fillColor('#2c5aa0')
+           .fontSize(12)
+           .font('Helvetica-Bold')
+           .text('SUPPLIER INFORMATION:', 50, yPosition);
+        
+        yPosition += 20;
+        
+        doc.fillColor('#000000')
+           .fontSize(10)
+           .font('Helvetica')
+           .text(`Name: ${purchase.supplierName}`, 50, yPosition)
+           .text(`Address: ${purchase.supplierAddress || 'N/A'}`, 50, yPosition + 15)
+           .text(`Phone: ${purchase.supplierPhone || 'N/A'}`, 50, yPosition + 30)
+           .text(`Email: ${purchase.supplierEmail || 'N/A'}`, 50, yPosition + 45);
+
+        // ==================== ITEMS TABLE ====================
+        yPosition += 80;
+        
+        // Table Header
+        doc.rect(50, yPosition, 500, 25).fill('#2c5aa0').stroke();
+        doc.fillColor('#ffffff')
+           .fontSize(10)
+           .font('Helvetica-Bold')
+           .text('Item', 60, yPosition + 8)
+           .text('SKU', 200, yPosition + 8)
+           .text('Qty', 280, yPosition + 8)
+           .text('Unit Cost', 320, yPosition + 8)
+           .text('Total', 400, yPosition + 8);
+        
+        yPosition += 25;
+
+        // Table Rows
+        doc.fillColor('#000000').font('Helvetica');
+        purchase.items.forEach((item, index) => {
+          if (yPosition > 650) {
+            doc.addPage();
+            yPosition = 50;
+          }
+          
+          const rowColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
+          doc.rect(50, yPosition, 500, 20).fill(rowColor).stroke();
+          
+          doc.fontSize(9)
+             .text(item.productName || 'N/A', 60, yPosition + 6)
+             .text(item.sku || 'N/A', 200, yPosition + 6)
+             .text(item.quantity.toString(), 280, yPosition + 6)
+             .text(`RM ${item.unitCost.toFixed(2)}`, 320, yPosition + 6)
+             .text(`RM ${item.totalCost.toFixed(2)}`, 400, yPosition + 6);
+          
+          yPosition += 20;
+        });
+
+        // ==================== TOTALS SECTION ====================
+        yPosition += 10;
+        
+        doc.rect(350, yPosition, 200, 100).stroke();
+        
+        doc.fontSize(10)
+           .font('Helvetica')
+           .text(`Subtotal: RM ${purchase.subtotal.toFixed(2)}`, 360, yPosition + 10)
+           .text(`Tax (${purchase.taxRate}%): RM ${purchase.taxAmount.toFixed(2)}`, 360, yPosition + 25)
+           .text(`Shipping: RM ${purchase.shippingCost.toFixed(2)}`, 360, yPosition + 40);
+        
+        doc.moveTo(350, yPosition + 55).lineTo(550, yPosition + 55).stroke();
+        
+        doc.fontSize(12)
+           .font('Helvetica-Bold')
+           .text(`TOTAL: RM ${purchase.totalAmount.toFixed(2)}`, 360, yPosition + 70);
+
+        // ==================== PAYMENT INFORMATION ====================
+        yPosition += 120;
+        
+        if (yPosition > 650) {
+          doc.addPage();
+          yPosition = 50;
+        }
+        
+        doc.fillColor('#2c5aa0')
+           .fontSize(12)
+           .font('Helvetica-Bold')
+           .text('PAYMENT INFORMATION:', 50, yPosition);
+        
+        yPosition += 20;
+        
+        doc.fillColor('#000000')
+           .fontSize(10)
+           .font('Helvetica')
+           .text(`Payment Method: ${purchase.paymentMethod}`, 50, yPosition)
+           .text(`Notes: ${purchase.notes || 'No additional notes'}`, 50, yPosition + 15);
+
+        // ==================== FOOTER ====================
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(8)
+             .fillColor('#666666')
+             .text('Generated by L&B Company Purchase System', 50, doc.page.height - 40)
+             .text(`Printed by: ${printedBy} | Page ${i + 1} of ${pages.count}`, 50, doc.page.height - 25);
+        }
+        
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving Purchase PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf"
+    });
+
+    console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Purchase Invoice PDF: ${filename}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+    console.log(`📤 Purchase PDF sent to browser: ${filename}`);
+
+  } catch (err) {
+    console.error("❌ Purchase PDF Generation Error:", err);
+    res.status(500).json({ message: "Purchase PDF generation failed: " + err.message });
   }
 });
 
