@@ -95,10 +95,11 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  if(qs('#totalValue')) qs('#totalValue').textContent = totalValue.toFixed(2);
-  if(qs('#totalRevenue')) qs('#totalRevenue').textContent = totalRevenue.toFixed(2);
-  if(qs('#totalProfit')) qs('#totalProfit').textContent = totalProfit.toFixed(2);
-  if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
+  // Update modern summary cards instead of old totals
+  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalValue.toFixed(2)}`;
+  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+  if(qs('#cardTotalProfit')) qs('#cardTotalProfit').textContent = `RM ${totalProfit.toFixed(2)}`;
+  if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
 }
 
 // =========================================
@@ -492,10 +493,12 @@ function renderDashboardData(){
       totalStock += qty;
     });
     qs('#dash_totalItems').textContent = inventory.length;
-    qs('#dash_totalValue').textContent = totalValue.toFixed(2);
-    qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
-    qs('#dash_totalProfit').textContent = totalProfit.toFixed(2);
-    qs('#dash_totalStock').textContent = totalStock;
+    
+    // Update dashboard cards if they exist
+    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = totalValue.toFixed(2);
+    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
+    if(qs('#dash_totalProfit')) qs('#dash_totalProfit').textContent = totalProfit.toFixed(2);
+    if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
   }
 }
 
@@ -1031,6 +1034,12 @@ document.addEventListener('DOMContentLoaded', ()=> {
   }
 });
 
+// Tooltip function for cards
+function showCardTooltip(message) {
+  // Simple alert for now, can be enhanced with a proper tooltip library
+  // alert(message);
+}
+
 // Expose functions for inline onclick handlers
 window.logout = logout;
 window.toggleTheme = toggleTheme;
@@ -1040,3 +1049,4 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
+window.showCardTooltip = showCardTooltip;
