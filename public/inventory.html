@@ -24,6 +24,49 @@
   </header>
 
   <section>
+    <!-- NEW: Inventory Summary Cards -->
+    <div class="inventory-summary">
+      <div class="summary-card value-card">
+        <div class="card-icon">💰</div>
+        <div class="card-content">
+          <h3>Total Inventory Value</h3>
+          <div class="card-amount">RM <span id="summaryTotalValue">0.00</span></div>
+          <div class="card-subtitle">Current stock worth</div>
+        </div>
+        <div class="card-wave"></div>
+      </div>
+      
+      <div class="summary-card revenue-card">
+        <div class="card-icon">📈</div>
+        <div class="card-content">
+          <h3>Total Potential Revenue</h3>
+          <div class="card-amount">RM <span id="summaryTotalRevenue">0.00</span></div>
+          <div class="card-subtitle">If all items sold</div>
+        </div>
+        <div class="card-wave"></div>
+      </div>
+      
+      <div class="summary-card profit-card">
+        <div class="card-icon">💸</div>
+        <div class="card-content">
+          <h3>Total Potential Profit</h3>
+          <div class="card-amount">RM <span id="summaryTotalProfit">0.00</span></div>
+          <div class="card-subtitle">Revenue minus cost</div>
+        </div>
+        <div class="card-wave"></div>
+      </div>
+      
+      <div class="summary-card stock-card">
+        <div class="card-icon">📦</div>
+        <div class="card-content">
+          <h3>Total Stock Quantity</h3>
+          <div class="card-amount"><span id="summaryTotalStock">0</span></div>
+          <div class="card-subtitle">Items in inventory</div>
+        </div>
+        <div class="card-wave"></div>
+      </div>
+    </div>
+
     <h2>Add New Product</h2>
     <div class="product-bar">
       <input id="p_sku" placeholder="Item ID / SKU" type="text" />
@@ -89,12 +132,7 @@
       </table>
     </div>
 
-    <div class="totals" id="inventoryTotals">
-      <div>Total Inventory Value: RM <span id="totalValue">0.00</span></div>
-      <div>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></div>
-      <div>Total Potential Profit: RM <span id="totalProfit">0.00</span></div>
-      <div>Total Stock Quantity: <span id="totalStock">0</span></div>
-    </div>
+    <!-- REMOVED: Bottom totals section -->
   </section>
 
   <!-- JS -->
@@ -105,4 +143,3 @@
   </script>
 </body>
 </html>
-
