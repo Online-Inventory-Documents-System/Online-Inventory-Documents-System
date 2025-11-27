@@ -72,6 +72,44 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
+// ===== NEW: Purchase Schema =====
+const PurchaseSchema = new Schema({
+  sku: String,
+  productName: String,
+  category: String,
+  quantity: { type: Number, default: 0 },
+  unitCost: { type: Number, default: 0 },
+  supplier: String,
+  invoiceNo: String,
+  date: { type: Date, default: Date.now }
+});
+const Purchase = mongoose.model("Purchase", PurchaseSchema);
+
+// ===== NEW: Sales Schema =====
+const SalesSchema = new Schema({
+  sku: String,
+  productName: String,
+  category: String,
+  quantity: { type: Number, default: 0 },
+  unitPrice: { type: Number, default: 0 },
+  unitCost: { type: Number, default: 0 },
+  customer: String,
+  invoiceNo: String,
+  date: { type: Date, default: Date.now }
+});
+const Sales = mongoose.model("Sales", SalesSchema);
+
+// ===== NEW: Company Information Schema =====
+const CompanySchema = new Schema({
+  name: { type: String, required: true },
+  address: String,
+  phone: String,
+  email: String,
+  taxId: String,
+  updatedAt: { type: Date, default: Date.now }
+});
+const Company = mongoose.model("Company", CompanySchema);
+
 // ===== Duplicate Log Protection =====
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
@@ -300,6 +338,204 @@ app.delete("/api/inventory/:id", async (req, res) => {
   } catch (err) {
     console.error("inventory delete error", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                               PURCHASE MANAGEMENT
+// ============================================================================
+app.get("/api/purchases", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({}).sort({ date: -1 }).lean();
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("Purchases get error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/purchases", async (req, res) => {
+  try {
+    const purchase = await Purchase.create(req.body);
+    
+    // Update inventory quantity
+    const inventoryItem = await Inventory.findOne({ sku: purchase.sku });
+    if (inventoryItem) {
+      inventoryItem.quantity += purchase.quantity;
+      inventoryItem.unitCost = purchase.unitCost; // Update cost with latest purchase
+      await inventoryItem.save();
+    }
+
+    await logActivity(req.headers["x-username"], `Purchased: ${purchase.quantity} x ${purchase.productName} from ${purchase.supplier}`);
+    
+    res.status(201).json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+  } catch (err) {
+    console.error("Purchase post error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findByIdAndDelete(req.params.id);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    // Reverse inventory update
+    const inventoryItem = await Inventory.findOne({ sku: purchase.sku });
+    if (inventoryItem) {
+      inventoryItem.quantity -= purchase.quantity;
+      await inventoryItem.save();
+    }
+
+    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName} from ${purchase.supplier}`);
+    res.status(204).send();
+  } catch (err) {
+    console.error("Purchase delete error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                               SALES MANAGEMENT
+// ============================================================================
+app.get("/api/sales", async (req, res) => {
+  try {
+    const sales = await Sales.find({}).sort({ date: -1 }).lean();
+    const normalized = sales.map(s => ({
+      ...s,
+      id: s._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("Sales get error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/sales", async (req, res) => {
+  try {
+    const { sku, quantity, unitPrice } = req.body;
+    
+    // Check inventory and get unit cost
+    const inventoryItem = await Inventory.findOne({ sku });
+    if (!inventoryItem) {
+      return res.status(404).json({ message: "Product not found in inventory" });
+    }
+    
+    if (inventoryItem.quantity < quantity) {
+      return res.status(400).json({ message: `Insufficient stock. Available: ${inventoryItem.quantity}` });
+    }
+
+    const saleData = {
+      ...req.body,
+      unitCost: inventoryItem.unitCost // Include unit cost for profit calculation
+    };
+
+    const sale = await Sales.create(saleData);
+    
+    // Update inventory quantity
+    inventoryItem.quantity -= quantity;
+    await inventoryItem.save();
+
+    await logActivity(req.headers["x-username"], `Sold: ${sale.quantity} x ${sale.productName} to ${sale.customer}`);
+    
+    res.status(201).json({
+      ...sale.toObject(),
+      id: sale._id.toString()
+    });
+  } catch (err) {
+    console.error("Sales post error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/sales/:id", async (req, res) => {
+  try {
+    const sale = await Sales.findByIdAndDelete(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+
+    // Reverse inventory update
+    const inventoryItem = await Inventory.findOne({ sku: sale.sku });
+    if (inventoryItem) {
+      inventoryItem.quantity += sale.quantity;
+      await inventoryItem.save();
+    }
+
+    await logActivity(req.headers["x-username"], `Deleted sale: ${sale.productName} to ${sale.customer}`);
+    res.status(204).send();
+  } catch (err) {
+    console.error("Sales delete error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                           COMPANY INFORMATION
+// ============================================================================
+app.get("/api/company", async (req, res) => {
+  try {
+    let company = await Company.findOne({});
+    if (!company) {
+      // Create default company info if doesn't exist
+      company = await Company.create({
+        name: "L&B Company",
+        address: "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka",
+        phone: "01133127622",
+        email: "lbcompany@gmail.com",
+        taxId: ""
+      });
+    }
+    res.json(company);
+  } catch (err) {
+    console.error("Company info error:", err);
+    res.status(500).json({ message: "Failed to get company information" });
+  }
+});
+
+app.put("/api/company", async (req, res) => {
+  try {
+    const { name, address, phone, email, taxId } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ message: "Company name is required" });
+    }
+
+    let company = await Company.findOne({});
+    if (company) {
+      company.name = name;
+      company.address = address;
+      company.phone = phone;
+      company.email = email;
+      company.taxId = taxId;
+      company.updatedAt = new Date();
+      await company.save();
+    } else {
+      company = await Company.create({
+        name,
+        address,
+        phone,
+        email,
+        taxId,
+        updatedAt: new Date()
+      });
+    }
+
+    await logActivity(req.headers["x-username"], "Updated company information");
+    res.json(company);
+  } catch (err) {
+    console.error("Company update error:", err);
+    res.status(500).json({ message: "Failed to update company information" });
   }
 });
 
@@ -959,6 +1195,19 @@ async function ensureDefaultAdminAndStartupLog() {
       await User.create({ username: "admin", password: "password" });
       await logActivity("System", "Default admin user created");
     }
+    
+    // Ensure default company info exists
+    const companyCount = await Company.countDocuments({}).exec();
+    if (companyCount === 0) {
+      await Company.create({
+        name: "L&B Company",
+        address: "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka",
+        phone: "01133127622",
+        email: "lbcompany@gmail.com",
+        taxId: ""
+      });
+    }
+    
     await logActivity("System", `Server started on port ${PORT}`);
   } catch (err) {
     console.error("Startup error:", err);
