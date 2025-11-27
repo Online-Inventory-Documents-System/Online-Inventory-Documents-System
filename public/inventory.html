@@ -28,16 +28,9 @@
       <input id="p_name" placeholder="Item Name" type="text" />
       <input id="p_category" placeholder="Category" type="text" />
       <input id="p_quantity" placeholder="Quantity" type="number" min="0" />
-      <input id="p_minStockLevel" placeholder="Min Stock Level" type="number" min="0" title="Low stock alert threshold" />
       <input id="p_unitCost" placeholder="Unit Cost" type="number" step="0.01" />
       <input id="p_unitPrice" placeholder="Unit Price" type="number" step="0.01" />
       <button id="addProductBtn" class="primary-btn">+ Add Product</button>
-    </div>
-
-    <!-- Low Stock Alert Banner -->
-    <div id="lowStockAlert" class="alert-banner warning" style="display: none;">
-      <span id="lowStockCount">0</span> items are below minimum stock level!
-      <button onclick="showLowStockItems()" class="secondary-btn small-btn">View Details</button>
     </div>
 
     <h2>Current Inventory List</h2> 
@@ -45,11 +38,10 @@
       <div style="display:flex; gap:10px;">
         <button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button>
         <button id="pdfReportBtn" class="primary-btn">📄 Generate PDF Inventory Report</button>
-        <button id="lowStockReportBtn" class="warning-btn">⚠️ Low Stock Report</button>
       </div>
 
       <div class="search-controls">
-        <!-- Date Range Search Controls -->
+        <!-- UPDATED: Date Range Search Controls -->
         <div class="date-range-container">
           <label for="startDate">📅 Date Range:</label>
           <div class="date-inputs">
@@ -66,7 +58,7 @@
           </div>
         </div>
         
-        <!-- Text Search -->
+        <!-- Existing Text Search -->
         <div class="text-search-container">
           <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
           <button id="clearSearchBtn" class="secondary-btn">Clear Text</button>
@@ -82,8 +74,6 @@
                   <th>Name</th>
                   <th>Category</th>
                   <th>Quantity</th>
-                  <th>Min Stock</th>
-                  <th>Status</th>
                   <th class="money">Unit Cost</th>
                   <th class="money">Unit Price</th>
                   <th class="money">Inventory Value</th>
@@ -102,80 +92,8 @@
       <div>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></div>
       <div>Total Potential Profit: RM <span id="totalProfit">0.00</span></div>
       <div>Total Stock Quantity: <span id="totalStock">0</span></div>
-      <div id="lowStockSummary" style="color: #e74c3c; font-weight: bold;"></div>
     </div>
   </section>
-
-  <!-- Stock In/Out Modals -->
-  <div id="stockInModal" class="modal">
-    <div class="modal-content">
-      <span class="close">&times;</span>
-      <h3>📥 Stock In</h3>
-      <p>Product: <strong id="stockInProductName"></strong></p>
-      <p>Current Stock: <strong id="stockInCurrentStock"></strong></p>
-      
-      <label for="stockInQuantity">Quantity to Add:</label>
-      <input id="stockInQuantity" type="number" min="1" value="1" />
-      
-      <label for="stockInReason">Reason (Optional):</label>
-      <input id="stockInReason" placeholder="e.g., New shipment, Returned goods" type="text" />
-      
-      <div class="modal-actions">
-        <button id="confirmStockIn" class="success-btn">Confirm Stock In</button>
-        <button class="secondary-btn" onclick="closeModal('stockInModal')">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="stockOutModal" class="modal">
-    <div class="modal-content">
-      <span class="close">&times;</span>
-      <h3>📤 Stock Out</h3>
-      <p>Product: <strong id="stockOutProductName"></strong></p>
-      <p>Current Stock: <strong id="stockOutCurrentStock"></strong></p>
-      
-      <label for="stockOutQuantity">Quantity to Remove:</label>
-      <input id="stockOutQuantity" type="number" min="1" value="1" />
-      
-      <label for="stockOutReason">Reason:</label>
-      <select id="stockOutReason">
-        <option value="Sold">Sold</option>
-        <option value="Damaged">Damaged</option>
-        <option value="Expired">Expired</option>
-        <option value="Returned">Returned to Supplier</option>
-        <option value="Sample">Sample/Test</option>
-        <option value="Other">Other</option>
-      </select>
-      <input id="stockOutCustomReason" placeholder="Custom reason..." type="text" style="display: none; margin-top: 5px;" />
-      
-      <div class="modal-actions">
-        <button id="confirmStockOut" class="warning-btn">Confirm Stock Out</button>
-        <button class="secondary-btn" onclick="closeModal('stockOutModal')">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Low Stock Items Modal -->
-  <div id="lowStockModal" class="modal">
-    <div class="modal-content" style="max-width: 800px;">
-      <span class="close">&times;</span>
-      <h3>⚠️ Low Stock Alert</h3>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Product Name</th>
-              <th>Current Stock</th>
-              <th>Min Stock Level</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="lowStockList"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 
   <!-- JS -->
   <script src="js/setting.js" defer></script>
