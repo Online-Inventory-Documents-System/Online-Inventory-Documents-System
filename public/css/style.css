@@ -6,6 +6,7 @@
   --secondary-color: #6c757d;
   --success-color: #28a745;
   --danger-color: #dc3545;
+  --warning-color: #e67e22;
   --background-light: #4F517D;
   --background-dark: #1f2833;
   --card-light: #ffffff;
@@ -128,7 +129,7 @@ input:focus {
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-.primary-btn, .secondary-btn, .success-btn, .danger-btn {
+.primary-btn, .secondary-btn, .success-btn, .danger-btn, .warning-btn {
     border: none;
     padding: 10px 15px;
     border-radius: 6px;
@@ -153,9 +154,141 @@ input:focus {
 }
 .danger-btn:hover { background: #bd2130; }
 
+.warning-btn { 
+    background: var(--warning-color); 
+    color: white; 
+}
+.warning-btn:hover { background: #d35400; }
+
 .action-btn {
     margin-left: 5px;
     padding: 6px 10px;
+}
+
+/* =========================================
+   STOCK ALERTS & MODAL STYLES
+========================================= */
+
+/* Alert Banner */
+.alert-banner {
+  padding: 12px 20px;
+  margin: 15px 0;
+  border-radius: 6px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: pulse 2s infinite;
+}
+
+.alert-banner.warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+.dark-mode .alert-banner.warning {
+  background-color: #4e4e3b;
+  border-color: #665c3b;
+  color: #ffd43b;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  background-color: var(--card-light);
+  margin: 5% auto;
+  padding: 25px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.dark-mode .modal-content {
+  background-color: var(--card-dark);
+}
+
+.modal .close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  position: absolute;
+  right: 15px;
+  top: 10px;
+}
+
+.modal .close:hover {
+  color: var(--danger-color);
+}
+
+.modal h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: var(--primary-color);
+}
+
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Stock Status Badges */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.status-normal { background: #d4edda; color: #155724; }
+.status-low { background: #fff3cd; color: #856404; }
+.status-out { background: #f8d7da; color: #721c24; }
+
+.dark-mode .status-normal { background: #2d4a2d; color: #90ee90; }
+.dark-mode .status-low { background: #4e4e3b; color: #ffd43b; }
+.dark-mode .status-out { background: #5c3b3b; color: #ff6b6b; }
+
+/* Enhanced table styling for new columns */
+#inventoryTable th:nth-child(5), /* Min Stock */
+#inventoryTable td:nth-child(5) {
+  min-width: 80px;
+  max-width: 90px;
+  text-align: center;
+}
+
+#inventoryTable th:nth-child(6), /* Status */
+#inventoryTable td:nth-child(6) {
+  min-width: 100px;
+  max-width: 110px;
+  text-align: center;
+}
+
+/* Update actions column width for new buttons */
+#inventoryTable td:nth-child(13) {
+  min-width: 180px;
+  max-width: 200px;
 }
 
 /* =========================================
@@ -390,7 +523,7 @@ input:focus {
     border-collapse: collapse;
     margin: 0;
     font-size: 0.82em; /* Slightly smaller font to fit more content */
-    min-width: 1100px; /* Increased to accommodate all columns comfortably */
+    min-width: 1200px; /* Increased to accommodate all columns comfortably */
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
@@ -451,11 +584,11 @@ input:focus {
 }
 
 /* CURRENCY COLUMNS */
-#inventoryTable td:nth-child(5), /* Unit Cost */
-#inventoryTable td:nth-child(6), /* Unit Price */
-#inventoryTable td:nth-child(7), /* Inventory Value */
-#inventoryTable td:nth-child(8), /* Potential Revenue */
-#inventoryTable td:nth-child(9) { /* Potential Profit */
+#inventoryTable td:nth-child(7), /* Unit Cost */
+#inventoryTable td:nth-child(8), /* Unit Price */
+#inventoryTable td:nth-child(9), /* Inventory Value */
+#inventoryTable td:nth-child(10), /* Potential Revenue */
+#inventoryTable td:nth-child(11) { /* Potential Profit */
     white-space: nowrap;
     text-align: right;
     font-family: 'Consolas', monospace;
@@ -465,17 +598,17 @@ input:focus {
 }
 
 /* Date column */
-#inventoryTable td:nth-child(10) {
+#inventoryTable td:nth-child(12) {
     text-align: center;
     min-width: 90px;
     max-width: 100px;
 }
 
 /* Actions column */
-#inventoryTable td:nth-child(11) {
+#inventoryTable td:nth-child(13) {
     text-align: center;
-    min-width: 100px;
-    max-width: 110px;
+    min-width: 180px;
+    max-width: 200px;
 }
 
 /* Documents table styling (no vertical borders) */
