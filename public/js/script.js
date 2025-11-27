@@ -15,6 +15,7 @@ const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 let inventory = [];
 let activityLog = [];
 let documents = [];
+let purchases = [];
 const currentPage = window.location.pathname.split('/').pop();
 
 // Fetch wrapper
@@ -533,16 +534,18 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
-// Purchase related functions
+// Purchase functions
 async function fetchPurchases() {
   try {
     const res = await apiFetch(`${API_BASE}/purchases`);
-    if(!res.ok) throw new Error('Failed to fetch purchases');
-    const data = await res.json();
-    return data;
-  } catch(err) { 
-    console.error(err);
-    return []; 
+    if(res.ok) {
+      purchases = await res.json();
+      if (window.renderPurchases) {
+        window.renderPurchases();
+      }
+    }
+  } catch(err) {
+    console.error('Error fetching purchases:', err);
   }
 }
 
@@ -562,6 +565,10 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('documents')) { 
       await fetchDocuments(); 
       bindDocumentsUI(); 
+    }
+    if(currentPage.includes('purchase')) { 
+      await fetchPurchases();
+      // Purchase page has its own initialization in purchase.html
     }
     if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
       await fetchLogs(); 
