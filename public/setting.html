@@ -8,12 +8,10 @@
 </head>
 <body>
 <header>
-  <h1>⚙️ Account & Company Settings</h1>
+  <h1>⚙️ Account Settings</h1>
   <nav>
     <a href="index.html">Home</a>
     <a href="inventory.html">Inventory</a>
-    <a href="purchase.html">Purchase</a>
-    <a href="sales.html">Sales</a>
     <a href="documents.html">Documents</a>
     <a href="log.html">Activity Log</a>
     <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
@@ -44,34 +42,6 @@
     <p id="passwordMessage" style="margin-top: 10px;"></p>
   </form>
 
-  <!-- NEW: Company Information Section -->
-  <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
-    <h3>🏢 Company Information</h3>
-    <p style="color: var(--secondary-color); margin-bottom: 20px;">
-      Update your company details that will appear on all reports and invoices.
-    </p>
-    
-    <form id="companyInfoForm">
-      <label for="companyName">Company Name</label>
-      <input id="companyName" type="text" placeholder="Enter company name" />
-      
-      <label for="companyAddress">Address</label>
-      <textarea id="companyAddress" placeholder="Enter company address" rows="3"></textarea>
-      
-      <label for="companyPhone">Phone Number</label>
-      <input id="companyPhone" type="text" placeholder="Enter phone number" />
-      
-      <label for="companyEmail">Email Address</label>
-      <input id="companyEmail" type="email" placeholder="Enter email address" />
-      
-      <label for="companyTaxId">Tax ID / Business Registration No</label>
-      <input id="companyTaxId" type="text" placeholder="Enter tax or business registration number" />
-      
-      <button id="saveCompanyInfoBtn" type="button" class="primary-btn" style="margin-top: 15px;">💾 Save Company Information</button>
-      <p id="companyInfoMessage" style="margin-top: 10px;"></p>
-    </form>
-  </div>
-
   <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
     <h3>Account Actions</h3>
     <button id="logoutBtn" type="button" class="secondary-btn" onclick="logout()">🚪 Logout</button>
@@ -81,7 +51,6 @@
 
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
-<script src="js/purchase-sales.js" defer></script>
 <script>
   // Tell script.js we are on the settings page so it can bind the password & delete account logic
   document.documentElement.dataset.page = 'setting';
@@ -91,12 +60,6 @@
     const adminName = sessionStorage.getItem('adminName') || 'Guest';
     if (document.getElementById('adminName')) document.getElementById('adminName').textContent = adminName;
     if (document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
-    
-    // Load company information
-    loadCompanyInformation();
-    
-    // Bind company info save button
-    document.getElementById('saveCompanyInfoBtn')?.addEventListener('click', saveCompanyInformation);
   });
 </script>
 </body>
