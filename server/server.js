@@ -72,6 +72,34 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
+// ===== NEW: Purchase Schema =====
+const PurchaseSchema = new Schema({
+  productId: { type: Schema.Types.ObjectId, ref: 'Inventory', required: true },
+  productName: { type: String, required: true },
+  sku: { type: String, required: true },
+  quantity: { type: Number, required: true, min: 1 },
+  unitCost: { type: Number, required: true, min: 0 },
+  totalCost: { type: Number, required: true, min: 0 },
+  supplier: { type: String, default: '' },
+  purchaseDate: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
+});
+const Purchase = mongoose.model("Purchase", PurchaseSchema);
+
+// ===== NEW: Sales Schema =====
+const SalesSchema = new Schema({
+  productId: { type: Schema.Types.ObjectId, ref: 'Inventory', required: true },
+  productName: { type: String, required: true },
+  sku: { type: String, required: true },
+  quantity: { type: Number, required: true, min: 1 },
+  unitPrice: { type: Number, required: true, min: 0 },
+  totalRevenue: { type: Number, required: true, min: 0 },
+  customer: { type: String, default: '' },
+  saleDate: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now }
+});
+const Sales = mongoose.model("Sales", SalesSchema);
+
 // ===== Duplicate Log Protection =====
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
@@ -300,6 +328,688 @@ app.delete("/api/inventory/:id", async (req, res) => {
   } catch (err) {
     console.error("inventory delete error", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                               PURCHASE SYSTEM
+// ============================================================================
+app.get("/api/purchases", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({})
+      .populate('productId', 'name sku unitCost')
+      .sort({ purchaseDate: -1 })
+      .lean();
+    
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString(),
+      product: p.productId ? {
+        name: p.productId.name,
+        sku: p.productId.sku,
+        unitCost: p.productId.unitCost
+      } : { name: p.productName, sku: p.sku }
+    }));
+    
+    res.json(normalized);
+  } catch (err) {
+    console.error("purchases get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/purchases", async (req, res) => {
+  try {
+    const { productId, quantity, unitCost, supplier, purchaseDate } = req.body;
+    
+    // Get product details
+    const product = await Inventory.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const totalCost = quantity * unitCost;
+
+    const purchase = await Purchase.create({
+      productId,
+      productName: product.name,
+      sku: product.sku,
+      quantity,
+      unitCost,
+      totalCost,
+      supplier: supplier || '',
+      purchaseDate: purchaseDate || new Date()
+    });
+
+    // Update inventory quantity and unit cost
+    product.quantity = (product.quantity || 0) + quantity;
+    product.unitCost = unitCost; // Update to latest purchase cost
+    await product.save();
+
+    await logActivity(req.headers["x-username"], `Purchased: ${product.name} (${quantity} units)`);
+
+    res.status(201).json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase post error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.put("/api/purchases/:id", async (req, res) => {
+  try {
+    const { quantity, unitCost, supplier, purchaseDate } = req.body;
+    
+    const existingPurchase = await Purchase.findById(req.params.id);
+    if (!existingPurchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const product = await Inventory.findById(existingPurchase.productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Revert old quantity
+    product.quantity = (product.quantity || 0) - existingPurchase.quantity;
+    
+    const totalCost = quantity * unitCost;
+
+    const purchase = await Purchase.findByIdAndUpdate(
+      req.params.id, 
+      {
+        quantity,
+        unitCost,
+        totalCost,
+        supplier: supplier || '',
+        purchaseDate: purchaseDate || existingPurchase.purchaseDate
+      }, 
+      { new: true }
+    );
+
+    // Apply new quantity
+    product.quantity = product.quantity + quantity;
+    product.unitCost = unitCost; // Update to latest purchase cost
+    await product.save();
+
+    await logActivity(req.headers["x-username"], `Updated purchase: ${product.name}`);
+
+    res.json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id);
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const product = await Inventory.findById(purchase.productId);
+    if (product) {
+      // Revert inventory quantity
+      product.quantity = Math.max(0, (product.quantity || 0) - purchase.quantity);
+      await product.save();
+    }
+
+    await Purchase.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName}`);
+
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("purchase delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                               SALES SYSTEM
+// ============================================================================
+app.get("/api/sales", async (req, res) => {
+  try {
+    const sales = await Sales.find({})
+      .populate('productId', 'name sku unitPrice')
+      .sort({ saleDate: -1 })
+      .lean();
+    
+    const normalized = sales.map(s => ({
+      ...s,
+      id: s._id.toString(),
+      product: s.productId ? {
+        name: s.productId.name,
+        sku: s.productId.sku,
+        unitPrice: s.productId.unitPrice
+      } : { name: s.productName, sku: s.sku }
+    }));
+    
+    res.json(normalized);
+  } catch (err) {
+    console.error("sales get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/sales", async (req, res) => {
+  try {
+    const { productId, quantity, unitPrice, customer, saleDate } = req.body;
+    
+    // Get product details
+    const product = await Inventory.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Check if enough stock
+    if ((product.quantity || 0) < quantity) {
+      return res.status(400).json({ message: "Insufficient stock" });
+    }
+
+    const totalRevenue = quantity * unitPrice;
+
+    const sale = await Sales.create({
+      productId,
+      productName: product.name,
+      sku: product.sku,
+      quantity,
+      unitPrice,
+      totalRevenue,
+      customer: customer || '',
+      saleDate: saleDate || new Date()
+    });
+
+    // Update inventory quantity
+    product.quantity = Math.max(0, (product.quantity || 0) - quantity);
+    await product.save();
+
+    await logActivity(req.headers["x-username"], `Sold: ${product.name} (${quantity} units)`);
+
+    res.status(201).json({
+      ...sale.toObject(),
+      id: sale._id.toString()
+    });
+
+  } catch (err) {
+    console.error("sale post error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.put("/api/sales/:id", async (req, res) => {
+  try {
+    const { quantity, unitPrice, customer, saleDate } = req.body;
+    
+    const existingSale = await Sales.findById(req.params.id);
+    if (!existingSale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+
+    const product = await Inventory.findById(existingSale.productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Revert old quantity
+    product.quantity = (product.quantity || 0) + existingSale.quantity;
+    
+    // Check if enough stock for new quantity
+    if ((product.quantity || 0) < quantity) {
+      return res.status(400).json({ message: "Insufficient stock" });
+    }
+
+    const totalRevenue = quantity * unitPrice;
+
+    const sale = await Sales.findByIdAndUpdate(
+      req.params.id, 
+      {
+        quantity,
+        unitPrice,
+        totalRevenue,
+        customer: customer || '',
+        saleDate: saleDate || existingSale.saleDate
+      }, 
+      { new: true }
+    );
+
+    // Apply new quantity
+    product.quantity = product.quantity - quantity;
+    await product.save();
+
+    await logActivity(req.headers["x-username"], `Updated sale: ${product.name}`);
+
+    res.json({
+      ...sale.toObject(),
+      id: sale._id.toString()
+    });
+
+  } catch (err) {
+    console.error("sale update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/sales/:id", async (req, res) => {
+  try {
+    const sale = await Sales.findById(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ message: "Sale not found" });
+    }
+
+    const product = await Inventory.findById(sale.productId);
+    if (product) {
+      // Revert inventory quantity
+      product.quantity = (product.quantity || 0) + sale.quantity;
+      await product.save();
+    }
+
+    await Sales.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted sale: ${sale.productName}`);
+
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("sale delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                    PURCHASE PDF REPORT - INVOICE STYLE
+// ============================================================================
+app.get("/api/purchases/report/pdf", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({})
+      .populate('productId')
+      .sort({ purchaseDate: -1 })
+      .lean();
+
+    const now = new Date();
+    const printDate = new Date(now).toLocaleString('en-US', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const reportId = `PUR-${Date.now()}`;
+    const printedBy = req.headers["x-username"] || "System";
+    const filename = `Purchase_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+    console.log(`📊 Generating Purchase PDF report: ${filename}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        let pdfChunks = [];
+
+        const doc = new PDFDocument({
+          size: "A4",
+          layout: "portrait",
+          margin: 50,
+          bufferPages: true
+        });
+
+        doc.on("data", chunk => {
+          pdfChunks.push(chunk);
+        });
+        
+        doc.on("end", () => {
+          const buffer = Buffer.concat(pdfChunks);
+          console.log(`✅ Purchase PDF generation completed: ${buffer.length} bytes`);
+          resolve(buffer);
+        });
+        
+        doc.on("error", (error) => {
+          console.error('❌ Purchase PDF generation error:', error);
+          reject(error);
+        });
+
+        // ==================== PDF CONTENT GENERATION ====================
+        // Header
+        doc.fontSize(24).font("Helvetica-Bold").text("L&B COMPANY", 50, 50);
+        doc.fontSize(10).font("Helvetica");
+        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 50, 80);
+        doc.text("Phone: 01133127622 | Email: lbcompany@gmail.com", 50, 95);
+
+        // Invoice Title
+        doc.fontSize(18).font("Helvetica-Bold")
+           .text("PURCHASE INVOICE", 400, 50, { align: "right" });
+        
+        doc.fontSize(10).font("Helvetica");
+        doc.text(`Invoice No: ${reportId}`, 400, 80, { align: "right" });
+        doc.text(`Date: ${printDate}`, 400, 95, { align: "right" });
+        doc.text(`Prepared by: ${printedBy}`, 400, 110, { align: "right" });
+
+        doc.moveTo(50, 130).lineTo(550, 130).stroke();
+
+        // Purchase Summary
+        let totalPurchases = 0;
+        let totalQuantity = 0;
+        
+        purchases.forEach(purchase => {
+          totalPurchases += purchase.totalCost || 0;
+          totalQuantity += purchase.quantity || 0;
+        });
+
+        doc.fontSize(12).font("Helvetica-Bold").text("Purchase Summary", 50, 150);
+        doc.fontSize(10).font("Helvetica");
+        doc.text(`Total Items Purchased: ${purchases.length}`, 50, 170);
+        doc.text(`Total Quantity: ${totalQuantity} units`, 50, 185);
+        doc.text(`Total Purchase Value: RM ${totalPurchases.toFixed(2)}`, 50, 200);
+
+        // Table Header
+        let y = 250;
+        const rowHeight = 20;
+        
+        const columns = [
+          { name: "Date", x: 50, width: 80 },
+          { name: "SKU", x: 130, width: 80 },
+          { name: "Product Name", x: 210, width: 120 },
+          { name: "Supplier", x: 330, width: 80 },
+          { name: "Qty", x: 410, width: 40 },
+          { name: "Unit Cost", x: 450, width: 60 },
+          { name: "Total Cost", x: 510, width: 60 }
+        ];
+        
+        function drawTableHeader() {
+          doc.rect(50, y, 500, rowHeight).fillAndStroke("#f0f0f0", "#000000");
+          
+          doc.font("Helvetica-Bold").fontSize(9);
+          columns.forEach(col => {
+            doc.text(col.name, col.x + 3, y + 6);
+          });
+          
+          y += rowHeight;
+        }
+
+        function drawTableRow(purchase) {
+          doc.rect(50, y, 500, rowHeight).stroke();
+          
+          doc.font("Helvetica").fontSize(8);
+          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), columns[0].x + 3, y + 6);
+          doc.text(purchase.sku || "", columns[1].x + 3, y + 6);
+          doc.text(purchase.productName || "", columns[2].x + 3, y + 6);
+          doc.text(purchase.supplier || "N/A", columns[3].x + 3, y + 6);
+          doc.text(String(purchase.quantity || 0), columns[4].x + 3, y + 6);
+          doc.text(`RM ${(purchase.unitCost || 0).toFixed(2)}`, columns[5].x + 3, y + 6);
+          doc.text(`RM ${(purchase.totalCost || 0).toFixed(2)}`, columns[6].x + 3, y + 6);
+          
+          y += rowHeight;
+        }
+
+        // Draw header
+        drawTableHeader();
+        
+        let rowsOnPage = 0;
+        for (const purchase of purchases) {
+          if (rowsOnPage === 20) {
+            doc.addPage({ size: "A4", layout: "portrait", margin: 50 });
+            y = 50;
+            rowsOnPage = 0;
+            drawTableHeader();
+          }
+
+          drawTableRow(purchase);
+          rowsOnPage++;
+        }
+
+        // Footer with totals
+        y += 20;
+        doc.rect(350, y, 200, 60).stroke();
+        doc.font("Helvetica-Bold").fontSize(12);
+        doc.text("TOTAL SUMMARY", 360, y + 10);
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`Items Purchased: ${purchases.length}`, 360, y + 30);
+        doc.text(`Total Quantity: ${totalQuantity}`, 360, y + 45);
+        doc.text(`Total Purchase Value: RM ${totalPurchases.toFixed(2)}`, 360, y + 60);
+
+        doc.flushPages();
+
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
+          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+        }
+        
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving Purchase PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf"
+    });
+
+    console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Purchase Report PDF: ${filename}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+    console.log(`📤 Purchase PDF sent to browser: ${filename}`);
+
+  } catch (err) {
+    console.error("❌ Purchase PDF Generation Error:", err);
+    res.status(500).json({ message: "Purchase PDF generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SALES PDF REPORT - INVOICE STYLE
+// ============================================================================
+app.get("/api/sales/report/pdf", async (req, res) => {
+  try {
+    const sales = await Sales.find({})
+      .populate('productId')
+      .sort({ saleDate: -1 })
+      .lean();
+
+    const now = new Date();
+    const printDate = new Date(now).toLocaleString('en-US', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const reportId = `SAL-${Date.now()}`;
+    const printedBy = req.headers["x-username"] || "System";
+    const filename = `Sales_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+    console.log(`📊 Generating Sales PDF report: ${filename}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        let pdfChunks = [];
+
+        const doc = new PDFDocument({
+          size: "A4",
+          layout: "portrait",
+          margin: 50,
+          bufferPages: true
+        });
+
+        doc.on("data", chunk => {
+          pdfChunks.push(chunk);
+        });
+        
+        doc.on("end", () => {
+          const buffer = Buffer.concat(pdfChunks);
+          console.log(`✅ Sales PDF generation completed: ${buffer.length} bytes`);
+          resolve(buffer);
+        });
+        
+        doc.on("error", (error) => {
+          console.error('❌ Sales PDF generation error:', error);
+          reject(error);
+        });
+
+        // ==================== PDF CONTENT GENERATION ====================
+        // Header
+        doc.fontSize(24).font("Helvetica-Bold").text("L&B COMPANY", 50, 50);
+        doc.fontSize(10).font("Helvetica");
+        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 50, 80);
+        doc.text("Phone: 01133127622 | Email: lbcompany@gmail.com", 50, 95);
+
+        // Invoice Title
+        doc.fontSize(18).font("Helvetica-Bold")
+           .text("SALES INVOICE", 400, 50, { align: "right" });
+        
+        doc.fontSize(10).font("Helvetica");
+        doc.text(`Invoice No: ${reportId}`, 400, 80, { align: "right" });
+        doc.text(`Date: ${printDate}`, 400, 95, { align: "right" });
+        doc.text(`Prepared by: ${printedBy}`, 400, 110, { align: "right" });
+
+        doc.moveTo(50, 130).lineTo(550, 130).stroke();
+
+        // Sales Summary
+        let totalSales = 0;
+        let totalQuantity = 0;
+        
+        sales.forEach(sale => {
+          totalSales += sale.totalRevenue || 0;
+          totalQuantity += sale.quantity || 0;
+        });
+
+        doc.fontSize(12).font("Helvetica-Bold").text("Sales Summary", 50, 150);
+        doc.fontSize(10).font("Helvetica");
+        doc.text(`Total Items Sold: ${sales.length}`, 50, 170);
+        doc.text(`Total Quantity: ${totalQuantity} units`, 50, 185);
+        doc.text(`Total Sales Revenue: RM ${totalSales.toFixed(2)}`, 50, 200);
+
+        // Table Header
+        let y = 250;
+        const rowHeight = 20;
+        
+        const columns = [
+          { name: "Date", x: 50, width: 80 },
+          { name: "SKU", x: 130, width: 80 },
+          { name: "Product Name", x: 210, width: 120 },
+          { name: "Customer", x: 330, width: 80 },
+          { name: "Qty", x: 410, width: 40 },
+          { name: "Unit Price", x: 450, width: 60 },
+          { name: "Total Revenue", x: 510, width: 60 }
+        ];
+        
+        function drawTableHeader() {
+          doc.rect(50, y, 500, rowHeight).fillAndStroke("#f0f0f0", "#000000");
+          
+          doc.font("Helvetica-Bold").fontSize(9);
+          columns.forEach(col => {
+            doc.text(col.name, col.x + 3, y + 6);
+          });
+          
+          y += rowHeight;
+        }
+
+        function drawTableRow(sale) {
+          doc.rect(50, y, 500, rowHeight).stroke();
+          
+          doc.font("Helvetica").fontSize(8);
+          doc.text(new Date(sale.saleDate).toLocaleDateString(), columns[0].x + 3, y + 6);
+          doc.text(sale.sku || "", columns[1].x + 3, y + 6);
+          doc.text(sale.productName || "", columns[2].x + 3, y + 6);
+          doc.text(sale.customer || "N/A", columns[3].x + 3, y + 6);
+          doc.text(String(sale.quantity || 0), columns[4].x + 3, y + 6);
+          doc.text(`RM ${(sale.unitPrice || 0).toFixed(2)}`, columns[5].x + 3, y + 6);
+          doc.text(`RM ${(sale.totalRevenue || 0).toFixed(2)}`, columns[6].x + 3, y + 6);
+          
+          y += rowHeight;
+        }
+
+        // Draw header
+        drawTableHeader();
+        
+        let rowsOnPage = 0;
+        for (const sale of sales) {
+          if (rowsOnPage === 20) {
+            doc.addPage({ size: "A4", layout: "portrait", margin: 50 });
+            y = 50;
+            rowsOnPage = 0;
+            drawTableHeader();
+          }
+
+          drawTableRow(sale);
+          rowsOnPage++;
+        }
+
+        // Footer with totals
+        y += 20;
+        doc.rect(350, y, 200, 60).stroke();
+        doc.font("Helvetica-Bold").fontSize(12);
+        doc.text("TOTAL SUMMARY", 360, y + 10);
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`Items Sold: ${sales.length}`, 360, y + 30);
+        doc.text(`Total Quantity: ${totalQuantity}`, 360, y + 45);
+        doc.text(`Total Sales Revenue: RM ${totalSales.toFixed(2)}`, 360, y + 60);
+
+        doc.flushPages();
+
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
+          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+        }
+        
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving Sales PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf"
+    });
+
+    console.log(`✅ Sales PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Sales Report PDF: ${filename}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+    console.log(`📤 Sales PDF sent to browser: ${filename}`);
+
+  } catch (err) {
+    console.error("❌ Sales PDF Generation Error:", err);
+    res.status(500).json({ message: "Sales PDF generation failed: " + err.message });
   }
 });
 
