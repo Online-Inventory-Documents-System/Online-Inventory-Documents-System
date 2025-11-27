@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sales | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* Sales specific styles */
+    .sales-summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .sales-card {
+      position: relative;
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      border-radius: 16px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-height: 140px;
+      display: flex;
+      align-items: center;
+      animation: slideInUp 0.6s ease;
+    }
+
+    .sales-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+    }
+
+    .sales-card:nth-child(2) {
+      background: linear-gradient(135deg, #a8e6cf, #56ab2f);
+    }
+
+    .sales-card:nth-child(3) {
+      background: linear-gradient(135deg, #ffd93d, #ff9a3d);
+    }
+
+    .sales-card:nth-child(4) {
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+    }
+
+    .sales-form {
+      background: var(--card-light);
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      margin-bottom: 25px;
+      animation: fadeIn 0.8s ease;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      align-items: end;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--primary-color);
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 12px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      outline: none;
+    }
+
+    .total-revenue-display {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-top: 10px;
+      animation: pulse 2s infinite;
+    }
+
+    .stock-warning {
+      color: #e74c3c;
+      font-size: 0.9rem;
+      margin-top: 5px;
+      font-weight: 600;
+      animation: shake 0.5s ease;
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .transaction-item {
+      animation: slideInRight 0.5s ease;
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .dark-mode .sales-form {
+      background: var(--card-dark);
+    }
+
+    .dark-mode .form-group input,
+    .dark-mode .form-group select {
+      background: #495057;
+      color: var(--text-dark);
+      border-color: #6c757d;
+    }
+
+    .dark-mode .form-group input:focus,
+    .dark-mode .form-group select:focus {
+      border-color: #80bdff;
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛍️ Sales Management</h1>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="purchase.html">Purchase</a>
+      <a href="sales.html" class="active">Sales</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
+
+  <section>
+    <!-- MODERN SUMMARY CARDS -->
+    <div class="sales-summary-cards">
+      <div class="sales-card" onclick="showCardTooltip('Total number of sales transactions')">
+        <div class="card-icon">🛒</div>
+        <div class="card-content">
+          <div class="card-title">Total Sales</div>
+          <div class="card-value" id="cardTotalSales">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="sales-card" onclick="showCardTooltip('Total quantity of items sold')">
+        <div class="card-icon">📊</div>
+        <div class="card-content">
+          <div class="card-title">Total Quantity</div>
+          <div class="card-value" id="cardTotalSold">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="sales-card" onclick="showCardTooltip('Total revenue generated from sales')">
+        <div class="card-icon">💰</div>
+        <div class="card-content">
+          <div class="card-title">Total Revenue</div>
+          <div class="card-value" id="cardTotalRevenue">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="sales-card" onclick="showCardTooltip('Average revenue per sales transaction')">
+        <div class="card-icon">📈</div>
+        <div class="card-content">
+          <div class="card-title">Average Sale</div>
+          <div class="card-value" id="cardAverageSale">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Add New Sale</h2>
+    <div class="sales-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="salesProduct">Product *</label>
+          <select id="salesProduct" required>
+            <option value="">Select Product</option>
+          </select>
+          <div id="stockInfo" class="stock-info"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="salesQuantity">Quantity *</label>
+          <input id="salesQuantity" type="number" min="1" value="1" required>
+          <div id="stockWarning" class="stock-warning" style="display: none;"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="salesUnitPrice">Unit Price (RM) *</label>
+          <input id="salesUnitPrice" type="number" step="0.01" min="0" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="salesCustomer">Customer</label>
+          <input id="salesCustomer" type="text" placeholder="Customer name">
+        </div>
+        
+        <div class="form-group">
+          <label for="salesDate">Sale Date</label>
+          <input id="salesDate" type="date">
+        </div>
+      </div>
+      
+      <div class="total-revenue-display" id="totalRevenueDisplay">
+        Total Revenue: RM 0.00
+      </div>
+      
+      <button id="addSalesBtn" class="primary-btn" style="margin-top: 15px; width: 100%;">
+        + Add Sale
+      </button>
+    </div>
+
+    <h2>Sales Transactions</h2>
+    <div class="controls">
+      <div style="display:flex; gap:10px; flex-wrap: wrap;">
+        <button id="salesReportBtn" class="success-btn">📄 Generate Sales PDF Report</button>
+        <button id="salesHistoryBtn" class="primary-btn">📋 View Sales History</button>
+      </div>
+
+      <div class="search-controls">
+        <!-- Date Range Search Controls -->
+        <div class="date-range-container">
+          <label for="salesStartDate">📅 Date Range:</label>
+          <div class="date-inputs">
+            <div class="date-input-group">
+              <span class="date-label">From:</span>
+              <input id="salesStartDate" type="date" />
+            </div>
+            <div class="date-input-group">
+              <span class="date-label">To:</span>
+              <input id="salesEndDate" type="date" />
+            </div>
+            <button id="applySalesDateRangeBtn" class="primary-btn">Apply</button>
+            <button id="clearSalesDateRangeBtn" class="secondary-btn">Clear Dates</button>
+          </div>
+        </div>
+        
+        <!-- Text Search -->
+        <div class="text-search-container">
+          <input id="salesSearchInput" placeholder="Search product, customer..." type="text" />
+          <button id="clearSalesSearchBtn" class="secondary-btn">Clear Text</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="table-container"> 
+      <table id="salesTable">
+          <thead>
+              <tr>
+                  <th>Date</th>
+                  <th>SKU</th>
+                  <th>Product Name</th>
+                  <th>Customer</th>
+                  <th>Quantity</th>
+                  <th class="money">Unit Price</th>
+                  <th class="money">Total Revenue</th>
+                  <th class="actions">Actions</th>
+              </tr>
+          </thead>
+          <tbody id="salesList"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- JS -->
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'sales';
+    
+    let sales = [];
+    let inventory = [];
+
+    // Initialize sales page
+    async function initSalesPage() {
+      await fetchInventory();
+      await fetchSales();
+      bindSalesUI();
+      updateSalesSummary();
+    }
+
+    // Fetch inventory for product selection
+    async function fetchInventory() {
+      try {
+        const res = await apiFetch(`${API_BASE}/inventory`);
+        if (!res.ok) throw new Error('Failed to fetch inventory');
+        inventory = await res.json();
+        populateSalesProductDropdown();
+      } catch (err) {
+        console.error('Inventory fetch error:', err);
+        alert('Failed to load products');
+      }
+    }
+
+    // Fetch sales
+    async function fetchSales() {
+      try {
+        const res = await apiFetch(`${API_BASE}/sales`);
+        if (!res.ok) throw new Error('Failed to fetch sales');
+        sales = await res.json();
+        renderSales(sales);
+        updateSalesSummary();
+      } catch (err) {
+        console.error('Sales fetch error:', err);
+      }
+    }
+
+    // Populate product dropdown for sales
+    function populateSalesProductDropdown() {
+      const dropdown = document.getElementById('salesProduct');
+      dropdown.innerHTML = '<option value="">Select Product</option>';
+      
+      inventory.forEach(product => {
+        if ((product.quantity || 0) > 0) { // Only show products with stock
+          const option = document.createElement('option');
+          option.value = product.id;
+          option.textContent = `${product.name} (${product.sku}) - Stock: ${product.quantity || 0}`;
+          option.dataset.unitPrice = product.unitPrice || 0;
+          option.dataset.stock = product.quantity || 0;
+          dropdown.appendChild(option);
+        }
+      });
+    }
+
+    // Render sales table
+    function renderSales(salesList) {
+      const list = document.getElementById('salesList');
+      if (!list) return;
+      
+      list.innerHTML = '';
+      
+      salesList.forEach(sale => {
+        const tr = document.createElement('tr');
+        tr.className = 'transaction-item';
+        
+        const saleDate = new Date(sale.saleDate || sale.createdAt).toLocaleDateString();
+        
+        tr.innerHTML = `
+          <td>${saleDate}</td>
+          <td>${escapeHtml(sale.sku || '')}</td>
+          <td>${escapeHtml(sale.productName || '')}</td>
+          <td>${escapeHtml(sale.customer || 'N/A')}</td>
+          <td>${sale.quantity}</td>
+          <td class="money">RM ${(sale.unitPrice || 0).toFixed(2)}</td>
+          <td class="money">RM ${(sale.totalRevenue || 0).toFixed(2)}</td>
+          <td class="actions">
+            <button class="primary-btn small-btn" onclick="editSale('${sale.id}')">✏️ Edit</button>
+            <button class="danger-btn small-btn" onclick="deleteSale('${sale.id}')">🗑️ Delete</button>
+          </td>
+        `;
+        list.appendChild(tr);
+      });
+    }
+
+    // Update sales summary cards
+    function updateSalesSummary() {
+      const totalSales = sales.length;
+      const totalSold = sales.reduce((sum, s) => sum + (s.quantity || 0), 0);
+      const totalRevenue = sales.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
+      const averageSale = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+      document.getElementById('cardTotalSales').textContent = totalSales;
+      document.getElementById('cardTotalSold').textContent = totalSold;
+      document.getElementById('cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+      document.getElementById('cardAverageSale').textContent = `RM ${averageSale.toFixed(2)}`;
+    }
+
+    // Calculate total revenue
+    function calculateTotalRevenue() {
+      const quantity = parseInt(document.getElementById('salesQuantity').value) || 0;
+      const unitPrice = parseFloat(document.getElementById('salesUnitPrice').value) || 0;
+      const totalRevenue = quantity * unitPrice;
+      
+      document.getElementById('totalRevenueDisplay').textContent = `Total Revenue: RM ${totalRevenue.toFixed(2)}`;
+      
+      // Check stock availability
+      checkStockAvailability();
+    }
+
+    // Check stock availability
+    function checkStockAvailability() {
+      const productSelect = document.getElementById('salesProduct');
+      const quantityInput = document.getElementById('salesQuantity');
+      const warningElement = document.getElementById('stockWarning');
+      
+      if (!productSelect.value) {
+        warningElement.style.display = 'none';
+        return;
+      }
+      
+      const selectedOption = productSelect.options[productSelect.selectedIndex];
+      const availableStock = parseInt(selectedOption.dataset.stock) || 0;
+      const requestedQuantity = parseInt(quantityInput.value) || 0;
+      
+      if (requestedQuantity > availableStock) {
+        warningElement.textContent = `⚠️ Insufficient stock! Available: ${availableStock}`;
+        warningElement.style.display = 'block';
+      } else {
+        warningElement.style.display = 'none';
+      }
+    }
+
+    // Add new sale
+    async function addSale() {
+      const productSelect = document.getElementById('salesProduct');
+      const productId = productSelect.value;
+      const quantity = parseInt(document.getElementById('salesQuantity').value);
+      const unitPrice = parseFloat(document.getElementById('salesUnitPrice').value);
+      const customer = document.getElementById('salesCustomer').value;
+      const saleDate = document.getElementById('salesDate').value;
+
+      if (!productId || !quantity || !unitPrice) {
+        alert('⚠️ Please fill in all required fields (Product, Quantity, Unit Price)');
+        return;
+      }
+
+      if (quantity <= 0) {
+        alert('⚠️ Quantity must be greater than 0');
+        return;
+      }
+
+      if (unitPrice <= 0) {
+        alert('⚠️ Unit price must be greater than 0');
+        return;
+      }
+
+      // Check stock availability
+      const selectedOption = productSelect.options[productSelect.selectedIndex];
+      const availableStock = parseInt(selectedOption.dataset.stock) || 0;
+      if (quantity > availableStock) {
+        alert(`❌ Insufficient stock! Available: ${availableStock}, Requested: ${quantity}`);
+        return;
+      }
+
+      if (!confirm(`Confirm Sale:\nProduct: ${selectedOption.text}\nQuantity: ${quantity}\nUnit Price: RM ${unitPrice.toFixed(2)}\nTotal Revenue: RM ${(quantity * unitPrice).toFixed(2)}`)) {
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/sales`, {
+          method: 'POST',
+          body: JSON.stringify({
+            productId,
+            quantity,
+            unitPrice,
+            customer,
+            saleDate: saleDate || new Date().toISOString().split('T')[0]
+          })
+        });
+
+        if (res.ok) {
+          // Clear form
+          document.getElementById('salesQuantity').value = '1';
+          document.getElementById('salesCustomer').value = '';
+          document.getElementById('salesDate').value = '';
+          calculateTotalRevenue();
+          
+          await fetchSales();
+          await fetchInventory(); // Refresh inventory for updated stock
+          alert('✅ Sale added successfully!');
+        } else {
+          const error = await res.json();
+          alert(`❌ Failed to add sale: ${error.message}`);
+        }
+      } catch (err) {
+        console.error('Sale add error:', err);
+        alert('❌ Server error while adding sale');
+      }
+    }
+
+    // Edit sale
+    async function editSale(saleId) {
+      const sale = sales.find(s => s.id === saleId);
+      if (!sale) return;
+
+      const newQuantity = prompt('Enter new quantity:', sale.quantity);
+      if (newQuantity === null) return;
+
+      const newUnitPrice = prompt('Enter new unit price:', sale.unitPrice);
+      if (newUnitPrice === null) return;
+
+      const newCustomer = prompt('Enter new customer:', sale.customer || '');
+
+      if (!newQuantity || !newUnitPrice || parseInt(newQuantity) <= 0 || parseFloat(newUnitPrice) <= 0) {
+        alert('⚠️ Invalid input. Quantity and unit price must be positive numbers.');
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/sales/${saleId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            quantity: parseInt(newQuantity),
+            unitPrice: parseFloat(newUnitPrice),
+            customer: newCustomer,
+            saleDate: sale.saleDate
+          })
+        });
+
+        if (res.ok) {
+          await fetchSales();
+          await fetchInventory();
+          alert('✅ Sale updated successfully!');
+        } else {
+          const error = await res.json();
+          alert(`❌ Failed to update sale: ${error.message}`);
+        }
+      } catch (err) {
+        console.error('Sale update error:', err);
+        alert('❌ Server error while updating sale');
+      }
+    }
+
+    // Delete sale
+    async function deleteSale(saleId) {
+      const sale = sales.find(s => s.id === saleId);
+      if (!sale) return;
+
+      if (!confirm(`Confirm Delete Sale:\n${sale.productName}\nQuantity: ${sale.quantity}\nTotal Revenue: RM ${sale.totalRevenue.toFixed(2)}`)) {
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`${API_BASE}/sales/${saleId}`, {
+          method: 'DELETE'
+        });
+
+        if (res.ok) {
+          await fetchSales();
+          await fetchInventory();
+          alert('🗑️ Sale deleted successfully!');
+        } else {
+          const error = await res.json();
+          alert(`❌ Failed to delete sale: ${error.message}`);
+        }
+      } catch (err) {
+        console.error('Sale delete error:', err);
+        alert('❌ Server error while deleting sale');
+      }
+    }
+
+    // Generate sales PDF report
+    async function generateSalesPDF() {
+      if (!confirm('Generate Sales PDF Report?')) return;
+
+      try {
+        const res = await apiFetch(`${API_BASE}/sales/report/pdf`, { method: 'GET' });
+
+        if (!res.ok) {
+          try {
+            const err = await res.json();
+            alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
+          } catch (_) {
+            alert("Failed to generate PDF.");
+          }
+          return;
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        const contentDisposition = res.headers.get('Content-Disposition');
+        const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
+        const filename = filenameMatch ? filenameMatch[1] : `Sales_Report_${Date.now()}.pdf`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        window.URL.revokeObjectURL(url);
+        alert("Sales PDF Report Generated Successfully!");
+      } catch (e) {
+        console.error(e);
+        alert("Sales PDF Generation Failed.");
+      }
+    }
+
+    // View sales history
+    function viewSalesHistory() {
+      alert(`Sales History:\nTotal Transactions: ${sales.length}\nTotal Items Sold: ${sales.reduce((sum, s) => sum + s.quantity, 0)}\nTotal Revenue: RM ${sales.reduce((sum, s) => sum + s.totalRevenue, 0).toFixed(2)}`);
+    }
+
+    // Search sales
+    function searchSales() {
+      const searchText = (document.getElementById('salesSearchInput')?.value || '').toLowerCase();
+      const startDate = document.getElementById('salesStartDate')?.value;
+      const endDate = document.getElementById('salesEndDate')?.value;
+
+      let filtered = sales;
+
+      // Text search
+      if (searchText) {
+        filtered = filtered.filter(s => 
+          (s.productName || '').toLowerCase().includes(searchText) ||
+          (s.sku || '').toLowerCase().includes(searchText) ||
+          (s.customer || '').toLowerCase().includes(searchText)
+        );
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        filtered = filtered.filter(s => {
+          const saleDate = new Date(s.saleDate || s.createdAt);
+          
+          if (startDate && !endDate) {
+            return saleDate >= new Date(startDate);
+          }
+          
+          if (!startDate && endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            return saleDate <= end;
+          }
+          
+          if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            return saleDate >= start && saleDate <= end;
+          }
+          
+          return true;
+        });
+      }
+
+      renderSales(filtered);
+    }
+
+    // Clear search
+    function clearSalesSearch() {
+      document.getElementById('salesSearchInput').value = '';
+      document.getElementById('salesStartDate').value = '';
+      document.getElementById('salesEndDate').value = '';
+      renderSales(sales);
+    }
+
+    // Bind UI events
+    function bindSalesUI() {
+      document.getElementById('addSalesBtn').addEventListener('click', addSale);
+      document.getElementById('salesReportBtn').addEventListener('click', generateSalesPDF);
+      document.getElementById('salesHistoryBtn').addEventListener('click', viewSalesHistory);
+      document.getElementById('salesSearchInput').addEventListener('input', searchSales);
+      document.getElementById('clearSalesSearchBtn').addEventListener('click', clearSalesSearch);
+      document.getElementById('applySalesDateRangeBtn').addEventListener('click', searchSales);
+      document.getElementById('clearSalesDateRangeBtn').addEventListener('click', clearSalesSearch);
+
+      // Auto-calculate total revenue
+      document.getElementById('salesQuantity').addEventListener('input', calculateTotalRevenue);
+      document.getElementById('salesUnitPrice').addEventListener('input', calculateTotalRevenue);
+
+      // Auto-fill unit price and check stock when product is selected
+      document.getElementById('salesProduct').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value && selectedOption.dataset.unitPrice) {
+          document.getElementById('salesUnitPrice').value = selectedOption.dataset.unitPrice;
+          calculateTotalRevenue();
+        }
+        
+        // Update stock info
+        const stockInfo = document.getElementById('stockInfo');
+        if (selectedOption.value) {
+          const stock = selectedOption.dataset.stock || 0;
+          stockInfo.textContent = `Available stock: ${stock}`;
+          stockInfo.style.color = stock > 10 ? 'green' : stock > 0 ? 'orange' : 'red';
+        } else {
+          stockInfo.textContent = '';
+        }
+      });
+
+      // Set default date to today
+      document.getElementById('salesDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    // Tooltip function
+    function showCardTooltip(message) {
+      // Can be enhanced with a proper tooltip library
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', initSalesPage);
+
+    // Expose functions globally
+    window.editSale = editSale;
+    window.deleteSale = deleteSale;
+    window.showCardTooltip = showCardTooltip;
+  </script>
+</body>
+</html>
