@@ -48,245 +48,18 @@ function toggleTheme(){
   }
 }
 
-// =========================================
-// STOCK MANAGEMENT FUNCTIONS
-// =========================================
-
-let currentStockProductId = null;
-
-// Open Stock In modal
-function openStockInModal(productId) {
-  const product = inventory.find(p => String(p.id) === String(productId));
-  if (!product) return;
-  
-  currentStockProductId = productId;
-  qs('#stockInProductName').textContent = `${product.name} (${product.sku})`;
-  qs('#stockInCurrentStock').textContent = product.quantity;
-  qs('#stockInQuantity').value = 1;
-  qs('#stockInReason').value = '';
-  
-  openModal('stockInModal');
-}
-
-// Open Stock Out modal
-function openStockOutModal(productId) {
-  const product = inventory.find(p => String(p.id) === String(productId));
-  if (!product) return;
-  
-  currentStockProductId = productId;
-  qs('#stockOutProductName').textContent = `${product.name} (${product.sku})`;
-  qs('#stockOutCurrentStock').textContent = product.quantity;
-  qs('#stockOutQuantity').value = 1;
-  qs('#stockOutReason').value = 'Sold';
-  qs('#stockOutCustomReason').style.display = 'none';
-  qs('#stockOutCustomReason').value = '';
-  
-  openModal('stockOutModal');
-}
-
-// Handle stock in
-async function confirmStockIn() {
-  const quantity = parseInt(qs('#stockInQuantity').value);
-  const reason = qs('#stockInReason').value.trim();
-  
-  if (!quantity || quantity <= 0) {
-    alert('Please enter a valid quantity');
-    return;
-  }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory/${currentStockProductId}/stock-in`, {
-      method: 'POST',
-      body: JSON.stringify({
-        quantity: quantity,
-        reason: reason || 'Stock added'
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      closeModal('stockInModal');
-      await fetchInventory();
-      alert(`✅ Stock added successfully! New quantity: ${data.product.quantity}`);
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to add stock: ${error.message}`);
-    }
-  } catch (e) {
-    console.error('Stock in error:', e);
-    alert('❌ Server error during stock in operation');
-  }
-}
-
-// Handle stock out
-async function confirmStockOut() {
-  const quantity = parseInt(qs('#stockOutQuantity').value);
-  let reason = qs('#stockOutReason').value;
-  
-  if (reason === 'Other') {
-    reason = qs('#stockOutCustomReason').value.trim();
-  }
-  
-  if (!quantity || quantity <= 0) {
-    alert('Please enter a valid quantity');
-    return;
-  }
-
-  if (!reason) {
-    alert('Please provide a reason for stock out');
-    return;
-  }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory/${currentStockProductId}/stock-out`, {
-      method: 'POST',
-      body: JSON.stringify({
-        quantity: quantity,
-        reason: reason
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      closeModal('stockOutModal');
-      await fetchInventory();
-      alert(`✅ Stock removed successfully! New quantity: ${data.product.quantity}`);
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to remove stock: ${error.message}`);
-    }
-  } catch (e) {
-    console.error('Stock out error:', e);
-    alert('❌ Server error during stock out operation');
-  }
-}
-
-// Check and display low stock alerts
-async function checkLowStockAlerts() {
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory/low-stock`);
-    if (res.ok) {
-      const lowStockItems = await res.json();
-      const alertBanner = qs('#lowStockAlert');
-      const lowStockCount = qs('#lowStockCount');
-      const lowStockSummary = qs('#lowStockSummary');
-      
-      if (lowStockItems.length > 0) {
-        alertBanner.style.display = 'block';
-        lowStockCount.textContent = lowStockItems.length;
-        lowStockSummary.textContent = `⚠️ ${lowStockItems.length} items below minimum stock level`;
-      } else {
-        alertBanner.style.display = 'none';
-        lowStockSummary.textContent = '';
-      }
-    }
-  } catch (e) {
-    console.error('Low stock check error:', e);
-  }
-}
-
-// Show low stock items in modal
-function showLowStockItems() {
-  const lowStockItems = inventory.filter(item => {
-    const quantity = Number(item.quantity || 0);
-    const minStockLevel = Number(item.minStockLevel || 0);
-    return minStockLevel > 0 && quantity <= minStockLevel;
-  });
-
-  const list = qs('#lowStockList');
-  list.innerHTML = '';
-
-  lowStockItems.forEach(item => {
-    const quantity = Number(item.quantity || 0);
-    const minStockLevel = Number(item.minStockLevel || 0);
-    const status = quantity === 0 ? 'Out of Stock' : 'Low Stock';
-    
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(item.sku || '')}</td>
-      <td>${escapeHtml(item.name || '')}</td>
-      <td>${quantity}</td>
-      <td>${minStockLevel}</td>
-      <td style="color: ${quantity === 0 ? '#e74c3c' : '#e67e22'}; font-weight: bold;">
-        ${status}
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-
-  openModal('lowStockModal');
-}
-
-// Generate low stock report
-async function generateLowStockReport() {
-  if (!confirm('Generate Low Stock Report?')) return;
-
-  try {
-    const lowStockItems = inventory.filter(item => {
-      const quantity = Number(item.quantity || 0);
-      const minStockLevel = Number(item.minStockLevel || 0);
-      return minStockLevel > 0 && quantity <= minStockLevel;
-    });
-
-    if (lowStockItems.length === 0) {
-      alert('No low stock items found!');
-      return;
-    }
-
-    // Create CSV content
-    let csvContent = 'SKU,Product Name,Category,Current Stock,Min Stock Level,Status\n';
-    
-    lowStockItems.forEach(item => {
-      const quantity = Number(item.quantity || 0);
-      const minStockLevel = Number(item.minStockLevel || 0);
-      const status = quantity === 0 ? 'Out of Stock' : 'Low Stock';
-      
-      csvContent += `"${item.sku || ''}","${item.name || ''}","${item.category || ''}",${quantity},${minStockLevel},"${status}"\n`;
-    });
-
-    // Create and download file
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Low_Stock_Report_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-
-    alert(`Low stock report generated with ${lowStockItems.length} items`);
-
-  } catch (e) {
-    console.error('Low stock report error:', e);
-    alert('Failed to generate low stock report');
-  }
-}
-
-// Modal functions
-function openModal(modalId) {
-  qs(`#${modalId}`).style.display = 'block';
-}
-
-function closeModal(modalId) {
-  qs(`#${modalId}`).style.display = 'none';
-  currentStockProductId = null;
-}
-
 // Renderers
 function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
   list.innerHTML = '';
   let totalValue = 0, totalRevenue = 0, totalProfit = 0, totalStock = 0;
-  let lowStockCount = 0;
 
   items.forEach(it => {
     const id = it.id || it._id;
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
-    const minStockLevel = Number(it.minStockLevel || 0);
     const invVal = qty * uc;
     const rev = qty * up;
     const profit = rev - invVal;
@@ -296,39 +69,18 @@ function renderInventory(items) {
     totalProfit += profit;
     totalStock += qty;
 
-    // Check stock status
-    let status = 'Normal';
-    let statusColor = '#27ae60';
-    if (minStockLevel > 0) {
-      if (qty === 0) {
-        status = 'Out of Stock';
-        statusColor = '#e74c3c';
-        lowStockCount++;
-      } else if (qty <= minStockLevel) {
-        status = 'Low Stock';
-        statusColor = '#e67e22';
-        lowStockCount++;
-      }
-    }
-
+    // Format the date - NEW DATE COLUMN
     const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
 
     const tr = document.createElement('tr');
-    
-    // Apply styling based on stock status
-    if (status === 'Out of Stock') {
-      tr.classList.add('out-of-stock-row');
-    } else if (status === 'Low Stock') {
-      tr.classList.add('low-stock-row');
-    }
+    if(qty === 0) tr.classList.add('out-of-stock-row');
+    else if(qty < 10) tr.classList.add('low-stock-row');
 
     tr.innerHTML = `
       <td>${escapeHtml(it.sku||'')}</td>
       <td>${escapeHtml(it.name||'')}</td>
       <td>${escapeHtml(it.category||'')}</td>
       <td>${qty}</td>
-      <td>${minStockLevel}</td>
-      <td style="color: ${statusColor}; font-weight: bold;">${status}</td>
       <td class="money">RM ${uc.toFixed(2)}</td>
       <td class="money">RM ${up.toFixed(2)}</td>
       <td class="money">RM ${invVal.toFixed(2)}</td>
@@ -336,8 +88,6 @@ function renderInventory(items) {
       <td class="money">RM ${profit.toFixed(2)}</td>
       <td>${date}</td>
       <td class="actions">
-        <button class="success-btn small-btn" onclick="openStockInModal('${id}')">📥 In</button>
-        <button class="warning-btn small-btn" onclick="openStockOutModal('${id}')">📤 Out</button>
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
       </td>
@@ -345,20 +95,143 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  // Update totals
   if(qs('#totalValue')) qs('#totalValue').textContent = totalValue.toFixed(2);
   if(qs('#totalRevenue')) qs('#totalRevenue').textContent = totalRevenue.toFixed(2);
   if(qs('#totalProfit')) qs('#totalProfit').textContent = totalProfit.toFixed(2);
   if(qs('#totalStock')) qs('#totalStock').textContent = totalStock;
+}
 
-  // Update low stock summary
-  const lowStockSummary = qs('#lowStockSummary');
-  if (lowStockCount > 0) {
-    lowStockSummary.textContent = `⚠️ ${lowStockCount} items need attention`;
+// =========================================
+// UPDATED: Date Range Filtering Functions
+// =========================================
+function filterByDateRange(startDate, endDate) {
+  if (!startDate && !endDate) {
+    renderInventory(inventory);
+    updateDateRangeStatus(false);
+    return;
+  }
+
+  const filtered = inventory.filter(item => {
+    if (!item.createdAt) return false;
+    
+    const itemDate = new Date(item.createdAt);
+    
+    // If only start date is provided, filter items from that date forward
+    if (startDate && !endDate) {
+      const start = new Date(startDate);
+      return itemDate >= start;
+    }
+    
+    // If only end date is provided, filter items up to that date
+    if (!startDate && endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+      return itemDate <= end;
+    }
+    
+    // If both dates are provided, filter items within the range
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+      return itemDate >= start && itemDate <= end;
+    }
+    
+    return true;
+  });
+  
+  renderInventory(filtered);
+  updateDateRangeStatus(true, startDate, endDate);
+}
+
+function updateDateRangeStatus(isActive, startDate, endDate) {
+  const dateRangeContainer = qs('.date-range-container');
+  const statusElement = qs('.date-range-status') || createDateRangeStatusElement();
+  
+  if (isActive) {
+    dateRangeContainer.classList.add('active');
+    
+    let statusText = 'Filtering by: ';
+    if (startDate && endDate) {
+      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
+    } else if (startDate) {
+      statusText += `From ${formatDateDisplay(startDate)}`;
+    } else if (endDate) {
+      statusText += `Until ${formatDateDisplay(endDate)}`;
+    }
+    
+    statusElement.textContent = statusText;
+    statusElement.classList.add('active');
   } else {
-    lowStockSummary.textContent = '';
+    dateRangeContainer.classList.remove('active');
+    statusElement.classList.remove('active');
+    statusElement.textContent = '';
   }
 }
+
+function createDateRangeStatusElement() {
+  const statusElement = document.createElement('span');
+  statusElement.className = 'date-range-status';
+  qs('.date-range-container').appendChild(statusElement);
+  return statusElement;
+}
+
+function formatDateDisplay(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+}
+
+function clearDateRangeFilter() {
+  if (qs('#startDate')) qs('#startDate').value = '';
+  if (qs('#endDate')) qs('#endDate').value = '';
+  renderInventory(inventory);
+  updateDateRangeStatus(false);
+}
+
+function applyDateRangeFilter() {
+  const startDate = qs('#startDate')?.value;
+  const endDate = qs('#endDate')?.value;
+  
+  // Validate date range
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+      alert('❌ Start date cannot be after end date.');
+      return;
+    }
+  }
+  
+  filterByDateRange(startDate, endDate);
+}
+
+function bindDateRangeFilterEvents() {
+  // Apply date range button event
+  qs('#applyDateRangeBtn')?.addEventListener('click', applyDateRangeFilter);
+  
+  // Clear date range button event
+  qs('#clearDateRangeBtn')?.addEventListener('click', clearDateRangeFilter);
+  
+  // Auto-apply when both dates are selected
+  qs('#startDate')?.addEventListener('change', function() {
+    if (qs('#endDate')?.value) {
+      applyDateRangeFilter();
+    }
+  });
+  
+  qs('#endDate')?.addEventListener('change', function() {
+    if (qs('#startDate')?.value) {
+      applyDateRangeFilter();
+    }
+  });
+}
+
+// =========================================
 
 // Update the renderDocuments function to be more accurate
 function renderDocuments(docs) {
@@ -634,7 +507,6 @@ async function fetchInventory() {
     const data = await res.json();
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
     renderInventory(inventory);
-    await checkLowStockAlerts(); // NEW: Check alerts after loading inventory
     renderDashboardData();
   } catch(err) { console.error(err); }
 }
@@ -751,19 +623,16 @@ async function confirmAndAddProduct(){
   const name = qs('#p_name')?.value?.trim();
   const category = qs('#p_category')?.value?.trim();
   const quantity = Number(qs('#p_quantity')?.value || 0);
-  const minStockLevel = Number(qs('#p_minStockLevel')?.value || 0); // NEW
   const unitCost = Number(qs('#p_unitCost')?.value || 0);
   const unitPrice = Number(qs('#p_unitPrice')?.value || 0);
   if(!sku || !name) return alert('⚠️ Please enter SKU and Name.');
   if(!confirm(`Confirm Add Product: ${name} (${sku})?`)) return;
 
-  const newItem = { sku, name, category, quantity, minStockLevel, unitCost, unitPrice }; // UPDATED
+  const newItem = { sku, name, category, quantity, unitCost, unitPrice };
   try {
     const res = await apiFetch(`${API_BASE}/inventory`, { method: 'POST', body: JSON.stringify(newItem) });
     if(res.ok) {
-      ['#p_sku','#p_name','#p_category','#p_quantity','#p_minStockLevel','#p_unitCost','#p_unitPrice'].forEach(id => { 
-        if(qs(id)) qs(id).value = ''; 
-      });
+      ['#p_sku','#p_name','#p_category','#p_quantity','#p_unitCost','#p_unitPrice'].forEach(id => { if(qs(id)) qs(id).value = ''; });
       await fetchInventory();
       if(currentPage.includes('inventory')) await fetchLogs();
       alert('✅ Product added successfully.');
@@ -860,141 +729,10 @@ async function confirmAndGeneratePDF() {
   }
 }
 
-// =========================================
-// UPDATED: Date Range Filtering Functions
-// =========================================
-function filterByDateRange(startDate, endDate) {
-  if (!startDate && !endDate) {
-    renderInventory(inventory);
-    updateDateRangeStatus(false);
-    return;
-  }
-
-  const filtered = inventory.filter(item => {
-    if (!item.createdAt) return false;
-    
-    const itemDate = new Date(item.createdAt);
-    
-    // If only start date is provided, filter items from that date forward
-    if (startDate && !endDate) {
-      const start = new Date(startDate);
-      return itemDate >= start;
-    }
-    
-    // If only end date is provided, filter items up to that date
-    if (!startDate && endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
-      return itemDate <= end;
-    }
-    
-    // If both dates are provided, filter items within the range
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
-      return itemDate >= start && itemDate <= end;
-    }
-    
-    return true;
-  });
-  
-  renderInventory(filtered);
-  updateDateRangeStatus(true, startDate, endDate);
-}
-
-function updateDateRangeStatus(isActive, startDate, endDate) {
-  const dateRangeContainer = qs('.date-range-container');
-  const statusElement = qs('.date-range-status') || createDateRangeStatusElement();
-  
-  if (isActive) {
-    dateRangeContainer.classList.add('active');
-    
-    let statusText = 'Filtering by: ';
-    if (startDate && endDate) {
-      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
-    } else if (startDate) {
-      statusText += `From ${formatDateDisplay(startDate)}`;
-    } else if (endDate) {
-      statusText += `Until ${formatDateDisplay(endDate)}`;
-    }
-    
-    statusElement.textContent = statusText;
-    statusElement.classList.add('active');
-  } else {
-    dateRangeContainer.classList.remove('active');
-    statusElement.classList.remove('active');
-    statusElement.textContent = '';
-  }
-}
-
-function createDateRangeStatusElement() {
-  const statusElement = document.createElement('span');
-  statusElement.className = 'date-range-status';
-  qs('.date-range-container').appendChild(statusElement);
-  return statusElement;
-}
-
-function formatDateDisplay(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  });
-}
-
-function clearDateRangeFilter() {
-  if (qs('#startDate')) qs('#startDate').value = '';
-  if (qs('#endDate')) qs('#endDate').value = '';
-  renderInventory(inventory);
-  updateDateRangeStatus(false);
-}
-
-function applyDateRangeFilter() {
-  const startDate = qs('#startDate')?.value;
-  const endDate = qs('#endDate')?.value;
-  
-  // Validate date range
-  if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (start > end) {
-      alert('❌ Start date cannot be after end date.');
-      return;
-    }
-  }
-  
-  filterByDateRange(startDate, endDate);
-}
-
-function bindDateRangeFilterEvents() {
-  // Apply date range button event
-  qs('#applyDateRangeBtn')?.addEventListener('click', applyDateRangeFilter);
-  
-  // Clear date range button event
-  qs('#clearDateRangeBtn')?.addEventListener('click', clearDateRangeFilter);
-  
-  // Auto-apply when both dates are selected
-  qs('#startDate')?.addEventListener('change', function() {
-    if (qs('#endDate')?.value) {
-      applyDateRangeFilter();
-    }
-  });
-  
-  qs('#endDate')?.addEventListener('change', function() {
-    if (qs('#startDate')?.value) {
-      applyDateRangeFilter();
-    }
-  });
-}
-
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
   qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
-  qs('#lowStockReportBtn')?.addEventListener('click', generateLowStockReport); // NEW
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
     if(qs('#searchInput')) { 
@@ -1003,36 +741,7 @@ function bindInventoryUI(){
     } 
   });
   
-  // Stock movement event listeners
-  qs('#confirmStockIn')?.addEventListener('click', confirmStockIn);
-  qs('#confirmStockOut')?.addEventListener('click', confirmStockOut);
-  
-  // Modal close events
-  qsa('.modal .close').forEach(closeBtn => {
-    closeBtn.addEventListener('click', function() {
-      this.closest('.modal').style.display = 'none';
-      currentStockProductId = null;
-    });
-  });
-  
-  // Custom reason input for stock out
-  qs('#stockOutReason')?.addEventListener('change', function() {
-    const customReason = qs('#stockOutCustomReason');
-    if (this.value === 'Other') {
-      customReason.style.display = 'block';
-    } else {
-      customReason.style.display = 'none';
-    }
-  });
-  
-  // Close modal when clicking outside
-  window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-      event.target.style.display = 'none';
-      currentStockProductId = null;
-    }
-  });
-  
+  // UPDATED: Bind date range filter events
   bindDateRangeFilterEvents();
 }
 
@@ -1104,7 +813,6 @@ async function bindProductPage(){
       if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
       if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_minStockLevel')) qs('#prod_minStockLevel').value = it.minStockLevel || 0; // NEW
       if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
       if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
     } catch(e) { alert('Failed to load product details.'); return; }
@@ -1118,7 +826,6 @@ async function bindProductPage(){
       name: qs('#prod_name')?.value,
       category: qs('#prod_category')?.value,
       quantity: Number(qs('#prod_quantity')?.value || 0),
-      minStockLevel: Number(qs('#prod_minStockLevel')?.value || 0), // NEW
       unitCost: Number(qs('#prod_unitCost')?.value || 0),
       unitPrice: Number(qs('#prod_unitPrice')?.value || 0)
     };
@@ -1333,9 +1040,3 @@ window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
-window.openStockInModal = openStockInModal;
-window.openStockOutModal = openStockOutModal;
-window.showLowStockItems = showLowStockItems;
-window.generateLowStockReport = generateLowStockReport;
-window.openModal = openModal;
-window.closeModal = closeModal;
