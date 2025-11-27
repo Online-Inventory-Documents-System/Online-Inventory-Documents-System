@@ -22,6 +22,45 @@
   </header>
 
   <section>
+    <!-- MODERN SUMMARY CARDS -->
+    <div class="summary-cards">
+      <div class="card card-total-value" onclick="showCardTooltip('Total value of all inventory items at cost price')">
+        <div class="card-icon">💰</div>
+        <div class="card-content">
+          <div class="card-title">Total Inventory Value</div>
+          <div class="card-value" id="cardTotalValue">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="card card-total-revenue" onclick="showCardTooltip('Potential revenue if all items are sold at current prices')">
+        <div class="card-icon">📈</div>
+        <div class="card-content">
+          <div class="card-title">Total Potential Revenue</div>
+          <div class="card-value" id="cardTotalRevenue">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="card card-total-profit" onclick="showCardTooltip('Potential profit after subtracting inventory costs')">
+        <div class="card-icon">💸</div>
+        <div class="card-content">
+          <div class="card-title">Total Potential Profit</div>
+          <div class="card-value" id="cardTotalProfit">RM 0.00</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="card card-total-stock" onclick="showCardTooltip('Total quantity of all items in inventory')">
+        <div class="card-icon">📦</div>
+        <div class="card-content">
+          <div class="card-title">Total Stock Quantity</div>
+          <div class="card-value" id="cardTotalStock">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+    </div>
+
     <h2>Add New Product</h2>
     <div class="product-bar">
       <input id="p_sku" placeholder="Item ID / SKU" type="text" />
@@ -41,7 +80,7 @@
       </div>
 
       <div class="search-controls">
-        <!-- UPDATED: Date Range Search Controls -->
+        <!-- Date Range Search Controls -->
         <div class="date-range-container">
           <label for="startDate">📅 Date Range:</label>
           <div class="date-inputs">
@@ -58,7 +97,7 @@
           </div>
         </div>
         
-        <!-- Existing Text Search -->
+        <!-- Text Search -->
         <div class="text-search-container">
           <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
           <button id="clearSearchBtn" class="secondary-btn">Clear Text</button>
@@ -86,13 +125,6 @@
           <tbody id="inventoryList"></tbody>
       </table>
     </div>
-
-    <div class="totals" id="inventoryTotals">
-      <div>Total Inventory Value: RM <span id="totalValue">0.00</span></div>
-      <div>Total Potential Revenue: RM <span id="totalRevenue">0.00</span></div>
-      <div>Total Potential Profit: RM <span id="totalProfit">0.00</span></div>
-      <div>Total Stock Quantity: <span id="totalStock">0</span></div>
-    </div>
   </section>
 
   <!-- JS -->
@@ -100,6 +132,12 @@
   <script src="js/script.js" defer></script>
   <script>
     document.documentElement.dataset.page = 'inventory';
+    
+    // Tooltip function for cards
+    function showCardTooltip(message) {
+      // Simple alert for now, can be enhanced with a proper tooltip library
+      // alert(message);
+    }
   </script>
 </body>
 </html>
