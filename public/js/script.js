@@ -533,52 +533,16 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
-// =========================================
-// PURCHASE FUNCTIONS
-// =========================================
+// Purchase related functions
 async function fetchPurchases() {
   try {
     const res = await apiFetch(`${API_BASE}/purchases`);
     if(!res.ok) throw new Error('Failed to fetch purchases');
     const data = await res.json();
-    return data.map(p => ({ ...p, id: p.id || p._id }));
+    return data;
   } catch(err) { 
     console.error(err);
-    return [];
-  }
-}
-
-async function generatePurchasePDF(purchaseId) {
-  if(!confirm('Generate PDF Invoice for this purchase?')) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/report/pdf/${purchaseId}`);
-    
-    if(res.ok) {
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      
-      const contentDisposition = res.headers.get('Content-Disposition');
-      const filenameMatch = contentDisposition ? contentDisposition.match(/filename="(.+?)"/) : null;
-      const filename = filenameMatch ? filenameMatch[1] : `Purchase_Invoice_${Date.now()}.pdf`;
-      
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      
-      await fetchDocuments();
-      alert("PDF Purchase Invoice Generated Successfully!");
-    } else {
-      const err = await res.json();
-      alert(`Failed to generate PDF: ${err.message || 'Server error'}`);
-    }
-  } catch(e) {
-    console.error(e);
-    alert("PDF Generation Failed.");
+    return []; 
   }
 }
 
@@ -598,9 +562,6 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('documents')) { 
       await fetchDocuments(); 
       bindDocumentsUI(); 
-    }
-    if(currentPage.includes('purchase')) { 
-      // Purchase page has its own initialization in the inline script
     }
     if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
       await fetchLogs(); 
@@ -1102,4 +1063,3 @@ window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
-window.downloadPurchasePDF = generatePurchasePDF;
