@@ -45,33 +45,16 @@ const UserSchema = new Schema({
 });
 const User = mongoose.model("User", UserSchema);
 
-// UPDATED: Inventory Schema with minStockLevel
 const InventorySchema = new Schema({
   sku: String,
   name: String,
   category: String,
   quantity: { type: Number, default: 0 },
-  minStockLevel: { type: Number, default: 0 }, // NEW: Minimum stock threshold
   unitCost: { type: Number, default: 0 },
   unitPrice: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 const Inventory = mongoose.model("Inventory", InventorySchema);
-
-// NEW: Stock Movement Schema
-const StockMovementSchema = new Schema({
-  productId: { type: Schema.Types.ObjectId, ref: 'Inventory', required: true },
-  productName: String,
-  sku: String,
-  type: { type: String, enum: ['in', 'out'], required: true },
-  quantity: { type: Number, required: true },
-  reason: String,
-  user: String,
-  date: { type: Date, default: Date.now },
-  previousStock: Number,
-  newStock: Number
-});
-const StockMovement = mongoose.model("StockMovement", StockMovementSchema);
 
 const DocumentSchema = new Schema({
   name: String,
@@ -321,158 +304,6 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    STOCK MOVEMENT ENDPOINTS
-// ============================================================================
-
-// GET stock movements for a product
-app.get("/api/inventory/:id/movements", async (req, res) => {
-  try {
-    const movements = await StockMovement.find({ productId: req.params.id })
-      .sort({ date: -1 })
-      .lean();
-    res.json(movements);
-  } catch (err) {
-    console.error("stock movements error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// POST stock in (add stock)
-app.post("/api/inventory/:id/stock-in", async (req, res) => {
-  try {
-    const { quantity, reason } = req.body;
-    const username = req.headers["x-username"];
-    
-    if (!quantity || quantity <= 0) {
-      return res.status(400).json({ message: "Invalid quantity" });
-    }
-
-    const product = await Inventory.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    const previousStock = product.quantity;
-    const newStock = previousStock + quantity;
-
-    // Update inventory
-    product.quantity = newStock;
-    await product.save();
-
-    // Log stock movement
-    await StockMovement.create({
-      productId: req.params.id,
-      productName: product.name,
-      sku: product.sku,
-      type: 'in',
-      quantity: quantity,
-      reason: reason || "Stock added",
-      user: username,
-      previousStock: previousStock,
-      newStock: newStock
-    });
-
-    await logActivity(username, `Stock IN: ${quantity} units of ${product.name} (Reason: ${reason || "Stock added"})`);
-
-    res.json({
-      success: true,
-      product: {
-        ...product.toObject(),
-        id: product._id.toString()
-      }
-    });
-
-  } catch (err) {
-    console.error("stock in error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// POST stock out (remove stock)
-app.post("/api/inventory/:id/stock-out", async (req, res) => {
-  try {
-    const { quantity, reason } = req.body;
-    const username = req.headers["x-username"];
-    
-    if (!quantity || quantity <= 0) {
-      return res.status(400).json({ message: "Invalid quantity" });
-    }
-
-    if (!reason) {
-      return res.status(400).json({ message: "Reason is required for stock out" });
-    }
-
-    const product = await Inventory.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    if (product.quantity < quantity) {
-      return res.status(400).json({ 
-        message: `Insufficient stock. Available: ${product.quantity}, Requested: ${quantity}` 
-      });
-    }
-
-    const previousStock = product.quantity;
-    const newStock = previousStock - quantity;
-
-    // Update inventory
-    product.quantity = newStock;
-    await product.save();
-
-    // Log stock movement
-    await StockMovement.create({
-      productId: req.params.id,
-      productName: product.name,
-      sku: product.sku,
-      type: 'out',
-      quantity: quantity,
-      reason: reason,
-      user: username,
-      previousStock: previousStock,
-      newStock: newStock
-    });
-
-    await logActivity(username, `Stock OUT: ${quantity} units of ${product.name} (Reason: ${reason})`);
-
-    res.json({
-      success: true,
-      product: {
-        ...product.toObject(),
-        id: product._id.toString()
-      }
-    });
-
-  } catch (err) {
-    console.error("stock out error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// GET low stock alerts
-app.get("/api/inventory/low-stock", async (req, res) => {
-  try {
-    const items = await Inventory.find({}).lean();
-    
-    const lowStockItems = items.filter(item => {
-      const quantity = Number(item.quantity || 0);
-      const minStockLevel = Number(item.minStockLevel || 0);
-      return minStockLevel > 0 && quantity <= minStockLevel;
-    });
-
-    const normalized = lowStockItems.map(i => ({
-      ...i,
-      id: i._id.toString()
-    }));
-
-    res.json(normalized);
-  } catch (err) {
-    console.error("low stock get error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
 //                    PDF REPORT — FIXED CALCULATIONS & ALIGNMENT
 // ============================================================================
 app.get("/api/inventory/report/pdf", async (req, res) => {
@@ -549,20 +380,18 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           { name: "Product Name", x: 110, width: 110 },
           { name: "Category", x: 220, width: 80 },
           { name: "Quantity", x: 300, width: 60 },
-          { name: "Min Stock", x: 360, width: 60 },
-          { name: "Status", x: 420, width: 60 },
-          { name: "Unit Cost", x: 480, width: 65 },
-          { name: "Unit Price", x: 545, width: 65 },
-          { name: "Inventory Value", x: 610, width: 80 },
-          { name: "Potential Revenue", x: 690, width: 90 },
-          { name: "Potential Profit", x: 780, width: 90 }
+          { name: "Unit Cost", x: 360, width: 70 },
+          { name: "Unit Price", x: 430, width: 70 },
+          { name: "Inventory Value", x: 500, width: 85 },
+          { name: "Potential Revenue", x: 585, width: 95 },
+          { name: "Potential Profit", x: 680, width: 100 }
         ];
         
         let y = 150;
 
         function drawTableHeader() {
           // Draw header background and borders
-          doc.rect(columns[0].x, y, 830, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
           // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
@@ -582,25 +411,14 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 
         function drawTableRow(item) {
           const qty = Number(item.quantity || 0);
-          const minStock = Number(item.minStockLevel || 0);
           const cost = Number(item.unitCost || 0);
           const price = Number(item.unitPrice || 0);
-          const inventoryValue = qty * cost;
+          const inventoryValue = qty * cost; // FIXED: This was wrong in your PDF
           const potentialRevenue = qty * price;
-          const potentialProfit = potentialRevenue - inventoryValue;
-
-          // Determine status
-          let status = "Normal";
-          if (minStock > 0) {
-            if (qty === 0) {
-              status = "Out";
-            } else if (qty <= minStock) {
-              status = "Low";
-            }
-          }
+          const potentialProfit = potentialRevenue - inventoryValue; // FIXED: This was wrong in your PDF
 
           // Draw row background and borders
-          doc.rect(columns[0].x, y, 830, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
           // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
@@ -615,13 +433,11 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           doc.text(item.name || "", columns[1].x + 3, y + 5);
           doc.text(item.category || "", columns[2].x + 3, y + 5);
           doc.text(String(qty), columns[3].x + 3, y + 5);
-          doc.text(String(minStock), columns[4].x + 3, y + 5);
-          doc.text(status, columns[5].x + 3, y + 5);
-          doc.text(`RM ${cost.toFixed(2)}`, columns[6].x + 3, y + 5);
-          doc.text(`RM ${price.toFixed(2)}`, columns[7].x + 3, y + 5);
-          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[8].x + 3, y + 5);
-          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[9].x + 3, y + 5);
-          doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[10].x + 3, y + 5);
+          doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
+          doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
+          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
+          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
+          doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
           
           y += rowHeight;
           
@@ -721,7 +537,7 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                           XLSX REPORT - UPDATED WITH MIN STOCK & STATUS
+//                           XLSX REPORT - UPDATED WITH POTENTIAL PROFIT
 // ============================================================================
 app.get("/api/inventory/report", async (req, res) => {
   try {
@@ -736,7 +552,7 @@ app.get("/api/inventory/report", async (req, res) => {
       ["Date:", new Date().toISOString().slice(0, 10)],
       ["Generated by:", printedBy],
       [],
-      ["SKU", "Name", "Category", "Quantity", "Min Stock", "Status", "Unit Cost", "Unit Price", 
+      ["SKU", "Name", "Category", "Quantity", "Unit Cost", "Unit Price", 
        "Total Inventory Value", "Total Potential Revenue", "Potential Profit"]
     ];
 
@@ -746,22 +562,11 @@ app.get("/api/inventory/report", async (req, res) => {
 
     items.forEach(it => {
       const qty = Number(it.quantity || 0);
-      const minStock = Number(it.minStockLevel || 0);
       const uc = Number(it.unitCost || 0);
       const up = Number(it.unitPrice || 0);
       const invVal = qty * uc;
       const rev = qty * up;
       const profit = rev - invVal;
-
-      // Determine status
-      let status = "Normal";
-      if (minStock > 0) {
-        if (qty === 0) {
-          status = "Out of Stock";
-        } else if (qty <= minStock) {
-          status = "Low Stock";
-        }
-      }
 
       totalValue += invVal;
       totalRevenue += rev;
@@ -772,8 +577,6 @@ app.get("/api/inventory/report", async (req, res) => {
         it.name || "",
         it.category || "",
         qty,
-        minStock,
-        status,
         uc.toFixed(2),
         up.toFixed(2),
         invVal.toFixed(2),
@@ -783,7 +586,7 @@ app.get("/api/inventory/report", async (req, res) => {
     });
 
     ws_data.push([]);
-    ws_data.push(["", "", "", "Totals", "", "", "", "", 
+    ws_data.push(["", "", "", "Totals", "", "", 
                  totalValue.toFixed(2), totalRevenue.toFixed(2), totalProfit.toFixed(2)]);
 
     const ws = xlsx.utils.aoa_to_sheet(ws_data);
