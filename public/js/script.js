@@ -549,6 +549,19 @@ async function fetchPurchases() {
   }
 }
 
+// NEW: Fetch inventory for purchase page
+async function fetchInventoryForPurchase() {
+  try {
+    const res = await apiFetch(`${API_BASE}/inventory`);
+    if(res.ok) {
+      return await res.json();
+    }
+  } catch(err) {
+    console.error('Error fetching inventory for purchase:', err);
+  }
+  return [];
+}
+
 // Init
 window.addEventListener('load', async () => {
   const adminName = getUsername();
@@ -1070,3 +1083,4 @@ window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
+window.fetchInventoryForPurchase = fetchInventoryForPurchase; // NEW: Expose for purchase page
