@@ -182,10 +182,10 @@
       initializePurchasePage();
     });
 
-    function initializePurchasePage() {
+    async function initializePurchasePage() {
       // Load purchases and inventory
-      fetchPurchases();
-      fetchInventoryForPurchase();
+      await fetchPurchases();
+      await fetchInventoryForPurchase();
       
       // Bind event listeners
       bindPurchaseUI();
@@ -273,12 +273,15 @@
 
     async function fetchInventoryForPurchase() {
       try {
-        const res = await apiFetch(`${API_BASE}/inventory`);
-        if(res.ok) {
-          inventoryProducts = await res.json();
+        const products = await window.fetchInventoryForPurchase();
+        if (products && Array.isArray(products)) {
+          inventoryProducts = products;
+          console.log('Inventory products loaded:', inventoryProducts.length);
+        } else {
+          console.error('No products returned from fetchInventoryForPurchase');
         }
       } catch(err) {
-        console.error('Error fetching inventory:', err);
+        console.error('Error fetching inventory for purchase:', err);
       }
     }
 
