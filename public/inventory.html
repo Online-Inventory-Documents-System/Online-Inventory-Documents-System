@@ -61,7 +61,11 @@
       </div>
     </div>
 
-    <h2>Add New Product</h2>
+    <div class="section-header">
+      <h2>Add New Product</h2>
+      <button id="purchaseBtn" class="success-btn">🛒 Purchase Products</button>
+    </div>
+    
     <div class="product-bar">
       <input id="p_sku" placeholder="Item ID / SKU" type="text" />
       <input id="p_name" placeholder="Item Name" type="text" />
@@ -77,6 +81,7 @@
       <div style="display:flex; gap:10px;">
         <button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button>
         <button id="pdfReportBtn" class="primary-btn">📄 Generate PDF Inventory Report</button>
+        <button id="purchaseReportBtn" class="primary-btn">🧾 Generate Total Purchase Report</button>
       </div>
 
       <div class="search-controls">
@@ -125,7 +130,88 @@
           <tbody id="inventoryList"></tbody>
       </table>
     </div>
+
+    <!-- Purchase Management Section -->
+    <h2>Purchase History</h2>
+    <div class="table-container"> 
+      <table id="purchaseTable">
+          <thead>
+              <tr>
+                  <th>Purchase ID</th>
+                  <th>SKU</th>
+                  <th>Product Name</th>
+                  <th>Supplier</th>
+                  <th>Quantity</th>
+                  <th class="money">Purchase Price</th>
+                  <th class="money">Total Amount</th>
+                  <th>Date</th>
+                  <th class="actions">Actions</th>
+              </tr>
+          </thead>
+          <tbody id="purchaseList"></tbody>
+      </table>
+    </div>
   </section>
+
+  <!-- Purchase Modal -->
+  <div id="purchaseModal" class="modal">
+    <div class="modal-content large-modal">
+      <div class="modal-header">
+        <h2>🛒 Purchase Products</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="search-product-section">
+          <h3>Search and Select Product</h3>
+          <input type="text" id="productSearch" placeholder="Search by SKU or product name..." class="search-input">
+          <div id="productResults" class="product-results"></div>
+        </div>
+
+        <div class="purchase-form-section">
+          <h3>Purchase Details</h3>
+          <div class="form-group">
+            <label for="selectedProduct">Selected Product:</label>
+            <div id="selectedProductInfo" class="selected-product-info">
+              No product selected
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="supplierName">Supplier Name:</label>
+              <input type="text" id="supplierName" placeholder="Enter supplier name">
+            </div>
+            <div class="form-group">
+              <label for="purchaseDate">Purchase Date:</label>
+              <input type="date" id="purchaseDate">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="purchaseQuantity">Quantity:</label>
+              <input type="number" id="purchaseQuantity" placeholder="Enter quantity" min="1">
+            </div>
+            <div class="form-group">
+              <label for="purchasePrice">Purchase Price (per unit):</label>
+              <input type="number" id="purchasePrice" placeholder="Enter price" step="0.01" min="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="purchaseNotes">Notes (Optional):</label>
+            <textarea id="purchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="savePurchaseBtn" class="primary-btn">💾 Save Purchase</button>
+          <button id="printInvoiceBtn" class="success-btn" style="display:none;">🖨️ Print Invoice</button>
+          <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- JS -->
   <script src="js/setting.js" defer></script>
