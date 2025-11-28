@@ -18,6 +18,7 @@
     .print-btn { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-top: 10px; }
     .print-btn:hover { background: #218838; }
     .purchase-summary { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid var(--primary-color); }
+    .loading-message { text-align: center; padding: 20px; color: #666; }
   </style>
 </head>
 <body>
@@ -100,7 +101,11 @@
               <th class="actions">Actions</th>
             </tr>
           </thead>
-          <tbody id="purchaseList"></tbody>
+          <tbody id="purchaseList">
+            <tr>
+              <td colspan="9" class="loading-message">Loading purchase data...</td>
+            </tr>
+          </tbody>
         </table>
       </div>
     </section>
@@ -116,7 +121,9 @@
           <label>Search Product:</label>
           <div class="search-dropdown">
             <input type="text" id="productSearch" placeholder="Type to search products by SKU or name..." />
-            <div class="search-dropdown-list" id="productDropdown"></div>
+            <div class="search-dropdown-list" id="productDropdown">
+              <div class="search-dropdown-item" style="color:#999;">Start typing to search products...</div>
+            </div>
           </div>
         </div>
         
@@ -174,26 +181,66 @@
     
     // Global variables for purchase management
     let purchases = [];
-    let currentPurchaseId = null;
     let inventoryProducts = [];
+    let currentPurchaseId = null;
+    let isInventoryLoaded = false;
 
-    document.addEventListener('DOMContentLoaded', () => {
-      // Initialize purchase page
-      initializePurchasePage();
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initializePurchasePage();
     });
 
     async function initializePurchasePage() {
-      // Load purchases and inventory
-      await fetchPurchases();
-      await fetchInventoryForPurchase();
-      
-      // Bind event listeners
-      bindPurchaseUI();
+      console.log('🔄 Initializing purchase page...');
       
       // Update admin name
       const adminName = getUsername();
       if(document.getElementById('adminName')) {
         document.getElementById('adminName').textContent = adminName;
+      }
+
+      // Load purchases and inventory
+      await loadPurchases();
+      await loadInventoryProducts();
+      
+      // Bind event listeners
+      bindPurchaseUI();
+      
+      console.log('✅ Purchase page initialized');
+    }
+
+    async function loadPurchases() {
+      try {
+        console.log('📦 Loading purchases...');
+        const res = await apiFetch(`${API_BASE}/purchases`);
+        if(res.ok) {
+          purchases = await res.json();
+          renderPurchases();
+          updatePurchaseSummaryCards();
+          console.log('✅ Purchases loaded:', purchases.length);
+        } else {
+          console.error('❌ Failed to load purchases');
+        }
+      } catch(err) {
+        console.error('❌ Error loading purchases:', err);
+      }
+    }
+
+    async function loadInventoryProducts() {
+      try {
+        console.log('📦 Loading inventory products...');
+        const products = await fetchInventoryForPurchase();
+        if (products && Array.isArray(products)) {
+          inventoryProducts = products;
+          isInventoryLoaded = true;
+          console.log('✅ Inventory products loaded:', inventoryProducts.length);
+        } else {
+          console.error('❌ No products returned from inventory');
+          inventoryProducts = [];
+        }
+      } catch(err) {
+        console.error('❌ Error loading inventory products:', err);
+        inventoryProducts = [];
       }
     }
 
@@ -218,6 +265,11 @@
     }
 
     function openPurchaseModal() {
+      if (!isInventoryLoaded) {
+        alert('⚠️ Inventory data is still loading. Please wait a moment and try again.');
+        return;
+      }
+      
       document.getElementById('purchaseModal').style.display = 'block';
       document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
       document.getElementById('printSection').style.display = 'none';
@@ -255,33 +307,6 @@
         `;
       } else {
         document.getElementById('purchaseSummary').style.display = 'none';
-      }
-    }
-
-    async function fetchPurchases() {
-      try {
-        const res = await apiFetch(`${API_BASE}/purchases`);
-        if(res.ok) {
-          purchases = await res.json();
-          renderPurchases();
-          updatePurchaseSummaryCards();
-        }
-      } catch(err) {
-        console.error('Error fetching purchases:', err);
-      }
-    }
-
-    async function fetchInventoryForPurchase() {
-      try {
-        const products = await window.fetchInventoryForPurchase();
-        if (products && Array.isArray(products)) {
-          inventoryProducts = products;
-          console.log('Inventory products loaded:', inventoryProducts.length);
-        } else {
-          console.error('No products returned from fetchInventoryForPurchase');
-        }
-      } catch(err) {
-        console.error('Error fetching inventory for purchase:', err);
       }
     }
 
@@ -331,18 +356,26 @@
     }
 
     function searchProducts() {
-      const query = document.getElementById('productSearch').value.toLowerCase();
+      const query = document.getElementById('productSearch').value.toLowerCase().trim();
       const dropdown = document.getElementById('productDropdown');
       
-      if(query.length < 2) {
-        dropdown.style.display = 'none';
+      if (!isInventoryLoaded) {
+        dropdown.innerHTML = '<div class="search-dropdown-item" style="color:#999;">Inventory still loading...</div>';
+        dropdown.style.display = 'block';
         return;
       }
       
-      const filteredProducts = inventoryProducts.filter(product => 
-        (product.sku && product.sku.toLowerCase().includes(query)) ||
-        (product.name && product.name.toLowerCase().includes(query))
-      );
+      if (query.length < 1) {
+        dropdown.innerHTML = '<div class="search-dropdown-item" style="color:#999;">Start typing to search products...</div>';
+        dropdown.style.display = 'block';
+        return;
+      }
+      
+      const filteredProducts = inventoryProducts.filter(product => {
+        const skuMatch = product.sku && product.sku.toLowerCase().includes(query);
+        const nameMatch = product.name && product.name.toLowerCase().includes(query);
+        return skuMatch || nameMatch;
+      });
       
       dropdown.innerHTML = '';
       
@@ -357,7 +390,7 @@
           const div = document.createElement('div');
           div.className = 'search-dropdown-item';
           div.innerHTML = `
-            <strong>${product.sku}</strong> - ${product.name}
+            <strong>${product.sku || 'No SKU'}</strong> - ${product.name || 'No Name'}
             <br><small>Category: ${product.category || 'N/A'} | Stock: ${product.quantity || 0}</small>
           `;
           div.addEventListener('click', () => selectProduct(product));
@@ -369,14 +402,16 @@
     }
 
     function selectProduct(product) {
-      document.getElementById('productSearch').value = `${product.sku} - ${product.name}`;
-      document.getElementById('purchaseSku').value = product.sku;
-      document.getElementById('purchaseName').value = product.name;
+      document.getElementById('productSearch').value = `${product.sku || ''} - ${product.name || ''}`;
+      document.getElementById('purchaseSku').value = product.sku || '';
+      document.getElementById('purchaseName').value = product.name || '';
       document.getElementById('productDropdown').style.display = 'none';
       
       // Set the purchase price to the current unit cost as default
       if(product.unitCost) {
         document.getElementById('purchasePrice').value = Number(product.unitCost).toFixed(2);
+      } else {
+        document.getElementById('purchasePrice').value = '';
       }
       
       // Update summary
@@ -414,7 +449,7 @@
         if(res.ok) {
           const newPurchase = await res.json();
           currentPurchaseId = newPurchase.id;
-          await fetchPurchases();
+          await loadPurchases();
           document.getElementById('printSection').style.display = 'block';
           alert('✅ Purchase saved successfully! Inventory updated.');
         } else {
@@ -521,7 +556,7 @@
         });
         
         if(res.ok) {
-          await fetchPurchases();
+          await loadPurchases();
           alert('🗑️ Purchase deleted successfully!');
         } else {
           alert('❌ Failed to delete purchase.');
@@ -530,6 +565,23 @@
         console.error('Error deleting purchase:', err);
         alert('❌ Server error while deleting purchase.');
       }
+    }
+
+    // Utility functions
+    function getUsername() {
+      return sessionStorage.getItem('adminName') || 'Guest';
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;', 
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
     }
 
     // Expose functions to global scope
@@ -541,6 +593,8 @@
     window.deletePurchase = deletePurchase;
     window.generatePurchaseReport = generatePurchaseReport;
     window.printSingleInvoice = printSingleInvoice;
+    window.toggleTheme = toggleTheme;
+    window.logout = logout;
   </script>
 </body>
 </html>
