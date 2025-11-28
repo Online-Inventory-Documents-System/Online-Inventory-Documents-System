@@ -831,7 +831,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE PURCHASE INVOICE PDF - ULTRA COMPACT ONE PAGE
+//                    SINGLE PURCHASE INVOICE PDF - NEW DESIGN
 // ============================================================================
 app.get("/api/purchases/invoice/:id", async (req, res) => {
   try {
@@ -844,157 +844,42 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        let pdfChunks = [];
+        // Prepare data for the new invoice template
+        const invoiceData = {
+          title: 'PURCHASE INVOICE',
+          companyInfo: {
+            name: 'L&B COMPANY',
+            address: 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka',
+            phone: '01133127622',
+            email: 'lbcompany@gmail.com'
+          },
+          docMeta: {
+            reference: purchase.purchaseId,
+            dateString: new Date(purchase.purchaseDate).toLocaleDateString(),
+            status: 'PURCHASE'
+          },
+          customer: {
+            name: purchase.supplier || 'Supplier',
+            contact: purchase.supplier || 'N/A'
+          },
+          items: purchase.items.map(item => ({
+            name: item.productName || 'N/A',
+            sku: item.sku || 'N/A',
+            qty: item.quantity || 0,
+            price: item.purchasePrice || 0,
+            total: item.totalAmount || 0
+          })),
+          totals: {
+            subtotal: purchase.subtotal || purchase.totalAmount,
+            tax: 0,
+            grandTotal: purchase.totalAmount || 0
+          },
+          extraNotes: purchase.notes || ''
+        };
 
-        const doc = new PDFDocument({
-          size: "A4",
-          margin: 20, // Smaller margins for more space
-          bufferPages: true
-        });
-
-        doc.on("data", chunk => {
-          pdfChunks.push(chunk);
-        });
-        
-        doc.on("end", () => {
-          const buffer = Buffer.concat(pdfChunks);
-          resolve(buffer);
-        });
-        
-        doc.on("error", (error) => {
-          reject(error);
-        });
-
-        // ==================== ULTRA COMPACT ONE-PAGE LAYOUT ====================
-        
-        // Company Header - SIMPLE, NO BACKGROUND COLORS
-        doc.fillColor('#000000') // BLACK TEXT ONLY
-           .fontSize(16).font("Helvetica-Bold")
-           .text("L&B COMPANY", 20, 20);
-        
-        doc.fontSize(7).font("Helvetica")
-           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 20, 38)
-           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 20, 46);
-
-        // Invoice Title
-        doc.fontSize(14).font("Helvetica-Bold")
-           .text("PURCHASE INVOICE", 20, 65);
-
-        // Simple divider line
-        doc.moveTo(20, 80).lineTo(200, 80).strokeColor('#000000').lineWidth(0.5).stroke();
-
-        // Compact Details Section
-        const detailsY = 90;
-        
-        // From Information - LEFT SIDE
-        doc.fontSize(8).font("Helvetica-Bold")
-           .text("From:", 20, detailsY);
-        doc.font("Helvetica")
-           .text("L&B Company", 20, detailsY + 12)
-           .text("Jalan Mawar 8", 20, detailsY + 24)
-           .text("Taman Bukit Beruang Permai", 20, detailsY + 36)
-           .text("Melaka", 20, detailsY + 48);
-
-        // Invoice Details - RIGHT SIDE - NO BACKGROUND BOX
-        doc.font("Helvetica-Bold").fontSize(8)
-           .text("Invoice Number:", 300, detailsY)
-           .text("Invoice Date:", 300, detailsY + 12)
-           .text("Supplier:", 300, detailsY + 24);
-        
-        doc.font("Helvetica").fontSize(8)
-           .text(purchase.purchaseId || "N/A", 400, detailsY)
-           .text(new Date(purchase.purchaseDate).toLocaleDateString(), 400, detailsY + 12)
-           .text(purchase.supplier || "N/A", 400, detailsY + 24, { width: 150 });
-
-        // Items Table - ULTRA COMPACT
-        let itemsY = detailsY + 70;
-        
-        // Table Header - SIMPLE BLACK TEXT, NO BACKGROUND
-        doc.font("Helvetica-Bold").fontSize(7)
-           .text("SKU", 20, itemsY)
-           .text("PRODUCT NAME", 80, itemsY)
-           .text("QTY", 250, itemsY)
-           .text("UNIT PRICE", 300, itemsY)
-           .text("TOTAL", 400, itemsY);
-        
-        // Header underline
-        doc.moveTo(20, itemsY + 5).lineTo(575, itemsY + 5).strokeColor('#000000').lineWidth(0.5).stroke();
-        
-        itemsY += 10;
-
-        // Table Rows - ULTRA COMPACT
-        doc.font("Helvetica").fontSize(7);
-        
-        let subtotal = 0;
-        const rowHeight = 10; // Very compact rows
-        const maxRows = 20; // Maximum rows that can fit on one page
-        
-        purchase.items.slice(0, maxRows).forEach((item, index) => {
-          // Simple alternating background - LIGHT GRAY, NOT WHITE
-          if (index % 2 === 0) {
-            doc.rect(20, itemsY, 555, rowHeight)
-               .fillColor('#f5f5f5') // Very light gray
-               .fill();
-          }
-          
-          doc.fillColor('#000000') // Ensure black text
-             .text(item.sku || "N/A", 22, itemsY + 2, { width: 50 })
-             .text(item.productName || "N/A", 80, itemsY + 2, { width: 160 })
-             .text(String(item.quantity || 0), 250, itemsY + 2, { width: 40, align: 'center' })
-             .text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, 300, itemsY + 2, { width: 80, align: 'right' })
-             .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, 400, itemsY + 2, { width: 80, align: 'right' });
-          
-          subtotal += item.totalAmount || 0;
-          itemsY += rowHeight;
-        });
-
-        // If too many items, show message
-        if (purchase.items.length > maxRows) {
-          doc.fillColor('#000000')
-             .font("Helvetica-Bold").fontSize(7)
-             .text(`... and ${purchase.items.length - maxRows} more items`, 20, itemsY + 5);
-          itemsY += 15;
-        }
-
-        // Summary Section - SIMPLE, NO BOX
-        const summaryY = Math.min(itemsY + 20, 650); // Force position to stay on one page
-        
-        doc.font("Helvetica-Bold").fontSize(8)
-           .text("Subtotal:", 400, summaryY)
-           .text("Tax (0%):", 400, summaryY + 12)
-           .text("Total Amount:", 400, summaryY + 24);
-        
-        doc.font("Helvetica").fontSize(8)
-           .text(`RM ${subtotal.toFixed(2)}`, 500, summaryY, { align: 'right' })
-           .text("RM 0.00", 500, summaryY + 12, { align: 'right' })
-           .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 500, summaryY + 24, { align: 'right' });
-
-        // Notes Section - Only if space and notes exist
-        if (purchase.notes && summaryY + 50 < 750) {
-          doc.font("Helvetica-Bold").fontSize(7)
-             .text("Notes:", 20, summaryY + 40);
-          doc.font("Helvetica").fontSize(7)
-             .text(purchase.notes, 20, summaryY + 50, { width: 350 });
-        }
-
-        // Simple Footer - ALWAYS BLACK TEXT
-        const footerY = 780;
-        doc.fontSize(7)
-           .fillColor('#000000') // BLACK TEXT
-           .text("Thank you for your business!", 20, footerY)
-           .text("Generated by L&B Company Inventory System", 20, footerY + 10)
-           .text(`Generated on: ${new Date().toLocaleString()}`, 20, footerY + 20);
-
-        // FORCE ONE PAGE - Remove any additional pages
-        const range = doc.bufferedPageRange();
-        if (range.count > 1) {
-          // If somehow multiple pages were created, keep only first page
-          for (let i = 1; i < range.count; i++) {
-            doc.removePage(i);
-          }
-        }
-
-        doc.end();
+        // Generate PDF using the new template
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
+        resolve(buffer);
 
       } catch (error) {
         reject(error);
@@ -1013,7 +898,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    TOTAL PURCHASE PDF REPORT - ULTRA COMPACT ONE PAGE
+//                    TOTAL PURCHASE PDF REPORT - NEW DESIGN
 // ============================================================================
 app.get("/api/purchases/report/pdf", async (req, res) => {
   try {
@@ -1025,128 +910,128 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        let pdfChunks = [];
-
-        const doc = new PDFDocument({
-          size: "A4",
-          margin: 20, // Smaller margins
+        const doc = new PDFDocument({ 
+          size: 'A4', 
+          margin: 36,
           bufferPages: true
         });
-
-        doc.on("data", chunk => {
-          pdfChunks.push(chunk);
-        });
         
-        doc.on("end", () => {
-          const buffer = Buffer.concat(pdfChunks);
-          console.log(`✅ Purchase PDF generation completed: ${buffer.length} bytes`);
-          resolve(buffer);
-        });
-        
-        doc.on("error", (error) => {
-          console.error('❌ Purchase PDF generation error:', error);
-          reject(error);
-        });
+        const bufs = [];
+        doc.on('data', (d) => bufs.push(d));
+        doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-        // ==================== ULTRA COMPACT ONE-PAGE REPORT ====================
-        
-        // Header - SIMPLE, NO BACKGROUND
-        doc.fillColor('#000000') // BLACK TEXT ONLY
-           .fontSize(16).font("Helvetica-Bold")
-           .text("L&B COMPANY", 20, 20);
-        
-        doc.fontSize(7).font("Helvetica")
-           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 20, 38)
-           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 20, 46);
+        // Header - two column design
+        const companyInfo = {
+          name: 'L&B COMPANY',
+          address: 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka',
+          phone: '01133127622',
+          email: 'lbcompany@gmail.com'
+        };
 
-        // Report Title
-        doc.fontSize(14).font("Helvetica-Bold")
-           .text("TOTAL PURCHASE REPORT", 20, 65);
+        // Left column - Company Info
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text(companyInfo.name, 36, 36);
+        doc.fontSize(10).font('Helvetica')
+           .text(companyInfo.address, 36, 54, { continued: false });
+        doc.text(`Phone: ${companyInfo.phone}`);
+        doc.text(`Email: ${companyInfo.email}`);
 
-        // Simple divider
-        doc.moveTo(20, 80).lineTo(200, 80).strokeColor('#000000').lineWidth(0.5).stroke();
+        // Right column - Report Meta
+        const rightX = 360;
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('TOTAL PURCHASE REPORT', rightX, 36, { align: 'right' });
+        doc.fontSize(10).font('Helvetica')
+           .text(`Generated: ${new Date().toLocaleString()}`, rightX, 54, { align: 'right' });
+        doc.text(`By: ${printedBy}`, { align: 'right' });
+        doc.text(`Total Orders: ${purchases.length}`, { align: 'right' });
 
-        // Report Metadata - COMPACT
-        doc.fontSize(7).font("Helvetica")
-           .text(`Generated on: ${new Date().toLocaleString()}`, 20, 90)
-           .text(`Generated by: ${printedBy}`, 20, 100)
-           .text(`Total Purchase Orders: ${purchases.length}`, 400, 90, { align: 'right' });
-        
+        // Calculate grand total
         const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
-        doc.font("Helvetica-Bold")
-           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, 400, 100, { align: 'right' });
+        doc.font('Helvetica-Bold')
+           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
 
-        // Table - ULTRA COMPACT
-        let y = 120;
-        
-        // Table Header - SIMPLE, NO BACKGROUND
-        doc.font("Helvetica-Bold").fontSize(7)
-           .text("PURCHASE ID", 20, y)
-           .text("SUPPLIER", 120, y)
-           .text("ITEMS", 220, y)
-           .text("AMOUNT", 320, y)
-           .text("DATE", 420, y);
-        
-        // Header underline
-        doc.moveTo(20, y + 5).lineTo(575, y + 5).strokeColor('#000000').lineWidth(0.5).stroke();
-        
-        y += 10;
+        doc.moveDown(2);
 
-        // Table Rows - ULTRA COMPACT
-        doc.font("Helvetica").fontSize(6); // Very small font
+        // Report table header
+        const tableTop = 140;
+        const colX = { 
+          purchaseId: 36, 
+          supplier: 180, 
+          items: 320, 
+          amount: 420, 
+          date: 500 
+        };
+
+        doc.fontSize(10).font('Helvetica-Bold');
+        doc.text('Purchase ID', colX.purchaseId, tableTop);
+        doc.text('Supplier', colX.supplier, tableTop);
+        doc.text('Items', colX.items, tableTop);
+        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
+        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
+
+        // Table header line
+        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+
+        // Table rows
+        doc.font('Helvetica').fontSize(9);
+        let y = tableTop + 24;
         
-        const rowHeight = 8; // Very compact rows
-        const maxRows = 45; // Maximum rows that can fit on one page
-        
-        purchases.slice(0, maxRows).forEach((purchase, index) => {
-          // Simple alternating background
+        purchases.forEach((purchase, index) => {
+          // Check for page break
+          if (y > 700) {
+            doc.addPage();
+            y = 60;
+            // Redraw header on new page
+            doc.fontSize(10).font('Helvetica-Bold');
+            doc.text('Purchase ID', colX.purchaseId, y);
+            doc.text('Supplier', colX.supplier, y);
+            doc.text('Items', colX.items, y);
+            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
+            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
+            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+            y += 24;
+            doc.font('Helvetica').fontSize(9);
+          }
+
+          // Alternate row background
           if (index % 2 === 0) {
-            doc.rect(20, y, 555, rowHeight)
-               .fillColor('#f5f5f5') // Very light gray
+            doc.rect(36, y - 4, 524, 18)
+               .fillColor('#f8f9fa')
                .fill();
           }
-          
-          doc.fillColor('#000000') // BLACK TEXT
-             .text(purchase.purchaseId || "N/A", 22, y + 1, { width: 90 })
-             .text(purchase.supplier || "N/A", 120, y + 1, { width: 90 })
-             .text(`${purchase.items.length} items`, 220, y + 1, { width: 90, align: 'center' })
-             .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 320, y + 1, { width: 90, align: 'right' })
-             .text(new Date(purchase.purchaseDate).toLocaleDateString(), 420, y + 1, { width: 90, align: 'center' });
-          
-          y += rowHeight;
+
+          doc.fillColor('#000000')
+             .text(purchase.purchaseId || 'N/A', colX.purchaseId, y, { width: 140 })
+             .text(purchase.supplier || 'N/A', colX.supplier, y, { width: 130 })
+             .text(`${purchase.items.length} items`, colX.items, y, { width: 90, align: 'center' })
+             .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
+             .text(new Date(purchase.purchaseDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
+
+          y += 18;
         });
 
-        // If too many purchases, show message
-        if (purchases.length > maxRows) {
-          doc.fillColor('#000000')
-             .font("Helvetica-Bold").fontSize(6)
-             .text(`... and ${purchases.length - maxRows} more purchases`, 20, y + 5);
-          y += 10;
-        }
-
-        // Summary - SIMPLE, AT BOTTOM
-        const summaryY = Math.min(y + 15, 750);
-        doc.rect(20, summaryY, 555, 20)
-           .fillColor('#e8e8e8') // Light gray background
-           .fill();
+        // Summary section
+        const summaryY = Math.min(y + 20, 720);
+        doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
-        doc.fillColor('#000000') // BLACK TEXT
-           .font("Helvetica-Bold").fontSize(8)
-           .text("GRAND TOTAL:", 300, summaryY + 6)
-           .text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 6, { align: 'right' });
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
 
-        // Simple Footer
-        doc.fontSize(6)
-           .fillColor('#000000') // BLACK TEXT
-           .text(`Report generated on ${new Date().toLocaleDateString()} by ${printedBy}`, 20, summaryY + 25)
-           .text("Generated by L&B Company Inventory System", 20, summaryY + 35);
+        // Footer
+        doc.fontSize(9).font('Helvetica')
+           .text('Generated by L&B Company Inventory System', 36, 760, { align: 'center', width: 520 });
 
-        // FORCE ONE PAGE - Remove any additional pages
+        // Page numbers
         const range = doc.bufferedPageRange();
-        if (range.count > 1) {
-          for (let i = 1; i < range.count; i++) {
-            doc.removePage(i);
-          }
+        for (let i = 0; i < range.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(8)
+             .fillColor('#666666')
+             .text(`Page ${i + 1} of ${range.count}`, 36, doc.page.height - 30, { 
+               align: 'center', 
+               width: doc.page.width - 72 
+             });
         }
 
         doc.end();
@@ -1179,6 +1064,158 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
     res.status(500).json({ message: "Purchase PDF generation failed: " + err.message });
   }
 });
+
+// ===== IMPROVED Helper: generate PDF buffer using PDFKit (two-column professional invoice) =====
+function generateInvoicePDFBuffer({ title = 'Purchase Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 36,
+        bufferPages: true 
+      });
+      
+      const bufs = [];
+      doc.on('data', (d) => bufs.push(d));
+      doc.on('end', () => resolve(Buffer.concat(bufs)));
+
+      // Header - two column design
+      const topY = 36;
+      
+      // Left column - Company Info
+      doc.fontSize(14).font('Helvetica-Bold')
+         .text(companyInfo.name || 'L&B COMPANY', 36, topY);
+      doc.fontSize(10).font('Helvetica')
+         .text(companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', 36, topY + 18, { continued: false });
+      doc.text(`Phone: ${companyInfo.phone || '01133127622'}`);
+      doc.text(`Email: ${companyInfo.email || 'lbcompany@gmail.com'}`);
+
+      // Right column - Invoice Meta
+      const rightX = 360;
+      doc.fontSize(12).font('Helvetica-Bold')
+         .text(title, rightX, topY, { align: 'right' });
+      doc.fontSize(10).font('Helvetica')
+         .text(`No: ${docMeta.reference || ''}`, rightX, topY + 20, { align: 'right' });
+      doc.text(`Date: ${docMeta.dateString || new Date().toLocaleDateString()}`, { align: 'right' });
+      doc.text(`Status: ${docMeta.status || 'PURCHASE'}`, { align: 'right' });
+
+      // Supplier Information
+      const supplierY = 120;
+      doc.fontSize(10).font('Helvetica-Bold')
+         .text('Supplier:', 36, supplierY);
+      doc.font('Helvetica')
+         .text(customer.name || 'N/A', 36, supplierY + 15);
+      if (customer.contact) {
+        doc.text(`Contact: ${customer.contact}`, 36, doc.y);
+      }
+
+      // Items table header
+      const tableTop = 170;
+      const colX = { 
+        item: 36, 
+        sku: 260, 
+        qty: 360, 
+        price: 420, 
+        total: 500 
+      };
+      
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Product Name', colX.item, tableTop);
+      doc.text('SKU', colX.sku, tableTop);
+      doc.text('Qty', colX.qty, tableTop);
+      doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
+      doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
+
+      // Table header line
+      doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+
+      // Table rows
+      doc.font('Helvetica').fontSize(9);
+      let y = tableTop + 24;
+      
+      items.forEach((item, index) => {
+        // Check for page break
+        if (y > 700) {
+          doc.addPage();
+          y = 60;
+          // Redraw table header on new page
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('Product Name', colX.item, y);
+          doc.text('SKU', colX.sku, y);
+          doc.text('Qty', colX.qty, y);
+          doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
+          doc.text('Total', colX.total, y, { width: 70, align: 'right' });
+          doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+          y += 24;
+          doc.font('Helvetica').fontSize(9);
+        }
+
+        // Alternate row background for better readability
+        if (index % 2 === 0) {
+          doc.rect(36, y - 4, 524, 18)
+             .fillColor('#f8f9fa')
+             .fill();
+        }
+
+        doc.fillColor('#000000')
+           .text(item.name || 'N/A', colX.item, y, { width: 220 })
+           .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
+           .text(String(item.qty || 0), colX.qty, y, { width: 50, align: 'center' })
+           .text(`RM ${Number(item.price || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
+           .text(`RM ${Number(item.total || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
+        
+        y += 18;
+      });
+
+      // Totals section
+      const totalsY = Math.max(y + 10, 650);
+      doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
+      
+      const subtotal = totals.subtotal || items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+      const tax = totals.tax || 0;
+      const grand = totals.grandTotal || subtotal + tax;
+      
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
+      
+      doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
+      
+      doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
+      doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
+
+      // Notes section
+      if (extraNotes) {
+        doc.moveDown(2);
+        doc.font('Helvetica').fontSize(9)
+           .text('Notes:', 36, totalsY + 90)
+           .text(extraNotes, 36, totalsY + 105, { width: 500 });
+      }
+
+      // Footer
+      doc.fontSize(9).font('Helvetica')
+         .text('Thank you for your business. Generated by L&B Company Inventory System', 
+               36, 760, { align: 'center', width: 520 });
+
+      // Page numbers for multi-page invoices
+      const range = doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#666666')
+           .text(`Page ${i + 1} of ${range.count}`, 
+                 36, doc.page.height - 30, 
+                 { align: 'center', width: doc.page.width - 72 });
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 // ============================================================================
 //                       DOCUMENTS UPLOAD - COMPLETELY REWRITTEN
