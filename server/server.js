@@ -831,7 +831,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE PURCHASE INVOICE PDF - COMPACT ONE-PAGE LAYOUT
+//                    SINGLE PURCHASE INVOICE PDF - IMPROVED LAYOUT
 // ============================================================================
 app.get("/api/purchases/invoice/:id", async (req, res) => {
   try {
@@ -840,7 +840,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
-    const filename = `Invoice_${purchase.purchaseId}_${Date.now()}.pdf`;
+    const filename = `Invoice_${purchase.purchaseId}.pdf`;
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
@@ -848,7 +848,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
         const doc = new PDFDocument({
           size: "A4",
-          margin: 25 // Reduced margin for more space
+          margin: 30
         });
 
         doc.on("data", chunk => {
@@ -864,135 +864,172 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           reject(error);
         });
 
-        // ==================== COMPACT INVOICE LAYOUT ====================
-        // Header with company branding - more compact
-        doc.rect(25, 25, 545, 50)
-           .fillColor('#2c5aa0')
+        // ==================== IMPROVED INVOICE LAYOUT ====================
+        
+        // Company Header - Clean Design
+        doc.fillColor('#2c5aa0')
+           .fontSize(20).font("Helvetica-Bold")
+           .text("L&B COMPANY", 30, 30);
+        
+        doc.fillColor('#666666')
+           .fontSize(9).font("Helvetica")
+           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 30, 55)
+           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 30, 65);
+
+        // Invoice Title with underline
+        doc.fillColor('#000000')
+           .fontSize(18).font("Helvetica-Bold")
+           .text("PURCHASE INVOICE", 30, 100);
+        
+        doc.moveTo(30, 120).lineTo(200, 120).strokeColor('#2c5aa0').lineWidth(1).stroke();
+
+        // Invoice Details Section
+        const detailsY = 140;
+        
+        // Left column - From Information
+        doc.fontSize(10).font("Helvetica-Bold")
+           .text("From:", 30, detailsY);
+        doc.font("Helvetica")
+           .text("L&B Company", 30, detailsY + 15)
+           .text("Jalan Mawar 8", 30, detailsY + 30)
+           .text("Taman Bukit Beruang Permai", 30, detailsY + 45)
+           .text("Melaka", 30, detailsY + 60);
+
+        // Right column - Invoice Details in a box
+        const infoBoxWidth = 200;
+        const infoBoxX = doc.page.width - infoBoxWidth - 30;
+        
+        doc.rect(infoBoxX, detailsY, infoBoxWidth, 80)
+           .fillColor('#f8f9fa')
            .fill()
-           .fillColor('#ffffff');
+           .strokeColor('#dddddd')
+           .stroke();
         
-        doc.fontSize(18).font("Helvetica-Bold")
-           .text("L&B COMPANY", 45, 40);
-        
-        doc.fontSize(7).font("Helvetica")
-           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 45, 55)
-           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 45, 63);
-
-        // Invoice Title
         doc.fillColor('#000000')
-           .fontSize(16).font("Helvetica-Bold")
-           .text("PURCHASE INVOICE", 0, 90, { align: "center" });
-
-        // Invoice Details in two columns - more compact
-        const detailsY = 120;
+           .font("Helvetica-Bold").fontSize(9)
+           .text("INVOICE INFORMATION", infoBoxX + 10, detailsY + 10);
         
-        // Left column - Company Info
-        doc.fontSize(8).font("Helvetica-Bold")
-           .text("From:", 25, detailsY);
-        doc.font("Helvetica")
-           .text("L&B Company", 25, detailsY + 10)
-           .text("Jalan Mawar 8", 25, detailsY + 20)
-           .text("Taman Bukit Beruang Permai", 25, detailsY + 30)
-           .text("Melaka", 25, detailsY + 40);
-
-        // Right column - Invoice Details
-        doc.font("Helvetica-Bold")
-           .text("Invoice Number:", 350, detailsY)
-           .text("Invoice Date:", 350, detailsY + 10)
-           .text("Supplier:", 350, detailsY + 20);
+        doc.moveTo(infoBoxX + 10, detailsY + 25).lineTo(infoBoxX + infoBoxWidth - 10, detailsY + 25)
+           .strokeColor('#2c5aa0').lineWidth(0.5).stroke();
         
-        doc.font("Helvetica")
-           .text(purchase.purchaseId, 450, detailsY)
-           .text(new Date(purchase.purchaseDate).toLocaleDateString(), 450, detailsY + 10)
-           .text(purchase.supplier || "N/A", 450, detailsY + 20, { width: 120 });
-
-        // Items Table - more compact
-        let itemsY = detailsY + 60;
+        doc.font("Helvetica-Bold").fontSize(8)
+           .text("Invoice Number:", infoBoxX + 10, detailsY + 35)
+           .text("Invoice Date:", infoBoxX + 10, detailsY + 50)
+           .text("Supplier:", infoBoxX + 10, detailsY + 65);
         
-        // Table Header
-        doc.rect(25, itemsY, 545, 18).fillColor('#2c5aa0').fill();
+        doc.font("Helvetica").fontSize(8)
+           .text(purchase.purchaseId, infoBoxX + 80, detailsY + 35)
+           .text(new Date(purchase.purchaseDate).toLocaleDateString(), infoBoxX + 80, detailsY + 50)
+           .text(purchase.supplier || "N/A", infoBoxX + 80, detailsY + 65, { width: 110 });
+
+        // Items Table - Professional Design
+        let itemsY = detailsY + 100;
+        
+        // Table Header with background
+        doc.rect(30, itemsY, doc.page.width - 60, 20)
+           .fillColor('#2c5aa0')
+           .fill();
+        
         doc.fillColor('#ffffff')
-           .font("Helvetica-Bold").fontSize(8);
-        doc.text("SKU", 30, itemsY + 5);
-        doc.text("Product Name", 100, itemsY + 5);
-        doc.text("Qty", 300, itemsY + 5);
-        doc.text("Unit Price", 350, itemsY + 5);
-        doc.text("Total", 450, itemsY + 5);
+           .font("Helvetica-Bold").fontSize(9);
         
-        itemsY += 18;
+        const colWidth = (doc.page.width - 60) / 5;
+        doc.text("SKU", 35, itemsY + 6);
+        doc.text("PRODUCT NAME", 35 + colWidth, itemsY + 6);
+        doc.text("QTY", 35 + colWidth * 2, itemsY + 6);
+        doc.text("UNIT PRICE", 35 + colWidth * 3, itemsY + 6);
+        doc.text("TOTAL", 35 + colWidth * 4, itemsY + 6);
+        
+        itemsY += 20;
 
-        // Table Rows - compact
+        // Table Rows
         doc.fillColor('#000000')
-           .font("Helvetica").fontSize(7);
+           .font("Helvetica").fontSize(8);
         
-        let itemsHeightUsed = 0;
-        const maxItemsPerPage = 25; // Increased for compact layout
-        const rowHeight = 12; // Reduced row height
+        let subtotal = 0;
         
         purchase.items.forEach((item, index) => {
-          // Check if we need a new page
-          if (itemsY + rowHeight > 700 && index < purchase.items.length - 1) {
+          // Check for page break
+          if (itemsY > doc.page.height - 100) {
             doc.addPage();
-            itemsY = 25;
-            // Redraw header on new page
-            doc.rect(25, itemsY, 545, 18).fillColor('#2c5aa0').fill();
-            doc.fillColor('#ffffff')
-               .font("Helvetica-Bold").fontSize(8);
-            doc.text("SKU", 30, itemsY + 5);
-            doc.text("Product Name", 100, itemsY + 5);
-            doc.text("Qty", 300, itemsY + 5);
-            doc.text("Unit Price", 350, itemsY + 5);
-            doc.text("Total", 450, itemsY + 5);
-            itemsY += 18;
+            itemsY = 30;
+            // Redraw table header on new page
+            doc.rect(30, itemsY, doc.page.width - 60, 20).fillColor('#2c5aa0').fill();
+            doc.fillColor('#ffffff').font("Helvetica-Bold").fontSize(9);
+            doc.text("SKU", 35, itemsY + 6);
+            doc.text("PRODUCT NAME", 35 + colWidth, itemsY + 6);
+            doc.text("QTY", 35 + colWidth * 2, itemsY + 6);
+            doc.text("UNIT PRICE", 35 + colWidth * 3, itemsY + 6);
+            doc.text("TOTAL", 35 + colWidth * 4, itemsY + 6);
+            itemsY += 20;
             doc.fillColor('#000000');
           }
 
-          // Alternate row colors for readability
+          // Alternate row background
           if (index % 2 === 0) {
-            doc.rect(25, itemsY, 545, rowHeight).fillColor('#f8f9fa').fill();
+            doc.rect(30, itemsY, doc.page.width - 60, 15)
+               .fillColor('#f8f9fa')
+               .fill();
           }
           
-          doc.rect(25, itemsY, 545, rowHeight).stroke();
-          doc.text(item.sku || "N/A", 30, itemsY + 3, { width: 60 });
-          doc.text(item.productName || "N/A", 100, itemsY + 3, { width: 180 });
-          doc.text(String(item.quantity || 0), 300, itemsY + 3);
-          doc.text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, 350, itemsY + 3);
-          doc.text(`RM ${(item.totalAmount || 0).toFixed(2)}`, 450, itemsY + 3);
+          // Row border
+          doc.rect(30, itemsY, doc.page.width - 60, 15)
+             .strokeColor('#eeeeee')
+             .stroke();
           
-          itemsY += rowHeight;
-          itemsHeightUsed += rowHeight;
+          doc.text(item.sku || "N/A", 35, itemsY + 4, { width: colWidth - 10 });
+          doc.text(item.productName || "N/A", 35 + colWidth, itemsY + 4, { width: colWidth - 10 });
+          doc.text(String(item.quantity || 0), 35 + colWidth * 2, itemsY + 4, { width: colWidth - 10, align: 'center' });
+          doc.text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, 35 + colWidth * 3, itemsY + 4, { width: colWidth - 10, align: 'right' });
+          doc.text(`RM ${(item.totalAmount || 0).toFixed(2)}`, 35 + colWidth * 4, itemsY + 4, { width: colWidth - 10, align: 'right' });
+          
+          subtotal += item.totalAmount || 0;
+          itemsY += 15;
         });
 
-        // Summary Section - positioned dynamically
-        const summaryY = Math.max(itemsY + 10, 500); // Ensure minimum spacing
+        // Summary Section
+        const summaryY = Math.max(itemsY + 20, doc.page.height - 120);
+        const summaryWidth = 200;
+        const summaryX = doc.page.width - summaryWidth - 30;
         
-        doc.rect(350, summaryY, 220, 50).stroke();
+        doc.rect(summaryX, summaryY, summaryWidth, 80)
+           .strokeColor('#2c5aa0')
+           .stroke();
         
-        doc.font("Helvetica-Bold").fontSize(9);
-        doc.text("Subtotal:", 360, summaryY + 8);
-        doc.text("Tax (0%):", 360, summaryY + 20);
-        doc.text("Total Amount:", 360, summaryY + 32);
+        doc.font("Helvetica-Bold").fontSize(10)
+           .text("SUMMARY", summaryX + 10, summaryY + 10);
         
-        doc.font("Helvetica").fontSize(9);
-        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 8);
-        doc.text("RM 0.00", 460, summaryY + 20);
-        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 32);
+        doc.moveTo(summaryX + 10, summaryY + 25).lineTo(summaryX + summaryWidth - 10, summaryY + 25)
+           .strokeColor('#2c5aa0').lineWidth(0.5).stroke();
+        
+        doc.font("Helvetica-Bold").fontSize(9)
+           .text("Subtotal:", summaryX + 10, summaryY + 35)
+           .text("Tax (0%):", summaryX + 10, summaryY + 50)
+           .text("Total Amount:", summaryX + 10, summaryY + 65);
+        
+        doc.font("Helvetica").fontSize(9)
+           .text(`RM ${subtotal.toFixed(2)}`, summaryX + 100, summaryY + 35, { align: 'right' })
+           .text("RM 0.00", summaryX + 100, summaryY + 50, { align: 'right' })
+           .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, summaryX + 100, summaryY + 65, { align: 'right' });
 
-        // Notes Section - only if there are notes
+        // Notes Section
         if (purchase.notes) {
-          const notesY = summaryY + 60;
-          doc.font("Helvetica-Bold").fontSize(8)
-             .text("Notes:", 25, notesY);
-          doc.font("Helvetica").fontSize(7)
-             .text(purchase.notes, 25, notesY + 10, { width: 500 });
+          const notesY = summaryY + 90;
+          doc.font("Helvetica-Bold").fontSize(9)
+             .text("Notes:", 30, notesY);
+          doc.rect(30, notesY + 15, doc.page.width - 60, 40)
+             .strokeColor('#dddddd')
+             .stroke();
+          doc.font("Helvetica").fontSize(8)
+             .text(purchase.notes, 35, notesY + 20, { width: doc.page.width - 70 });
         }
 
-        // Compact Footer
-        doc.fontSize(7)
+        // Footer
+        doc.fontSize(8)
            .fillColor('#666666')
-           .text("Thank you for your business!", 0, doc.page.height - 30, { align: "center" })
-           .text("Generated by L&B Company Inventory System", 0, doc.page.height - 20, { align: "center" })
-           .text(new Date().toLocaleString(), 0, doc.page.height - 10, { align: "center" });
+           .text("Thank you for your business!", 30, doc.page.height - 40)
+           .text("Generated by L&B Company Inventory System", 30, doc.page.height - 25)
+           .text(`Generated on: ${new Date().toLocaleString()}`, 30, doc.page.height - 15);
 
         doc.end();
 
@@ -1013,13 +1050,13 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    TOTAL PURCHASE PDF REPORT - COMPACT LAYOUT
+//                    TOTAL PURCHASE PDF REPORT - IMPROVED LAYOUT
 // ============================================================================
 app.get("/api/purchases/report/pdf", async (req, res) => {
   try {
     const purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
     const printedBy = req.headers["x-username"] || "System";
-    const filename = `Total_Purchase_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+    const filename = `Total_Purchase_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     console.log(`📊 Generating Purchase PDF report: ${filename}`);
 
@@ -1029,7 +1066,7 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 
         const doc = new PDFDocument({
           size: "A4",
-          margin: 20 // Reduced margin for more content
+          margin: 25
         });
 
         doc.on("data", chunk => {
@@ -1047,102 +1084,155 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
           reject(error);
         });
 
-        // ==================== COMPACT PDF CONTENT GENERATION ====================
-        // Header with better styling - more compact
-        doc.rect(20, 20, 555, 45)
-           .fillColor('#2c5aa0')
-           .fill()
-           .fillColor('#ffffff');
+        // ==================== IMPROVED REPORT LAYOUT ====================
         
-        doc.fontSize(16).font("Helvetica-Bold")
-           .text("L&B COMPANY", 40, 32);
+        // Header
+        doc.fillColor('#2c5aa0')
+           .fontSize(18).font("Helvetica-Bold")
+           .text("L&B COMPANY", 25, 25);
         
-        doc.fontSize(7).font("Helvetica")
-           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 45)
-           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 40, 52);
+        doc.fillColor('#666666')
+           .fontSize(8).font("Helvetica")
+           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 25, 45)
+           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 25, 55);
 
         // Report Title
         doc.fillColor('#000000')
-           .fontSize(14).font("Helvetica-Bold")
-           .text("TOTAL PURCHASE REPORT", 0, 80, { align: "center" });
-
-        // Report Details - compact
-        doc.fontSize(7).font("Helvetica");
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 100);
-        doc.text(`Generated by: ${printedBy}`, 20, 108);
-        doc.text(`Total Purchase Orders: ${purchases.length}`, 20, 116);
-
-        doc.moveTo(20, 130).lineTo(575, 130).strokeColor('#2c5aa0').stroke();
-
-        // Purchase Table with compact styling
-        let y = 140;
-        const rowHeight = 14; // Reduced row height
+           .fontSize(16).font("Helvetica-Bold")
+           .text("TOTAL PURCHASE REPORT", 0, 85, { align: "center" });
         
-        // Table Headers with background
-        doc.rect(20, y, 555, rowHeight).fillColor('#2c5aa0').fill();
+        doc.moveTo(25, 105).lineTo(doc.page.width - 25, 105)
+           .strokeColor('#2c5aa0').lineWidth(1).stroke();
+
+        // Report Metadata
+        const metaY = 115;
+        doc.fontSize(8).font("Helvetica");
+        
+        // Left side metadata
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 25, metaY);
+        doc.text(`Generated by: ${printedBy}`, 25, metaY + 12);
+        
+        // Right side summary
+        doc.text(`Total Purchase Orders: ${purchases.length}`, doc.page.width - 150, metaY, { align: 'right' });
+        
+        const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
+        doc.font("Helvetica-Bold")
+           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, doc.page.width - 150, metaY + 12, { align: 'right' });
+
+        // Table Headers
+        let y = metaY + 35;
+        const colWidths = [120, 100, 80, 100, 80]; // Adjusted column widths
+        const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+        const tableStartX = (doc.page.width - tableWidth) / 2;
+        
+        // Table Header Background
+        doc.rect(tableStartX, y, tableWidth, 20)
+           .fillColor('#2c5aa0')
+           .fill();
+        
         doc.fillColor('#ffffff')
-           .font("Helvetica-Bold").fontSize(7);
-        doc.text("Purchase ID", 25, y + 4);
-        doc.text("Supplier", 120, y + 4);
-        doc.text("Items", 250, y + 4);
-        doc.text("Total Amount", 400, y + 4);
-        doc.text("Date", 480, y + 4);
+           .font("Helvetica-Bold").fontSize(8);
         
-        y += rowHeight;
+        let currentX = tableStartX;
+        doc.text("PURCHASE ID", currentX + 5, y + 7, { width: colWidths[0] - 10 });
+        currentX += colWidths[0];
+        doc.text("SUPPLIER", currentX + 5, y + 7, { width: colWidths[1] - 10 });
+        currentX += colWidths[1];
+        doc.text("ITEMS", currentX + 5, y + 7, { width: colWidths[2] - 10, align: 'center' });
+        currentX += colWidths[2];
+        doc.text("TOTAL AMOUNT", currentX + 5, y + 7, { width: colWidths[3] - 10, align: 'right' });
+        currentX += colWidths[3];
+        doc.text("DATE", currentX + 5, y + 7, { width: colWidths[4] - 10, align: 'center' });
+        
+        y += 20;
 
-        // Table Rows - compact
+        // Table Rows
         doc.fillColor('#000000')
-           .font("Helvetica").fontSize(6);
-        let grandTotal = 0;
-        let itemsOnPage = 0;
-        const maxRowsPerPage = 30; // Increased for compact layout
+           .font("Helvetica").fontSize(7);
+        
+        let pageNumber = 1;
+        const rowsPerPage = 25;
+        let rowCount = 0;
         
         purchases.forEach((purchase, index) => {
-          if (itemsOnPage >= maxRowsPerPage) {
+          // Page break check
+          if (rowCount >= rowsPerPage) {
             doc.addPage();
-            y = 20;
-            // Draw headers on new page
-            doc.rect(20, y, 555, rowHeight).fillColor('#2c5aa0').fill();
-            doc.fillColor('#ffffff')
-               .font("Helvetica-Bold").fontSize(7);
-            doc.text("Purchase ID", 25, y + 4);
-            doc.text("Supplier", 120, y + 4);
-            doc.text("Items", 250, y + 4);
-            doc.text("Total Amount", 400, y + 4);
-            doc.text("Date", 480, y + 4);
-            y += rowHeight;
-            doc.fillColor('#000000');
-            itemsOnPage = 0;
+            y = 30;
+            pageNumber++;
+            
+            // Redraw header on new page
+            doc.rect(tableStartX, y, tableWidth, 20).fillColor('#2c5aa0').fill();
+            doc.fillColor('#ffffff').font("Helvetica-Bold").fontSize(8);
+            
+            currentX = tableStartX;
+            doc.text("PURCHASE ID", currentX + 5, y + 7, { width: colWidths[0] - 10 });
+            currentX += colWidths[0];
+            doc.text("SUPPLIER", currentX + 5, y + 7, { width: colWidths[1] - 10 });
+            currentX += colWidths[1];
+            doc.text("ITEMS", currentX + 5, y + 7, { width: colWidths[2] - 10, align: 'center' });
+            currentX += colWidths[2];
+            doc.text("TOTAL AMOUNT", currentX + 5, y + 7, { width: colWidths[3] - 10, align: 'right' });
+            currentX += colWidths[3];
+            doc.text("DATE", currentX + 5, y + 7, { width: colWidths[4] - 10, align: 'center' });
+            
+            y += 20;
+            rowCount = 0;
           }
 
-          doc.rect(20, y, 555, rowHeight).stroke();
-          doc.text(purchase.purchaseId || "", 25, y + 4, { width: 90 });
-          doc.text(purchase.supplier || "", 120, y + 4, { width: 120 });
-          doc.text(`${purchase.items.length} items`, 250, y + 4);
-          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 400, y + 4);
-          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 480, y + 4);
+          // Alternate row background
+          if (index % 2 === 0) {
+            doc.rect(tableStartX, y, tableWidth, 15)
+               .fillColor('#f8f9fa')
+               .fill();
+          }
           
-          grandTotal += purchase.totalAmount || 0;
-          y += rowHeight;
-          itemsOnPage++;
+          // Row border
+          doc.rect(tableStartX, y, tableWidth, 15)
+             .strokeColor('#eeeeee')
+             .stroke();
+          
+          currentX = tableStartX;
+          doc.fillColor('#000000')
+             .text(purchase.purchaseId || "", currentX + 5, y + 4, { width: colWidths[0] - 10 });
+          currentX += colWidths[0];
+          doc.text(purchase.supplier || "", currentX + 5, y + 4, { width: colWidths[1] - 10 });
+          currentX += colWidths[1];
+          doc.text(`${purchase.items.length} items`, currentX + 5, y + 4, { width: colWidths[2] - 10, align: 'center' });
+          currentX += colWidths[2];
+          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, currentX + 5, y + 4, { width: colWidths[3] - 10, align: 'right' });
+          currentX += colWidths[3];
+          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), currentX + 5, y + 4, { width: colWidths[4] - 10, align: 'center' });
+          
+          y += 15;
+          rowCount++;
         });
 
-        // Summary with compact styling
-        y += 5;
-        doc.rect(20, y, 555, 20).fillColor('#f0f8ff').fill().stroke();
+        // Summary Section
+        y += 10;
+        doc.rect(tableStartX, y, tableWidth, 25)
+           .fillColor('#e8f4ff')
+           .fill()
+           .strokeColor('#2c5aa0')
+           .stroke();
+        
         doc.fillColor('#000000')
-           .font("Helvetica-Bold").fontSize(9);
-        doc.text("GRAND TOTAL:", 300, y + 6);
-        doc.text(`RM ${grandTotal.toFixed(2)}`, 450, y + 6);
+           .font("Helvetica-Bold").fontSize(9)
+           .text("GRAND TOTAL:", tableStartX + 10, y + 8);
+        
+        doc.text(`RM ${grandTotal.toFixed(2)}`, tableStartX + tableWidth - 10, y + 8, { align: 'right' });
+        
+        doc.font("Helvetica").fontSize(7)
+           .text(`Report generated on ${new Date().toLocaleDateString()} by ${printedBy}`, tableStartX, y + 18, { width: tableWidth, align: 'center' });
 
-        // Compact Footer
-        const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
+        // Footer on all pages
+        const totalPages = doc.bufferedPageRange().count;
+        for (let i = 0; i < totalPages; i++) {
           doc.switchToPage(i);
-          doc.fontSize(6)
+          doc.fontSize(7)
              .fillColor('#666666')
-             .text("Generated by L&B Company Inventory System", 0, doc.page.height - 20, { align: "center" })
-             .text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 12, { align: "center" });
+             .text("Generated by L&B Company Inventory System", 25, doc.page.height - 20)
+             .text(`Page ${i + 1} of ${totalPages}`, doc.page.width - 50, doc.page.height - 20, { align: 'right' });
         }
         
         doc.end();
