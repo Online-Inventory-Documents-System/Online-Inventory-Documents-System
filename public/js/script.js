@@ -535,7 +535,7 @@ async function fetchLogs() {
 }
 
 // =========================================
-// Purchase Management Functions
+// UPDATED: Purchase Management Functions for Multiple Products
 // =========================================
 async function fetchPurchases() {
   try {
@@ -543,14 +543,14 @@ async function fetchPurchases() {
     if (!res.ok) throw new Error('Failed to fetch purchases');
     const data = await res.json();
     purchases = data.map(p => ({ ...p, id: p.id || p._id }));
-    renderPurchases();
+    renderPurchaseHistory();
   } catch(err) {
     console.error('Fetch purchases error:', err);
   }
 }
 
-function renderPurchases() {
-  const list = qs('#purchaseList');
+function renderPurchaseHistory() {
+  const list = qs('#purchaseHistoryList');
   if (!list) return;
   list.innerHTML = '';
   
@@ -558,15 +558,13 @@ function renderPurchases() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
-      <td>${escapeHtml(p.sku || '')}</td>
-      <td>${escapeHtml(p.productName || '')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
-      <td>${p.quantity || 0}</td>
-      <td class="money">RM ${(p.purchasePrice || 0).toFixed(2)}</td>
+      <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${new Date(p.purchaseDate).toLocaleDateString()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="editPurchase('${p.id}')">✏️ Edit</button>
+        <button class="primary-btn small-btn" onclick="viewPurchase('${p.id}')">👁️ View</button>
+        <button class="secondary-btn small-btn" onclick="editPurchase('${p.id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
         <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
       </td>
@@ -575,31 +573,130 @@ function renderPurchases() {
   });
 }
 
-function openPurchaseModal() {
-  const modal = qs('#purchaseModal');
+function openPurchaseHistoryModal() {
+  const modal = qs('#purchaseHistoryModal');
+  if (modal) {
+    modal.style.display = 'block';
+    fetchPurchases();
+  }
+}
+
+function closePurchaseHistoryModal() {
+  const modal = qs('#purchaseHistoryModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function openNewPurchaseModal() {
+  const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'block';
     resetPurchaseForm();
     loadProductSearch();
+    addProductItem(); // Add one empty product row by default
   }
 }
 
-function closePurchaseModal() {
-  const modal = qs('#purchaseModal');
+function closeNewPurchaseModal() {
+  const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'none';
   }
 }
 
 function resetPurchaseForm() {
-  qs('#productSearch').value = '';
-  qs('#selectedProductInfo').innerHTML = 'No product selected';
   qs('#supplierName').value = '';
   qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
-  qs('#purchaseQuantity').value = '';
-  qs('#purchasePrice').value = '';
   qs('#purchaseNotes').value = '';
-  qs('#printInvoiceBtn').style.display = 'none';
+  qs('#productSearch').value = '';
+  qs('#productResults').innerHTML = '';
+  qs('#purchaseItems').innerHTML = '';
+  updateTotalAmount();
+}
+
+function addProductItem(product = null) {
+  const container = qs('#purchaseItems');
+  const itemId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  
+  const itemRow = document.createElement('div');
+  itemRow.className = 'purchase-item-row';
+  itemRow.id = itemId;
+  
+  itemRow.innerHTML = `
+    <div class="form-group">
+      <label>SKU</label>
+      <input type="text" class="product-sku" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
+    </div>
+    <div class="form-group">
+      <label>Product Name</label>
+      <input type="text" class="product-name" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
+    </div>
+    <div class="form-group">
+      <label>Quantity</label>
+      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? '1' : ''}">
+    </div>
+    <div class="form-group">
+      <label>Unit Price (RM)</label>
+      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitCost || '') : ''}">
+    </div>
+    <div class="form-group">
+      <label>Total (RM)</label>
+      <input type="text" class="product-total" placeholder="Total" readonly value="0.00">
+    </div>
+    <button class="danger-btn remove-item-btn" type="button">🗑️</button>
+  `;
+  
+  container.appendChild(itemRow);
+  
+  // Add event listeners for the new row
+  const quantityInput = itemRow.querySelector('.product-quantity');
+  const priceInput = itemRow.querySelector('.product-price');
+  const totalInput = itemRow.querySelector('.product-total');
+  
+  const calculateTotal = () => {
+    const qty = Number(quantityInput.value) || 0;
+    const price = Number(priceInput.value) || 0;
+    totalInput.value = (qty * price).toFixed(2);
+    updateTotalAmount();
+  };
+  
+  quantityInput.addEventListener('input', calculateTotal);
+  priceInput.addEventListener('input', calculateTotal);
+  
+  // Remove row button
+  itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
+    if (container.children.length > 1) {
+      itemRow.remove();
+      updateTotalAmount();
+    } else {
+      alert('At least one product item is required.');
+    }
+  });
+  
+  // Calculate initial total if values are pre-filled
+  if (product) {
+    calculateTotal();
+  }
+}
+
+function updateTotalAmount() {
+  let total = 0;
+  const itemRows = qsa('.purchase-item-row');
+  
+  itemRows.forEach(row => {
+    const totalInput = row.querySelector('.product-total');
+    const itemTotal = Number(totalInput.value) || 0;
+    total += itemTotal;
+  });
+  
+  if (qs('#totalPurchaseAmount')) {
+    qs('#totalPurchaseAmount').textContent = total.toFixed(2);
+  }
+  
+  if (qs('#editTotalPurchaseAmount')) {
+    qs('#editTotalPurchaseAmount').textContent = total.toFixed(2);
+  }
 }
 
 function loadProductSearch() {
@@ -631,79 +728,79 @@ function loadProductSearch() {
           <div class="name">${escapeHtml(item.name || 'N/A')}</div>
           <div class="stock">Stock: ${item.quantity || 0} | Cost: RM ${(item.unitCost || 0).toFixed(2)}</div>
         `;
-        div.addEventListener('click', () => selectProduct(item));
+        div.addEventListener('click', () => {
+          addProductItem(item);
+          searchInput.value = '';
+          resultsContainer.innerHTML = '';
+        });
         resultsContainer.appendChild(div);
       });
     });
   }
 }
 
-function selectProduct(item) {
-  const selectedProductInfo = qs('#selectedProductInfo');
-  const purchasePrice = qs('#purchasePrice');
-  
-  selectedProductInfo.innerHTML = `
-    <div class="product-details">
-      <div><strong>SKU:</strong> ${escapeHtml(item.sku || 'N/A')}</div>
-      <div><strong>Name:</strong> ${escapeHtml(item.name || 'N/A')}</div>
-      <div><strong>Current Stock:</strong> ${item.quantity || 0}</div>
-      <div><strong>Current Cost:</strong> RM ${(item.unitCost || 0).toFixed(2)}</div>
-    </div>
-  `;
-  
-  // Set current cost as default purchase price
-  if (purchasePrice && !purchasePrice.value) {
-    purchasePrice.value = item.unitCost || '';
-  }
-  
-  // Store selected product
-  selectedProductInfo.dataset.selectedSku = item.sku;
-  selectedProductInfo.dataset.selectedName = item.name;
-  
-  // Clear search results
-  qs('#productResults').innerHTML = '';
-  qs('#productSearch').value = '';
-}
-
-async function savePurchase() {
-  const selectedProductInfo = qs('#selectedProductInfo');
-  const supplierName = qs('#supplierName').value.trim();
+async function savePurchaseOrder() {
+  const supplier = qs('#supplierName').value.trim();
   const purchaseDate = qs('#purchaseDate').value;
-  const quantity = Number(qs('#purchaseQuantity').value);
-  const price = Number(qs('#purchasePrice').value);
   const notes = qs('#purchaseNotes').value.trim();
   
-  if (!selectedProductInfo.dataset.selectedSku) {
-    alert('⚠️ Please select a product first.');
-    return;
-  }
-  
-  if (!supplierName) {
+  if (!supplier) {
     alert('⚠️ Please enter supplier name.');
     return;
   }
   
-  if (!quantity || quantity <= 0) {
-    alert('⚠️ Please enter a valid quantity.');
-    return;
+  const items = [];
+  const itemRows = qsa('.purchase-item-row');
+  
+  for (const row of itemRows) {
+    const sku = row.querySelector('.product-sku').value.trim();
+    const productName = row.querySelector('.product-name').value.trim();
+    const quantity = Number(row.querySelector('.product-quantity').value);
+    const purchasePrice = Number(row.querySelector('.product-price').value);
+    
+    if (!sku || !productName || !quantity || !purchasePrice) {
+      alert('⚠️ Please fill in all fields for each product item.');
+      return;
+    }
+    
+    if (quantity <= 0) {
+      alert('⚠️ Please enter a valid quantity greater than 0.');
+      return;
+    }
+    
+    if (purchasePrice <= 0) {
+      alert('⚠️ Please enter a valid purchase price greater than 0.');
+      return;
+    }
+    
+    items.push({
+      sku,
+      productName,
+      quantity,
+      purchasePrice
+    });
   }
   
-  if (!price || price <= 0) {
-    alert('⚠️ Please enter a valid purchase price.');
+  if (items.length === 0) {
+    alert('⚠️ Please add at least one product item.');
     return;
   }
   
   const purchaseData = {
-    sku: selectedProductInfo.dataset.selectedSku,
-    productName: selectedProductInfo.dataset.selectedName,
-    supplier: supplierName,
-    quantity: quantity,
-    purchasePrice: price,
-    purchaseDate: purchaseDate,
-    notes: notes
+    supplier,
+    purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
+    notes,
+    items
   };
   
-  if (!confirm(`Confirm Purchase:\nProduct: ${purchaseData.productName}\nQuantity: ${quantity}\nPrice: RM ${price.toFixed(2)}\nSupplier: ${supplierName}`)) {
+  // Create confirmation message
+  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nItems: ${items.length}\n\nItems:\n`;
+  items.forEach((item, index) => {
+    confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
+  });
+  confirmMessage += `\nTotal Amount: RM ${purchaseData.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0).toFixed(2)}`;
+  
+  if (!confirm(confirmMessage)) {
     return;
   }
   
@@ -715,23 +812,269 @@ async function savePurchase() {
     
     if (res.ok) {
       const savedPurchase = await res.json();
-      alert('✅ Purchase saved successfully!');
+      alert('✅ Purchase order saved successfully!');
       
-      // Show print button
-      qs('#printInvoiceBtn').style.display = 'inline-block';
-      qs('#printInvoiceBtn').onclick = () => printPurchaseInvoice(savedPurchase.id);
-      
-      // Refresh data
+      closeNewPurchaseModal();
       await fetchInventory();
       await fetchPurchases();
       
     } else {
       const error = await res.json();
-      alert(`❌ Failed to save purchase: ${error.message}`);
+      alert(`❌ Failed to save purchase order: ${error.message}`);
     }
   } catch (e) {
-    console.error('Save purchase error:', e);
-    alert('❌ Server connection error while saving purchase.');
+    console.error('Save purchase order error:', e);
+    alert('❌ Server connection error while saving purchase order.');
+  }
+}
+
+async function viewPurchase(purchaseId) {
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
+    if (!res.ok) throw new Error('Failed to fetch purchase details');
+    
+    const purchase = await res.json();
+    
+    let message = `Purchase Order: ${purchase.purchaseId}\n\n`;
+    message += `Supplier: ${purchase.supplier}\n`;
+    message += `Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}\n`;
+    message += `Items: ${purchase.items.length}\n\n`;
+    
+    purchase.items.forEach((item, index) => {
+      message += `${index + 1}. ${item.productName} (${item.sku})\n`;
+      message += `   Quantity: ${item.quantity}\n`;
+      message += `   Unit Price: RM ${item.purchasePrice.toFixed(2)}\n`;
+      message += `   Total: RM ${item.totalAmount.toFixed(2)}\n\n`;
+    });
+    
+    message += `Total Amount: RM ${purchase.totalAmount.toFixed(2)}`;
+    
+    if (purchase.notes) {
+      message += `\n\nNotes: ${purchase.notes}`;
+    }
+    
+    alert(message);
+    
+  } catch (e) {
+    console.error('View purchase error:', e);
+    alert('❌ Failed to load purchase details.');
+  }
+}
+
+let currentEditingPurchaseId = null;
+
+async function editPurchase(purchaseId) {
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
+    if (!res.ok) throw new Error('Failed to fetch purchase details');
+    
+    const purchase = await res.json();
+    currentEditingPurchaseId = purchaseId;
+    
+    // Populate edit form
+    qs('#editSupplierName').value = purchase.supplier || '';
+    qs('#editPurchaseDate').value = purchase.purchaseDate ? new Date(purchase.purchaseDate).toISOString().split('T')[0] : '';
+    qs('#editPurchaseNotes').value = purchase.notes || '';
+    
+    // Clear existing items
+    qs('#editPurchaseItems').innerHTML = '';
+    
+    // Add items
+    purchase.items.forEach(item => {
+      addEditProductItem(item);
+    });
+    
+    // Update total
+    updateTotalAmount();
+    
+    // Show edit modal
+    const modal = qs('#editPurchaseModal');
+    if (modal) {
+      modal.style.display = 'block';
+    }
+    
+  } catch (e) {
+    console.error('Edit purchase error:', e);
+    alert('❌ Failed to load purchase for editing.');
+  }
+}
+
+function addEditProductItem(product = null) {
+  const container = qs('#editPurchaseItems');
+  const itemId = `edit-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  
+  const itemRow = document.createElement('div');
+  itemRow.className = 'purchase-item-row';
+  itemRow.id = itemId;
+  
+  itemRow.innerHTML = `
+    <div class="form-group">
+      <label>SKU</label>
+      <input type="text" class="product-sku" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}">
+    </div>
+    <div class="form-group">
+      <label>Product Name</label>
+      <input type="text" class="product-name" placeholder="Product Name" value="${product ? escapeHtml(product.productName || '') : ''}">
+    </div>
+    <div class="form-group">
+      <label>Quantity</label>
+      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? product.quantity : ''}">
+    </div>
+    <div class="form-group">
+      <label>Unit Price (RM)</label>
+      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? product.purchasePrice : ''}">
+    </div>
+    <div class="form-group">
+      <label>Total (RM)</label>
+      <input type="text" class="product-total" placeholder="Total" readonly value="${product ? product.totalAmount.toFixed(2) : '0.00'}">
+    </div>
+    <button class="danger-btn remove-item-btn" type="button">🗑️</button>
+  `;
+  
+  container.appendChild(itemRow);
+  
+  // Add event listeners for the new row
+  const quantityInput = itemRow.querySelector('.product-quantity');
+  const priceInput = itemRow.querySelector('.product-price');
+  const totalInput = itemRow.querySelector('.product-total');
+  
+  const calculateTotal = () => {
+    const qty = Number(quantityInput.value) || 0;
+    const price = Number(priceInput.value) || 0;
+    totalInput.value = (qty * price).toFixed(2);
+    updateTotalAmount();
+  };
+  
+  quantityInput.addEventListener('input', calculateTotal);
+  priceInput.addEventListener('input', calculateTotal);
+  
+  // Remove row button
+  itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
+    if (container.children.length > 1) {
+      itemRow.remove();
+      updateTotalAmount();
+    } else {
+      alert('At least one product item is required.');
+    }
+  });
+}
+
+async function updatePurchaseOrder() {
+  if (!currentEditingPurchaseId) return;
+  
+  const supplier = qs('#editSupplierName').value.trim();
+  const purchaseDate = qs('#editPurchaseDate').value;
+  const notes = qs('#editPurchaseNotes').value.trim();
+  
+  if (!supplier) {
+    alert('⚠️ Please enter supplier name.');
+    return;
+  }
+  
+  const items = [];
+  const itemRows = qsa('#editPurchaseItems .purchase-item-row');
+  
+  for (const row of itemRows) {
+    const sku = row.querySelector('.product-sku').value.trim();
+    const productName = row.querySelector('.product-name').value.trim();
+    const quantity = Number(row.querySelector('.product-quantity').value);
+    const purchasePrice = Number(row.querySelector('.product-price').value);
+    
+    if (!sku || !productName || !quantity || !purchasePrice) {
+      alert('⚠️ Please fill in all fields for each product item.');
+      return;
+    }
+    
+    if (quantity <= 0) {
+      alert('⚠️ Please enter a valid quantity greater than 0.');
+      return;
+    }
+    
+    if (purchasePrice <= 0) {
+      alert('⚠️ Please enter a valid purchase price greater than 0.');
+      return;
+    }
+    
+    items.push({
+      sku,
+      productName,
+      quantity,
+      purchasePrice
+    });
+  }
+  
+  if (items.length === 0) {
+    alert('⚠️ Please add at least one product item.');
+    return;
+  }
+  
+  const purchaseData = {
+    supplier,
+    purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
+    notes,
+    items
+  };
+  
+  // Create confirmation message
+  let confirmMessage = `Confirm Update Purchase Order:\n\nSupplier: ${supplier}\nItems: ${items.length}\n\nItems:\n`;
+  items.forEach((item, index) => {
+    confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
+  });
+  confirmMessage += `\nTotal Amount: RM ${purchaseData.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0).toFixed(2)}`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${currentEditingPurchaseId}`, {
+      method: 'PUT',
+      body: JSON.stringify(purchaseData)
+    });
+    
+    if (res.ok) {
+      alert('✅ Purchase order updated successfully!');
+      
+      closeEditPurchaseModal();
+      await fetchInventory();
+      await fetchPurchases();
+      
+    } else {
+      const error = await res.json();
+      alert(`❌ Failed to update purchase order: ${error.message}`);
+    }
+  } catch (e) {
+    console.error('Update purchase order error:', e);
+    alert('❌ Server connection error while updating purchase order.');
+  }
+}
+
+function closeEditPurchaseModal() {
+  const modal = qs('#editPurchaseModal');
+  if (modal) {
+    modal.style.display = 'none';
+    currentEditingPurchaseId = null;
+  }
+}
+
+async function deletePurchase(id) {
+  const purchase = purchases.find(p => String(p.id) === String(id));
+  if (!purchase) return;
+  
+  if (!confirm(`Confirm Delete Purchase Order:\n${purchase.purchaseId} from ${purchase.supplier}?\n\nThis will remove ${purchase.items.length} items and revert inventory quantities.`)) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
+    if (res.status === 204) {
+      await fetchPurchases();
+      await fetchInventory();
+      alert('🗑️ Purchase order deleted!');
+    } else {
+      alert('❌ Failed to delete purchase order.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('❌ Server connection error while deleting purchase order.');
   }
 }
 
@@ -745,7 +1088,11 @@ async function printPurchaseInvoice(purchaseId) {
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = `Invoice_${purchaseId}.pdf`;
+    
+    const purchase = purchases.find(p => String(p.id) === String(purchaseId));
+    const filename = purchase ? `Invoice_${purchase.purchaseId}.pdf` : `Invoice_${purchaseId}.pdf`;
+    
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -755,31 +1102,6 @@ async function printPurchaseInvoice(purchaseId) {
     console.error('Print invoice error:', e);
     alert('❌ Failed to generate invoice.');
   }
-}
-
-async function deletePurchase(id) {
-  const purchase = purchases.find(p => String(p.id) === String(id));
-  if (!purchase) return;
-  
-  if (!confirm(`Confirm Delete Purchase:\n${purchase.productName} from ${purchase.supplier}?`)) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
-    if (res.status === 204) {
-      await fetchPurchases();
-      alert('🗑️ Purchase deleted!');
-    } else {
-      alert('❌ Failed to delete purchase.');
-    }
-  } catch (e) {
-    console.error(e);
-    alert('❌ Server connection error while deleting purchase.');
-  }
-}
-
-function editPurchase(id) {
-  // You can implement edit functionality similar to product editing
-  alert('Edit purchase functionality can be implemented here');
 }
 
 async function generateTotalPurchaseReport() {
@@ -820,7 +1142,6 @@ window.addEventListener('load', async () => {
   try {
     if(currentPage.includes('inventory')) { 
       await fetchInventory(); 
-      await fetchPurchases(); // Add this line
       bindInventoryUI(); 
     }
     if(currentPage.includes('documents')) { 
@@ -1022,16 +1343,42 @@ function bindInventoryUI(){
     } 
   });
   
-  // Purchase functionality
-  qs('#purchaseBtn')?.addEventListener('click', openPurchaseModal);
-  qs('#savePurchaseBtn')?.addEventListener('click', savePurchase);
-  qs('#closePurchaseModal')?.addEventListener('click', closePurchaseModal);
+  // UPDATED: Purchase functionality with multiple products
+  qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
+  qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
+  qs('#addProductItem')?.addEventListener('click', () => addProductItem());
+  qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
+  qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
+  
+  // Edit purchase functionality
+  qs('#addEditProductItem')?.addEventListener('click', () => addEditProductItem());
+  qs('#updatePurchaseBtn')?.addEventListener('click', updatePurchaseOrder);
+  qs('#printEditInvoiceBtn')?.addEventListener('click', () => {
+    if (currentEditingPurchaseId) {
+      printPurchaseInvoice(currentEditingPurchaseId);
+    }
+  });
+  qs('#closeEditPurchaseModal')?.addEventListener('click', closeEditPurchaseModal);
   
   // Modal close handlers
-  qs('.close')?.addEventListener('click', closePurchaseModal);
+  qsa('.close').forEach(closeBtn => {
+    closeBtn.addEventListener('click', function() {
+      const modal = this.closest('.modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    });
+  });
+  
   window.addEventListener('click', (e) => {
-    if (e.target === qs('#purchaseModal')) {
-      closePurchaseModal();
+    if (e.target === qs('#purchaseHistoryModal')) {
+      closePurchaseHistoryModal();
+    }
+    if (e.target === qs('#newPurchaseModal')) {
+      closeNewPurchaseModal();
+    }
+    if (e.target === qs('#editPurchaseModal')) {
+      closeEditPurchaseModal();
     }
   });
   
@@ -1343,10 +1690,13 @@ window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
 
 // Purchase functions
-window.openPurchaseModal = openPurchaseModal;
-window.closePurchaseModal = closePurchaseModal;
-window.savePurchase = savePurchase;
+window.openPurchaseHistoryModal = openPurchaseHistoryModal;
+window.closePurchaseHistoryModal = closePurchaseHistoryModal;
+window.openNewPurchaseModal = openNewPurchaseModal;
+window.closeNewPurchaseModal = closeNewPurchaseModal;
+window.savePurchaseOrder = savePurchaseOrder;
 window.printPurchaseInvoice = printPurchaseInvoice;
 window.deletePurchase = deletePurchase;
 window.editPurchase = editPurchase;
+window.viewPurchase = viewPurchase;
 window.generateTotalPurchaseReport = generateTotalPurchaseReport;
