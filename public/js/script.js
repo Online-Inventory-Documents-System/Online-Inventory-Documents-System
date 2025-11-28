@@ -535,7 +535,7 @@ async function fetchLogs() {
 }
 
 // =========================================
-// UPDATED: Purchase Management Functions for Multiple Products
+// UPDATED: Purchase Management Functions for Multiple Products - FIXED VERSION
 // =========================================
 async function fetchPurchases() {
   try {
@@ -563,7 +563,7 @@ function renderPurchaseHistory() {
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${new Date(p.purchaseDate).toLocaleDateString()}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewPurchase('${p.id}')">👁️ View</button>
+        <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
         <button class="secondary-btn small-btn" onclick="editPurchase('${p.id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
         <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
@@ -588,13 +588,16 @@ function closePurchaseHistoryModal() {
   }
 }
 
+// FIXED: Reset modal state completely when opening
 function openNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'block';
     resetPurchaseForm();
     loadProductSearch();
-    addProductItem(); // Add one empty product row by default
+    // Don't add empty item by default - user will click to add
+    qs('#purchaseItems').innerHTML = '';
+    updateTotalAmount();
   }
 }
 
@@ -602,9 +605,12 @@ function closeNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'none';
+    // Reset form when closing
+    resetPurchaseForm();
   }
 }
 
+// FIXED: Completely reset purchase form
 function resetPurchaseForm() {
   qs('#supplierName').value = '';
   qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
@@ -615,6 +621,7 @@ function resetPurchaseForm() {
   updateTotalAmount();
 }
 
+// FIXED: Add product item with proper validation
 function addProductItem(product = null) {
   const container = qs('#purchaseItems');
   const itemId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -634,17 +641,17 @@ function addProductItem(product = null) {
     </div>
     <div class="form-group">
       <label>Quantity</label>
-      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? '1' : ''}">
+      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? '1' : '1'}">
     </div>
     <div class="form-group">
       <label>Unit Price (RM)</label>
-      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitCost || '') : ''}">
+      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitCost || '0.00') : '0.00'}">
     </div>
     <div class="form-group">
       <label>Total (RM)</label>
       <input type="text" class="product-total" placeholder="Total" readonly value="0.00">
     </div>
-    <button class="danger-btn remove-item-btn" type="button">🗑️</button>
+    <button class="danger-btn remove-item-btn" type="button" title="Remove Item">🗑️</button>
   `;
   
   container.appendChild(itemRow);
@@ -666,18 +673,12 @@ function addProductItem(product = null) {
   
   // Remove row button
   itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
-    if (container.children.length > 1) {
-      itemRow.remove();
-      updateTotalAmount();
-    } else {
-      alert('At least one product item is required.');
-    }
+    itemRow.remove();
+    updateTotalAmount();
   });
   
-  // Calculate initial total if values are pre-filled
-  if (product) {
-    calculateTotal();
-  }
+  // Calculate initial total
+  calculateTotal();
 }
 
 function updateTotalAmount() {
@@ -752,6 +753,12 @@ async function savePurchaseOrder() {
   const items = [];
   const itemRows = qsa('.purchase-item-row');
   
+  // FIXED: Check if there are any items
+  if (itemRows.length === 0) {
+    alert('⚠️ Please add at least one product item.');
+    return;
+  }
+  
   for (const row of itemRows) {
     const sku = row.querySelector('.product-sku').value.trim();
     const productName = row.querySelector('.product-name').value.trim();
@@ -779,11 +786,6 @@ async function savePurchaseOrder() {
       quantity,
       purchasePrice
     });
-  }
-  
-  if (items.length === 0) {
-    alert('⚠️ Please add at least one product item.');
-    return;
   }
   
   const purchaseData = {
@@ -828,37 +830,58 @@ async function savePurchaseOrder() {
   }
 }
 
-async function viewPurchase(purchaseId) {
+// NEW: View purchase details in modal
+async function viewPurchaseDetails(purchaseId) {
   try {
     const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to fetch purchase details');
     
     const purchase = await res.json();
     
-    let message = `Purchase Order: ${purchase.purchaseId}\n\n`;
-    message += `Supplier: ${purchase.supplier}\n`;
-    message += `Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}\n`;
-    message += `Items: ${purchase.items.length}\n\n`;
+    // Populate details
+    qs('#detailPurchaseId').textContent = purchase.purchaseId || 'N/A';
+    qs('#detailSupplier').textContent = purchase.supplier || 'N/A';
+    qs('#detailPurchaseDate').textContent = new Date(purchase.purchaseDate).toLocaleDateString();
+    qs('#detailTotalAmount').textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
     
-    purchase.items.forEach((item, index) => {
-      message += `${index + 1}. ${item.productName} (${item.sku})\n`;
-      message += `   Quantity: ${item.quantity}\n`;
-      message += `   Unit Price: RM ${item.purchasePrice.toFixed(2)}\n`;
-      message += `   Total: RM ${item.totalAmount.toFixed(2)}\n\n`;
-    });
-    
-    message += `Total Amount: RM ${purchase.totalAmount.toFixed(2)}`;
-    
-    if (purchase.notes) {
-      message += `\n\nNotes: ${purchase.notes}`;
+    // Handle notes
+    if (purchase.notes && purchase.notes.trim()) {
+      qs('#detailNotes').textContent = purchase.notes;
+      qs('#detailNotesRow').style.display = 'flex';
+    } else {
+      qs('#detailNotesRow').style.display = 'none';
     }
     
-    alert(message);
+    // Populate items table
+    const itemsList = qs('#purchaseDetailsList');
+    itemsList.innerHTML = '';
+    
+    purchase.items.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(item.sku || 'N/A')}</td>
+        <td>${escapeHtml(item.productName || 'N/A')}</td>
+        <td>${item.quantity || 0}</td>
+        <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
+        <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+      `;
+      itemsList.appendChild(tr);
+    });
+    
+    // Set up print button
+    qs('#printDetailsInvoiceBtn').onclick = () => printPurchaseInvoice(purchaseId);
+    
+    // Show modal
+    qs('#purchaseDetailsModal').style.display = 'block';
     
   } catch (e) {
-    console.error('View purchase error:', e);
+    console.error('View purchase details error:', e);
     alert('❌ Failed to load purchase details.');
   }
+}
+
+function closePurchaseDetailsModal() {
+  qs('#purchaseDetailsModal').style.display = 'none';
 }
 
 let currentEditingPurchaseId = null;
@@ -918,17 +941,17 @@ function addEditProductItem(product = null) {
     </div>
     <div class="form-group">
       <label>Quantity</label>
-      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? product.quantity : ''}">
+      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? product.quantity : '1'}">
     </div>
     <div class="form-group">
       <label>Unit Price (RM)</label>
-      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? product.purchasePrice : ''}">
+      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? product.purchasePrice : '0.00'}">
     </div>
     <div class="form-group">
       <label>Total (RM)</label>
       <input type="text" class="product-total" placeholder="Total" readonly value="${product ? product.totalAmount.toFixed(2) : '0.00'}">
     </div>
-    <button class="danger-btn remove-item-btn" type="button">🗑️</button>
+    <button class="danger-btn remove-item-btn" type="button" title="Remove Item">🗑️</button>
   `;
   
   container.appendChild(itemRow);
@@ -950,12 +973,8 @@ function addEditProductItem(product = null) {
   
   // Remove row button
   itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
-    if (container.children.length > 1) {
-      itemRow.remove();
-      updateTotalAmount();
-    } else {
-      alert('At least one product item is required.');
-    }
+    itemRow.remove();
+    updateTotalAmount();
   });
 }
 
@@ -973,6 +992,11 @@ async function updatePurchaseOrder() {
   
   const items = [];
   const itemRows = qsa('#editPurchaseItems .purchase-item-row');
+  
+  if (itemRows.length === 0) {
+    alert('⚠️ Please add at least one product item.');
+    return;
+  }
   
   for (const row of itemRows) {
     const sku = row.querySelector('.product-sku').value.trim();
@@ -1001,11 +1025,6 @@ async function updatePurchaseOrder() {
       quantity,
       purchasePrice
     });
-  }
-  
-  if (items.length === 0) {
-    alert('⚠️ Please add at least one product item.');
-    return;
   }
   
   const purchaseData = {
@@ -1700,3 +1719,4 @@ window.deletePurchase = deletePurchase;
 window.editPurchase = editPurchase;
 window.viewPurchase = viewPurchase;
 window.generateTotalPurchaseReport = generateTotalPurchaseReport;
+
