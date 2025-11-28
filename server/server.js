@@ -72,17 +72,22 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
-// ===== Purchase Schema =====
-const PurchaseSchema = new Schema({
-  purchaseId: { type: String, unique: true, required: true },
+// ===== Updated Purchase Schema for Multiple Products =====
+const PurchaseItemSchema = new Schema({
   sku: String,
   productName: String,
-  supplier: String,
   quantity: { type: Number, default: 0 },
   purchasePrice: { type: Number, default: 0 },
-  totalAmount: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 }
+});
+
+const PurchaseSchema = new Schema({
+  purchaseId: { type: String, unique: true, required: true },
+  supplier: String,
   purchaseDate: { type: Date, default: Date.now },
   notes: String,
+  items: [PurchaseItemSchema],
+  totalAmount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 const Purchase = mongoose.model("Purchase", PurchaseSchema);
@@ -428,9 +433,9 @@ app.get("/api/inventory/report/pdf", async (req, res) => {
           const qty = Number(item.quantity || 0);
           const cost = Number(item.unitCost || 0);
           const price = Number(item.unitPrice || 0);
-          const inventoryValue = qty * cost; // FIXED: This was wrong in your PDF
+          const inventoryValue = qty * cost;
           const potentialRevenue = qty * price;
-          const potentialProfit = potentialRevenue - inventoryValue; // FIXED: This was wrong in your PDF
+          const potentialProfit = potentialRevenue - inventoryValue;
 
           // Draw row background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
@@ -639,7 +644,7 @@ app.get("/api/inventory/report", async (req, res) => {
 });
 
 // ============================================================================
-//                               PURCHASE CRUD
+//                               PURCHASE CRUD (UPDATED FOR MULTIPLE PRODUCTS)
 // ============================================================================
 app.get("/api/purchases", async (req, res) => {
   try {
@@ -655,35 +660,68 @@ app.get("/api/purchases", async (req, res) => {
   }
 });
 
+app.get("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+    
+    res.json({
+      ...purchase,
+      id: purchase._id.toString()
+    });
+  } catch (err) {
+    console.error("purchase get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 app.post("/api/purchases", async (req, res) => {
   try {
-    const { sku, productName, supplier, quantity, purchasePrice, purchaseDate, notes } = req.body;
+    const { supplier, purchaseDate, notes, items } = req.body;
     
     // Generate unique purchase ID
     const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    const totalAmount = quantity * purchasePrice;
+    
+    // Calculate total amount and process each item
+    let totalAmount = 0;
+    const purchaseItems = [];
+
+    for (const item of items) {
+      const itemTotal = item.quantity * item.purchasePrice;
+      totalAmount += itemTotal;
+
+      purchaseItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        totalAmount: itemTotal
+      });
+
+      // Update inventory quantity
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        // Update unit cost if needed (optional)
+        if (item.purchasePrice > 0) {
+          inventoryItem.unitCost = item.purchasePrice;
+        }
+        await inventoryItem.save();
+      }
+    }
 
     const purchase = await Purchase.create({
       purchaseId,
-      sku,
-      productName,
       supplier,
-      quantity,
-      purchasePrice,
-      totalAmount,
       purchaseDate: purchaseDate || new Date(),
-      notes
+      notes,
+      items: purchaseItems,
+      totalAmount
     });
 
-    // Update inventory quantity
-    const inventoryItem = await Inventory.findOne({ sku });
-    if (inventoryItem) {
-      inventoryItem.quantity = (inventoryItem.quantity || 0) + quantity;
-      // Update unit cost if needed (you can implement logic here)
-      await inventoryItem.save();
-    }
-
-    await logActivity(req.headers["x-username"], `Purchased: ${productName} (${quantity} units)`);
+    await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`);
 
     res.status(201).json({
       ...purchase.toObject(),
@@ -698,11 +736,64 @@ app.post("/api/purchases", async (req, res) => {
 
 app.put("/api/purchases/:id", async (req, res) => {
   try {
-    const purchase = await Purchase.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!purchase)
+    const { supplier, purchaseDate, notes, items } = req.body;
+    
+    // Find existing purchase to revert inventory changes
+    const existingPurchase = await Purchase.findById(req.params.id);
+    if (!existingPurchase) {
       return res.status(404).json({ message: "Purchase not found" });
+    }
 
-    await logActivity(req.headers["x-username"], `Updated purchase: ${purchase.productName}`);
+    // Revert old inventory quantities
+    for (const oldItem of existingPurchase.items) {
+      const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = Math.max(0, (inventoryItem.quantity || 0) - oldItem.quantity);
+        await inventoryItem.save();
+      }
+    }
+
+    // Calculate new total and apply new inventory changes
+    let totalAmount = 0;
+    const purchaseItems = [];
+
+    for (const item of items) {
+      const itemTotal = item.quantity * item.purchasePrice;
+      totalAmount += itemTotal;
+
+      purchaseItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        totalAmount: itemTotal
+      });
+
+      // Update inventory quantity with new values
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        if (item.purchasePrice > 0) {
+          inventoryItem.unitCost = item.purchasePrice;
+        }
+        await inventoryItem.save();
+      }
+    }
+
+    const purchase = await Purchase.findByIdAndUpdate(
+      req.params.id,
+      {
+        supplier,
+        purchaseDate,
+        notes,
+        items: purchaseItems,
+        totalAmount
+      },
+      { new: true }
+    );
+
+    await logActivity(req.headers["x-username"], `Updated purchase order: ${purchase.purchaseId}`);
+
     res.json({
       ...purchase.toObject(),
       id: purchase._id.toString()
@@ -716,11 +807,21 @@ app.put("/api/purchases/:id", async (req, res) => {
 
 app.delete("/api/purchases/:id", async (req, res) => {
   try {
-    const purchase = await Purchase.findByIdAndDelete(req.params.id);
+    const purchase = await Purchase.findById(req.params.id);
     if (!purchase)
       return res.status(404).json({ message: "Purchase not found" });
 
-    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName}`);
+    // Revert inventory quantities
+    for (const item of purchase.items) {
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = Math.max(0, (inventoryItem.quantity || 0) - item.quantity);
+        await inventoryItem.save();
+      }
+    }
+
+    await Purchase.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted purchase order: ${purchase.purchaseId}`);
     res.status(204).send();
 
   } catch (err) {
@@ -730,7 +831,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    PURCHASE PDF REPORT - INVOICE STYLE
+//                    PURCHASE PDF REPORT - IMPROVED INVOICE STYLE
 // ============================================================================
 app.get("/api/purchases/report/pdf", async (req, res) => {
   try {
@@ -764,45 +865,52 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
           reject(error);
         });
 
-        // ==================== PDF CONTENT GENERATION ====================
-        // Header
-        doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
-        doc.fontSize(10).font("Helvetica");
-        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
-        doc.text("Phone: 01133127622", 40, 85);
-        doc.text("Email: lbcompany@gmail.com", 40, 100);
+        // ==================== IMPROVED PDF CONTENT GENERATION ====================
+        // Header with better styling
+        doc.rect(40, 40, 515, 80)
+           .fillColor('#2c5aa0')
+           .fill()
+           .fillColor('#ffffff');
+        
+        doc.fontSize(24).font("Helvetica-Bold")
+           .text("L&B COMPANY", 60, 60);
+        
+        doc.fontSize(10).font("Helvetica")
+           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 60, 90)
+           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 60, 105);
 
         // Report Title
-        doc.font("Helvetica-Bold").fontSize(18)
-           .text("TOTAL PURCHASE REPORT", 0, 140, { align: "center" });
+        doc.fillColor('#000000')
+           .fontSize(20).font("Helvetica-Bold")
+           .text("TOTAL PURCHASE REPORT", 0, 150, { align: "center" });
 
         // Report Details
-        doc.font("Helvetica").fontSize(10);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 180);
-        doc.text(`Generated by: ${printedBy}`, 40, 195);
-        doc.text(`Total Purchases: ${purchases.length}`, 40, 210);
+        doc.fontSize(10).font("Helvetica");
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 190);
+        doc.text(`Generated by: ${printedBy}`, 40, 205);
+        doc.text(`Total Purchase Orders: ${purchases.length}`, 40, 220);
 
-        doc.moveTo(40, 240).lineTo(555, 240).stroke();
+        doc.moveTo(40, 250).lineTo(555, 250).strokeColor('#2c5aa0').stroke();
 
-        // Purchase Table
-        let y = 260;
+        // Purchase Table with improved styling
+        let y = 270;
         const rowHeight = 20;
         
-        // Table Headers
-        doc.rect(40, y, 515, rowHeight).stroke();
-        doc.font("Helvetica-Bold").fontSize(9);
+        // Table Headers with background
+        doc.rect(40, y, 515, rowHeight).fillColor('#2c5aa0').fill();
+        doc.fillColor('#ffffff')
+           .font("Helvetica-Bold").fontSize(9);
         doc.text("Purchase ID", 45, y + 6);
-        doc.text("Product", 120, y + 6);
-        doc.text("Supplier", 250, y + 6);
-        doc.text("Qty", 350, y + 6);
-        doc.text("Price", 390, y + 6);
-        doc.text("Total", 450, y + 6);
+        doc.text("Supplier", 120, y + 6);
+        doc.text("Items", 250, y + 6);
+        doc.text("Total Amount", 450, y + 6);
         doc.text("Date", 500, y + 6);
         
         y += rowHeight;
 
         // Table Rows
-        doc.font("Helvetica").fontSize(8);
+        doc.fillColor('#000000')
+           .font("Helvetica").fontSize(8);
         let grandTotal = 0;
         
         purchases.forEach(purchase => {
@@ -810,24 +918,22 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
             doc.addPage();
             y = 40;
             // Draw headers on new page
-            doc.rect(40, y, 515, rowHeight).stroke();
-            doc.font("Helvetica-Bold").fontSize(9);
+            doc.rect(40, y, 515, rowHeight).fillColor('#2c5aa0').fill();
+            doc.fillColor('#ffffff')
+               .font("Helvetica-Bold").fontSize(9);
             doc.text("Purchase ID", 45, y + 6);
-            doc.text("Product", 120, y + 6);
-            doc.text("Supplier", 250, y + 6);
-            doc.text("Qty", 350, y + 6);
-            doc.text("Price", 390, y + 6);
-            doc.text("Total", 450, y + 6);
+            doc.text("Supplier", 120, y + 6);
+            doc.text("Items", 250, y + 6);
+            doc.text("Total Amount", 450, y + 6);
             doc.text("Date", 500, y + 6);
             y += rowHeight;
+            doc.fillColor('#000000');
           }
 
           doc.rect(40, y, 515, rowHeight).stroke();
           doc.text(purchase.purchaseId || "", 45, y + 6);
-          doc.text(purchase.productName || "", 120, y + 6);
-          doc.text(purchase.supplier || "", 250, y + 6);
-          doc.text(String(purchase.quantity || 0), 350, y + 6);
-          doc.text(`RM ${(purchase.purchasePrice || 0).toFixed(2)}`, 390, y + 6);
+          doc.text(purchase.supplier || "", 120, y + 6);
+          doc.text(`${purchase.items.length} items`, 250, y + 6);
           doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 450, y + 6);
           doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 500, y + 6);
           
@@ -835,10 +941,11 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
           y += rowHeight;
         });
 
-        // Summary
+        // Summary with improved styling
         y += 10;
-        doc.rect(40, y, 515, 25).stroke();
-        doc.font("Helvetica-Bold").fontSize(10);
+        doc.rect(40, y, 515, 30).fillColor('#f0f8ff').fill().stroke();
+        doc.fillColor('#000000')
+           .font("Helvetica-Bold").fontSize(12);
         doc.text("GRAND TOTAL:", 300, y + 8);
         doc.text(`RM ${grandTotal.toFixed(2)}`, 450, y + 8);
 
@@ -846,8 +953,10 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
-          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+          doc.fontSize(9)
+             .fillColor('#666666')
+             .text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" })
+             .text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
         }
         
         doc.end();
@@ -882,7 +991,7 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE PURCHASE INVOICE PDF
+//                    SINGLE PURCHASE INVOICE PDF - IMPROVED LAYOUT
 // ============================================================================
 app.get("/api/purchases/invoice/:id", async (req, res) => {
   try {
@@ -915,75 +1024,128 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           reject(error);
         });
 
-        // Invoice Header
-        doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
-        doc.fontSize(10).font("Helvetica");
-        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
-        doc.text("Phone: 01133127622", 40, 85);
-        doc.text("Email: lbcompany@gmail.com", 40, 100);
+        // ==================== IMPROVED INVOICE LAYOUT ====================
+        // Header with company branding
+        doc.rect(40, 40, 515, 80)
+           .fillColor('#2c5aa0')
+           .fill()
+           .fillColor('#ffffff');
+        
+        doc.fontSize(24).font("Helvetica-Bold")
+           .text("L&B COMPANY", 60, 60);
+        
+        doc.fontSize(10).font("Helvetica")
+           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 60, 90)
+           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 60, 105);
 
         // Invoice Title
-        doc.font("Helvetica-Bold").fontSize(18)
+        doc.fillColor('#000000')
+           .fontSize(20).font("Helvetica-Bold")
            .text("PURCHASE INVOICE", 0, 150, { align: "center" });
 
-        // Invoice Details
-        const detailsY = 200;
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text("Invoice Number:", 40, detailsY);
-        doc.text("Purchase Date:", 40, detailsY + 15);
-        doc.text("Supplier:", 40, detailsY + 30);
+        // Invoice Details in two columns
+        const detailsY = 190;
         
-        doc.font("Helvetica").fontSize(10);
-        doc.text(purchase.purchaseId, 120, detailsY);
-        doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 120, detailsY + 15);
-        doc.text(purchase.supplier || "N/A", 120, detailsY + 30);
+        // Left column - Company Info
+        doc.fontSize(10).font("Helvetica-Bold")
+           .text("From:", 40, detailsY);
+        doc.font("Helvetica")
+           .text("L&B Company", 40, detailsY + 15)
+           .text("Jalan Mawar 8", 40, detailsY + 30)
+           .text("Taman Bukit Beruang Permai", 40, detailsY + 45)
+           .text("Melaka", 40, detailsY + 60);
 
-        // Product Details Box
-        const productY = detailsY + 60;
-        doc.rect(40, productY, 515, 80).stroke();
+        // Right column - Invoice Details
+        doc.font("Helvetica-Bold")
+           .text("Invoice Number:", 350, detailsY)
+           .text("Invoice Date:", 350, detailsY + 15)
+           .text("Supplier:", 350, detailsY + 30);
         
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text("Product Details", 45, productY + 10);
-        doc.moveTo(40, productY + 25).lineTo(555, productY + 25).stroke();
-        
-        doc.text("SKU:", 45, productY + 40);
-        doc.text("Product Name:", 45, productY + 55);
-        doc.text("Quantity:", 45, productY + 70);
-        
-        doc.font("Helvetica").fontSize(10);
-        doc.text(purchase.sku || "N/A", 120, productY + 40);
-        doc.text(purchase.productName || "N/A", 120, productY + 55);
-        doc.text(String(purchase.quantity || 0), 120, productY + 70);
+        doc.font("Helvetica")
+           .text(purchase.purchaseId, 430, detailsY)
+           .text(new Date(purchase.purchaseDate).toLocaleDateString(), 430, detailsY + 15)
+           .text(purchase.supplier || "N/A", 430, detailsY + 30);
 
-        // Price Details
-        const priceY = productY + 100;
-        doc.rect(40, priceY, 515, 60).stroke();
+        // Items Table
+        let itemsY = detailsY + 90;
         
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text("Price Details", 45, priceY + 10);
-        doc.moveTo(40, priceY + 25).lineTo(555, priceY + 25).stroke();
+        // Table Header
+        doc.rect(40, itemsY, 515, 25).fillColor('#2c5aa0').fill();
+        doc.fillColor('#ffffff')
+           .font("Helvetica-Bold").fontSize(10);
+        doc.text("SKU", 45, itemsY + 8);
+        doc.text("Product Name", 120, itemsY + 8);
+        doc.text("Qty", 300, itemsY + 8);
+        doc.text("Unit Price", 350, itemsY + 8);
+        doc.text("Total", 450, itemsY + 8);
         
-        doc.text("Unit Price:", 45, priceY + 40);
-        doc.text("Total Amount:", 45, priceY + 55);
-        
-        doc.font("Helvetica").fontSize(10);
-        doc.text(`RM ${(purchase.purchasePrice || 0).toFixed(2)}`, 120, priceY + 40);
-        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 120, priceY + 55);
+        itemsY += 25;
 
-        // Notes
+        // Table Rows
+        doc.fillColor('#000000')
+           .font("Helvetica").fontSize(9);
+        
+        purchase.items.forEach((item, index) => {
+          if (itemsY > 650) {
+            doc.addPage();
+            itemsY = 40;
+            // Redraw header on new page
+            doc.rect(40, itemsY, 515, 25).fillColor('#2c5aa0').fill();
+            doc.fillColor('#ffffff')
+               .font("Helvetica-Bold").fontSize(10);
+            doc.text("SKU", 45, itemsY + 8);
+            doc.text("Product Name", 120, itemsY + 8);
+            doc.text("Qty", 300, itemsY + 8);
+            doc.text("Unit Price", 350, itemsY + 8);
+            doc.text("Total", 450, itemsY + 8);
+            itemsY += 25;
+            doc.fillColor('#000000');
+          }
+
+          // Alternate row colors for readability
+          if (index % 2 === 0) {
+            doc.rect(40, itemsY, 515, 20).fillColor('#f8f9fa').fill();
+          }
+          
+          doc.rect(40, itemsY, 515, 20).stroke();
+          doc.text(item.sku || "N/A", 45, itemsY + 5);
+          doc.text(item.productName || "N/A", 120, itemsY + 5);
+          doc.text(String(item.quantity || 0), 300, itemsY + 5);
+          doc.text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, 350, itemsY + 5);
+          doc.text(`RM ${(item.totalAmount || 0).toFixed(2)}`, 450, itemsY + 5);
+          
+          itemsY += 20;
+        });
+
+        // Summary Section
+        const summaryY = itemsY + 10;
+        doc.rect(350, summaryY, 205, 80).stroke();
+        
+        doc.font("Helvetica-Bold").fontSize(11);
+        doc.text("Subtotal:", 360, summaryY + 15);
+        doc.text("Tax (0%):", 360, summaryY + 35);
+        doc.text("Total Amount:", 360, summaryY + 55);
+        
+        doc.font("Helvetica").fontSize(11);
+        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 15);
+        doc.text("RM 0.00", 460, summaryY + 35);
+        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 55);
+
+        // Notes Section
         if (purchase.notes) {
-          const notesY = priceY + 80;
-          doc.rect(40, notesY, 515, 40).stroke();
-          doc.font("Helvetica-Bold").fontSize(10);
-          doc.text("Notes:", 45, notesY + 10);
-          doc.font("Helvetica").fontSize(9);
-          doc.text(purchase.notes, 45, notesY + 25, { width: 500 });
+          const notesY = summaryY + 100;
+          doc.font("Helvetica-Bold").fontSize(10)
+             .text("Notes:", 40, notesY);
+          doc.font("Helvetica").fontSize(9)
+             .text(purchase.notes, 40, notesY + 15, { width: 500 });
         }
 
         // Footer
-        doc.fontSize(9).text("Thank you for your business!", 0, doc.page.height - 60, { align: "center" });
-        doc.text("Generated by L&B Company Inventory System", 0, doc.page.height - 45, { align: "center" });
-        doc.text(new Date().toLocaleString(), 0, doc.page.height - 30, { align: "center" });
+        doc.fontSize(9)
+           .fillColor('#666666')
+           .text("Thank you for your business!", 0, doc.page.height - 60, { align: "center" })
+           .text("Generated by L&B Company Inventory System", 0, doc.page.height - 45, { align: "center" })
+           .text(new Date().toLocaleString(), 0, doc.page.height - 30, { align: "center" });
 
         doc.end();
 
