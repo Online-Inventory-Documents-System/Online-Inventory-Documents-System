@@ -848,7 +848,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
         const doc = new PDFDocument({
           size: "A4",
-          margin: 30 // Reduced margin for more space
+          margin: 25 // Reduced margin for more space
         });
 
         doc.on("data", chunk => {
@@ -866,98 +866,98 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
         // ==================== COMPACT INVOICE LAYOUT ====================
         // Header with company branding - more compact
-        doc.rect(30, 30, 535, 60)
+        doc.rect(25, 25, 545, 50)
            .fillColor('#2c5aa0')
            .fill()
            .fillColor('#ffffff');
         
-        doc.fontSize(20).font("Helvetica-Bold")
-           .text("L&B COMPANY", 50, 45);
+        doc.fontSize(18).font("Helvetica-Bold")
+           .text("L&B COMPANY", 45, 40);
         
-        doc.fontSize(8).font("Helvetica")
-           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 50, 65)
-           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 50, 75);
+        doc.fontSize(7).font("Helvetica")
+           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 45, 55)
+           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 45, 63);
 
         // Invoice Title
         doc.fillColor('#000000')
            .fontSize(16).font("Helvetica-Bold")
-           .text("PURCHASE INVOICE", 0, 110, { align: "center" });
+           .text("PURCHASE INVOICE", 0, 90, { align: "center" });
 
         // Invoice Details in two columns - more compact
-        const detailsY = 140;
+        const detailsY = 120;
         
         // Left column - Company Info
-        doc.fontSize(9).font("Helvetica-Bold")
-           .text("From:", 30, detailsY);
+        doc.fontSize(8).font("Helvetica-Bold")
+           .text("From:", 25, detailsY);
         doc.font("Helvetica")
-           .text("L&B Company", 30, detailsY + 12)
-           .text("Jalan Mawar 8", 30, detailsY + 24)
-           .text("Taman Bukit Beruang Permai", 30, detailsY + 36)
-           .text("Melaka", 30, detailsY + 48);
+           .text("L&B Company", 25, detailsY + 10)
+           .text("Jalan Mawar 8", 25, detailsY + 20)
+           .text("Taman Bukit Beruang Permai", 25, detailsY + 30)
+           .text("Melaka", 25, detailsY + 40);
 
         // Right column - Invoice Details
         doc.font("Helvetica-Bold")
            .text("Invoice Number:", 350, detailsY)
-           .text("Invoice Date:", 350, detailsY + 12)
-           .text("Supplier:", 350, detailsY + 24);
+           .text("Invoice Date:", 350, detailsY + 10)
+           .text("Supplier:", 350, detailsY + 20);
         
         doc.font("Helvetica")
            .text(purchase.purchaseId, 450, detailsY)
-           .text(new Date(purchase.purchaseDate).toLocaleDateString(), 450, detailsY + 12)
-           .text(purchase.supplier || "N/A", 450, detailsY + 24);
+           .text(new Date(purchase.purchaseDate).toLocaleDateString(), 450, detailsY + 10)
+           .text(purchase.supplier || "N/A", 450, detailsY + 20, { width: 120 });
 
         // Items Table - more compact
-        let itemsY = detailsY + 70;
+        let itemsY = detailsY + 60;
         
         // Table Header
-        doc.rect(30, itemsY, 535, 20).fillColor('#2c5aa0').fill();
+        doc.rect(25, itemsY, 545, 18).fillColor('#2c5aa0').fill();
         doc.fillColor('#ffffff')
-           .font("Helvetica-Bold").fontSize(9);
-        doc.text("SKU", 35, itemsY + 6);
-        doc.text("Product Name", 100, itemsY + 6);
-        doc.text("Qty", 300, itemsY + 6);
-        doc.text("Unit Price", 350, itemsY + 6);
-        doc.text("Total", 450, itemsY + 6);
+           .font("Helvetica-Bold").fontSize(8);
+        doc.text("SKU", 30, itemsY + 5);
+        doc.text("Product Name", 100, itemsY + 5);
+        doc.text("Qty", 300, itemsY + 5);
+        doc.text("Unit Price", 350, itemsY + 5);
+        doc.text("Total", 450, itemsY + 5);
         
-        itemsY += 20;
+        itemsY += 18;
 
         // Table Rows - compact
         doc.fillColor('#000000')
-           .font("Helvetica").fontSize(8);
+           .font("Helvetica").fontSize(7);
         
         let itemsHeightUsed = 0;
-        const maxItemsPerPage = 20; // Increased for compact layout
-        const rowHeight = 15; // Reduced row height
+        const maxItemsPerPage = 25; // Increased for compact layout
+        const rowHeight = 12; // Reduced row height
         
         purchase.items.forEach((item, index) => {
           // Check if we need a new page
           if (itemsY + rowHeight > 700 && index < purchase.items.length - 1) {
             doc.addPage();
-            itemsY = 30;
+            itemsY = 25;
             // Redraw header on new page
-            doc.rect(30, itemsY, 535, 20).fillColor('#2c5aa0').fill();
+            doc.rect(25, itemsY, 545, 18).fillColor('#2c5aa0').fill();
             doc.fillColor('#ffffff')
-               .font("Helvetica-Bold").fontSize(9);
-            doc.text("SKU", 35, itemsY + 6);
-            doc.text("Product Name", 100, itemsY + 6);
-            doc.text("Qty", 300, itemsY + 6);
-            doc.text("Unit Price", 350, itemsY + 6);
-            doc.text("Total", 450, itemsY + 6);
-            itemsY += 20;
+               .font("Helvetica-Bold").fontSize(8);
+            doc.text("SKU", 30, itemsY + 5);
+            doc.text("Product Name", 100, itemsY + 5);
+            doc.text("Qty", 300, itemsY + 5);
+            doc.text("Unit Price", 350, itemsY + 5);
+            doc.text("Total", 450, itemsY + 5);
+            itemsY += 18;
             doc.fillColor('#000000');
           }
 
           // Alternate row colors for readability
           if (index % 2 === 0) {
-            doc.rect(30, itemsY, 535, rowHeight).fillColor('#f8f9fa').fill();
+            doc.rect(25, itemsY, 545, rowHeight).fillColor('#f8f9fa').fill();
           }
           
-          doc.rect(30, itemsY, 535, rowHeight).stroke();
-          doc.text(item.sku || "N/A", 35, itemsY + 4);
-          doc.text(item.productName || "N/A", 100, itemsY + 4, { width: 190 });
-          doc.text(String(item.quantity || 0), 300, itemsY + 4);
-          doc.text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, 350, itemsY + 4);
-          doc.text(`RM ${(item.totalAmount || 0).toFixed(2)}`, 450, itemsY + 4);
+          doc.rect(25, itemsY, 545, rowHeight).stroke();
+          doc.text(item.sku || "N/A", 30, itemsY + 3, { width: 60 });
+          doc.text(item.productName || "N/A", 100, itemsY + 3, { width: 180 });
+          doc.text(String(item.quantity || 0), 300, itemsY + 3);
+          doc.text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, 350, itemsY + 3);
+          doc.text(`RM ${(item.totalAmount || 0).toFixed(2)}`, 450, itemsY + 3);
           
           itemsY += rowHeight;
           itemsHeightUsed += rowHeight;
@@ -966,32 +966,32 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
         // Summary Section - positioned dynamically
         const summaryY = Math.max(itemsY + 10, 500); // Ensure minimum spacing
         
-        doc.rect(350, summaryY, 215, 60).stroke();
+        doc.rect(350, summaryY, 220, 50).stroke();
         
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text("Subtotal:", 360, summaryY + 10);
-        doc.text("Tax (0%):", 360, summaryY + 25);
-        doc.text("Total Amount:", 360, summaryY + 40);
+        doc.font("Helvetica-Bold").fontSize(9);
+        doc.text("Subtotal:", 360, summaryY + 8);
+        doc.text("Tax (0%):", 360, summaryY + 20);
+        doc.text("Total Amount:", 360, summaryY + 32);
         
-        doc.font("Helvetica").fontSize(10);
-        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 10);
-        doc.text("RM 0.00", 460, summaryY + 25);
-        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 40);
+        doc.font("Helvetica").fontSize(9);
+        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 8);
+        doc.text("RM 0.00", 460, summaryY + 20);
+        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 460, summaryY + 32);
 
         // Notes Section - only if there are notes
         if (purchase.notes) {
-          const notesY = summaryY + 70;
-          doc.font("Helvetica-Bold").fontSize(9)
-             .text("Notes:", 30, notesY);
-          doc.font("Helvetica").fontSize(8)
-             .text(purchase.notes, 30, notesY + 12, { width: 500 });
+          const notesY = summaryY + 60;
+          doc.font("Helvetica-Bold").fontSize(8)
+             .text("Notes:", 25, notesY);
+          doc.font("Helvetica").fontSize(7)
+             .text(purchase.notes, 25, notesY + 10, { width: 500 });
         }
 
         // Compact Footer
-        doc.fontSize(8)
+        doc.fontSize(7)
            .fillColor('#666666')
-           .text("Thank you for your business!", 0, doc.page.height - 40, { align: "center" })
-           .text("Generated by L&B Company Inventory System", 0, doc.page.height - 25, { align: "center" })
+           .text("Thank you for your business!", 0, doc.page.height - 30, { align: "center" })
+           .text("Generated by L&B Company Inventory System", 0, doc.page.height - 20, { align: "center" })
            .text(new Date().toLocaleString(), 0, doc.page.height - 10, { align: "center" });
 
         doc.end();
@@ -1029,7 +1029,7 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 
         const doc = new PDFDocument({
           size: "A4",
-          margin: 25 // Reduced margin for more content
+          margin: 20 // Reduced margin for more content
         });
 
         doc.on("data", chunk => {
@@ -1049,78 +1049,78 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 
         // ==================== COMPACT PDF CONTENT GENERATION ====================
         // Header with better styling - more compact
-        doc.rect(25, 25, 545, 50)
+        doc.rect(20, 20, 555, 45)
            .fillColor('#2c5aa0')
            .fill()
            .fillColor('#ffffff');
         
-        doc.fontSize(18).font("Helvetica-Bold")
-           .text("L&B COMPANY", 45, 40);
+        doc.fontSize(16).font("Helvetica-Bold")
+           .text("L&B COMPANY", 40, 32);
         
-        doc.fontSize(8).font("Helvetica")
-           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 45, 55)
-           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 45, 65);
+        doc.fontSize(7).font("Helvetica")
+           .text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 45)
+           .text("Phone: 01133127622 | Email: lbcompany@gmail.com", 40, 52);
 
         // Report Title
         doc.fillColor('#000000')
-           .fontSize(16).font("Helvetica-Bold")
-           .text("TOTAL PURCHASE REPORT", 0, 95, { align: "center" });
+           .fontSize(14).font("Helvetica-Bold")
+           .text("TOTAL PURCHASE REPORT", 0, 80, { align: "center" });
 
         // Report Details - compact
-        doc.fontSize(8).font("Helvetica");
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 25, 120);
-        doc.text(`Generated by: ${printedBy}`, 25, 132);
-        doc.text(`Total Purchase Orders: ${purchases.length}`, 25, 144);
+        doc.fontSize(7).font("Helvetica");
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 100);
+        doc.text(`Generated by: ${printedBy}`, 20, 108);
+        doc.text(`Total Purchase Orders: ${purchases.length}`, 20, 116);
 
-        doc.moveTo(25, 160).lineTo(570, 160).strokeColor('#2c5aa0').stroke();
+        doc.moveTo(20, 130).lineTo(575, 130).strokeColor('#2c5aa0').stroke();
 
         // Purchase Table with compact styling
-        let y = 170;
-        const rowHeight = 16; // Reduced row height
+        let y = 140;
+        const rowHeight = 14; // Reduced row height
         
         // Table Headers with background
-        doc.rect(25, y, 545, rowHeight).fillColor('#2c5aa0').fill();
+        doc.rect(20, y, 555, rowHeight).fillColor('#2c5aa0').fill();
         doc.fillColor('#ffffff')
-           .font("Helvetica-Bold").fontSize(8);
-        doc.text("Purchase ID", 30, y + 5);
-        doc.text("Supplier", 120, y + 5);
-        doc.text("Items", 250, y + 5);
-        doc.text("Total Amount", 400, y + 5);
-        doc.text("Date", 480, y + 5);
+           .font("Helvetica-Bold").fontSize(7);
+        doc.text("Purchase ID", 25, y + 4);
+        doc.text("Supplier", 120, y + 4);
+        doc.text("Items", 250, y + 4);
+        doc.text("Total Amount", 400, y + 4);
+        doc.text("Date", 480, y + 4);
         
         y += rowHeight;
 
         // Table Rows - compact
         doc.fillColor('#000000')
-           .font("Helvetica").fontSize(7);
+           .font("Helvetica").fontSize(6);
         let grandTotal = 0;
         let itemsOnPage = 0;
-        const maxRowsPerPage = 25; // Increased for compact layout
+        const maxRowsPerPage = 30; // Increased for compact layout
         
         purchases.forEach((purchase, index) => {
           if (itemsOnPage >= maxRowsPerPage) {
             doc.addPage();
-            y = 25;
+            y = 20;
             // Draw headers on new page
-            doc.rect(25, y, 545, rowHeight).fillColor('#2c5aa0').fill();
+            doc.rect(20, y, 555, rowHeight).fillColor('#2c5aa0').fill();
             doc.fillColor('#ffffff')
-               .font("Helvetica-Bold").fontSize(8);
-            doc.text("Purchase ID", 30, y + 5);
-            doc.text("Supplier", 120, y + 5);
-            doc.text("Items", 250, y + 5);
-            doc.text("Total Amount", 400, y + 5);
-            doc.text("Date", 480, y + 5);
+               .font("Helvetica-Bold").fontSize(7);
+            doc.text("Purchase ID", 25, y + 4);
+            doc.text("Supplier", 120, y + 4);
+            doc.text("Items", 250, y + 4);
+            doc.text("Total Amount", 400, y + 4);
+            doc.text("Date", 480, y + 4);
             y += rowHeight;
             doc.fillColor('#000000');
             itemsOnPage = 0;
           }
 
-          doc.rect(25, y, 545, rowHeight).stroke();
-          doc.text(purchase.purchaseId || "", 30, y + 5);
-          doc.text(purchase.supplier || "", 120, y + 5, { width: 120 });
-          doc.text(`${purchase.items.length} items`, 250, y + 5);
-          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 400, y + 5);
-          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 480, y + 5);
+          doc.rect(20, y, 555, rowHeight).stroke();
+          doc.text(purchase.purchaseId || "", 25, y + 4, { width: 90 });
+          doc.text(purchase.supplier || "", 120, y + 4, { width: 120 });
+          doc.text(`${purchase.items.length} items`, 250, y + 4);
+          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 400, y + 4);
+          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 480, y + 4);
           
           grandTotal += purchase.totalAmount || 0;
           y += rowHeight;
@@ -1129,20 +1129,20 @@ app.get("/api/purchases/report/pdf", async (req, res) => {
 
         // Summary with compact styling
         y += 5;
-        doc.rect(25, y, 545, 25).fillColor('#f0f8ff').fill().stroke();
+        doc.rect(20, y, 555, 20).fillColor('#f0f8ff').fill().stroke();
         doc.fillColor('#000000')
-           .font("Helvetica-Bold").fontSize(10);
-        doc.text("GRAND TOTAL:", 300, y + 8);
-        doc.text(`RM ${grandTotal.toFixed(2)}`, 450, y + 8);
+           .font("Helvetica-Bold").fontSize(9);
+        doc.text("GRAND TOTAL:", 300, y + 6);
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 450, y + 6);
 
         // Compact Footer
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          doc.fontSize(7)
+          doc.fontSize(6)
              .fillColor('#666666')
-             .text("Generated by L&B Company Inventory System", 0, doc.page.height - 25, { align: "center" })
-             .text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 15, { align: "center" });
+             .text("Generated by L&B Company Inventory System", 0, doc.page.height - 20, { align: "center" })
+             .text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 12, { align: "center" });
         }
         
         doc.end();
