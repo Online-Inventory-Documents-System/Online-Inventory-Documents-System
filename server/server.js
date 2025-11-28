@@ -72,6 +72,21 @@ const LogSchema = new Schema({
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
+// ===== Purchase Schema =====
+const PurchaseSchema = new Schema({
+  purchaseId: { type: String, unique: true, required: true },
+  sku: String,
+  productName: String,
+  supplier: String,
+  quantity: { type: Number, default: 0 },
+  purchasePrice: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 },
+  purchaseDate: { type: Date, default: Date.now },
+  notes: String,
+  createdAt: { type: Date, default: Date.now }
+});
+const Purchase = mongoose.model("Purchase", PurchaseSchema);
+
 // ===== Duplicate Log Protection =====
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
@@ -620,6 +635,371 @@ app.get("/api/inventory/report", async (req, res) => {
   } catch (err) {
     console.error("XLSX generation error:", err);
     res.status(500).json({ message: "Report generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                               PURCHASE CRUD
+// ============================================================================
+app.get("/api/purchases", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("purchases get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/purchases", async (req, res) => {
+  try {
+    const { sku, productName, supplier, quantity, purchasePrice, purchaseDate, notes } = req.body;
+    
+    // Generate unique purchase ID
+    const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const totalAmount = quantity * purchasePrice;
+
+    const purchase = await Purchase.create({
+      purchaseId,
+      sku,
+      productName,
+      supplier,
+      quantity,
+      purchasePrice,
+      totalAmount,
+      purchaseDate: purchaseDate || new Date(),
+      notes
+    });
+
+    // Update inventory quantity
+    const inventoryItem = await Inventory.findOne({ sku });
+    if (inventoryItem) {
+      inventoryItem.quantity = (inventoryItem.quantity || 0) + quantity;
+      // Update unit cost if needed (you can implement logic here)
+      await inventoryItem.save();
+    }
+
+    await logActivity(req.headers["x-username"], `Purchased: ${productName} (${quantity} units)`);
+
+    res.status(201).json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase post error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.put("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!purchase)
+      return res.status(404).json({ message: "Purchase not found" });
+
+    await logActivity(req.headers["x-username"], `Updated purchase: ${purchase.productName}`);
+    res.json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findByIdAndDelete(req.params.id);
+    if (!purchase)
+      return res.status(404).json({ message: "Purchase not found" });
+
+    await logActivity(req.headers["x-username"], `Deleted purchase: ${purchase.productName}`);
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("purchase delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                    PURCHASE PDF REPORT - INVOICE STYLE
+// ============================================================================
+app.get("/api/purchases/report/pdf", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+    const printedBy = req.headers["x-username"] || "System";
+    const filename = `Total_Purchase_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+    console.log(`📊 Generating Purchase PDF report: ${filename}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        let pdfChunks = [];
+
+        const doc = new PDFDocument({
+          size: "A4",
+          margin: 40
+        });
+
+        doc.on("data", chunk => {
+          pdfChunks.push(chunk);
+        });
+        
+        doc.on("end", () => {
+          const buffer = Buffer.concat(pdfChunks);
+          console.log(`✅ Purchase PDF generation completed: ${buffer.length} bytes`);
+          resolve(buffer);
+        });
+        
+        doc.on("error", (error) => {
+          console.error('❌ Purchase PDF generation error:', error);
+          reject(error);
+        });
+
+        // ==================== PDF CONTENT GENERATION ====================
+        // Header
+        doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
+        doc.fontSize(10).font("Helvetica");
+        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+        doc.text("Phone: 01133127622", 40, 85);
+        doc.text("Email: lbcompany@gmail.com", 40, 100);
+
+        // Report Title
+        doc.font("Helvetica-Bold").fontSize(18)
+           .text("TOTAL PURCHASE REPORT", 0, 140, { align: "center" });
+
+        // Report Details
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 180);
+        doc.text(`Generated by: ${printedBy}`, 40, 195);
+        doc.text(`Total Purchases: ${purchases.length}`, 40, 210);
+
+        doc.moveTo(40, 240).lineTo(555, 240).stroke();
+
+        // Purchase Table
+        let y = 260;
+        const rowHeight = 20;
+        
+        // Table Headers
+        doc.rect(40, y, 515, rowHeight).stroke();
+        doc.font("Helvetica-Bold").fontSize(9);
+        doc.text("Purchase ID", 45, y + 6);
+        doc.text("Product", 120, y + 6);
+        doc.text("Supplier", 250, y + 6);
+        doc.text("Qty", 350, y + 6);
+        doc.text("Price", 390, y + 6);
+        doc.text("Total", 450, y + 6);
+        doc.text("Date", 500, y + 6);
+        
+        y += rowHeight;
+
+        // Table Rows
+        doc.font("Helvetica").fontSize(8);
+        let grandTotal = 0;
+        
+        purchases.forEach(purchase => {
+          if (y > 700) {
+            doc.addPage();
+            y = 40;
+            // Draw headers on new page
+            doc.rect(40, y, 515, rowHeight).stroke();
+            doc.font("Helvetica-Bold").fontSize(9);
+            doc.text("Purchase ID", 45, y + 6);
+            doc.text("Product", 120, y + 6);
+            doc.text("Supplier", 250, y + 6);
+            doc.text("Qty", 350, y + 6);
+            doc.text("Price", 390, y + 6);
+            doc.text("Total", 450, y + 6);
+            doc.text("Date", 500, y + 6);
+            y += rowHeight;
+          }
+
+          doc.rect(40, y, 515, rowHeight).stroke();
+          doc.text(purchase.purchaseId || "", 45, y + 6);
+          doc.text(purchase.productName || "", 120, y + 6);
+          doc.text(purchase.supplier || "", 250, y + 6);
+          doc.text(String(purchase.quantity || 0), 350, y + 6);
+          doc.text(`RM ${(purchase.purchasePrice || 0).toFixed(2)}`, 390, y + 6);
+          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 450, y + 6);
+          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 500, y + 6);
+          
+          grandTotal += purchase.totalAmount || 0;
+          y += rowHeight;
+        });
+
+        // Summary
+        y += 10;
+        doc.rect(40, y, 515, 25).stroke();
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text("GRAND TOTAL:", 300, y + 8);
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 450, y + 8);
+
+        // Footer
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(9).text("Generated by L&B Company Inventory System", 0, doc.page.height - 40, { align: "center" });
+          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+        }
+        
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving Purchase PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf"
+    });
+
+    console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Total Purchase Report PDF: ${filename}`);
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Purchase PDF Generation Error:", err);
+    res.status(500).json({ message: "Purchase PDF generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SINGLE PURCHASE INVOICE PDF
+// ============================================================================
+app.get("/api/purchases/invoice/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const filename = `Invoice_${purchase.purchaseId}_${Date.now()}.pdf`;
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        let pdfChunks = [];
+
+        const doc = new PDFDocument({
+          size: "A4",
+          margin: 40
+        });
+
+        doc.on("data", chunk => {
+          pdfChunks.push(chunk);
+        });
+        
+        doc.on("end", () => {
+          const buffer = Buffer.concat(pdfChunks);
+          resolve(buffer);
+        });
+        
+        doc.on("error", (error) => {
+          reject(error);
+        });
+
+        // Invoice Header
+        doc.fontSize(22).font("Helvetica-Bold").text("L&B Company", 40, 40);
+        doc.fontSize(10).font("Helvetica");
+        doc.text("Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka", 40, 70);
+        doc.text("Phone: 01133127622", 40, 85);
+        doc.text("Email: lbcompany@gmail.com", 40, 100);
+
+        // Invoice Title
+        doc.font("Helvetica-Bold").fontSize(18)
+           .text("PURCHASE INVOICE", 0, 150, { align: "center" });
+
+        // Invoice Details
+        const detailsY = 200;
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text("Invoice Number:", 40, detailsY);
+        doc.text("Purchase Date:", 40, detailsY + 15);
+        doc.text("Supplier:", 40, detailsY + 30);
+        
+        doc.font("Helvetica").fontSize(10);
+        doc.text(purchase.purchaseId, 120, detailsY);
+        doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 120, detailsY + 15);
+        doc.text(purchase.supplier || "N/A", 120, detailsY + 30);
+
+        // Product Details Box
+        const productY = detailsY + 60;
+        doc.rect(40, productY, 515, 80).stroke();
+        
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text("Product Details", 45, productY + 10);
+        doc.moveTo(40, productY + 25).lineTo(555, productY + 25).stroke();
+        
+        doc.text("SKU:", 45, productY + 40);
+        doc.text("Product Name:", 45, productY + 55);
+        doc.text("Quantity:", 45, productY + 70);
+        
+        doc.font("Helvetica").fontSize(10);
+        doc.text(purchase.sku || "N/A", 120, productY + 40);
+        doc.text(purchase.productName || "N/A", 120, productY + 55);
+        doc.text(String(purchase.quantity || 0), 120, productY + 70);
+
+        // Price Details
+        const priceY = productY + 100;
+        doc.rect(40, priceY, 515, 60).stroke();
+        
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text("Price Details", 45, priceY + 10);
+        doc.moveTo(40, priceY + 25).lineTo(555, priceY + 25).stroke();
+        
+        doc.text("Unit Price:", 45, priceY + 40);
+        doc.text("Total Amount:", 45, priceY + 55);
+        
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`RM ${(purchase.purchasePrice || 0).toFixed(2)}`, 120, priceY + 40);
+        doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 120, priceY + 55);
+
+        // Notes
+        if (purchase.notes) {
+          const notesY = priceY + 80;
+          doc.rect(40, notesY, 515, 40).stroke();
+          doc.font("Helvetica-Bold").fontSize(10);
+          doc.text("Notes:", 45, notesY + 10);
+          doc.font("Helvetica").fontSize(9);
+          doc.text(purchase.notes, 45, notesY + 25, { width: 500 });
+        }
+
+        // Footer
+        doc.fontSize(9).text("Thank you for your business!", 0, doc.page.height - 60, { align: "center" });
+        doc.text("Generated by L&B Company Inventory System", 0, doc.page.height - 45, { align: "center" });
+        doc.text(new Date().toLocaleString(), 0, doc.page.height - 30, { align: "center" });
+
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Purchase Invoice Generation Error:", err);
+    res.status(500).json({ message: "Purchase invoice generation failed: " + err.message });
   }
 });
 
