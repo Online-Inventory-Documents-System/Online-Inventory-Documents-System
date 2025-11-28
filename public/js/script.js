@@ -549,17 +549,23 @@ async function fetchPurchases() {
   }
 }
 
-// NEW: Fetch inventory for purchase page
+// FIXED: Fetch inventory for purchase page - SIMPLIFIED VERSION
 async function fetchInventoryForPurchase() {
   try {
+    console.log('🔄 Fetching inventory for purchase page...');
     const res = await apiFetch(`${API_BASE}/inventory`);
     if(res.ok) {
-      return await res.json();
+      const data = await res.json();
+      console.log('✅ Inventory loaded for purchase:', data.length, 'items');
+      return data;
+    } else {
+      console.error('❌ Failed to fetch inventory for purchase');
+      return [];
     }
   } catch(err) {
-    console.error('Error fetching inventory for purchase:', err);
+    console.error('❌ Error fetching inventory for purchase:', err);
+    return [];
   }
-  return [];
 }
 
 // Init
