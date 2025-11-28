@@ -564,7 +564,7 @@ function renderPurchaseHistory() {
       <td>${new Date(p.purchaseDate).toLocaleDateString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
-        <button class="secondary-btn small-btn" onclick="editPurchase('${p.id}')">✏️ Edit</button>
+        <button class="secondary-btn small-btn" onclick="editPurchasePage('${p.id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
         <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
       </td>
@@ -588,15 +588,23 @@ function closePurchaseHistoryModal() {
   }
 }
 
-// FIXED: Reset modal state completely when opening
+// FIXED: Completely reset modal state when opening
 function openNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
-    modal.style.display = 'block';
+    // Reset form first
     resetPurchaseForm();
-    loadProductSearch();
-    // Don't add empty item by default - user will click to add
+    
+    // Clear any existing items
     qs('#purchaseItems').innerHTML = '';
+    
+    // Load product search
+    loadProductSearch();
+    
+    // Show modal
+    modal.style.display = 'block';
+    
+    // Reset total amount to ensure it's 0.00
     updateTotalAmount();
   }
 }
@@ -605,7 +613,7 @@ function closeNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'none';
-    // Reset form when closing
+    // Reset form when closing to prevent state persistence
     resetPurchaseForm();
   }
 }
@@ -618,7 +626,19 @@ function resetPurchaseForm() {
   qs('#productSearch').value = '';
   qs('#productResults').innerHTML = '';
   qs('#purchaseItems').innerHTML = '';
-  updateTotalAmount();
+  
+  // Reset total amount displays
+  if (qs('#totalPurchaseAmount')) {
+    qs('#totalPurchaseAmount').textContent = '0.00';
+  }
+  if (qs('#editTotalPurchaseAmount')) {
+    qs('#editTotalPurchaseAmount').textContent = '0.00';
+  }
+}
+
+// NEW: Redirect to separate edit page
+function editPurchasePage(purchaseId) {
+  window.location.href = `purchase-edit.html?id=${encodeURIComponent(purchaseId)}`;
 }
 
 // FIXED: Add product item with proper validation
@@ -681,22 +701,34 @@ function addProductItem(product = null) {
   calculateTotal();
 }
 
+// FIXED: Update total amount function to handle both modals separately
 function updateTotalAmount() {
-  let total = 0;
-  const itemRows = qsa('.purchase-item-row');
+  let newTotal = 0;
+  let editTotal = 0;
   
-  itemRows.forEach(row => {
+  // Calculate for new purchase modal
+  const newItemRows = qsa('#purchaseItems .purchase-item-row');
+  newItemRows.forEach(row => {
     const totalInput = row.querySelector('.product-total');
     const itemTotal = Number(totalInput.value) || 0;
-    total += itemTotal;
+    newTotal += itemTotal;
   });
   
+  // Calculate for edit purchase modal
+  const editItemRows = qsa('#editPurchaseItems .purchase-item-row');
+  editItemRows.forEach(row => {
+    const totalInput = row.querySelector('.product-total');
+    const itemTotal = Number(totalInput.value) || 0;
+    editTotal += itemTotal;
+  });
+  
+  // Update displays
   if (qs('#totalPurchaseAmount')) {
-    qs('#totalPurchaseAmount').textContent = total.toFixed(2);
+    qs('#totalPurchaseAmount').textContent = newTotal.toFixed(2);
   }
   
   if (qs('#editTotalPurchaseAmount')) {
-    qs('#editTotalPurchaseAmount').textContent = total.toFixed(2);
+    qs('#editTotalPurchaseAmount').textContent = editTotal.toFixed(2);
   }
 }
 
@@ -1148,6 +1180,69 @@ async function generateTotalPurchaseReport() {
     console.error('Purchase report error:', e);
     alert('❌ Failed to generate purchase report.');
   }
+}
+
+// Update bindInventoryUI to include new purchase functionality
+function bindInventoryUI(){
+  qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
+  qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
+  qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
+  qs('#purchaseReportBtn')?.addEventListener('click', generateTotalPurchaseReport);
+  qs('#searchInput')?.addEventListener('input', searchInventory);
+  qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
+    if(qs('#searchInput')) { 
+      qs('#searchInput').value=''; 
+      searchInventory(); 
+    } 
+  });
+  
+  // UPDATED: Purchase functionality with multiple products
+  qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
+  qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
+  qs('#addProductItem')?.addEventListener('click', () => addProductItem());
+  qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
+  qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
+  
+  // Edit purchase functionality
+  qs('#addEditProductItem')?.addEventListener('click', () => addEditProductItem());
+  qs('#updatePurchaseBtn')?.addEventListener('click', updatePurchaseOrder);
+  qs('#printEditInvoiceBtn')?.addEventListener('click', () => {
+    if (currentEditingPurchaseId) {
+      printPurchaseInvoice(currentEditingPurchaseId);
+    }
+  });
+  qs('#closeEditPurchaseModal')?.addEventListener('click', closeEditPurchaseModal);
+  
+  // Purchase details functionality
+  qs('#closeDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
+  
+  // Modal close handlers
+  qsa('.close').forEach(closeBtn => {
+    closeBtn.addEventListener('click', function() {
+      const modal = this.closest('.modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    });
+  });
+  
+  window.addEventListener('click', (e) => {
+    if (e.target === qs('#purchaseHistoryModal')) {
+      closePurchaseHistoryModal();
+    }
+    if (e.target === qs('#newPurchaseModal')) {
+      closeNewPurchaseModal();
+    }
+    if (e.target === qs('#editPurchaseModal')) {
+      closeEditPurchaseModal();
+    }
+    if (e.target === qs('#purchaseDetailsModal')) {
+      closePurchaseDetailsModal();
+    }
+  });
+  
+  // UPDATED: Bind date range filter events
+  bindDateRangeFilterEvents();
 }
 
 // Init
@@ -1719,4 +1814,5 @@ window.deletePurchase = deletePurchase;
 window.editPurchase = editPurchase;
 window.viewPurchase = viewPurchase;
 window.generateTotalPurchaseReport = generateTotalPurchaseReport;
+
 
