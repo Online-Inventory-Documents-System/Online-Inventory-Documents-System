@@ -63,7 +63,10 @@
 
     <div class="section-header">
       <h2>Add New Product</h2>
-      <button id="purchaseBtn" class="success-btn">🛒 Purchase Products</button>
+      <div>
+        <button id="purchaseHistoryBtn" class="secondary-btn">📋 Purchase History</button>
+        <button id="newPurchaseBtn" class="success-btn">🛒 New Purchase Order</button>
+      </div>
     </div>
     
     <div class="product-bar">
@@ -130,84 +133,136 @@
           <tbody id="inventoryList"></tbody>
       </table>
     </div>
-
-    <!-- Purchase Management Section -->
-    <h2>Purchase History</h2>
-    <div class="table-container"> 
-      <table id="purchaseTable">
-          <thead>
-              <tr>
-                  <th>Purchase ID</th>
-                  <th>SKU</th>
-                  <th>Product Name</th>
-                  <th>Supplier</th>
-                  <th>Quantity</th>
-                  <th class="money">Purchase Price</th>
-                  <th class="money">Total Amount</th>
-                  <th>Date</th>
-                  <th class="actions">Actions</th>
-              </tr>
-          </thead>
-          <tbody id="purchaseList"></tbody>
-      </table>
-    </div>
   </section>
 
-  <!-- Purchase Modal -->
-  <div id="purchaseModal" class="modal">
-    <div class="modal-content large-modal">
+  <!-- Purchase History Modal -->
+  <div id="purchaseHistoryModal" class="modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
-        <h2>🛒 Purchase Products</h2>
+        <h2>📋 Purchase History</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
+        <div class="table-container"> 
+          <table id="purchaseHistoryTable">
+            <thead>
+              <tr>
+                <th>Purchase ID</th>
+                <th>Supplier</th>
+                <th>Items</th>
+                <th class="money">Total Amount</th>
+                <th>Date</th>
+                <th class="actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="purchaseHistoryList"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Purchase Order Modal (Multiple Products) -->
+  <div id="newPurchaseModal" class="modal">
+    <div class="modal-content x-large-modal">
+      <div class="modal-header">
+        <h2>🛒 New Purchase Order</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="supplierName">Supplier Name:</label>
+            <input type="text" id="supplierName" placeholder="Enter supplier name">
+          </div>
+          <div class="form-group">
+            <label for="purchaseDate">Purchase Date:</label>
+            <input type="date" id="purchaseDate">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="purchaseNotes">Notes (Optional):</label>
+          <textarea id="purchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
+        </div>
+
+        <h3>Purchase Items</h3>
         <div class="search-product-section">
-          <h3>Search and Select Product</h3>
           <input type="text" id="productSearch" placeholder="Search by SKU or product name..." class="search-input">
           <div id="productResults" class="product-results"></div>
         </div>
 
-        <div class="purchase-form-section">
-          <h3>Purchase Details</h3>
-          <div class="form-group">
-            <label for="selectedProduct">Selected Product:</label>
-            <div id="selectedProductInfo" class="selected-product-info">
-              No product selected
-            </div>
-          </div>
+        <div id="purchaseItems" class="purchase-items-container">
+          <!-- Dynamic purchase items will be added here -->
+        </div>
 
+        <div class="purchase-summary">
           <div class="form-row">
             <div class="form-group">
-              <label for="supplierName">Supplier Name:</label>
-              <input type="text" id="supplierName" placeholder="Enter supplier name">
+              <button id="addProductItem" class="primary-btn">+ Add Another Product</button>
             </div>
             <div class="form-group">
-              <label for="purchaseDate">Purchase Date:</label>
-              <input type="date" id="purchaseDate">
+              <div class="total-amount-display">
+                <strong>Total Amount: RM <span id="totalPurchaseAmount">0.00</span></strong>
+              </div>
             </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="purchaseQuantity">Quantity:</label>
-              <input type="number" id="purchaseQuantity" placeholder="Enter quantity" min="1">
-            </div>
-            <div class="form-group">
-              <label for="purchasePrice">Purchase Price (per unit):</label>
-              <input type="number" id="purchasePrice" placeholder="Enter price" step="0.01" min="0">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="purchaseNotes">Notes (Optional):</label>
-            <textarea id="purchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button id="savePurchaseBtn" class="primary-btn">💾 Save Purchase</button>
-          <button id="printInvoiceBtn" class="success-btn" style="display:none;">🖨️ Print Invoice</button>
+          <button id="savePurchaseBtn" class="primary-btn">💾 Save Purchase Order</button>
           <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Purchase Modal -->
+  <div id="editPurchaseModal" class="modal">
+    <div class="modal-content x-large-modal">
+      <div class="modal-header">
+        <h2>✏️ Edit Purchase Order</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editSupplierName">Supplier Name:</label>
+            <input type="text" id="editSupplierName" placeholder="Enter supplier name">
+          </div>
+          <div class="form-group">
+            <label for="editPurchaseDate">Purchase Date:</label>
+            <input type="date" id="editPurchaseDate">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="editPurchaseNotes">Notes (Optional):</label>
+          <textarea id="editPurchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
+        </div>
+
+        <h3>Purchase Items</h3>
+        <div id="editPurchaseItems" class="purchase-items-container">
+          <!-- Dynamic edit purchase items will be added here -->
+        </div>
+
+        <div class="purchase-summary">
+          <div class="form-row">
+            <div class="form-group">
+              <button id="addEditProductItem" class="primary-btn">+ Add Another Product</button>
+            </div>
+            <div class="form-group">
+              <div class="total-amount-display">
+                <strong>Total Amount: RM <span id="editTotalPurchaseAmount">0.00</span></strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="updatePurchaseBtn" class="primary-btn">💾 Update Purchase Order</button>
+          <button id="printEditInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
+          <button id="closeEditPurchaseModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
     </div>
