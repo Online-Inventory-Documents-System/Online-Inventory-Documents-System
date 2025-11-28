@@ -64,19 +64,20 @@
         }
 
         .main-title-container h1 {
-            font-size: 2.5rem;
+            font-size: clamp(1.5rem, 4vw, 2.5rem); /* Responsive font size */
             color: white;
             font-weight: 800;
             text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.3);
             margin: 0;
             animation: fadeInDown 1s ease;
+            padding: 0 15px;
         }
 
         .login-wrapper {
             display: flex;
-            width: 900px;
-            max-width: 95%;
-            height: 550px;
+            width: min(900px, 95%); /* Responsive width */
+            height: auto;
+            min-height: 550px;
             background: rgba(255, 255, 255, 0.9);
             border-radius: 20px;
             overflow: hidden;
@@ -148,13 +149,13 @@
         }
 
         .login-left h2 {
-            font-size: 2.2rem;
+            font-size: clamp(1.5rem, 3vw, 2.2rem); /* Responsive font size */
             margin-bottom: 15px;
             font-weight: 700;
         }
 
         .login-left p {
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 2vw, 1.1rem); /* Responsive font size */
             opacity: 0.9;
             margin-bottom: 30px;
             line-height: 1.6;
@@ -171,6 +172,7 @@
             align-items: center;
             animation: fadeInUp 0.8s ease;
             animation-fill-mode: both;
+            font-size: clamp(0.85rem, 2vw, 1rem); /* Responsive font size */
         }
 
         .features-list li:nth-child(1) { animation-delay: 0.3s; }
@@ -203,14 +205,14 @@
         }
 
         .form-header h2 {
-            font-size: 1.8rem;
+            font-size: clamp(1.5rem, 3vw, 1.8rem); /* Responsive font size */
             color: #333;
             margin-bottom: 10px;
         }
 
         .form-header p {
             color: var(--secondary-color);
-            font-size: 0.95rem;
+            font-size: clamp(0.85rem, 2vw, 0.95rem); /* Responsive font size */
         }
 
         .form-group {
@@ -224,16 +226,19 @@
             font-weight: 600;
             color: #444;
             transition: all 0.3s ease;
+            font-size: clamp(0.9rem, 2vw, 1rem); /* Responsive font size */
         }
 
         .form-group input {
             width: 100%;
-            padding: 14px 15px;
+            padding: clamp(12px, 3vw, 14px) 15px; /* Responsive padding */
             border: 2px solid #e1e5e9;
             border-radius: 10px;
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 2vw, 1rem); /* Responsive font size */
             transition: all 0.3s ease;
             background: #f8f9fa;
+            /* Improve touch target size */
+            min-height: 44px;
         }
 
         .form-group input:focus {
@@ -253,44 +258,54 @@
             top: 42px;
             color: var(--secondary-color);
             transition: all 0.3s ease;
+            font-size: clamp(1rem, 2vw, 1.2rem); /* Responsive icon size */
         }
 
-        .primary-btn {
+        .primary-btn, .success-btn {
             width: 100%;
-            padding: 14px;
-            background: var(--gradient-primary);
+            padding: clamp(12px, 3vw, 14px); /* Responsive padding */
             color: white;
             border: none;
             border-radius: 10px;
-            font-size: 1rem;
+            font-size: clamp(0.9rem, 2vw, 1rem); /* Responsive font size */
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
+            /* Improve touch target size */
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .primary-btn {
+            background: var(--gradient-primary);
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
 
-        .primary-btn:hover {
+        .success-btn {
+            background: var(--gradient-secondary);
+            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+        }
+
+        .primary-btn:hover, .success-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 7px 20px rgba(102, 126, 234, 0.6);
         }
 
-        .success-btn {
-            width: 100%;
-            padding: 14px;
-            background: var(--gradient-secondary);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+        .success-btn:hover {
+            box-shadow: 0 7px 20px rgba(240, 147, 251, 0.6);
         }
 
-        .success-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(240, 147, 251, 0.6);
+        /* Prevent hover effects on touch devices */
+        @media (hover: none) {
+            .primary-btn:hover, .success-btn:hover {
+                transform: none;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            }
+            .success-btn:hover {
+                box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+            }
         }
 
         .toggle-link {
@@ -300,6 +315,9 @@
             cursor: pointer;
             font-weight: 500;
             transition: all 0.3s ease;
+            font-size: clamp(0.85rem, 2vw, 1rem); /* Responsive font size */
+            /* Improve touch target size */
+            padding: 8px 0;
         }
 
         .toggle-link:hover {
@@ -307,7 +325,7 @@
         }
 
         .info {
-            font-size: 0.8rem;
+            font-size: clamp(0.75rem, 2vw, 0.8rem); /* Responsive font size */
             color: var(--secondary-color);
             text-align: center;
             margin-top: 20px;
@@ -320,6 +338,7 @@
             font-weight: 500;
             padding: 10px;
             border-radius: 8px;
+            font-size: clamp(0.8rem, 2vw, 0.9rem); /* Responsive font size */
         }
 
         /* Animation for form switching */
@@ -361,25 +380,74 @@
 
         /* Responsive styles */
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                align-items: flex-start;
+                min-height: 100vh;
+                overflow-y: auto;
+            }
+            
+            .main-title-container {
+                position: relative;
+                top: 0;
+                margin-bottom: 20px;
+            }
+            
             .login-wrapper {
                 flex-direction: column;
                 height: auto;
+                width: 95%;
+                margin-top: 20px;
             }
 
             .login-left {
                 padding: 30px 20px;
+                order: 2; /* Move to bottom on mobile */
             }
 
             .login-right {
                 padding: 30px 20px;
+                order: 1; /* Move to top on mobile */
             }
-
-            .main-title-container h1 {
-                font-size: 2rem;
+            
+            .login-left-content {
+                text-align: center;
+            }
+            
+            .features-list {
+                text-align: center;
+            }
+            
+            .features-list li {
+                justify-content: center;
             }
             
             .form-container {
                 min-height: 400px; /* Adjusted for mobile */
+            }
+            
+            /* Reduce animation intensity on mobile for performance */
+            .floating {
+                animation: floating 4s ease-in-out infinite;
+            }
+            
+            .login-left::before {
+                animation: shimmer 20s infinite linear;
+            }
+        }
+
+        /* Extra small devices */
+        @media (max-width: 480px) {
+            .login-left, .login-right {
+                padding: 20px 15px;
+            }
+            
+            .form-container {
+                min-height: 380px;
+            }
+            
+            .main-title-container h1 {
+                font-size: 1.5rem;
             }
         }
 
@@ -406,6 +474,13 @@
 
             .form-group input:focus {
                 background: #495057;
+            }
+        }
+        
+        /* Improve performance on mobile */
+        @media (max-width: 768px) {
+            #polygon-background {
+                opacity: 0.5; /* Reduce opacity for better performance */
             }
         }
     </style>
@@ -514,10 +589,18 @@
                     'rgba(67, 233, 123, 0.4)'
                 ];
                 
+                // Performance optimization for mobile
+                this.isMobile = window.innerWidth <= 768;
+                this.polygonCount = this.isMobile ? 6 : 12;
+                
                 this.init();
                 this.animate();
                 
-                window.addEventListener('resize', () => this.init());
+                window.addEventListener('resize', () => {
+                    this.isMobile = window.innerWidth <= 768;
+                    this.polygonCount = this.isMobile ? 6 : 12;
+                    this.init();
+                });
             }
             
             init() {
@@ -527,26 +610,27 @@
                 this.canvas.height = this.height;
                 
                 this.polygons = [];
-                const count = Math.min(12, Math.floor(this.width / 100));
                 
-                for (let i = 0; i < count; i++) {
+                for (let i = 0; i < this.polygonCount; i++) {
                     this.polygons.push(this.createPolygon());
                 }
             }
             
             createPolygon() {
                 const sides = Math.floor(Math.random() * 4) + 5; // 5-8 sides
-                const size = Math.random() * 80 + 40;
+                const size = this.isMobile ? 
+                    (Math.random() * 40 + 20) : // Smaller on mobile
+                    (Math.random() * 80 + 40);   // Normal size on desktop
                 const x = Math.random() * this.width;
                 const y = Math.random() * this.height;
                 const color = this.colors[Math.floor(Math.random() * this.colors.length)];
                 
                 return {
                     x, y, size, sides, color,
-                    speedX: (Math.random() - 0.5) * 0.8,
-                    speedY: (Math.random() - 0.5) * 0.8,
+                    speedX: (Math.random() - 0.5) * (this.isMobile ? 0.4 : 0.8),
+                    speedY: (Math.random() - 0.5) * (this.isMobile ? 0.4 : 0.8),
                     rotation: Math.random() * Math.PI * 2,
-                    rotationSpeed: (Math.random() - 0.5) * 0.01,
+                    rotationSpeed: (Math.random() - 0.5) * (this.isMobile ? 0.005 : 0.01),
                     vertices: this.generateVertices(sides, size),
                     targetVertices: this.generateVertices(sides, size),
                     morphProgress: 0,
