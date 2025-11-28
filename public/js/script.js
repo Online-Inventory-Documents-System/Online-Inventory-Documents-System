@@ -534,37 +534,278 @@ async function fetchLogs() {
   } catch(err) { console.error(err); }
 }
 
-// Purchase functions
+// =========================================
+// Purchase Management Functions
+// =========================================
 async function fetchPurchases() {
   try {
     const res = await apiFetch(`${API_BASE}/purchases`);
-    if(res.ok) {
-      purchases = await res.json();
-      if (window.renderPurchases) {
-        window.renderPurchases();
-      }
-    }
+    if (!res.ok) throw new Error('Failed to fetch purchases');
+    const data = await res.json();
+    purchases = data.map(p => ({ ...p, id: p.id || p._id }));
+    renderPurchases();
   } catch(err) {
-    console.error('Error fetching purchases:', err);
+    console.error('Fetch purchases error:', err);
   }
 }
 
-// FIXED: Fetch inventory for purchase page - SIMPLIFIED VERSION
-async function fetchInventoryForPurchase() {
+function renderPurchases() {
+  const list = qs('#purchaseList');
+  if (!list) return;
+  list.innerHTML = '';
+  
+  purchases.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
+      <td>${escapeHtml(p.sku || '')}</td>
+      <td>${escapeHtml(p.productName || '')}</td>
+      <td>${escapeHtml(p.supplier || '')}</td>
+      <td>${p.quantity || 0}</td>
+      <td class="money">RM ${(p.purchasePrice || 0).toFixed(2)}</td>
+      <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
+      <td>${new Date(p.purchaseDate).toLocaleDateString()}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="editPurchase('${p.id}')">✏️ Edit</button>
+        <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
+        <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
+      </td>
+    `;
+    list.appendChild(tr);
+  });
+}
+
+function openPurchaseModal() {
+  const modal = qs('#purchaseModal');
+  if (modal) {
+    modal.style.display = 'block';
+    resetPurchaseForm();
+    loadProductSearch();
+  }
+}
+
+function closePurchaseModal() {
+  const modal = qs('#purchaseModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function resetPurchaseForm() {
+  qs('#productSearch').value = '';
+  qs('#selectedProductInfo').innerHTML = 'No product selected';
+  qs('#supplierName').value = '';
+  qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
+  qs('#purchaseQuantity').value = '';
+  qs('#purchasePrice').value = '';
+  qs('#purchaseNotes').value = '';
+  qs('#printInvoiceBtn').style.display = 'none';
+}
+
+function loadProductSearch() {
+  const searchInput = qs('#productSearch');
+  const resultsContainer = qs('#productResults');
+  
+  if (searchInput && resultsContainer) {
+    searchInput.addEventListener('input', function() {
+      const query = this.value.toLowerCase().trim();
+      resultsContainer.innerHTML = '';
+      
+      if (query.length < 2) return;
+      
+      const filtered = inventory.filter(item => 
+        (item.sku && item.sku.toLowerCase().includes(query)) ||
+        (item.name && item.name.toLowerCase().includes(query))
+      );
+      
+      if (filtered.length === 0) {
+        resultsContainer.innerHTML = '<div class="product-result-item">No products found</div>';
+        return;
+      }
+      
+      filtered.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'product-result-item';
+        div.innerHTML = `
+          <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
+          <div class="name">${escapeHtml(item.name || 'N/A')}</div>
+          <div class="stock">Stock: ${item.quantity || 0} | Cost: RM ${(item.unitCost || 0).toFixed(2)}</div>
+        `;
+        div.addEventListener('click', () => selectProduct(item));
+        resultsContainer.appendChild(div);
+      });
+    });
+  }
+}
+
+function selectProduct(item) {
+  const selectedProductInfo = qs('#selectedProductInfo');
+  const purchasePrice = qs('#purchasePrice');
+  
+  selectedProductInfo.innerHTML = `
+    <div class="product-details">
+      <div><strong>SKU:</strong> ${escapeHtml(item.sku || 'N/A')}</div>
+      <div><strong>Name:</strong> ${escapeHtml(item.name || 'N/A')}</div>
+      <div><strong>Current Stock:</strong> ${item.quantity || 0}</div>
+      <div><strong>Current Cost:</strong> RM ${(item.unitCost || 0).toFixed(2)}</div>
+    </div>
+  `;
+  
+  // Set current cost as default purchase price
+  if (purchasePrice && !purchasePrice.value) {
+    purchasePrice.value = item.unitCost || '';
+  }
+  
+  // Store selected product
+  selectedProductInfo.dataset.selectedSku = item.sku;
+  selectedProductInfo.dataset.selectedName = item.name;
+  
+  // Clear search results
+  qs('#productResults').innerHTML = '';
+  qs('#productSearch').value = '';
+}
+
+async function savePurchase() {
+  const selectedProductInfo = qs('#selectedProductInfo');
+  const supplierName = qs('#supplierName').value.trim();
+  const purchaseDate = qs('#purchaseDate').value;
+  const quantity = Number(qs('#purchaseQuantity').value);
+  const price = Number(qs('#purchasePrice').value);
+  const notes = qs('#purchaseNotes').value.trim();
+  
+  if (!selectedProductInfo.dataset.selectedSku) {
+    alert('⚠️ Please select a product first.');
+    return;
+  }
+  
+  if (!supplierName) {
+    alert('⚠️ Please enter supplier name.');
+    return;
+  }
+  
+  if (!quantity || quantity <= 0) {
+    alert('⚠️ Please enter a valid quantity.');
+    return;
+  }
+  
+  if (!price || price <= 0) {
+    alert('⚠️ Please enter a valid purchase price.');
+    return;
+  }
+  
+  const purchaseData = {
+    sku: selectedProductInfo.dataset.selectedSku,
+    productName: selectedProductInfo.dataset.selectedName,
+    supplier: supplierName,
+    quantity: quantity,
+    purchasePrice: price,
+    purchaseDate: purchaseDate,
+    notes: notes
+  };
+  
+  if (!confirm(`Confirm Purchase:\nProduct: ${purchaseData.productName}\nQuantity: ${quantity}\nPrice: RM ${price.toFixed(2)}\nSupplier: ${supplierName}`)) {
+    return;
+  }
+  
   try {
-    console.log('🔄 Fetching inventory for purchase page...');
-    const res = await apiFetch(`${API_BASE}/inventory`);
-    if(res.ok) {
-      const data = await res.json();
-      console.log('✅ Inventory loaded for purchase:', data.length, 'items');
-      return data;
+    const res = await apiFetch(`${API_BASE}/purchases`, {
+      method: 'POST',
+      body: JSON.stringify(purchaseData)
+    });
+    
+    if (res.ok) {
+      const savedPurchase = await res.json();
+      alert('✅ Purchase saved successfully!');
+      
+      // Show print button
+      qs('#printInvoiceBtn').style.display = 'inline-block';
+      qs('#printInvoiceBtn').onclick = () => printPurchaseInvoice(savedPurchase.id);
+      
+      // Refresh data
+      await fetchInventory();
+      await fetchPurchases();
+      
     } else {
-      console.error('❌ Failed to fetch inventory for purchase');
-      return [];
+      const error = await res.json();
+      alert(`❌ Failed to save purchase: ${error.message}`);
     }
-  } catch(err) {
-    console.error('❌ Error fetching inventory for purchase:', err);
-    return [];
+  } catch (e) {
+    console.error('Save purchase error:', e);
+    alert('❌ Server connection error while saving purchase.');
+  }
+}
+
+async function printPurchaseInvoice(purchaseId) {
+  try {
+    const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
+    if (!res.ok) throw new Error('Failed to generate invoice');
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `Invoice_${purchaseId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+  } catch (e) {
+    console.error('Print invoice error:', e);
+    alert('❌ Failed to generate invoice.');
+  }
+}
+
+async function deletePurchase(id) {
+  const purchase = purchases.find(p => String(p.id) === String(id));
+  if (!purchase) return;
+  
+  if (!confirm(`Confirm Delete Purchase:\n${purchase.productName} from ${purchase.supplier}?`)) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
+    if (res.status === 204) {
+      await fetchPurchases();
+      alert('🗑️ Purchase deleted!');
+    } else {
+      alert('❌ Failed to delete purchase.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('❌ Server connection error while deleting purchase.');
+  }
+}
+
+function editPurchase(id) {
+  // You can implement edit functionality similar to product editing
+  alert('Edit purchase functionality can be implemented here');
+}
+
+async function generateTotalPurchaseReport() {
+  if (!confirm('Generate Total Purchase Report?')) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/purchases/report/pdf`);
+    if (!res.ok) throw new Error('Failed to generate report');
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `Total_Purchase_Report_${Date.now()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+    await fetchDocuments();
+    alert('✅ Total Purchase Report Generated Successfully!');
+    
+  } catch (e) {
+    console.error('Purchase report error:', e);
+    alert('❌ Failed to generate purchase report.');
   }
 }
 
@@ -579,15 +820,12 @@ window.addEventListener('load', async () => {
   try {
     if(currentPage.includes('inventory')) { 
       await fetchInventory(); 
+      await fetchPurchases(); // Add this line
       bindInventoryUI(); 
     }
     if(currentPage.includes('documents')) { 
       await fetchDocuments(); 
       bindDocumentsUI(); 
-    }
-    if(currentPage.includes('purchase')) { 
-      await fetchPurchases();
-      // Purchase page has its own initialization in purchase.html
     }
     if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
       await fetchLogs(); 
@@ -775,12 +1013,26 @@ function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', confirmAndGenerateReport);
   qs('#pdfReportBtn')?.addEventListener('click', confirmAndGeneratePDF);
+  qs('#purchaseReportBtn')?.addEventListener('click', generateTotalPurchaseReport);
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
     if(qs('#searchInput')) { 
       qs('#searchInput').value=''; 
       searchInventory(); 
     } 
+  });
+  
+  // Purchase functionality
+  qs('#purchaseBtn')?.addEventListener('click', openPurchaseModal);
+  qs('#savePurchaseBtn')?.addEventListener('click', savePurchase);
+  qs('#closePurchaseModal')?.addEventListener('click', closePurchaseModal);
+  
+  // Modal close handlers
+  qs('.close')?.addEventListener('click', closePurchaseModal);
+  window.addEventListener('click', (e) => {
+    if (e.target === qs('#purchaseModal')) {
+      closePurchaseModal();
+    }
   });
   
   // UPDATED: Bind date range filter events
@@ -1089,4 +1341,12 @@ window.deleteDocumentConfirm = deleteDocumentConfirm;
 window.verifyDocument = verifyDocument;
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
-window.fetchInventoryForPurchase = fetchInventoryForPurchase; // NEW: Expose for purchase page
+
+// Purchase functions
+window.openPurchaseModal = openPurchaseModal;
+window.closePurchaseModal = closePurchaseModal;
+window.savePurchase = savePurchase;
+window.printPurchaseInvoice = printPurchaseInvoice;
+window.deletePurchase = deletePurchase;
+window.editPurchase = editPurchase;
+window.generateTotalPurchaseReport = generateTotalPurchaseReport;
