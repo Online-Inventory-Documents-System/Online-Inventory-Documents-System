@@ -20,6 +20,10 @@
   --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
@@ -45,6 +49,7 @@ header {
 header h1 {
   margin: 0;
   font-size: 1.8rem;
+  text-align: center;
 }
 
 nav {
@@ -52,7 +57,8 @@ nav {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 15px;
+  gap: 10px;
+  width: 100%;
 }
 
 nav a {
@@ -62,6 +68,7 @@ nav a {
   padding: 8px 12px;
   border-radius: 4px;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
 nav a:hover, nav a.active {
@@ -76,6 +83,7 @@ nav button {
   color: white;
   cursor: pointer;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
 nav button:hover {
@@ -86,6 +94,7 @@ nav button:hover {
   font-size: 0.9rem;
   margin-top: 5px;
   color: rgba(255, 255, 255, 0.8);
+  text-align: center;
 }
 
 /* =========================================
@@ -99,6 +108,92 @@ section {
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
+}
+
+/* Welcome Section */
+.welcome-section {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+  color: white;
+}
+
+.welcome-section h2 {
+  margin: 0 0 10px 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.welcome-section p {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.welcome-section .clock {
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 15px;
+  border-radius: 25px;
+  display: inline-block;
+}
+
+/* User Login History */
+.user-login-history {
+  margin-bottom: 30px;
+}
+
+.user-login-history h3 {
+  color: var(--primary-color);
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+}
+
+.login-history-container {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+}
+
+.login-history-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.login-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid var(--primary-color);
+  transition: transform 0.2s;
+}
+
+.login-history-item:hover {
+  transform: translateX(5px);
+}
+
+.login-user {
+  font-weight: 600;
+  color: var(--primary-color);
+  min-width: 80px;
+}
+
+.login-time {
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+.login-device {
+  font-size: 1.2rem;
 }
 
 /* Specific styling for inventory section to be even larger */
@@ -720,6 +815,22 @@ input:focus, select:focus, textarea:focus {
     border-color: #80bdff;
 }
 
+/* Dark mode for welcome section */
+.dark-mode .welcome-section {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+}
+
+/* Dark mode for login history */
+.dark-mode .login-history-container {
+    background: #343a40;
+    border-color: #495057;
+}
+
+.dark-mode .login-history-item {
+    background: #495057;
+    border-left-color: #80bdff;
+}
+
 /* =========================================
    Activity Log Table
 ========================================= */
@@ -903,20 +1014,24 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Individual card gradients */
-.card-total-value {
+.card-total-products {
   background: linear-gradient(135deg, #8E2DE2, #4A00E0);
 }
 
-.card-total-revenue {
+.card-total-value {
   background: linear-gradient(135deg, #FF416C, #FF4B2B);
 }
 
-.card-total-profit {
+.card-total-revenue {
   background: linear-gradient(135deg, #009FFF, #0072FF);
 }
 
-.card-total-stock {
+.card-total-profit {
   background: linear-gradient(135deg, #00b09b, #96c93d);
+}
+
+.card-total-stock {
+  background: linear-gradient(135deg, #FF9800, #FF5722);
 }
 
 /* Dark mode adjustments */
@@ -2074,6 +2189,98 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 5px;
 }
 
+/* Statement Summary */
+.statement-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.statement-count, .statement-size {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.statement-count span, .statement-size span {
+  color: var(--success-color);
+}
+
+.dark-mode .statement-summary {
+  background: #343a40;
+  border-color: #495057;
+}
+
+/* Enhanced Statements Tables */
+#inventoryReportsTable,
+#purchaseInvoicesTable,
+#salesInvoicesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.85em;
+}
+
+#inventoryReportsTable th, #inventoryReportsTable td,
+#purchaseInvoicesTable th, #purchaseInvoicesTable td,
+#salesInvoicesTable th, #salesInvoicesTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#inventoryReportsTable thead th {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#purchaseInvoicesTable thead th {
+  background-color: var(--success-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#salesInvoicesTable thead th {
+  background-color: var(--info-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#inventoryReportsTable tbody tr:hover,
+#purchaseInvoicesTable tbody tr:hover,
+#salesInvoicesTable tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.dark-mode #inventoryReportsTable thead th {
+  background-color: #0056b3;
+}
+
+.dark-mode #purchaseInvoicesTable thead th {
+  background-color: #1e7e34;
+}
+
+.dark-mode #salesInvoicesTable thead th {
+  background-color: #138496;
+}
+
+.dark-mode #inventoryReportsTable tbody tr:hover,
+.dark-mode #purchaseInvoicesTable tbody tr:hover,
+.dark-mode #salesInvoicesTable tbody tr:hover {
+  background-color: #3f4a56;
+}
+
 /* =========================================
    Company Information Styling
 ========================================= */
@@ -2150,4 +2357,143 @@ body[data-theme="dark"] {
 body[data-theme="dark"] section {
   background: var(--card-dark);
   color: var(--text-dark);
+}
+
+/* =========================================
+   Mobile Responsive Improvements
+========================================= */
+@media (max-width: 768px) {
+  header {
+    padding: 10px 15px;
+  }
+  
+  header h1 {
+    font-size: 1.4rem;
+  }
+  
+  nav {
+    gap: 5px;
+  }
+  
+  nav a, nav button {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+  
+  section {
+    margin: 10px auto;
+    max-width: 98%;
+    padding: 15px;
+  }
+  
+  .welcome-section h2 {
+    font-size: 1.5rem;
+  }
+  
+  .welcome-section p {
+    font-size: 1rem;
+  }
+  
+  .product-bar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .search-controls {
+    gap: 10px;
+  }
+  
+  .date-range-container,
+  .text-search-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .date-inputs {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .date-input-group {
+    width: 100%;
+  }
+  
+  .modal-content {
+    margin: 10% auto;
+    width: 95%;
+  }
+  
+  .x-large-modal, .large-modal {
+    width: 95%;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .action-buttons-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  header h1 {
+    font-size: 1.2rem;
+  }
+  
+  nav {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .welcome-section {
+    padding: 15px;
+  }
+  
+  .welcome-section h2 {
+    font-size: 1.3rem;
+  }
+  
+  .card {
+    padding: 15px;
+    min-height: 100px;
+  }
+  
+  .card-icon {
+    font-size: 2rem;
+    margin-right: 10px;
+  }
+  
+  .card-value {
+    font-size: 1.3rem;
+  }
+  
+  .table-container {
+    font-size: 0.75em;
+  }
+  
+  .statements-tabs {
+    flex-direction: column;
+  }
+  
+  .tab-button {
+    text-align: center;
+  }
+}
+
+/* Print button visibility */
+#printPurchaseBtn, #printSalesBtn {
+  display: none !important;
+}
+
+.print-visible {
+  display: inline-block !important;
 }
