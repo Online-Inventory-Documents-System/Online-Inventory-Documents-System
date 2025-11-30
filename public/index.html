@@ -5,6 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Inventory | Inventory System</title>
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    /* Additional CSS to fix the button layout */
+    .action-buttons-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    @media (max-width: 1200px) {
+      .action-buttons-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .action-buttons-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -28,11 +46,10 @@
       <p>The website was developed by Brendan Jong & Leong Jia Wei.</p>
       <div class="clock" id="currentTime">Loading time...</div>
     </div>
-      
 
     <!-- MODERN SUMMARY CARDS -->
+    <h2 class="section-title">Summary Cards</h2>
     <div class="summary-cards">
-      <h2>Summary Cards</h2>
       <div class="card card-total-products" onclick="showCardTooltip('Total number of products in inventory')">
         <div class="card-icon">📦</div>
         <div class="card-content">
@@ -678,8 +695,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
