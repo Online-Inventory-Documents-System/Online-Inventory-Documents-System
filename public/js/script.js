@@ -174,6 +174,7 @@ function renderInventory(items) {
   if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
   if(qs('#cardTotalProfit')) qs('#cardTotalProfit').textContent = `RM ${totalProfit.toFixed(2)}`;
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
+  if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
 }
 
 function searchInventory(){
@@ -723,6 +724,9 @@ async function saveSalesOrder() {
       const savedSales = await res.json();
       alert('✅ Sales order saved successfully!');
       
+      // Show print button after successful save
+      qs('#printSalesBtn').classList.add('print-visible');
+      
       closeNewSalesModal();
       await fetchInventory();
       await fetchSales();
@@ -1146,6 +1150,9 @@ async function savePurchaseOrder() {
     if (res.ok) {
       const savedPurchase = await res.json();
       alert('✅ Purchase order saved successfully!');
+      
+      // Show print button after successful save
+      qs('#printPurchaseBtn').classList.add('print-visible');
       
       closeNewPurchaseModal();
       await fetchInventory();
@@ -2026,11 +2033,15 @@ function renderStatements(type, statements) {
     return;
   }
   
+  let totalSize = 0;
+  
   statements.forEach(doc => {
+    totalSize += doc.size || 0;
+    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(doc.name)}</td>
-      <td>${(doc.size / (1024*1024)).toFixed(2)} MB</td>
+      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
       <td>${new Date(doc.date).toLocaleString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
@@ -2040,6 +2051,13 @@ function renderStatements(type, statements) {
     `;
     container.appendChild(tr);
   });
+  
+  // Update summary information
+  const countElement = qs(`#${type.replace('-', '')}Count`);
+  const sizeElement = qs(`#${type.replace('-', '')}Size`);
+  
+  if (countElement) countElement.textContent = statements.length;
+  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
 }
 
 // =========================================
@@ -2135,7 +2153,7 @@ async function login(){
       sessionStorage.setItem('isLoggedIn', 'true');
       sessionStorage.setItem('adminName', user);
       showMsg(msg, '✅ Login successful! Redirecting...', 'green');
-      setTimeout(()=> window.location.href = 'index.html', 700);
+      setTimeout(()=> window.location.href = 'inventory.html', 700);
     } else {
       showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
     }
@@ -2259,6 +2277,14 @@ function bindInventoryUI(){
   qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
   qs('#addProductItem')?.addEventListener('click', () => addProductItem());
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
+  qs('#printPurchaseBtn')?.addEventListener('click', () => {
+    // This would print the last saved purchase
+    if (purchases.length > 0) {
+      printPurchaseInvoice(purchases[purchases.length - 1].id);
+    } else {
+      alert('No recent purchase to print.');
+    }
+  });
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
   
   // Sales functionality
@@ -2266,6 +2292,14 @@ function bindInventoryUI(){
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   qs('#addSalesProductItem')?.addEventListener('click', () => addSalesProductItem());
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
+  qs('#printSalesBtn')?.addEventListener('click', () => {
+    // This would print the last saved sales
+    if (sales.length > 0) {
+      printSalesInvoice(sales[sales.length - 1].id);
+    } else {
+      alert('No recent sales to print.');
+    }
+  });
   qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
   
   // Report generation
@@ -2321,7 +2355,7 @@ window.addEventListener('load', async () => {
     // Fetch company info first
     await fetchCompanyInfo();
     
-    if(currentPage.includes('inventory')) { 
+    if(currentPage.includes('inventory') || currentPage === '' || currentPage === 'index.html') { 
       await fetchInventory(); 
       bindInventoryUI(); 
     }
