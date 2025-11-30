@@ -14,7 +14,7 @@
       <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
-      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <a href="setting.html" class="active" style="text-decoration: none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
       <button onclick="logout()">🚪 Logout</button>
       <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
@@ -27,41 +27,133 @@
     <p>Logged-in User: <strong id="currentUser"></strong></p>
   </div>
 
-  <form id="passwordForm" style="margin-top: 20px;">
-    <h3>Change Password</h3>
-    <label for="newPassword">New Password</label>
-    <input id="newPassword" type="password" required /><br/>
+  <!-- Company Information Section -->
+  <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+    <h3>🏢 Company Information</h3>
+    <p style="color: var(--secondary-color); margin-bottom: 20px;">
+      Update your company details that will appear on all reports and invoices.
+    </p>
     
-    <label for="confirmPassword">Confirm New Password</label>
-    <input id="confirmPassword" type="password" required /><br/>
+    <div class="company-info-form">
+      <div class="form-group">
+        <label for="companyName">Company Name:</label>
+        <input type="text" id="companyName" placeholder="Enter company name" />
+      </div>
+      
+      <div class="form-group">
+        <label for="companyAddress">Company Address:</label>
+        <textarea id="companyAddress" placeholder="Enter company address" rows="3"></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="companyPhone">Phone Number:</label>
+          <input type="text" id="companyPhone" placeholder="Enter phone number" />
+        </div>
+        <div class="form-group">
+          <label for="companyEmail">Email Address:</label>
+          <input type="email" id="companyEmail" placeholder="Enter email address" />
+        </div>
+      </div>
+      
+      <button onclick="updateCompanyInfo()" class="primary-btn" style="margin-top: 15px;">
+        💾 Update Company Information
+      </button>
+    </div>
     
-    <label for="securityCode">Admin Security Code</label>
-    <input id="securityCode" type="password" placeholder="Required to confirm change" required /><br/>
-    
-    <button id="changePasswordBtn" type="button" class="primary-btn" style="margin-top: 15px;">🔒 Confirm Change Password</button>
-    <p id="passwordMessage" style="margin-top: 10px;"></p>
-  </form>
+    <!-- Company Information Preview -->
+    <div class="company-info-preview">
+      <h3>Current Company Information</h3>
+      <div class="detail-row">
+        <div class="detail-group">
+          <label>Company Name:</label>
+          <span id="companyNameDisplay" class="detail-value">L&B Company</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-group full-width">
+          <label>Address:</label>
+          <span id="companyAddressDisplay" class="detail-value">Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka</span>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-group">
+          <label>Phone:</label>
+          <span id="companyPhoneDisplay" class="detail-value">01133127622</span>
+        </div>
+        <div class="detail-group">
+          <label>Email:</label>
+          <span id="companyEmailDisplay" class="detail-value">lbcompany@gmail.com</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <!-- Password Change Section -->
   <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
-    <h3>Account Actions</h3>
-    <button id="logoutBtn" type="button" class="secondary-btn" onclick="logout()">🚪 Logout</button>
-    <button id="deleteAccountBtn" type="button" class="danger-btn" style="margin-left: 10px;">🗑️ Delete Account</button>
+    <h3>🔒 Change Password</h3>
+    
+    <form id="passwordForm" style="margin-top: 20px;">
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <input id="newPassword" type="password" required />
+      </div>
+      
+      <div class="form-group">
+        <label for="confirmPassword">Confirm New Password</label>
+        <input id="confirmPassword" type="password" required />
+      </div>
+      
+      <div class="form-group">
+        <label for="securityCode">Admin Security Code</label>
+        <input id="securityCode" type="password" placeholder="Required to confirm change" required />
+      </div>
+      
+      <button id="changePasswordBtn" type="button" class="primary-btn" style="margin-top: 15px;">
+        🔒 Confirm Change Password
+      </button>
+      <p id="passwordMessage" style="margin-top: 10px;"></p>
+    </form>
+  </div>
+
+  <!-- Account Actions Section -->
+  <div style="margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+    <h3>⚡ Account Actions</h3>
+    <div class="btn-group-horizontal" style="margin-top: 15px;">
+      <button id="logoutBtn" type="button" class="secondary-btn" onclick="logout()">
+        🚪 Logout
+      </button>
+      <button id="deleteAccountBtn" type="button" class="danger-btn">
+        🗑️ Delete Account
+      </button>
+    </div>
   </div>
 </section>
 
+<!-- JS -->
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 <script>
   // Tell script.js we are on the settings page so it can bind the password & delete account logic
   document.documentElement.dataset.page = 'setting';
 
-  // Pre-fill current user
-  document.addEventListener('DOMContentLoaded', () => {
+  // Pre-fill current user and company info
+  document.addEventListener('DOMContentLoaded', async () => {
     const adminName = sessionStorage.getItem('adminName') || 'Guest';
     if (document.getElementById('adminName')) document.getElementById('adminName').textContent = adminName;
     if (document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
+    
+    // Load company information
+    await fetchCompanyInfo();
+    
+    // Pre-fill company form
+    if (companyInfo) {
+      if (document.getElementById('companyName')) document.getElementById('companyName').value = companyInfo.name || '';
+      if (document.getElementById('companyAddress')) document.getElementById('companyAddress').value = companyInfo.address || '';
+      if (document.getElementById('companyPhone')) document.getElementById('companyPhone').value = companyInfo.phone || '';
+      if (document.getElementById('companyEmail')) document.getElementById('companyEmail').value = companyInfo.email || '';
+    }
   });
 </script>
 </body>
 </html>
-
