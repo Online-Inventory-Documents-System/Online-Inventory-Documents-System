@@ -6,6 +6,8 @@
   --secondary-color: #6c757d;
   --success-color: #28a745;
   --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
   --background-light: #4F517D;
   --background-dark: #1f2833;
   --card-light: #ffffff;
@@ -15,6 +17,7 @@
   --border-color: #333333;
   --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
 }
 
 body {
@@ -90,7 +93,7 @@ nav button:hover {
 ========================================= */
 section {
   margin: 20px auto;
-  max-width: 95%; /* Changed from 1200px to 95% for more width */
+  max-width: 95%;
   background: var(--card-light);
   padding: 25px;
   border-radius: 10px;
@@ -112,7 +115,10 @@ input[type="text"],
 input[type="number"], 
 input[type="password"],
 input[type="file"],
-input[type="date"] {
+input[type="date"],
+input[type="email"],
+select,
+textarea {
     width: 100%;
     padding: 12px;
     margin-top: 5px;
@@ -122,13 +128,13 @@ input[type="date"] {
     box-sizing: border-box;
     transition: border-color 0.2s;
 }
-input:focus {
+input:focus, select:focus, textarea:focus {
     border-color: var(--primary-color);
     outline: none;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-.primary-btn, .secondary-btn, .success-btn, .danger-btn {
+.primary-btn, .secondary-btn, .success-btn, .danger-btn, .warning-btn, .info-btn {
     border: none;
     padding: 10px 15px;
     border-radius: 6px;
@@ -137,13 +143,13 @@ input:focus {
     transition: background 0.2s, transform 0.1s;
 }
 .primary-btn { background: var(--primary-color); color: white; }
-.primary-btn:hover { background: #0056b3; }
+.primary-btn:hover { background: #0056b3; transform: translateY(-1px); }
 
 .secondary-btn { background: var(--secondary-color); color: white; }
-.secondary-btn:hover { background: #545b62; }
+.secondary-btn:hover { background: #545b62; transform: translateY(-1px); }
 
 .success-btn { background: var(--success-color); color: white; }
-.success-btn:hover { background: #1e7e34; }
+.success-btn:hover { background: #1e7e34; transform: translateY(-1px); }
 
 .danger-btn { 
     background: var(--danger-color); 
@@ -151,7 +157,13 @@ input:focus {
     padding: 8px 12px; 
     font-size: 0.9rem; 
 }
-.danger-btn:hover { background: #bd2130; }
+.danger-btn:hover { background: #bd2130; transform: translateY(-1px); }
+
+.warning-btn { background: var(--warning-color); color: #212529; }
+.warning-btn:hover { background: #e0a800; transform: translateY(-1px); }
+
+.info-btn { background: var(--info-color); color: white; }
+.info-btn:hover { background: #138496; transform: translateY(-1px); }
 
 .action-btn {
     margin-left: 5px;
@@ -382,20 +394,21 @@ input:focus {
     border-radius: 8px;
     border: 1px solid var(--border-color); 
     background: var(--card-light);
-    max-width: 100%; /* Ensure it takes full available width */
+    max-width: 100%;
 }
 
-#inventoryTable, #documentsTable {
+#inventoryTable, #documentsTable, #salesHistoryTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    font-size: 0.82em; /* Slightly smaller font to fit more content */
-    min-width: 1100px; /* Increased to accommodate all columns comfortably */
+    font-size: 0.82em;
+    min-width: 1100px;
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
-#inventoryTable th, #inventoryTable td {
-    padding: 10px 12px; /* Reduced padding to save space */
+#inventoryTable th, #inventoryTable td,
+#salesHistoryTable th, #salesHistoryTable td {
+    padding: 10px 12px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     border-right: 1px solid #000000;
@@ -403,11 +416,14 @@ input:focus {
 
 /* Remove border only from last column */
 #inventoryTable th:last-child, 
-#inventoryTable td:last-child {
+#inventoryTable td:last-child,
+#salesHistoryTable th:last-child, 
+#salesHistoryTable td:last-child {
     border-right: none;
 }
 
-#inventoryTable thead th {
+#inventoryTable thead th,
+#salesHistoryTable thead th {
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
@@ -416,11 +432,12 @@ input:focus {
     position: sticky; 
     top: 0;
     border-right: 1px solid rgba(255, 255, 255, 0.3);
-    font-size: 0.8em; /* Smaller header font */
-    padding: 12px 10px; /* Adjusted header padding */
+    font-size: 0.8em;
+    padding: 12px 10px;
 }
 
-#inventoryTable thead th:last-child {
+#inventoryTable thead th:last-child,
+#salesHistoryTable thead th:last-child {
     border-right: none;
 }
 
@@ -497,7 +514,8 @@ input:focus {
 
 /* Table row styles */
 #inventoryTable tbody tr:hover,
-#documentsTable tbody tr:hover {
+#documentsTable tbody tr:hover,
+#salesHistoryTable tbody tr:hover {
     background-color: #f1f1f1;
     transition: background-color 0.2s;
 }
@@ -525,7 +543,7 @@ input:focus {
     min-width: 150px;
 }
 .small-btn {
-    padding: 5px 8px; /* Smaller buttons */
+    padding: 5px 8px;
     font-size: 0.8em;
 }
 
@@ -613,12 +631,12 @@ input:focus {
   background: #0056b3;
 }
 
-.dark-mode input {
+.dark-mode input, .dark-mode select, .dark-mode textarea {
     background: #495057;
     color: var(--text-dark);
     border-color: #6c757d;
 }
-.dark-mode input:focus {
+.dark-mode input:focus, .dark-mode select:focus, .dark-mode textarea:focus {
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
 }
 
@@ -632,25 +650,31 @@ input:focus {
     border-color: #495057;
 }
 .dark-mode #inventoryTable thead th,
-.dark-mode #documentsTable thead th {
+.dark-mode #documentsTable thead th,
+.dark-mode #salesHistoryTable thead th {
     background-color: #0056b3; 
 }
 .dark-mode #inventoryTable tbody tr:hover,
-.dark-mode #documentsTable tbody tr:hover {
+.dark-mode #documentsTable tbody tr:hover,
+.dark-mode #salesHistoryTable tbody tr:hover {
     background-color: #3f4a56;
 }
 .dark-mode #inventoryTable th, .dark-mode #inventoryTable td,
-.dark-mode #documentsTable th, .dark-mode #documentsTable td {
+.dark-mode #documentsTable th, .dark-mode #documentsTable td,
+.dark-mode #salesHistoryTable th, .dark-mode #salesHistoryTable td {
     border-bottom-color: #495057;
 }
 
 /* Keep black vertical borders in dark mode */
 .dark-mode #inventoryTable th, 
-.dark-mode #inventoryTable td {
+.dark-mode #inventoryTable td,
+.dark-mode #salesHistoryTable th, 
+.dark-mode #salesHistoryTable td {
     border-right-color: #000000;
 }
 
-.dark-mode #inventoryTable thead th {
+.dark-mode #inventoryTable thead th,
+.dark-mode #salesHistoryTable thead th {
     border-right-color: rgba(255, 255, 255, 0.3);
 }
 
@@ -956,7 +980,7 @@ input:focus {
 }
 
 /* =========================================
-   Purchase Management Styles
+   Purchase & Sales Management Styles
 ========================================= */
 .section-header {
   display: flex;
@@ -971,7 +995,19 @@ input:focus {
   margin: 0;
 }
 
-/* Purchase Modal Styles */
+/* Action Buttons Container */
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.action-buttons .btn-group {
+  display: flex;
+  gap: 5px;
+}
+
+/* Purchase/Sales Modal Styles */
 .modal {
   display: none;
   position: fixed;
@@ -1036,7 +1072,8 @@ input:focus {
 }
 
 .search-product-section,
-.purchase-form-section {
+.purchase-form-section,
+.sales-form-section {
   margin-bottom: 25px;
   padding: 20px;
   border: 1px solid var(--border-color);
@@ -1090,29 +1127,34 @@ input:focus {
   font-size: 0.9rem;
 }
 
-/* Purchase Items Container */
-.purchase-items-container {
+/* Purchase/Sales Items Container */
+.purchase-items-container,
+.sales-items-container {
   margin: 20px 0;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 15px;
   background: #f8f9fa;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
-.purchase-item-row {
+.purchase-item-row,
+.sales-item-row {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
   gap: 10px;
   align-items: end;
-  padding: 15px;
-  margin-bottom: 15px;
+  padding: 12px;
+  margin-bottom: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
   background: white;
   position: relative;
 }
 
-.purchase-item-row:last-child {
+.purchase-item-row:last-child,
+.sales-item-row:last-child {
   margin-bottom: 0;
 }
 
@@ -1130,7 +1172,8 @@ input:focus {
   background: #bd2130;
 }
 
-.purchase-summary {
+.purchase-summary,
+.sales-summary {
   margin: 20px 0;
   padding: 20px;
   border: 2px solid var(--success-color);
@@ -1162,7 +1205,8 @@ input:focus {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--border-color);
@@ -1185,14 +1229,15 @@ input:focus {
   border-top: 1px solid var(--border-color);
 }
 
-/* Purchase History Table */
-#purchaseHistoryTable {
+/* Purchase/Sales History Table */
+#purchaseHistoryTable,
+#salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
 }
 
-#purchaseHistoryTable th,
-#purchaseHistoryTable td {
+#purchaseHistoryTable th, #purchaseHistoryTable td,
+#salesHistoryTable th, #salesHistoryTable td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
@@ -1206,13 +1251,23 @@ input:focus {
   letter-spacing: 0.05em;
 }
 
-#purchaseHistoryTable tbody tr:hover {
+#salesHistoryTable thead th {
+  background-color: var(--info-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#purchaseHistoryTable tbody tr:hover,
+#salesHistoryTable tbody tr:hover {
   background-color: #f1f1f1;
 }
 
-/* Dark mode styles for purchase section */
+/* Dark mode styles for purchase/sales section */
 .dark-mode .search-product-section,
-.dark-mode .purchase-form-section {
+.dark-mode .purchase-form-section,
+.dark-mode .sales-form-section {
   background: #343a40;
   border-color: #495057;
 }
@@ -1230,23 +1285,27 @@ input:focus {
   background-color: #3f4a56;
 }
 
-.dark-mode .purchase-items-container {
+.dark-mode .purchase-items-container,
+.dark-mode .sales-items-container {
   background: #343a40;
   border-color: #495057;
 }
 
-.dark-mode .purchase-item-row {
+.dark-mode .purchase-item-row,
+.dark-mode .sales-item-row {
   background: #495057;
   border-color: #6c757d;
 }
 
-.dark-mode .purchase-summary {
+.dark-mode .purchase-summary,
+.dark-mode .sales-summary {
   background: #2d3a2d;
   border-color: #28a745;
 }
 
 .dark-mode .form-group input,
-.dark-mode .form-group textarea {
+.dark-mode .form-group textarea,
+.dark-mode .form-group select {
   background: #495057;
   color: var(--text-dark);
   border-color: #6c757d;
@@ -1256,7 +1315,12 @@ input:focus {
   background-color: #1e7e34;
 }
 
-.dark-mode #purchaseHistoryTable tbody tr:hover {
+.dark-mode #salesHistoryTable thead th {
+  background-color: #138496;
+}
+
+.dark-mode #purchaseHistoryTable tbody tr:hover,
+.dark-mode #salesHistoryTable tbody tr:hover {
   background-color: #3f4a56;
 }
 
@@ -1265,6 +1329,10 @@ input:focus {
   .section-header {
     flex-direction: column;
     align-items: stretch;
+  }
+  
+  .action-buttons {
+    justify-content: center;
   }
   
   .modal-content {
@@ -1281,7 +1349,8 @@ input:focus {
     flex-direction: column;
   }
   
-  .purchase-item-row {
+  .purchase-item-row,
+  .sales-item-row {
     grid-template-columns: 1fr;
     gap: 10px;
   }
@@ -1290,10 +1359,12 @@ input:focus {
     width: 95%;
   }
 }
+
 /* =========================================
-   Purchase Details Modal Styling
+   Purchase/Sales Details Modal Styling
 ========================================= */
-.purchase-details-header {
+.purchase-details-header,
+.sales-details-header {
   background: #f8f9fa;
   padding: 20px;
   border-radius: 8px;
@@ -1336,8 +1407,9 @@ input:focus {
   color: var(--text-dark);
 }
 
-/* Purchase History Table Styling */
-#purchaseHistoryTable {
+/* Purchase/Sales History Table Styling */
+#purchaseHistoryTable,
+#salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
   margin: 0;
@@ -1345,7 +1417,8 @@ input:focus {
   min-width: 900px;
 }
 
-#purchaseHistoryTable th, #purchaseHistoryTable td {
+#purchaseHistoryTable th, #purchaseHistoryTable td,
+#salesHistoryTable th, #salesHistoryTable td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
@@ -1353,7 +1426,9 @@ input:focus {
 }
 
 #purchaseHistoryTable th:last-child, 
-#purchaseHistoryTable td:last-child {
+#purchaseHistoryTable td:last-child,
+#salesHistoryTable th:last-child, 
+#salesHistoryTable td:last-child {
   border-right: none;
 }
 
@@ -1370,19 +1445,35 @@ input:focus {
   padding: 15px 15px;
 }
 
-#purchaseHistoryTable thead th:last-child {
+#salesHistoryTable thead th {
+  background-color: var(--info-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky; 
+  top: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.8em;
+  padding: 15px 15px;
+}
+
+#purchaseHistoryTable thead th:last-child,
+#salesHistoryTable thead th:last-child {
   border-right: none;
 }
 
-/* Purchase Details Table */
-#purchaseDetailsTable {
+/* Purchase/Sales Details Table */
+#purchaseDetailsTable,
+#salesDetailsTable {
   width: 100%;
   border-collapse: collapse;
   margin: 0;
   font-size: 0.85em;
 }
 
-#purchaseDetailsTable th, #purchaseDetailsTable td {
+#purchaseDetailsTable th, #purchaseDetailsTable td,
+#salesDetailsTable th, #salesDetailsTable td {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
@@ -1390,12 +1481,25 @@ input:focus {
 }
 
 #purchaseDetailsTable th:last-child, 
-#purchaseDetailsTable td:last-child {
+#purchaseDetailsTable td:last-child,
+#salesDetailsTable th:last-child, 
+#salesDetailsTable td:last-child {
   border-right: none;
 }
 
 #purchaseDetailsTable thead th {
   background-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.8em;
+  padding: 12px 12px;
+}
+
+#salesDetailsTable thead th {
+  background-color: var(--info-color);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -1412,36 +1516,9 @@ input:focus {
   max-height: 90vh;
 }
 
-/* Purchase Items Container Improvements */
-.purchase-items-container {
-  margin: 20px 0;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 15px;
-  background: #f8f9fa;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.purchase-item-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
-  gap: 10px;
-  align-items: end;
-  padding: 12px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: white;
-  position: relative;
-}
-
-.purchase-item-row:last-child {
-  margin-bottom: 0;
-}
-
-/* Purchase Edit Page Styling */
-.purchase-edit-container {
+/* Purchase/Sales Edit Page Styling */
+.purchase-edit-container,
+.sales-edit-container {
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -1479,17 +1556,20 @@ input:focus {
 }
 
 /* Dark mode adjustments */
-.dark-mode .purchase-details-header {
+.dark-mode .purchase-details-header,
+.dark-mode .sales-details-header {
   background: #343a40;
   border-color: #495057;
 }
 
-.dark-mode .purchase-items-container {
+.dark-mode .purchase-items-container,
+.dark-mode .sales-items-container {
   background: #343a40;
   border-color: #495057;
 }
 
-.dark-mode .purchase-item-row {
+.dark-mode .purchase-item-row,
+.dark-mode .sales-item-row {
   background: #495057;
   border-color: #6c757d;
 }
@@ -1498,8 +1578,16 @@ input:focus {
   background-color: #1e7e34;
 }
 
+.dark-mode #salesHistoryTable thead th {
+  background-color: #138496;
+}
+
 .dark-mode #purchaseDetailsTable thead th {
   background-color: #0056b3;
+}
+
+.dark-mode #salesDetailsTable thead th {
+  background-color: #138496;
 }
 
 /* Responsive improvements */
@@ -1509,7 +1597,8 @@ input:focus {
     gap: 10px;
   }
   
-  .purchase-item-row {
+  .purchase-item-row,
+  .sales-item-row {
     grid-template-columns: 1fr;
     gap: 8px;
   }
@@ -1527,4 +1616,332 @@ input:focus {
     min-width: auto;
     width: 100%;
   }
+}
+
+/* =========================================
+   Report Generation Modal Styling
+========================================= */
+.report-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.report-option {
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.report-option:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.report-option.selected {
+  border-color: var(--primary-color);
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.report-option .icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.report-option h3 {
+  margin: 0 0 10px 0;
+  color: var(--primary-color);
+}
+
+.report-option p {
+  margin: 0;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+.dark-mode .report-option {
+  background: #343a40;
+  border-color: #495057;
+}
+
+.dark-mode .report-option:hover {
+  border-color: #80bdff;
+}
+
+.dark-mode .report-option.selected {
+  border-color: #80bdff;
+  background: rgba(0, 123, 255, 0.2);
+}
+
+/* =========================================
+   Folder Management Styling
+========================================= */
+.folder-management {
+  margin-bottom: 20px;
+}
+
+.folder-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.folder-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary-color);
+  cursor: pointer;
+}
+
+.breadcrumb-item:not(:last-child)::after {
+  content: "›";
+  margin-left: 5px;
+  color: var(--secondary-color);
+}
+
+.breadcrumb-item:last-child {
+  color: var(--secondary-color);
+  cursor: default;
+}
+
+.folder-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.folder-item {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.folder-item:hover {
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.folder-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: var(--warning-color);
+}
+
+.folder-name {
+  font-weight: 600;
+  margin-bottom: 5px;
+  word-break: break-word;
+}
+
+.folder-info {
+  font-size: 0.8rem;
+  color: var(--secondary-color);
+}
+
+.folder-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: none;
+}
+
+.folder-item:hover .folder-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.dark-mode .folder-breadcrumb {
+  background: #343a40;
+}
+
+.dark-mode .folder-item {
+  background: #343a40;
+  border-color: #495057;
+}
+
+.dark-mode .folder-item:hover {
+  border-color: #80bdff;
+}
+
+/* =========================================
+   Document Preview Styling
+========================================= */
+.preview-container {
+  width: 100%;
+  height: 600px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+
+/* =========================================
+   Statements Section Styling
+========================================= */
+.statements-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--secondary-color);
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  color: var(--primary-color);
+}
+
+.tab-button.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.statement-filters {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.statement-filters .form-group {
+  margin-bottom: 0;
+}
+
+.statement-filters label {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+/* =========================================
+   Company Information Styling
+========================================= */
+.company-info-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.company-info-preview {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.company-info-preview h3 {
+  margin-top: 0;
+  color: var(--primary-color);
+}
+
+.dark-mode .company-info-preview {
+  background: #343a40;
+  border-color: #495057;
+}
+
+/* =========================================
+   Enhanced Button Groups
+========================================= */
+.btn-group-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-group-horizontal {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-large {
+  padding: 15px 25px;
+  font-size: 1.1rem;
+  min-width: 200px;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* =========================================
+   Theme Persistence Fix
+========================================= */
+body.dark-mode-persist {
+  background: var(--background-dark);
+  color: var(--text-dark);
+}
+
+body.dark-mode-persist section {
+  background: var(--card-dark);
+  color: var(--text-dark);
+}
+
+/* Ensure theme persists across pages */
+body[data-theme="dark"] {
+  background: var(--background-dark);
+  color: var(--text-dark);
+}
+
+body[data-theme="dark"] section {
+  background: var(--card-dark);
+  color: var(--text-dark);
 }
