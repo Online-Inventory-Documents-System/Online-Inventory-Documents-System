@@ -8,10 +8,9 @@
 </head>
 <body>
   <header>
-    <h1>📦 Inventory Management</h1>
+    <h1>📦 Inventory Management System</h1>
     <nav>
-      <a href="index.html">Home</a>
-      <a href="inventory.html" class="active">Inventory</a>
+      <a href="inventory.html" class="active">Dashboard</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
@@ -22,8 +21,54 @@
   </header>
 
   <section>
+    <!-- WELCOME SECTION -->
+    <div class="welcome-section">
+      <h2>Welcome to The Inventory & Documents Management System</h2>
+      <p>Manage your products, track sales and purchases, generate reports, and organize your documents all in one place.</p>
+      <div class="clock" id="currentTime">Loading time...</div>
+    </div>
+
+    <!-- USER LOGIN HISTORY -->
+    <div class="user-login-history">
+      <h3>📱 User Login History</h3>
+      <div class="login-history-container">
+        <div class="login-history-list" id="loginHistoryList">
+          <!-- Login history will be populated here -->
+          <div class="login-history-item">
+            <div class="login-user">admin</div>
+            <div class="login-time">2024-01-15 10:30:25</div>
+            <div class="login-device">🖥️ Desktop</div>
+          </div>
+          <div class="login-history-item">
+            <div class="login-user">manager</div>
+            <div class="login-time">2024-01-15 09:15:10</div>
+            <div class="login-device">📱 Mobile</div>
+          </div>
+          <div class="login-history-item">
+            <div class="login-user">staff</div>
+            <div class="login-time">2024-01-14 16:45:30</div>
+            <div class="login-device">🖥️ Desktop</div>
+          </div>
+          <div class="login-history-item">
+            <div class="login-user">admin</div>
+            <div class="login-time">2024-01-14 08:20:15</div>
+            <div class="login-device">📱 Mobile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- MODERN SUMMARY CARDS -->
     <div class="summary-cards">
+      <div class="card card-total-products" onclick="showCardTooltip('Total number of products in inventory')">
+        <div class="card-icon">📦</div>
+        <div class="card-content">
+          <div class="card-title">Total Products</div>
+          <div class="card-value" id="cardTotalProducts">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
       <div class="card card-total-value" onclick="showCardTooltip('Total value of all inventory items at cost price')">
         <div class="card-icon">💰</div>
         <div class="card-content">
@@ -52,7 +97,7 @@
       </div>
       
       <div class="card card-total-stock" onclick="showCardTooltip('Total quantity of all items in inventory')">
-        <div class="card-icon">📦</div>
+        <div class="card-icon">📊</div>
         <div class="card-content">
           <div class="card-title">Total Stock Quantity</div>
           <div class="card-value" id="cardTotalStock">0</div>
@@ -183,6 +228,7 @@
     </div>
   </section>
 
+  <!-- All modals remain the same as before -->
   <!-- Purchase History Modal -->
   <div id="purchaseHistoryModal" class="modal">
     <div class="modal-content x-large-modal">
@@ -404,6 +450,7 @@
 
         <div class="modal-actions">
           <button id="savePurchaseBtn" class="primary-btn">💾 Save Purchase Order</button>
+          <button id="printPurchaseBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -455,6 +502,7 @@
 
         <div class="modal-actions">
           <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
+          <button id="printSalesBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -536,7 +584,11 @@
 
         <!-- Inventory Reports Tab -->
         <div id="content-inventory-reports" class="tab-content active">
-          <div class="table-container">
+          <div class="statement-summary">
+            <div class="statement-count">Total Reports: <span id="inventoryReportsCount">0</span></div>
+            <div class="statement-size">Total Size: <span id="inventoryReportsSize">0 MB</span></div>
+          </div>
+          <div class="table-container"> 
             <table id="inventoryReportsTable">
               <thead>
                 <tr>
@@ -553,7 +605,11 @@
 
         <!-- Purchase Invoices Tab -->
         <div id="content-purchase-invoices" class="tab-content">
-          <div class="table-container">
+          <div class="statement-summary">
+            <div class="statement-count">Total Invoices: <span id="purchaseInvoicesCount">0</span></div>
+            <div class="statement-size">Total Size: <span id="purchaseInvoicesSize">0 MB</span></div>
+          </div>
+          <div class="table-container"> 
             <table id="purchaseInvoicesTable">
               <thead>
                 <tr>
@@ -570,7 +626,11 @@
 
         <!-- Sales Invoices Tab -->
         <div id="content-sales-invoices" class="tab-content">
-          <div class="table-container">
+          <div class="statement-summary">
+            <div class="statement-count">Total Invoices: <span id="salesInvoicesCount">0</span></div>
+            <div class="statement-size">Total Size: <span id="salesInvoicesSize">0 MB</span></div>
+          </div>
+          <div class="table-container"> 
             <table id="salesInvoicesTable">
               <thead>
                 <tr>
@@ -616,6 +676,27 @@
   <script>
     document.documentElement.dataset.page = 'inventory';
     
+    // Update clock
+    function updateClock() {
+      const now = new Date();
+      const timeString = now.toLocaleString('en-US', { 
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      if (document.getElementById('currentTime')) {
+        document.getElementById('currentTime').textContent = timeString;
+      }
+    }
+    
+    // Update clock every second
+    setInterval(updateClock, 1000);
+    updateClock();
+    
     // Tooltip function for cards
     function showCardTooltip(message) {
       // Simple alert for now, can be enhanced with a proper tooltip library
@@ -624,4 +705,3 @@
   </script>
 </body>
 </html>
-
