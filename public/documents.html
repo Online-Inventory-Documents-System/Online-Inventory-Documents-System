@@ -12,7 +12,7 @@
     <nav>
       <a href="index.html">Home</a>
       <a href="inventory.html">Inventory</a>
-      <a href="documents.html">Documents</a>
+      <a href="documents.html" class="active">Documents</a>
       <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
       <button onclick="toggleTheme()">🌓 Mode</button>
@@ -22,14 +22,33 @@
   </header>
 
 <section>
-  <h2>Upload & Manage Documents</h2>
+  <h2>Document Management System</h2>
+  
+  <!-- Folder Management -->
+  <div class="folder-management">
+    <div class="folder-toolbar">
+      <button id="createFolderBtn" class="primary-btn">📁 Create Folder</button>
+      <button id="navigateToRoot" class="secondary-btn">🏠 Root Folder</button>
+      <input type="text" id="searchDocs" placeholder="Search documents..." style="flex: 1; max-width: 300px;" />
+    </div>
+    
+    <div class="folder-breadcrumb" id="folderBreadcrumb">
+      <div class="breadcrumb-item active">Root</div>
+    </div>
+    
+    <div class="folder-list" id="folderList">
+      <!-- Folders will be dynamically rendered here -->
+    </div>
+  </div>
+
+  <!-- File Upload Section -->
   <div class="controls" style="margin-bottom: 15px;">
     <input type="file" id="docUpload" multiple />
-    <button id="uploadDocsBtn" class="primary-btn">📤 Upload (Simulated)</button>
-    <input type="text" id="searchDocs" placeholder="Search document metadata..." style="margin-left: 10px;" />
+    <button id="uploadDocsBtn" class="primary-btn">📤 Upload Files</button>
     <p id="uploadMessage" style="margin-top:10px;"></p>
   </div>
 
+  <!-- Documents Table -->
   <div class="table-container">
       <table id="documentsTable">
           <thead>
@@ -48,6 +67,24 @@
   </div>
 </section>
 
+<!-- Document Preview Modal -->
+<div id="previewModal" class="modal">
+  <div class="modal-content x-large-modal">
+    <div class="modal-header">
+      <h2 id="previewTitle">Document Preview</h2>
+      <span class="close">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="preview-container">
+        <iframe id="previewIframe" class="preview-iframe"></iframe>
+      </div>
+      <div class="preview-actions">
+        <button onclick="closePreviewModal()" class="secondary-btn">✖️ Close Preview</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- JS -->
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
@@ -57,5 +94,3 @@
 </script>
 </body>
 </html>
-
-
