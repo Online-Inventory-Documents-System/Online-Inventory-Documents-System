@@ -11,7 +11,7 @@
     <h1>📦 Inventory Management</h1>
     <nav>
       <a href="index.html">Home</a>
-      <a href="inventory.html">Inventory</a>
+      <a href="inventory.html" class="active">Inventory</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
       <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
@@ -63,9 +63,31 @@
 
     <div class="section-header">
       <h2>Add New Product</h2>
-      <div>
-        <button id="purchaseHistoryBtn" class="secondary-btn">📋 Purchase History</button>
-        <button id="newPurchaseBtn" class="success-btn">🛒 New Purchase Order</button>
+      <div class="action-buttons">
+        <div class="btn-group-vertical">
+          <button id="purchaseHistoryBtn" class="secondary-btn btn-icon">
+            📋 Purchase History
+          </button>
+          <button id="newPurchaseBtn" class="success-btn btn-icon">
+            🛒 New Purchase Order
+          </button>
+        </div>
+        <div class="btn-group-vertical">
+          <button id="salesHistoryBtn" class="info-btn btn-icon">
+            📊 Sales History
+          </button>
+          <button id="newSalesBtn" class="warning-btn btn-icon">
+            💰 New Sales Order
+          </button>
+        </div>
+        <div class="btn-group-vertical">
+          <button id="reportBtn" class="primary-btn btn-icon">
+            📄 Generate Reports
+          </button>
+          <button id="statementsBtn" class="secondary-btn btn-icon">
+            🗂️ View Statements
+          </button>
+        </div>
       </div>
     </div>
     
@@ -81,12 +103,6 @@
 
     <h2>Current Inventory List</h2> 
     <div class="controls">
-      <div style="display:flex; gap:10px;">
-        <button id="reportBtn" class="success-btn">⬇️ Generate Report (Excel)</button>
-        <button id="pdfReportBtn" class="primary-btn">📄 Generate PDF Inventory Report</button>
-        <button id="purchaseReportBtn" class="primary-btn">🧾 Generate Total Purchase Report</button>
-      </div>
-
       <div class="search-controls">
         <!-- Date Range Search Controls -->
         <div class="date-range-container">
@@ -162,6 +178,33 @@
     </div>
   </div>
 
+  <!-- Sales History Modal -->
+  <div id="salesHistoryModal" class="modal">
+    <div class="modal-content x-large-modal">
+      <div class="modal-header">
+        <h2>📊 Sales History</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="table-container"> 
+          <table id="salesHistoryTable">
+            <thead>
+              <tr>
+                <th>Sales ID</th>
+                <th>Customer</th>
+                <th>Items Count</th>
+                <th class="money">Total Amount</th>
+                <th>Date</th>
+                <th class="actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="salesHistoryList"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Purchase Details Modal -->
   <div id="purchaseDetailsModal" class="modal">
     <div class="modal-content x-large-modal">
@@ -223,7 +266,68 @@
     </div>
   </div>
 
-  <!-- New Purchase Order Modal (Multiple Products) -->
+  <!-- Sales Details Modal -->
+  <div id="salesDetailsModal" class="modal">
+    <div class="modal-content x-large-modal">
+      <div class="modal-header">
+        <h2>📄 Sales Order Details</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="sales-details-header">
+          <div class="detail-row">
+            <div class="detail-group">
+              <label>Sales ID:</label>
+              <span id="detailSalesId" class="detail-value"></span>
+            </div>
+            <div class="detail-group">
+              <label>Customer:</label>
+              <span id="detailCustomer" class="detail-value"></span>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-group">
+              <label>Sales Date:</label>
+              <span id="detailSalesDate" class="detail-value"></span>
+            </div>
+            <div class="detail-group">
+              <label>Total Amount:</label>
+              <span id="detailSalesTotalAmount" class="detail-value money"></span>
+            </div>
+          </div>
+          <div class="detail-row" id="detailSalesNotesRow" style="display: none;">
+            <div class="detail-group full-width">
+              <label>Notes:</label>
+              <span id="detailSalesNotes" class="detail-value"></span>
+            </div>
+          </div>
+        </div>
+
+        <h3>Sales Items</h3>
+        <div class="table-container">
+          <table id="salesDetailsTable">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th class="money">Sale Price</th>
+                <th class="money">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody id="salesDetailsList"></tbody>
+          </table>
+        </div>
+
+        <div class="modal-actions">
+          <button id="printSalesInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
+          <button id="closeSalesDetailsModal" class="secondary-btn">✖️ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Purchase Order Modal -->
   <div id="newPurchaseModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -274,48 +378,201 @@
     </div>
   </div>
 
-  <!-- Edit Purchase Modal -->
-  <div id="editPurchaseModal" class="modal">
+  <!-- New Sales Order Modal -->
+  <div id="newSalesModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
-        <h2>✏️ Edit Purchase Order</h2>
+        <h2>💰 New Sales Order</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label for="editSupplierName">Supplier Name:</label>
-            <input type="text" id="editSupplierName" placeholder="Enter supplier name">
+            <label for="customerName">Customer Name:</label>
+            <input type="text" id="customerName" placeholder="Enter customer name">
           </div>
           <div class="form-group">
-            <label for="editPurchaseDate">Purchase Date:</label>
-            <input type="date" id="editPurchaseDate">
+            <label for="salesDate">Sales Date:</label>
+            <input type="date" id="salesDate">
           </div>
         </div>
 
         <div class="form-group">
-          <label for="editPurchaseNotes">Notes (Optional):</label>
-          <textarea id="editPurchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
+          <label for="salesNotes">Notes (Optional):</label>
+          <textarea id="salesNotes" placeholder="Any additional notes..." rows="3"></textarea>
         </div>
 
-        <h3>Purchase Items</h3>
-        <div class="purchase-items-container">
-          <div id="editPurchaseItems">
-            <!-- Dynamic edit purchase items will be added here -->
+        <h3>Sales Items</h3>
+        <div class="search-product-section">
+          <input type="text" id="productSearchSales" placeholder="Search by SKU or product name..." class="search-input">
+          <div id="productResultsSales" class="product-results"></div>
+        </div>
+
+        <div class="sales-items-container">
+          <div id="salesItems">
+            <!-- Dynamic sales items will be added here -->
           </div>
-          <button id="addEditProductItem" class="primary-btn" style="margin-top: 10px;">+ Add Product Item</button>
+          <button id="addSalesProductItem" class="primary-btn" style="margin-top: 10px;">+ Add Product Item</button>
         </div>
 
-        <div class="purchase-summary">
+        <div class="sales-summary">
           <div class="total-amount-display">
-            <strong>Total Amount: RM <span id="editTotalPurchaseAmount">0.00</span></strong>
+            <strong>Total Amount: RM <span id="totalSalesAmount">0.00</span></strong>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button id="updatePurchaseBtn" class="primary-btn">💾 Update Purchase Order</button>
-          <button id="printEditInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
-          <button id="closeEditPurchaseModal" class="secondary-btn">✖️ Close</button>
+          <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
+          <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Generation Modal -->
+  <div id="reportModal" class="modal">
+    <div class="modal-content large-modal">
+      <div class="modal-header">
+        <h2>📄 Generate Reports</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reportStartDate">Start Date:</label>
+            <input type="date" id="reportStartDate">
+          </div>
+          <div class="form-group">
+            <label for="reportEndDate">End Date:</label>
+            <input type="date" id="reportEndDate">
+          </div>
+        </div>
+
+        <h3>Select Report Type</h3>
+        <div class="report-options">
+          <div class="report-option" id="report-inventory" onclick="selectReportType('inventory')">
+            <div class="icon">📦</div>
+            <h3>Inventory Report</h3>
+            <p>Current stock levels, values, and profitability analysis</p>
+          </div>
+          <div class="report-option" id="report-purchase" onclick="selectReportType('purchase')">
+            <div class="icon">🛒</div>
+            <h3>Purchase Report</h3>
+            <p>All purchase orders with supplier details and totals</p>
+          </div>
+          <div class="report-option" id="report-sales" onclick="selectReportType('sales')">
+            <div class="icon">💰</div>
+            <h3>Sales Report</h3>
+            <p>All sales orders with customer details and revenue</p>
+          </div>
+          <div class="report-option" id="report-all" onclick="selectReportType('all')">
+            <div class="icon">📊</div>
+            <h3>All Reports</h3>
+            <p>Generate all three reports at once</p>
+          </div>
+        </div>
+
+        <input type="hidden" id="selectedReportType" value="">
+
+        <div class="modal-actions">
+          <button id="generateReportBtn" class="primary-btn">🚀 Generate Report</button>
+          <button id="closeReportModal" class="secondary-btn">✖️ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statements Modal -->
+  <div id="statementsModal" class="modal">
+    <div class="modal-content x-large-modal">
+      <div class="modal-header">
+        <h2>🗂️ Statements & Reports</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="statements-tabs">
+          <button id="tab-inventory-reports" class="tab-button active" onclick="switchTab('inventory-reports')">
+            📦 Inventory Reports
+          </button>
+          <button id="tab-purchase-invoices" class="tab-button" onclick="switchTab('purchase-invoices')">
+            🛒 Purchase Invoices
+          </button>
+          <button id="tab-sales-invoices" class="tab-button" onclick="switchTab('sales-invoices')">
+            💰 Sales Invoices
+          </button>
+        </div>
+
+        <!-- Inventory Reports Tab -->
+        <div id="content-inventory-reports" class="tab-content active">
+          <div class="table-container">
+            <table id="inventoryReportsTable">
+              <thead>
+                <tr>
+                  <th>Report Name</th>
+                  <th>Size</th>
+                  <th>Generated Date</th>
+                  <th class="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-reportsList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Purchase Invoices Tab -->
+        <div id="content-purchase-invoices" class="tab-content">
+          <div class="table-container">
+            <table id="purchaseInvoicesTable">
+              <thead>
+                <tr>
+                  <th>Invoice Name</th>
+                  <th>Size</th>
+                  <th>Generated Date</th>
+                  <th class="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="purchase-invoicesList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sales Invoices Tab -->
+        <div id="content-sales-invoices" class="tab-content">
+          <div class="table-container">
+            <table id="salesInvoicesTable">
+              <thead>
+                <tr>
+                  <th>Invoice Name</th>
+                  <th>Size</th>
+                  <th>Generated Date</th>
+                  <th class="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sales-invoicesList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button id="closeStatementsModal" class="secondary-btn">✖️ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div id="previewModal" class="modal">
+    <div class="modal-content x-large-modal">
+      <div class="modal-header">
+        <h2 id="previewTitle">Document Preview</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="preview-container">
+          <iframe id="previewIframe" class="preview-iframe"></iframe>
+        </div>
+        <div class="preview-actions">
+          <button onclick="closePreviewModal()" class="secondary-btn">✖️ Close Preview</button>
         </div>
       </div>
     </div>
