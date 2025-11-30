@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Dashboard | Inventory System</title>
-<link rel="stylesheet" href="css/style.css"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard | Inventory System</title>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-<header>
-  <h1>🏠 Home Dashboard</h1>
+  <header>
+    <h1>📊 Inventory System Dashboard</h1>
     <nav>
-      <a href="index.html">Home</a>
+      <a href="index.html" class="active">Home</a>
       <a href="inventory.html">Inventory</a>
       <a href="documents.html">Documents</a>
       <a href="log.html">Activity Log</a>
@@ -21,75 +21,141 @@
     </nav>
   </header>
 
-<section class="dashboard-grid">
-    <div class="dashboard-info">
-        <h2>Welcome to the Inventory & Document Management System</h2>
-        <p>This dashboard provides quick access to your inventory, document uploads, and activity log.</p>
+  <section>
+    <div class="dashboard-grid">
+      <div class="dashboard-info">
+        <h2>Welcome to Your Inventory Management System</h2>
+        <p>Manage your products, track sales and purchases, generate reports, and organize your documents all in one place.</p>
         
-        <div class="clock" id="clock"></div>
-
-        <ul>
-            <li>📦 Manage inventory with SKU tracking.</li>
-            <li>📄 Upload and manage important documents.</li>
-            <li>🕒 Review all actions in your activity log.</li>
-        </ul>
-
-        <div class="info-card" style="margin-top: 20px;">
-            <p style="margin:0; font-size: 0.9rem;">
-                🛠️ The website was developed by <b>Brendan Jong & Leong Jia Wei</b><br>
-                ⚙️ Render Cloud database managed by <b>Leong Jia Wei</b>
-            </p>
+        <div class="summary-cards" style="margin: 30px 0;">
+          <div class="card card-total-value">
+            <div class="card-icon">📦</div>
+            <div class="card-content">
+              <div class="card-title">Total Products</div>
+              <div class="card-value" id="dash_totalItems">0</div>
+            </div>
+          </div>
+          
+          <div class="card card-total-revenue">
+            <div class="card-icon">💰</div>
+            <div class="card-content">
+              <div class="card-title">Inventory Value</div>
+              <div class="card-value">RM <span id="dash_totalValue">0.00</span></div>
+            </div>
+          </div>
         </div>
-    </div>
-    
-    <div class="dashboard-card-container">
-        <a href="inventory.html" id="btn-inventory" class="quick-access-btn">📦 View Inventory</a>
-        <a href="documents.html" id="btn-documents" class="quick-access-btn">📄 Manage Documents</a>
-        
+
+        <h3>Quick Actions</h3>
+        <div class="btn-group-horizontal" style="margin: 20px 0;">
+          <a href="inventory.html" class="primary-btn btn-icon" style="text-decoration: none;">
+            📦 Manage Inventory
+          </a>
+          <button onclick="openNewPurchaseModal()" class="success-btn btn-icon">
+            🛒 New Purchase
+          </button>
+          <button onclick="openNewSalesModal()" class="warning-btn btn-icon">
+            💰 New Sale
+          </button>
+          <button onclick="openReportModal()" class="info-btn btn-icon">
+            📄 Generate Report
+          </button>
+        </div>
+
+        <h3>Recent Activities</h3>
+        <div class="table-container">
+          <table style="width: 100%;">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Action</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="recentActivities">
+              <!-- Recent activities will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="dashboard-card-container">
         <div class="info-card">
-            <h3>📦 Inventory Summary</h3>
-            <ul>
-                <li>Total Items: <span id="dash_totalItems">0</span></li>
-                <li>Total Value: RM <span id="dash_totalValue">0.00</span></li>
-                <li>Total Revenue: RM <span id="dash_totalRevenue">0.00</span></li>
-                <li>Total Profit: RM <span id="dash_totalProfit">0.00</span></li>
-                <li>Total Stock Qty: <span id="dash_totalStock">0</span></li>
-            </ul>
+          <div class="clock" id="currentTime">Loading time...</div>
+          <h3>System Overview</h3>
+          <ul>
+            <li><strong>Inventory Items:</strong> <span id="dash_totalStock">0</span> in stock</li>
+            <li><strong>Potential Revenue:</strong> RM <span id="dash_totalRevenue">0.00</span></li>
+            <li><strong>Potential Profit:</strong> RM <span id="dash_totalProfit">0.00</span></li>
+            <li><strong>Last Updated:</strong> <span id="lastUpdateTime">Just now</span></li>
+          </ul>
         </div>
-    </div>
-    
-    <div style="grid-column: 1 / -1;" class="info-card">
-        <h3>🕒 Recent Activity Log</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>User</th>
-              <th>Action</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody id="recentActivities"></tbody>
-        </table>
-    </div>
-</section>
 
-<script src="js/setting.js" defer></script>
-<script src="js/script.js" defer></script>
-<script>
-  // Realtime clock
-  function updateClock() {
-    const now = new Date();
-    const options = { weekday: "short", year: "numeric", month: "short", day: "numeric" };
-    const dateStr = now.toLocaleDateString(undefined, options);
-    const timeStr = now.toLocaleTimeString();
-    document.getElementById("clock").textContent = `📅 ${dateStr} ⏰ ${timeStr}`;
-  }
-  setInterval(updateClock, 1000);
-  updateClock();
-</script>
+        <a href="inventory.html" class="quick-access-btn" id="btn-inventory">
+          📦 Inventory Management
+        </a>
+        
+        <a href="documents.html" class="quick-access-btn" id="btn-documents">
+          📄 Document Center
+        </a>
+
+        <div class="info-card">
+          <h3>Need Help?</h3>
+          <p>Check out these resources:</p>
+          <ul>
+            <li>📖 <a href="#" style="color: var(--primary-color);">User Guide</a></li>
+            <li>🎥 <a href="#" style="color: var(--primary-color);">Video Tutorials</a></li>
+            <li>❓ <a href="#" style="color: var(--primary-color);">FAQ</a></li>
+            <li>📞 <a href="#" style="color: var(--primary-color);">Contact Support</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Include modals from inventory page for quick access -->
+  <div id="newPurchaseModal" class="modal">
+    <!-- Purchase modal content from inventory.html -->
+  </div>
+
+  <div id="newSalesModal" class="modal">
+    <!-- Sales modal content from inventory.html -->
+  </div>
+
+  <div id="reportModal" class="modal">
+    <!-- Report modal content from inventory.html -->
+  </div>
+
+  <!-- JS -->
+  <script src="js/setting.js" defer></script>
+  <script src="js/script.js" defer></script>
+  <script>
+    document.documentElement.dataset.page = 'index';
+    
+    // Update clock
+    function updateClock() {
+      const now = new Date();
+      const timeString = now.toLocaleString('en-US', { 
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      if (document.getElementById('currentTime')) {
+        document.getElementById('currentTime').textContent = timeString;
+      }
+    }
+    
+    // Update clock every second
+    setInterval(updateClock, 1000);
+    updateClock();
+    
+    // Update last update time
+    if (document.getElementById('lastUpdateTime')) {
+      document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
+    }
+  </script>
 </body>
 </html>
-
-
-
-
