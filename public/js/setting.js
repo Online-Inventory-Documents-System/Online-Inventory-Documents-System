@@ -11,4 +11,10 @@ const CONFIG = {
 
     // ===== Contact & UI Info =====
     CONTACT_PHONE: '01133127622',   // Displayed on login page for contact support
+
+    // ===== Company Information =====
+    COMPANY_NAME: 'L&B Company',
+    COMPANY_ADDRESS: 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka',
+    COMPANY_PHONE: '01133127622',
+    COMPANY_EMAIL: 'lbcompany@gmail.com'
 };
