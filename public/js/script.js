@@ -1980,13 +1980,12 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
-// FIXED: Statements Management Functions
+// NEW: Statements Management
 // =========================================
-async function openStatementsModal() {
+function openStatementsModal() {
   const modal = qs('#statementsModal');
   if (modal) {
     modal.style.display = 'block';
-    await loadStatementsSummary();
     switchTab('inventory-reports');
   }
 }
@@ -1998,44 +1997,7 @@ function closeStatementsModal() {
   }
 }
 
-async function loadStatementsSummary() {
-  try {
-    const res = await apiFetch(`${API_BASE}/statements-summary`);
-    if (res.ok) {
-      const summary = await res.json();
-      
-      // Update summary counts
-      if (qs('#inventoryReportsCount')) {
-        qs('#inventoryReportsCount').textContent = summary.summary.inventoryReports || 0;
-      }
-      if (qs('#purchaseInvoicesCount')) {
-        qs('#purchaseInvoicesCount').textContent = summary.summary.purchaseInvoices || 0;
-      }
-      if (qs('#salesInvoicesCount')) {
-        qs('#salesInvoicesCount').textContent = summary.summary.salesInvoices || 0;
-      }
-      if (qs('#purchaseReportsCount')) {
-        qs('#purchaseReportsCount').textContent = summary.summary.purchaseReports || 0;
-      }
-      if (qs('#salesReportsCount')) {
-        qs('#salesReportsCount').textContent = summary.summary.salesReports || 0;
-      }
-      if (qs('#totalReportsCount')) {
-        qs('#totalReportsCount').textContent = summary.summary.totalReports || 0;
-      }
-      if (qs('#totalInvoicesCount')) {
-        qs('#totalInvoicesCount').textContent = summary.summary.totalInvoices || 0;
-      }
-      if (qs('#totalDocumentsCount')) {
-        qs('#totalDocumentsCount').textContent = summary.summary.totalDocuments || 0;
-      }
-    }
-  } catch (err) {
-    console.error('Load statements summary error:', err);
-  }
-}
-
-async function switchTab(tabName) {
+function switchTab(tabName) {
   // Update tab buttons
   qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
   qs(`#tab-${tabName}`).classList.add('active');
@@ -2045,25 +2007,15 @@ async function switchTab(tabName) {
   qs(`#content-${tabName}`).classList.add('active');
   
   // Load statements for the selected tab
-  await loadStatements(tabName);
+  loadStatements(tabName);
 }
 
 async function loadStatements(type) {
   try {
     const res = await apiFetch(`${API_BASE}/statements/${type}`);
     if (res.ok) {
-      const data = await res.json();
-      const statements = data.documents || [];
+      const statements = await res.json();
       renderStatements(type, statements);
-      
-      // Update summary information for this tab
-      if (data.summary) {
-        const countElement = qs(`#${type.replace('-', '')}Count`);
-        const sizeElement = qs(`#${type.replace('-', '')}Size`);
-        
-        if (countElement) countElement.textContent = data.summary.totalCount || statements.length;
-        if (sizeElement) sizeElement.textContent = data.summary.totalSizeMB || '0.00';
-      }
     }
   } catch (err) {
     console.error('Load statements error:', err);
@@ -2071,46 +2023,21 @@ async function loadStatements(type) {
 }
 
 function renderStatements(type, statements) {
-  let container;
-  
-  // Map the type to the correct container ID
-  switch (type) {
-    case 'inventory-reports':
-      container = qs('#inventoryReportsList');
-      break;
-    case 'purchase-invoices':
-      container = qs('#purchaseInvoicesList');
-      break;
-    case 'sales-invoices':
-      container = qs('#salesInvoicesList');
-      break;
-    case 'purchase-reports':
-      container = qs('#purchaseReportsList');
-      break;
-    case 'sales-reports':
-      container = qs('#salesReportsList');
-      break;
-    case 'all-reports':
-      container = qs('#allReportsList');
-      break;
-    case 'all-invoices':
-      container = qs('#allInvoicesList');
-      break;
-    default:
-      console.error('Unknown tab type:', type);
-      return;
-  }
-  
+  const container = qs(`#${type}List`);
   if (!container) return;
   
   container.innerHTML = '';
   
   if (statements.length === 0) {
-    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No documents found</td></tr>';
+    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
     return;
   }
   
+  let totalSize = 0;
+  
   statements.forEach(doc => {
+    totalSize += doc.size || 0;
+    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(doc.name)}</td>
@@ -2124,6 +2051,13 @@ function renderStatements(type, statements) {
     `;
     container.appendChild(tr);
   });
+  
+  // Update summary information
+  const countElement = qs(`#${type.replace('-', '')}Count`);
+  const sizeElement = qs(`#${type.replace('-', '')}Size`);
+  
+  if (countElement) countElement.textContent = statements.length;
+  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
 }
 
 // =========================================
@@ -2482,7 +2416,7 @@ window.savePurchaseOrder = savePurchaseOrder;
 window.printPurchaseInvoice = printPurchaseInvoice;
 window.deletePurchase = deletePurchase;
 window.editPurchase = editPurchase;
-window.viewPurchase = viewPurchaseDetails;
+window.viewPurchase = viewPurchase;
 window.editPurchasePage = editPurchasePage;
 window.closePurchaseDetailsModal = closePurchaseDetailsModal;
 
@@ -2495,7 +2429,7 @@ window.saveSalesOrder = saveSalesOrder;
 window.printSalesInvoice = printSalesInvoice;
 window.deleteSales = deleteSales;
 window.editSales = editSales;
-window.viewSalesDetails = viewSalesDetails;
+window.viewSales = viewSalesDetails;
 window.editSalesPage = editSalesPage;
 window.closeSalesDetailsModal = closeSalesDetailsModal;
 
@@ -2506,7 +2440,6 @@ window.generateSelectedReport = generateSelectedReport;
 
 // Statements functions
 window.openStatementsModal = openStatementsModal;
-window.closeStatementsModal = closeStatementsModal;
 window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
