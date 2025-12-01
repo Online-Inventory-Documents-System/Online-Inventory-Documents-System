@@ -1980,24 +1980,55 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
-// NEW: Statements Management
+// UPDATED: Statements Management with Fixed Reporting
 // =========================================
-function openStatementsModal() {
+async function openStatementsModal() {
   const modal = qs('#statementsModal');
   if (modal) {
     modal.style.display = 'block';
+    await loadStatementsSummary();
     switchTab('inventory-reports');
   }
 }
 
-function closeStatementsModal() {
-  const modal = qs('#statementsModal');
-  if (modal) {
-    modal.style.display = 'none';
+async function loadStatementsSummary() {
+  try {
+    const res = await apiFetch(`${API_BASE}/statements-summary`);
+    if (res.ok) {
+      const summary = await res.json();
+      
+      // Update summary counts
+      if (qs('#inventoryReportsCount')) {
+        qs('#inventoryReportsCount').textContent = summary.summary.inventoryReports || 0;
+      }
+      if (qs('#purchaseInvoicesCount')) {
+        qs('#purchaseInvoicesCount').textContent = summary.summary.purchaseInvoices || 0;
+      }
+      if (qs('#salesInvoicesCount')) {
+        qs('#salesInvoicesCount').textContent = summary.summary.salesInvoices || 0;
+      }
+      if (qs('#purchaseReportsCount')) {
+        qs('#purchaseReportsCount').textContent = summary.summary.purchaseReports || 0;
+      }
+      if (qs('#salesReportsCount')) {
+        qs('#salesReportsCount').textContent = summary.summary.salesReports || 0;
+      }
+      if (qs('#totalReportsCount')) {
+        qs('#totalReportsCount').textContent = summary.summary.totalReports || 0;
+      }
+      if (qs('#totalInvoicesCount')) {
+        qs('#totalInvoicesCount').textContent = summary.summary.totalInvoices || 0;
+      }
+      if (qs('#totalDocumentsCount')) {
+        qs('#totalDocumentsCount').textContent = summary.summary.totalDocuments || 0;
+      }
+    }
+  } catch (err) {
+    console.error('Load statements summary error:', err);
   }
 }
 
-function switchTab(tabName) {
+async function switchTab(tabName) {
   // Update tab buttons
   qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
   qs(`#tab-${tabName}`).classList.add('active');
@@ -2007,15 +2038,25 @@ function switchTab(tabName) {
   qs(`#content-${tabName}`).classList.add('active');
   
   // Load statements for the selected tab
-  loadStatements(tabName);
+  await loadStatements(tabName);
 }
 
 async function loadStatements(type) {
   try {
     const res = await apiFetch(`${API_BASE}/statements/${type}`);
     if (res.ok) {
-      const statements = await res.json();
+      const data = await res.json();
+      const statements = data.documents || [];
       renderStatements(type, statements);
+      
+      // Update summary information for this tab
+      if (data.summary) {
+        const countElement = qs(`#${type.replace('-', '')}Count`);
+        const sizeElement = qs(`#${type.replace('-', '')}Size`);
+        
+        if (countElement) countElement.textContent = data.summary.totalCount || statements.length;
+        if (sizeElement) sizeElement.textContent = data.summary.totalSizeMB || '0.00';
+      }
     }
   } catch (err) {
     console.error('Load statements error:', err);
@@ -2023,21 +2064,46 @@ async function loadStatements(type) {
 }
 
 function renderStatements(type, statements) {
-  const container = qs(`#${type}List`);
+  let container;
+  
+  // Map the type to the correct container ID
+  switch (type) {
+    case 'inventory-reports':
+      container = qs('#inventoryReportsList');
+      break;
+    case 'purchase-invoices':
+      container = qs('#purchaseInvoicesList');
+      break;
+    case 'sales-invoices':
+      container = qs('#salesInvoicesList');
+      break;
+    case 'purchase-reports':
+      container = qs('#purchaseReportsList');
+      break;
+    case 'sales-reports':
+      container = qs('#salesReportsList');
+      break;
+    case 'all-reports':
+      container = qs('#allReportsList');
+      break;
+    case 'all-invoices':
+      container = qs('#allInvoicesList');
+      break;
+    default:
+      console.error('Unknown tab type:', type);
+      return;
+  }
+  
   if (!container) return;
   
   container.innerHTML = '';
   
   if (statements.length === 0) {
-    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
+    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No documents found</td></tr>';
     return;
   }
   
-  let totalSize = 0;
-  
   statements.forEach(doc => {
-    totalSize += doc.size || 0;
-    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(doc.name)}</td>
@@ -2051,14 +2117,52 @@ function renderStatements(type, statements) {
     `;
     container.appendChild(tr);
   });
-  
-  // Update summary information
-  const countElement = qs(`#${type.replace('-', '')}Count`);
-  const sizeElement = qs(`#${type.replace('-', '')}Size`);
-  
-  if (countElement) countElement.textContent = statements.length;
-  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
 }
+
+// Update your HTML for statements modal to include new tabs:
+/*
+<div class="statements-tabs">
+  <button class="tab-button active" id="tab-inventory-reports" onclick="switchTab('inventory-reports')">
+    📊 Inventory Reports <span class="count-badge" id="inventoryReportsCount">0</span>
+  </button>
+  <button class="tab-button" id="tab-purchase-reports" onclick="switchTab('purchase-reports')">
+    📋 Purchase Reports <span class="count-badge" id="purchaseReportsCount">0</span>
+  </button>
+  <button class="tab-button" id="tab-sales-reports" onclick="switchTab('sales-reports')">
+    💰 Sales Reports <span class="count-badge" id="salesReportsCount">0</span>
+  </button>
+  <button class="tab-button" id="tab-purchase-invoices" onclick="switchTab('purchase-invoices')">
+    🧾 Purchase Invoices <span class="count-badge" id="purchaseInvoicesCount">0</span>
+  </button>
+  <button class="tab-button" id="tab-sales-invoices" onclick="switchTab('sales-invoices')">
+    🧾 Sales Invoices <span class="count-badge" id="salesInvoicesCount">0</span>
+  </button>
+  <button class="tab-button" id="tab-all-reports" onclick="switchTab('all-reports')">
+    📑 All Reports <span class="count-badge" id="totalReportsCount">0</span>
+  </button>
+  <button class="tab-button" id="tab-all-invoices" onclick="switchTab('all-invoices')">
+    📑 All Invoices <span class="count-badge" id="totalInvoicesCount">0</span>
+  </button>
+</div>
+*/
+
+// Also add these summary elements to your HTML:
+/*
+<div class="statements-summary">
+  <div class="summary-item">
+    <span class="summary-label">Total Documents:</span>
+    <span class="summary-value" id="totalDocumentsCount">0</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Total Reports:</span>
+    <span class="summary-value" id="totalReportsCount">0</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-label">Total Invoices:</span>
+    <span class="summary-value" id="totalInvoicesCount">0</span>
+  </div>
+</div>
+*/
 
 // =========================================
 // ACTIVITY LOGS AND DASHBOARD FUNCTIONS
@@ -2457,3 +2561,4 @@ window.updateCompanyInfo = updateCompanyInfo;
 window.login = login;
 window.register = register;
 window.toggleForm = toggleForm;
+
