@@ -124,7 +124,8 @@ const DocumentSchema = new Schema({
   contentType: String,
   folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
   tags: [String],
-  createdBy: String
+  createdBy: String,
+  reportType: { type: String, default: '' } // NEW: Added reportType field
 });
 const Doc = mongoose.model("Doc", DocumentSchema);
 
@@ -656,7 +657,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['inventory-report', 'pdf']
+      tags: ['inventory-report', 'pdf', 'report'],
+      reportType: 'inventory-report'
     });
 
     console.log(`✅ PDF saved to database with ID: ${savedDoc._id}`);
@@ -676,7 +678,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    PURCHASE REPORT WITH DATE RANGE
+//                    ENHANCED PURCHASE REPORT WITH PRODUCT DETAILS
 // ============================================================================
 app.post("/api/purchases/report/pdf", async (req, res) => {
   try {
@@ -701,7 +703,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
       ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
       : 'All Dates';
     
-    const filename = `Purchase_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const filename = `Purchase_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
     console.log(`📊 Generating Purchase PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -731,7 +733,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         // Right column - Report Meta
         const rightX = 360;
         doc.fontSize(12).font('Helvetica-Bold')
-           .text('PURCHASE REPORT', rightX, topY, { align: 'right' });
+           .text('PURCHASE REPORT WITH PRODUCT DETAILS', rightX, topY, { align: 'right' });
         doc.fontSize(10).font('Helvetica')
            .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
         doc.text(`By: ${printedBy}`, { align: 'right' });
@@ -745,62 +747,100 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
 
         doc.moveDown(2);
 
-        // Report table header
-        const tableTop = 140;
-        const colX = { 
-          purchaseId: 36, 
-          supplier: 180, 
-          items: 320, 
-          amount: 420, 
-          date: 500 
-        };
-
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('Purchase ID', colX.purchaseId, tableTop);
-        doc.text('Supplier', colX.supplier, tableTop);
-        doc.text('Items', colX.items, tableTop);
-        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
-        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
-
-        // Table header line
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
-
-        // Table rows
-        doc.font('Helvetica').fontSize(9);
-        let y = tableTop + 24;
+        let y = 150;
         
-        purchases.forEach((purchase, index) => {
+        // Process each purchase order
+        purchases.forEach((purchase, purchaseIndex) => {
           // Check for page break
           if (y > 700) {
             doc.addPage();
-            y = 60;
-            // Redraw header on new page
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('Purchase ID', colX.purchaseId, y);
-            doc.text('Supplier', colX.supplier, y);
-            doc.text('Items', colX.items, y);
-            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
-            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
-            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
-            y += 24;
-            doc.font('Helvetica').fontSize(9);
+            y = 36;
           }
 
-          // Alternate row background
-          if (index % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
+          // Purchase header
+          doc.fontSize(11).font('Helvetica-Bold')
+             .text(`Purchase Order: ${purchase.purchaseId}`, 36, y);
+          doc.fontSize(10).font('Helvetica')
+             .text(`Supplier: ${purchase.supplier || 'N/A'}`, 36, y + 18);
+          doc.text(`Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}`, 36, y + 33);
+          doc.text(`Total: RM ${(purchase.totalAmount || 0).toFixed(2)}`, 36, y + 48);
+          
+          y += 70;
+
+          // Table header for items
+          const itemTableTop = y;
+          const colX = { 
+            sku: 36, 
+            name: 120, 
+            qty: 350, 
+            price: 420, 
+            total: 500 
+          };
+
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('SKU', colX.sku, itemTableTop);
+          doc.text('Product Name', colX.name, itemTableTop);
+          doc.text('Qty', colX.qty, itemTableTop, { width: 60, align: 'center' });
+          doc.text('Unit Price', colX.price, itemTableTop, { width: 70, align: 'right' });
+          doc.text('Total', colX.total, itemTableTop, { width: 70, align: 'right' });
+
+          // Table header line
+          doc.moveTo(36, itemTableTop + 16).lineTo(560, itemTableTop + 16).stroke();
+
+          // Table rows for items
+          doc.font('Helvetica').fontSize(9);
+          let itemY = itemTableTop + 24;
+          
+          purchase.items.forEach((item, itemIndex) => {
+            // Check for page break within items
+            if (itemY > 700) {
+              doc.addPage();
+              itemY = 36;
+              y = 36;
+              
+              // Redraw purchase header on new page
+              doc.fontSize(11).font('Helvetica-Bold')
+                 .text(`Purchase Order: ${purchase.purchaseId}`, 36, itemY);
+              doc.fontSize(10).font('Helvetica')
+                 .text(`Supplier: ${purchase.supplier || 'N/A'}`, 36, itemY + 18);
+              itemY += 50;
+              
+              // Redraw table header
+              doc.fontSize(10).font('Helvetica-Bold');
+              doc.text('SKU', colX.sku, itemY);
+              doc.text('Product Name', colX.name, itemY);
+              doc.text('Qty', colX.qty, itemY, { width: 60, align: 'center' });
+              doc.text('Unit Price', colX.price, itemY, { width: 70, align: 'right' });
+              doc.text('Total', colX.total, itemY, { width: 70, align: 'right' });
+              
+              doc.moveTo(36, itemY + 16).lineTo(560, itemY + 16).stroke();
+              itemY += 24;
+            }
+
+            // Alternate row background
+            if (itemIndex % 2 === 0) {
+              doc.rect(36, itemY - 4, 524, 18)
+                 .fillColor('#f8f9fa')
+                 .fill();
+            }
+
+            doc.fillColor('#000000')
+               .text(item.sku || 'N/A', colX.sku, itemY, { width: 80 })
+               .text(item.productName || 'N/A', colX.name, itemY, { width: 220 })
+               .text(String(item.quantity || 0), colX.qty, itemY, { width: 60, align: 'center' })
+               .text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, colX.price, itemY, { width: 70, align: 'right' })
+               .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, colX.total, itemY, { width: 70, align: 'right' });
+
+            itemY += 18;
+          });
+          
+          y = itemY + 20;
+          
+          // Add separator between purchase orders (except last one)
+          if (purchaseIndex < purchases.length - 1) {
+            doc.moveTo(36, y).lineTo(560, y).stroke();
+            y += 30;
           }
-
-          doc.fillColor('#000000')
-             .text(purchase.purchaseId || 'N/A', colX.purchaseId, y, { width: 140 })
-             .text(purchase.supplier || 'N/A', colX.supplier, y, { width: 130 })
-             .text(`${purchase.items.length} items`, colX.items, y, { width: 90, align: 'center' })
-             .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
-             .text(new Date(purchase.purchaseDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
-
-          y += 18;
         });
 
         // Summary section
@@ -808,8 +848,16 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
         doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
-        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
+        doc.text('TOTAL PURCHASE ORDERS', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`${purchases.length}`, 500, summaryY + 12, { width: 70, align: 'right' });
+        
+        doc.text('GRAND TOTAL AMOUNT', 400, summaryY + 30, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 30, { width: 70, align: 'right' });
+
+        // Calculate total items
+        const totalItems = purchases.reduce((sum, purchase) => sum + purchase.items.length, 0);
+        doc.text('TOTAL ITEMS PURCHASED', 400, summaryY + 48, { width: 90, align: 'right' });
+        doc.text(`${totalItems}`, 500, summaryY + 48, { width: 70, align: 'right' });
 
         // Footer
         doc.fontSize(9).font('Helvetica')
@@ -842,7 +890,8 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['purchase-report', 'pdf']
+      tags: ['purchase-report', 'pdf', 'report'],
+      reportType: 'purchase-report'
     });
 
     console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
@@ -860,7 +909,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    SALES REPORT WITH DATE RANGE
+//                    ENHANCED SALES REPORT WITH PRODUCT DETAILS
 // ============================================================================
 app.post("/api/sales/report/pdf", async (req, res) => {
   try {
@@ -885,7 +934,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
       ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
       : 'All Dates';
     
-    const filename = `Sales_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const filename = `Sales_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
     console.log(`📊 Generating Sales PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -915,7 +964,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         // Right column - Report Meta
         const rightX = 360;
         doc.fontSize(12).font('Helvetica-Bold')
-           .text('SALES REPORT', rightX, topY, { align: 'right' });
+           .text('SALES REPORT WITH PRODUCT DETAILS', rightX, topY, { align: 'right' });
         doc.fontSize(10).font('Helvetica')
            .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
         doc.text(`By: ${printedBy}`, { align: 'right' });
@@ -929,62 +978,100 @@ app.post("/api/sales/report/pdf", async (req, res) => {
 
         doc.moveDown(2);
 
-        // Report table header
-        const tableTop = 140;
-        const colX = { 
-          salesId: 36, 
-          customer: 180, 
-          items: 320, 
-          amount: 420, 
-          date: 500 
-        };
-
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('Sales ID', colX.salesId, tableTop);
-        doc.text('Customer', colX.customer, tableTop);
-        doc.text('Items', colX.items, tableTop);
-        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
-        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
-
-        // Table header line
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
-
-        // Table rows
-        doc.font('Helvetica').fontSize(9);
-        let y = tableTop + 24;
+        let y = 150;
         
-        sales.forEach((sale, index) => {
+        // Process each sales order
+        sales.forEach((sale, saleIndex) => {
           // Check for page break
           if (y > 700) {
             doc.addPage();
-            y = 60;
-            // Redraw header on new page
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('Sales ID', colX.salesId, y);
-            doc.text('Customer', colX.customer, y);
-            doc.text('Items', colX.items, y);
-            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
-            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
-            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
-            y += 24;
-            doc.font('Helvetica').fontSize(9);
+            y = 36;
           }
 
-          // Alternate row background
-          if (index % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
+          // Sales header
+          doc.fontSize(11).font('Helvetica-Bold')
+             .text(`Sales Order: ${sale.salesId}`, 36, y);
+          doc.fontSize(10).font('Helvetica')
+             .text(`Customer: ${sale.customer || 'N/A'}`, 36, y + 18);
+          doc.text(`Date: ${new Date(sale.salesDate).toLocaleDateString()}`, 36, y + 33);
+          doc.text(`Total: RM ${(sale.totalAmount || 0).toFixed(2)}`, 36, y + 48);
+          
+          y += 70;
+
+          // Table header for items
+          const itemTableTop = y;
+          const colX = { 
+            sku: 36, 
+            name: 120, 
+            qty: 350, 
+            price: 420, 
+            total: 500 
+          };
+
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('SKU', colX.sku, itemTableTop);
+          doc.text('Product Name', colX.name, itemTableTop);
+          doc.text('Qty', colX.qty, itemTableTop, { width: 60, align: 'center' });
+          doc.text('Unit Price', colX.price, itemTableTop, { width: 70, align: 'right' });
+          doc.text('Total', colX.total, itemTableTop, { width: 70, align: 'right' });
+
+          // Table header line
+          doc.moveTo(36, itemTableTop + 16).lineTo(560, itemTableTop + 16).stroke();
+
+          // Table rows for items
+          doc.font('Helvetica').fontSize(9);
+          let itemY = itemTableTop + 24;
+          
+          sale.items.forEach((item, itemIndex) => {
+            // Check for page break within items
+            if (itemY > 700) {
+              doc.addPage();
+              itemY = 36;
+              y = 36;
+              
+              // Redraw sales header on new page
+              doc.fontSize(11).font('Helvetica-Bold')
+                 .text(`Sales Order: ${sale.salesId}`, 36, itemY);
+              doc.fontSize(10).font('Helvetica')
+                 .text(`Customer: ${sale.customer || 'N/A'}`, 36, itemY + 18);
+              itemY += 50;
+              
+              // Redraw table header
+              doc.fontSize(10).font('Helvetica-Bold');
+              doc.text('SKU', colX.sku, itemY);
+              doc.text('Product Name', colX.name, itemY);
+              doc.text('Qty', colX.qty, itemY, { width: 60, align: 'center' });
+              doc.text('Unit Price', colX.price, itemY, { width: 70, align: 'right' });
+              doc.text('Total', colX.total, itemY, { width: 70, align: 'right' });
+              
+              doc.moveTo(36, itemY + 16).lineTo(560, itemY + 16).stroke();
+              itemY += 24;
+            }
+
+            // Alternate row background
+            if (itemIndex % 2 === 0) {
+              doc.rect(36, itemY - 4, 524, 18)
+                 .fillColor('#f8f9fa')
+                 .fill();
+            }
+
+            doc.fillColor('#000000')
+               .text(item.sku || 'N/A', colX.sku, itemY, { width: 80 })
+               .text(item.productName || 'N/A', colX.name, itemY, { width: 220 })
+               .text(String(item.quantity || 0), colX.qty, itemY, { width: 60, align: 'center' })
+               .text(`RM ${(item.salePrice || 0).toFixed(2)}`, colX.price, itemY, { width: 70, align: 'right' })
+               .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, colX.total, itemY, { width: 70, align: 'right' });
+
+            itemY += 18;
+          });
+          
+          y = itemY + 20;
+          
+          // Add separator between sales orders (except last one)
+          if (saleIndex < sales.length - 1) {
+            doc.moveTo(36, y).lineTo(560, y).stroke();
+            y += 30;
           }
-
-          doc.fillColor('#000000')
-             .text(sale.salesId || 'N/A', colX.salesId, y, { width: 140 })
-             .text(sale.customer || 'N/A', colX.customer, y, { width: 130 })
-             .text(`${sale.items.length} items`, colX.items, y, { width: 90, align: 'center' })
-             .text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
-             .text(new Date(sale.salesDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
-
-          y += 18;
         });
 
         // Summary section
@@ -992,8 +1079,16 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
         doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
-        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
+        doc.text('TOTAL SALES ORDERS', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`${sales.length}`, 500, summaryY + 12, { width: 70, align: 'right' });
+        
+        doc.text('GRAND TOTAL AMOUNT', 400, summaryY + 30, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 30, { width: 70, align: 'right' });
+
+        // Calculate total items
+        const totalItems = sales.reduce((sum, sale) => sum + sale.items.length, 0);
+        doc.text('TOTAL ITEMS SOLD', 400, summaryY + 48, { width: 90, align: 'right' });
+        doc.text(`${totalItems}`, 500, summaryY + 48, { width: 70, align: 'right' });
 
         // Footer
         doc.fontSize(9).font('Helvetica')
@@ -1026,7 +1121,8 @@ app.post("/api/sales/report/pdf", async (req, res) => {
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['sales-report', 'pdf']
+      tags: ['sales-report', 'pdf', 'report'],
+      reportType: 'sales-report'
     });
 
     console.log(`✅ Sales PDF saved to database with ID: ${savedDoc._id}`);
@@ -1053,289 +1149,455 @@ app.post("/api/reports/generate-all", async (req, res) => {
     
     console.log(`📊 Generating all reports for date range: ${startDate} to ${endDate}`);
 
-    // Get all data
-    let inventoryItems = await Inventory.find({}).lean();
-    let purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
-    let sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
+    // Generate inventory report
+    const inventoryBuffer = await generateInventoryReportBuffer(startDate, endDate, printedBy);
+    const inventoryDoc = await saveReportToDatabase(
+      `Inventory_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`,
+      inventoryBuffer,
+      printedBy,
+      'inventory-report'
+    );
 
-    // Apply date range filter if provided
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+    // Generate purchase report
+    const purchaseBuffer = await generatePurchaseReportBuffer(startDate, endDate, printedBy);
+    const purchaseDoc = await saveReportToDatabase(
+      `Purchase_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`,
+      purchaseBuffer,
+      printedBy,
+      'purchase-report'
+    );
 
-      inventoryItems = inventoryItems.filter(item => {
-        const itemDate = new Date(item.createdAt);
-        return itemDate >= start && itemDate <= end;
-      });
+    // Generate sales report
+    const salesBuffer = await generateSalesReportBuffer(startDate, endDate, printedBy);
+    const salesDoc = await saveReportToDatabase(
+      `Sales_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`,
+      salesBuffer,
+      printedBy,
+      'sales-report'
+    );
 
-      purchases = purchases.filter(purchase => {
-        const purchaseDate = new Date(purchase.purchaseDate);
-        return purchaseDate >= start && purchaseDate <= end;
-      });
-
-      sales = sales.filter(sale => {
-        const salesDate = new Date(sale.salesDate);
-        return salesDate >= start && salesDate <= end;
-      });
-    }
-
-    const company = await getCompanyInfo();
-    const now = new Date();
-    const dateRangeText = startDate && endDate 
-      ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
-      : 'All Dates';
-
-    // Create combined PDF
-    const pdfBuffer = await new Promise(async (resolve, reject) => {
-      try {
-        const doc = new PDFDocument({ 
-          size: 'A4', 
-          margin: 36,
-          bufferPages: true
-        });
-        
-        const bufs = [];
-        doc.on('data', (d) => bufs.push(d));
-        doc.on('end', () => resolve(Buffer.concat(bufs)));
-
-        // Header
-        doc.fontSize(16).font('Helvetica-Bold')
-           .text('COMPREHENSIVE BUSINESS REPORT', 36, 36, { align: 'center' });
-        
-        doc.fontSize(10).font('Helvetica')
-           .text(`${company.name}`, 36, 70, { align: 'center' })
-           .text(`${company.address} | Phone: ${company.phone} | Email: ${company.email}`, 36, 85, { align: 'center' })
-           .text(`Date Range: ${dateRangeText} | Generated: ${new Date().toLocaleString()}`, 36, 100, { align: 'center' })
-           .text(`Generated by: ${printedBy}`, 36, 115, { align: 'center' });
-
-        doc.moveDown();
-
-        // Summary Section
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text('EXECUTIVE SUMMARY', 36, 150);
-        
-        doc.moveDown(0.5);
-        doc.fontSize(10).font('Helvetica');
-        doc.text(`• Inventory Items: ${inventoryItems.length}`);
-        doc.text(`• Purchase Orders: ${purchases.length}`);
-        doc.text(`• Sales Orders: ${sales.length}`);
-        
-        // Calculate totals
-        const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-        const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-        const inventoryValue = inventoryItems.reduce((sum, item) => {
-          return sum + ((item.quantity || 0) * (item.unitCost || 0));
-        }, 0);
-        
-        doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`);
-        doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`);
-        doc.text(`• Total Inventory Value: RM ${inventoryValue.toFixed(2)}`);
-        doc.text(`• Gross Profit/Loss: RM ${(salesTotal - purchaseTotal).toFixed(2)}`);
-
-        // Add separator
-        doc.moveDown();
-        doc.moveTo(36, doc.y).lineTo(560, doc.y).stroke();
-
-        // Inventory Report Section
-        doc.addPage();
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('INVENTORY REPORT', 36, 36);
-        
-        doc.fontSize(10);
-        doc.text(`Total Items: ${inventoryItems.length}`, 36, 60);
-        
-        // Inventory table
-        const invTableTop = 90;
-        doc.font('Helvetica-Bold').fontSize(9);
-        doc.text('SKU', 36, invTableTop);
-        doc.text('Product', 100, invTableTop);
-        doc.text('Category', 250, invTableTop);
-        doc.text('Qty', 350, invTableTop);
-        doc.text('Cost', 400, invTableTop);
-        doc.text('Price', 450, invTableTop);
-        doc.text('Value', 500, invTableTop);
-
-        doc.moveTo(36, invTableTop + 8).lineTo(560, invTableTop + 8).stroke();
-
-        doc.font('Helvetica').fontSize(8);
-        let invY = invTableTop + 16;
-        
-        inventoryItems.slice(0, 30).forEach((item, index) => {
-          if (invY > 700) {
-            doc.addPage();
-            invY = 36;
-          }
-
-          const invVal = (item.quantity || 0) * (item.unitCost || 0);
-          
-          doc.text(item.sku || 'N/A', 36, invY, { width: 60 });
-          doc.text(item.name || 'N/A', 100, invY, { width: 140 });
-          doc.text(item.category || 'N/A', 250, invY, { width: 90 });
-          doc.text(String(item.quantity || 0), 350, invY, { width: 40, align: 'right' });
-          doc.text(`RM ${(item.unitCost || 0).toFixed(2)}`, 400, invY, { width: 40, align: 'right' });
-          doc.text(`RM ${(item.unitPrice || 0).toFixed(2)}`, 450, invY, { width: 40, align: 'right' });
-          doc.text(`RM ${invVal.toFixed(2)}`, 500, invY, { width: 50, align: 'right' });
-          
-          invY += 12;
-        });
-
-        // Purchase Report Section
-        doc.addPage();
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('PURCHASE REPORT', 36, 36);
-        
-        doc.fontSize(10);
-        doc.text(`Total Purchase Orders: ${purchases.length} | Total Amount: RM ${purchaseTotal.toFixed(2)}`, 36, 60);
-
-        // Purchase table
-        const purTableTop = 90;
-        doc.font('Helvetica-Bold').fontSize(9);
-        doc.text('Purchase ID', 36, purTableTop);
-        doc.text('Supplier', 150, purTableTop);
-        doc.text('Items', 300, purTableTop);
-        doc.text('Amount', 400, purTableTop);
-        doc.text('Date', 480, purTableTop);
-
-        doc.moveTo(36, purTableTop + 8).lineTo(560, purTableTop + 8).stroke();
-
-        doc.font('Helvetica').fontSize(8);
-        let purY = purTableTop + 16;
-        
-        purchases.slice(0, 30).forEach((purchase, index) => {
-          if (purY > 700) {
-            doc.addPage();
-            purY = 36;
-          }
-
-          doc.text(purchase.purchaseId || 'N/A', 36, purY, { width: 110 });
-          doc.text(purchase.supplier || 'N/A', 150, purY, { width: 140 });
-          doc.text(`${purchase.items.length} items`, 300, purY, { width: 90, align: 'center' });
-          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 400, purY, { width: 70, align: 'right' });
-          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 480, purY, { width: 70, align: 'center' });
-          
-          purY += 12;
-        });
-
-        // Sales Report Section
-        doc.addPage();
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('SALES REPORT', 36, 36);
-        
-        doc.fontSize(10);
-        doc.text(`Total Sales Orders: ${sales.length} | Total Amount: RM ${salesTotal.toFixed(2)}`, 36, 60);
-
-        // Sales table
-        const salesTableTop = 90;
-        doc.font('Helvetica-Bold').fontSize(9);
-        doc.text('Sales ID', 36, salesTableTop);
-        doc.text('Customer', 150, salesTableTop);
-        doc.text('Items', 300, salesTableTop);
-        doc.text('Amount', 400, salesTableTop);
-        doc.text('Date', 480, salesTableTop);
-
-        doc.moveTo(36, salesTableTop + 8).lineTo(560, salesTableTop + 8).stroke();
-
-        doc.font('Helvetica').fontSize(8);
-        let salesY = salesTableTop + 16;
-        
-        sales.slice(0, 30).forEach((sale, index) => {
-          if (salesY > 700) {
-            doc.addPage();
-            salesY = 36;
-          }
-
-          doc.text(sale.salesId || 'N/A', 36, salesY, { width: 110 });
-          doc.text(sale.customer || 'N/A', 150, salesY, { width: 140 });
-          doc.text(`${sale.items.length} items`, 300, salesY, { width: 90, align: 'center' });
-          doc.text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, 400, salesY, { width: 70, align: 'right' });
-          doc.text(new Date(sale.salesDate).toLocaleDateString(), 480, salesY, { width: 70, align: 'center' });
-          
-          salesY += 12;
-        });
-
-        // Final Summary
-        doc.addPage();
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('FINAL SUMMARY', 36, 36, { align: 'center' });
-        
-        doc.moveDown();
-        doc.fontSize(12);
-        
-        const summaryY = 90;
-        doc.text(`Inventory Summary:`, 36, summaryY);
-        doc.text(`• Total Items: ${inventoryItems.length}`, 50, summaryY + 20);
-        doc.text(`• Total Inventory Value: RM ${inventoryValue.toFixed(2)}`, 50, summaryY + 35);
-        
-        doc.text(`Purchase Summary:`, 36, summaryY + 60);
-        doc.text(`• Total Purchase Orders: ${purchases.length}`, 50, summaryY + 80);
-        doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`, 50, summaryY + 95);
-        
-        doc.text(`Sales Summary:`, 36, summaryY + 120);
-        doc.text(`• Total Sales Orders: ${sales.length}`, 50, summaryY + 140);
-        doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`, 50, summaryY + 155);
-        
-        doc.text(`Financial Summary:`, 36, summaryY + 180);
-        doc.text(`• Gross Profit/Loss: RM ${(salesTotal - purchaseTotal).toFixed(2)}`, 50, summaryY + 200);
-        
-        if (salesTotal > purchaseTotal) {
-          doc.fillColor('green').text(`• Status: PROFITABLE`, 50, summaryY + 215);
-        } else {
-          doc.fillColor('red').text(`• Status: LOSS`, 50, summaryY + 215);
-        }
-        doc.fillColor('black');
-
-        // Footer
-        doc.fontSize(9).font('Helvetica')
-           .text(`Generated by ${company.name} Inventory System - Comprehensive Report`, 
-                 36, 760, { align: 'center', width: 520 });
-
-        // Page numbers
-        const range = doc.bufferedPageRange();
-        for (let i = 0; i < range.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(8)
-             .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count} - Comprehensive Report`, 
-                   36, doc.page.height - 30, { 
-                     align: 'center', 
-                     width: doc.page.width - 72 
-                   });
-        }
-
-        doc.end();
-
-      } catch (error) {
-        reject(error);
-      }
+    res.json({
+      success: true,
+      message: "All reports generated successfully!",
+      reports: [
+        { type: 'inventory', id: inventoryDoc._id, name: inventoryDoc.name },
+        { type: 'purchase', id: purchaseDoc._id, name: purchaseDoc.name },
+        { type: 'sales', id: salesDoc._id, name: salesDoc.name }
+      ]
     });
-
-    const filename = `Comprehensive_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
-
-    console.log(`💾 Saving Comprehensive PDF to database: ${pdfBuffer.length} bytes`);
-
-    const savedDoc = await Doc.create({
-      name: filename,
-      size: pdfBuffer.length,
-      date: new Date(),
-      data: pdfBuffer,
-      contentType: "application/pdf",
-      tags: ['comprehensive-report', 'all-reports', 'pdf']
-    });
-
-    console.log(`✅ Comprehensive PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Comprehensive Report PDF: ${filename}`);
-
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Length", pdfBuffer.length);
-    res.send(pdfBuffer);
 
   } catch (err) {
-    console.error("❌ Comprehensive Report Generation Error:", err);
-    res.status(500).json({ message: "Comprehensive report generation failed: " + err.message });
+    console.error("❌ Generate all reports error:", err);
+    res.status(500).json({ success: false, message: "Failed to generate reports: " + err.message });
   }
 });
+
+// Helper function to save report to database
+async function saveReportToDatabase(filename, buffer, printedBy, reportType) {
+  console.log(`💾 Saving ${reportType} to database: ${buffer.length} bytes`);
+
+  const savedDoc = await Doc.create({
+    name: filename,
+    size: buffer.length,
+    date: new Date(),
+    data: buffer,
+    contentType: "application/pdf",
+    tags: [reportType, 'pdf', 'report'],
+    reportType: reportType,
+    createdBy: printedBy
+  });
+
+  console.log(`✅ ${reportType} saved to database with ID: ${savedDoc._id}`);
+  await logActivity(printedBy, `Generated ${reportType} PDF: ${filename}`);
+  
+  return savedDoc;
+}
+
+// Helper functions for report generation
+async function generateInventoryReportBuffer(startDate, endDate, printedBy) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let items = await Inventory.find({}).lean();
+
+      // Apply date range filter if provided
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        items = items.filter(item => {
+          const itemDate = new Date(item.createdAt);
+          return itemDate >= start && itemDate <= end;
+        });
+      }
+
+      const company = await getCompanyInfo();
+      
+      const pdfBuffer = await new Promise((innerResolve, innerReject) => {
+        try {
+          const doc = new PDFDocument({
+            size: "A4",
+            layout: "landscape",
+            margin: 40,
+            bufferPages: true
+          });
+          
+          const chunks = [];
+          doc.on('data', chunk => chunks.push(chunk));
+          doc.on('end', () => innerResolve(Buffer.concat(chunks)));
+          
+          // PDF content generation (same as before)
+          doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
+          doc.fontSize(10).font("Helvetica");
+          doc.text(company.address, 40, 70);
+          doc.text(`Phone: ${company.phone}`, 40, 85);
+          doc.text(`Email: ${company.email}`, 40, 100);
+
+          doc.font("Helvetica-Bold").fontSize(15)
+             .text("INVENTORY REPORT", 620, 40);
+
+          doc.font("Helvetica").fontSize(10);
+          doc.text(`Print Date: ${new Date().toLocaleString()}`, 620, 63);
+          doc.text(`Date Range: ${startDate && endDate ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 'All Dates'}`, 620, 78);
+          doc.text(`Printed by: ${printedBy}`, 620, 93);
+
+          doc.moveTo(40, 130).lineTo(800, 130).stroke();
+
+          // Table generation (same as before)
+          const rowHeight = 18;
+          const columns = [
+            { name: "SKU", x: 40, width: 70 },
+            { name: "Product Name", x: 110, width: 110 },
+            { name: "Category", x: 220, width: 80 },
+            { name: "Quantity", x: 300, width: 60 },
+            { name: "Unit Cost", x: 360, width: 70 },
+            { name: "Unit Price", x: 430, width: 70 },
+            { name: "Inventory Value", x: 500, width: 85 },
+            { name: "Potential Revenue", x: 585, width: 95 },
+            { name: "Potential Profit", x: 680, width: 100 }
+          ];
+          
+          let y = 150;
+
+          // Draw table header
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+          for (let i = 1; i < columns.length; i++) {
+            doc.moveTo(columns[i].x, y)
+               .lineTo(columns[i].x, y + rowHeight)
+               .stroke();
+          }
+          
+          doc.font("Helvetica-Bold").fontSize(9);
+          columns.forEach(col => {
+            doc.text(col.name, col.x + 3, y + 5);
+          });
+          
+          y += rowHeight;
+
+          // Draw table rows
+          doc.font("Helvetica").fontSize(8);
+          items.forEach(item => {
+            const qty = Number(item.quantity || 0);
+            const cost = Number(item.unitCost || 0);
+            const price = Number(item.unitPrice || 0);
+            const inventoryValue = qty * cost;
+            const potentialRevenue = qty * price;
+            const potentialProfit = potentialRevenue - inventoryValue;
+
+            doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+            for (let i = 1; i < columns.length; i++) {
+              doc.moveTo(columns[i].x, y)
+                 .lineTo(columns[i].x, y + rowHeight)
+                 .stroke();
+            }
+            
+            doc.text(item.sku || "", columns[0].x + 3, y + 5);
+            doc.text(item.name || "", columns[1].x + 3, y + 5);
+            doc.text(item.category || "", columns[2].x + 3, y + 5);
+            doc.text(String(qty), columns[3].x + 3, y + 5);
+            doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
+            doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
+            doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
+            doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
+            doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
+            
+            y += rowHeight;
+          });
+
+          doc.end();
+        } catch (error) {
+          innerReject(error);
+        }
+      });
+
+      resolve(pdfBuffer);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function generatePurchaseReportBuffer(startDate, endDate, printedBy) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+
+      // Apply date range filter if provided
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        purchases = purchases.filter(purchase => {
+          const purchaseDate = new Date(purchase.purchaseDate);
+          return purchaseDate >= start && purchaseDate <= end;
+        });
+      }
+
+      const company = await getCompanyInfo();
+      
+      const pdfBuffer = await new Promise((innerResolve, innerReject) => {
+        try {
+          const doc = new PDFDocument({ 
+            size: 'A4', 
+            margin: 36,
+            bufferPages: true
+          });
+          
+          const chunks = [];
+          doc.on('data', chunk => chunks.push(chunk));
+          doc.on('end', () => innerResolve(Buffer.concat(chunks)));
+          
+          // PDF content generation (same as enhanced purchase report)
+          const topY = 36;
+          
+          doc.fontSize(14).font('Helvetica-Bold')
+             .text(company.name, 36, topY);
+          doc.fontSize(10).font('Helvetica')
+             .text(company.address, 36, topY + 18, { continued: false });
+          doc.text(`Phone: ${company.phone}`);
+          doc.text(`Email: ${company.email}`);
+
+          const rightX = 360;
+          doc.fontSize(12).font('Helvetica-Bold')
+             .text('PURCHASE REPORT WITH PRODUCT DETAILS', rightX, topY, { align: 'right' });
+          doc.fontSize(10).font('Helvetica')
+             .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
+          doc.text(`By: ${printedBy}`, { align: 'right' });
+          doc.text(`Date Range: ${startDate && endDate ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 'All Dates'}`, { align: 'right' });
+          doc.text(`Total Orders: ${purchases.length}`, { align: 'right' });
+
+          doc.moveDown(2);
+
+          let y = 150;
+          
+          // Process each purchase order
+          purchases.forEach((purchase, purchaseIndex) => {
+            if (y > 700) {
+              doc.addPage();
+              y = 36;
+            }
+
+            // Purchase header
+            doc.fontSize(11).font('Helvetica-Bold')
+               .text(`Purchase Order: ${purchase.purchaseId}`, 36, y);
+            doc.fontSize(10).font('Helvetica')
+               .text(`Supplier: ${purchase.supplier || 'N/A'}`, 36, y + 18);
+            doc.text(`Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}`, 36, y + 33);
+            doc.text(`Total: RM ${(purchase.totalAmount || 0).toFixed(2)}`, 36, y + 48);
+            
+            y += 70;
+
+            // Table for items
+            const itemTableTop = y;
+            const colX = { 
+              sku: 36, 
+              name: 120, 
+              qty: 350, 
+              price: 420, 
+              total: 500 
+            };
+
+            doc.fontSize(10).font('Helvetica-Bold');
+            doc.text('SKU', colX.sku, itemTableTop);
+            doc.text('Product Name', colX.name, itemTableTop);
+            doc.text('Qty', colX.qty, itemTableTop, { width: 60, align: 'center' });
+            doc.text('Unit Price', colX.price, itemTableTop, { width: 70, align: 'right' });
+            doc.text('Total', colX.total, itemTableTop, { width: 70, align: 'right' });
+
+            doc.moveTo(36, itemTableTop + 16).lineTo(560, itemTableTop + 16).stroke();
+
+            doc.font('Helvetica').fontSize(9);
+            let itemY = itemTableTop + 24;
+            
+            purchase.items.forEach((item, itemIndex) => {
+              if (itemIndex % 2 === 0) {
+                doc.rect(36, itemY - 4, 524, 18)
+                   .fillColor('#f8f9fa')
+                   .fill();
+              }
+
+              doc.fillColor('#000000')
+                 .text(item.sku || 'N/A', colX.sku, itemY, { width: 80 })
+                 .text(item.productName || 'N/A', colX.name, itemY, { width: 220 })
+                 .text(String(item.quantity || 0), colX.qty, itemY, { width: 60, align: 'center' })
+                 .text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, colX.price, itemY, { width: 70, align: 'right' })
+                 .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, colX.total, itemY, { width: 70, align: 'right' });
+
+              itemY += 18;
+            });
+            
+            y = itemY + 20;
+            
+            if (purchaseIndex < purchases.length - 1) {
+              doc.moveTo(36, y).lineTo(560, y).stroke();
+              y += 30;
+            }
+          });
+
+          doc.end();
+        } catch (error) {
+          innerReject(error);
+        }
+      });
+
+      resolve(pdfBuffer);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+async function generateSalesReportBuffer(startDate, endDate, printedBy) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
+
+      // Apply date range filter if provided
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        sales = sales.filter(sale => {
+          const salesDate = new Date(sale.salesDate);
+          return salesDate >= start && salesDate <= end;
+        });
+      }
+
+      const company = await getCompanyInfo();
+      
+      const pdfBuffer = await new Promise((innerResolve, innerReject) => {
+        try {
+          const doc = new PDFDocument({ 
+            size: 'A4', 
+            margin: 36,
+            bufferPages: true
+          });
+          
+          const chunks = [];
+          doc.on('data', chunk => chunks.push(chunk));
+          doc.on('end', () => innerResolve(Buffer.concat(chunks)));
+          
+          // PDF content generation (same as enhanced sales report)
+          const topY = 36;
+          
+          doc.fontSize(14).font('Helvetica-Bold')
+             .text(company.name, 36, topY);
+          doc.fontSize(10).font('Helvetica')
+             .text(company.address, 36, topY + 18, { continued: false });
+          doc.text(`Phone: ${company.phone}`);
+          doc.text(`Email: ${company.email}`);
+
+          const rightX = 360;
+          doc.fontSize(12).font('Helvetica-Bold')
+             .text('SALES REPORT WITH PRODUCT DETAILS', rightX, topY, { align: 'right' });
+          doc.fontSize(10).font('Helvetica')
+             .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
+          doc.text(`By: ${printedBy}`, { align: 'right' });
+          doc.text(`Date Range: ${startDate && endDate ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 'All Dates'}`, { align: 'right' });
+          doc.text(`Total Orders: ${sales.length}`, { align: 'right' });
+
+          doc.moveDown(2);
+
+          let y = 150;
+          
+          // Process each sales order
+          sales.forEach((sale, saleIndex) => {
+            if (y > 700) {
+              doc.addPage();
+              y = 36;
+            }
+
+            // Sales header
+            doc.fontSize(11).font('Helvetica-Bold')
+               .text(`Sales Order: ${sale.salesId}`, 36, y);
+            doc.fontSize(10).font('Helvetica')
+               .text(`Customer: ${sale.customer || 'N/A'}`, 36, y + 18);
+            doc.text(`Date: ${new Date(sale.salesDate).toLocaleDateString()}`, 36, y + 33);
+            doc.text(`Total: RM ${(sale.totalAmount || 0).toFixed(2)}`, 36, y + 48);
+            
+            y += 70;
+
+            // Table for items
+            const itemTableTop = y;
+            const colX = { 
+              sku: 36, 
+              name: 120, 
+              qty: 350, 
+              price: 420, 
+              total: 500 
+            };
+
+            doc.fontSize(10).font('Helvetica-Bold');
+            doc.text('SKU', colX.sku, itemTableTop);
+            doc.text('Product Name', colX.name, itemTableTop);
+            doc.text('Qty', colX.qty, itemTableTop, { width: 60, align: 'center' });
+            doc.text('Unit Price', colX.price, itemTableTop, { width: 70, align: 'right' });
+            doc.text('Total', colX.total, itemTableTop, { width: 70, align: 'right' });
+
+            doc.moveTo(36, itemTableTop + 16).lineTo(560, itemTableTop + 16).stroke();
+
+            doc.font('Helvetica').fontSize(9);
+            let itemY = itemTableTop + 24;
+            
+            sale.items.forEach((item, itemIndex) => {
+              if (itemIndex % 2 === 0) {
+                doc.rect(36, itemY - 4, 524, 18)
+                   .fillColor('#f8f9fa')
+                   .fill();
+              }
+
+              doc.fillColor('#000000')
+                 .text(item.sku || 'N/A', colX.sku, itemY, { width: 80 })
+                 .text(item.productName || 'N/A', colX.name, itemY, { width: 220 })
+                 .text(String(item.quantity || 0), colX.qty, itemY, { width: 60, align: 'center' })
+                 .text(`RM ${(item.salePrice || 0).toFixed(2)}`, colX.price, itemY, { width: 70, align: 'right' })
+                 .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, colX.total, itemY, { width: 70, align: 'right' });
+
+              itemY += 18;
+            });
+            
+            y = itemY + 20;
+            
+            if (saleIndex < sales.length - 1) {
+              doc.moveTo(36, y).lineTo(560, y).stroke();
+              y += 30;
+            }
+          });
+
+          doc.end();
+        } catch (error) {
+          innerReject(error);
+        }
+      });
+
+      resolve(pdfBuffer);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
 
 // ============================================================================
 //                               PURCHASE CRUD
@@ -1725,7 +1987,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
     }
 
     const company = await getCompanyInfo();
-    const filename = `Invoice_${purchase.purchaseId}.pdf`;
+    const filename = `Purchase_Invoice_${purchase.purchaseId}.pdf`;
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
@@ -1771,6 +2033,19 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
       }
     });
 
+    // Save invoice to database with correct tags
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['purchase-invoice', 'pdf', 'invoice'],
+      reportType: 'purchase-invoice'
+    });
+
+    console.log(`✅ Purchase invoice saved to database with ID: ${savedDoc._id}`);
+
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Length", pdfBuffer.length);
@@ -1793,7 +2068,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
     }
 
     const company = await getCompanyInfo();
-    const filename = `Invoice_${sale.salesId}.pdf`;
+    const filename = `Sales_Invoice_${sale.salesId}.pdf`;
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
@@ -1838,6 +2113,19 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
         reject(error);
       }
     });
+
+    // Save invoice to database with correct tags
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['sales-invoice', 'pdf', 'invoice'],
+      reportType: 'sales-invoice'
+    });
+
+    console.log(`✅ Sales invoice saved to database with ID: ${savedDoc._id}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -2459,26 +2747,63 @@ app.delete("/api/cleanup-documents", async (req, res) => {
 });
 
 // ============================================================================
-//                    STATEMENTS - GET REPORTS BY TYPE
+//                    FIXED STATEMENTS - GET REPORTS BY TYPE
 // ============================================================================
 app.get("/api/statements/:type", async (req, res) => {
   try {
     const { type } = req.params;
     
-    let query = { tags: { $in: [] } };
+    let query = {};
     
     switch (type) {
       case 'inventory-reports':
-        query.tags.$in = ['inventory-report', 'pdf'];
+        // Only inventory reports (not invoices)
+        query = { 
+          reportType: 'inventory-report',
+          tags: { $in: ['inventory-report', 'report'] }
+        };
         break;
       case 'purchase-invoices':
-        query.tags.$in = ['purchase-report', 'pdf'];
+        // Only purchase invoices (not reports)
+        query = { 
+          reportType: 'purchase-invoice',
+          tags: { $in: ['purchase-invoice', 'invoice'] }
+        };
         break;
       case 'sales-invoices':
-        query.tags.$in = ['sales-report', 'pdf'];
+        // Only sales invoices (not reports)
+        query = { 
+          reportType: 'sales-invoice',
+          tags: { $in: ['sales-invoice', 'invoice'] }
+        };
+        break;
+      case 'purchase-reports':
+        // Only purchase reports (not invoices)
+        query = { 
+          reportType: 'purchase-report',
+          tags: { $in: ['purchase-report', 'report'] }
+        };
+        break;
+      case 'sales-reports':
+        // Only sales reports (not invoices)
+        query = { 
+          reportType: 'sales-report',
+          tags: { $in: ['sales-report', 'report'] }
+        };
         break;
       case 'all-reports':
-        query.tags.$in = ['inventory-report', 'purchase-report', 'sales-report', 'comprehensive-report', 'pdf'];
+        // All reports (not invoices)
+        query = { 
+          reportType: { $in: ['inventory-report', 'purchase-report', 'sales-report'] },
+          tags: { $in: ['report'] }
+        };
+        break;
+      case 'all-invoices':
+        // All invoices (not reports)
+        query = { 
+          reportType: { $in: ['purchase-invoice', 'sales-invoice'] },
+          tags: { $in: ['invoice'] }
+        };
         break;
       default:
         return res.status(400).json({ message: "Invalid statement type" });
@@ -2491,10 +2816,72 @@ app.get("/api/statements/:type", async (req, res) => {
       id: d._id.toString()
     }));
 
-    res.json(result);
+    // Calculate totals
+    const totalCount = result.length;
+    const totalSize = result.reduce((sum, doc) => sum + (doc.size || 0), 0);
+
+    res.json({
+      documents: result,
+      summary: {
+        totalCount,
+        totalSize: totalSize,
+        totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2)
+      }
+    });
+
   } catch (err) {
     console.error("Statements get error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                    GET STATEMENTS SUMMARY
+// ============================================================================
+app.get("/api/statements-summary", async (req, res) => {
+  try {
+    const inventoryReports = await Doc.countDocuments({ 
+      reportType: 'inventory-report',
+      tags: { $in: ['inventory-report', 'report'] }
+    });
+    
+    const purchaseInvoices = await Doc.countDocuments({ 
+      reportType: 'purchase-invoice',
+      tags: { $in: ['purchase-invoice', 'invoice'] }
+    });
+    
+    const salesInvoices = await Doc.countDocuments({ 
+      reportType: 'sales-invoice',
+      tags: { $in: ['sales-invoice', 'invoice'] }
+    });
+    
+    const purchaseReports = await Doc.countDocuments({ 
+      reportType: 'purchase-report',
+      tags: { $in: ['purchase-report', 'report'] }
+    });
+    
+    const salesReports = await Doc.countDocuments({ 
+      reportType: 'sales-report',
+      tags: { $in: ['sales-report', 'report'] }
+    });
+
+    res.json({
+      success: true,
+      summary: {
+        inventoryReports,
+        purchaseInvoices,
+        salesInvoices,
+        purchaseReports,
+        salesReports,
+        totalReports: inventoryReports + purchaseReports + salesReports,
+        totalInvoices: purchaseInvoices + salesInvoices,
+        totalDocuments: inventoryReports + purchaseInvoices + salesInvoices + purchaseReports + salesReports
+      }
+    });
+
+  } catch (err) {
+    console.error("Statements summary error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -2591,280 +2978,6 @@ app.get("/api/dashboard/stats", async (req, res) => {
   } catch (err) {
     console.error("Dashboard stats error:", err);
     res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// ============================================================================
-//                          SEARCH ACROSS ALL DATA
-// ============================================================================
-app.get("/api/search", async (req, res) => {
-  try {
-    const { q } = req.query;
-    
-    if (!q || q.trim().length < 2) {
-      return res.json({
-        inventory: [],
-        purchases: [],
-        sales: [],
-        documents: []
-      });
-    }
-    
-    const searchTerm = q.toLowerCase().trim();
-    
-    // Search inventory
-    const inventoryResults = await Inventory.find({
-      $or: [
-        { sku: { $regex: searchTerm, $options: 'i' } },
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { category: { $regex: searchTerm, $options: 'i' } }
-      ]
-    }).limit(10).lean();
-    
-    // Search purchases
-    const purchaseResults = await Purchase.find({
-      $or: [
-        { purchaseId: { $regex: searchTerm, $options: 'i' } },
-        { supplier: { $regex: searchTerm, $options: 'i' } },
-        { 'items.productName': { $regex: searchTerm, $options: 'i' } }
-      ]
-    }).limit(10).lean();
-    
-    // Search sales
-    const salesResults = await Sales.find({
-      $or: [
-        { salesId: { $regex: searchTerm, $options: 'i' } },
-        { customer: { $regex: searchTerm, $options: 'i' } },
-        { 'items.productName': { $regex: searchTerm, $options: 'i' } }
-      ]
-    }).limit(10).lean();
-    
-    // Search documents
-    const documentResults = await Doc.find({
-      name: { $regex: searchTerm, $options: 'i' }
-    }).select('-data').limit(10).lean();
-    
-    res.json({
-      inventory: inventoryResults.map(i => ({ ...i, id: i._id.toString() })),
-      purchases: purchaseResults.map(p => ({ ...p, id: p._id.toString() })),
-      sales: salesResults.map(s => ({ ...s, id: s._id.toString() })),
-      documents: documentResults.map(d => ({ ...d, id: d._id.toString() }))
-    });
-    
-  } catch (err) {
-    console.error("Search error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
-//                          IMPORT/EXPORT FUNCTIONS
-// ============================================================================
-app.get("/api/inventory/export/excel", async (req, res) => {
-  try {
-    const items = await Inventory.find({}).lean();
-    
-    // Create workbook
-    const wb = xlsx.utils.book_new();
-    
-    // Prepare data
-    const data = items.map(item => ({
-      SKU: item.sku || '',
-      'Product Name': item.name || '',
-      Category: item.category || '',
-      Quantity: item.quantity || 0,
-      'Unit Cost': item.unitCost || 0,
-      'Unit Price': item.unitPrice || 0,
-      'Inventory Value': (item.quantity || 0) * (item.unitCost || 0),
-      'Potential Revenue': (item.quantity || 0) * (item.unitPrice || 0),
-      'Potential Profit': ((item.quantity || 0) * (item.unitPrice || 0)) - ((item.quantity || 0) * (item.unitCost || 0)),
-      'Created Date': new Date(item.createdAt).toLocaleDateString()
-    }));
-    
-    const ws = xlsx.utils.json_to_sheet(data);
-    xlsx.utils.book_append_sheet(wb, ws, "Inventory");
-    
-    // Generate buffer
-    const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    
-    // Set headers
-    const filename = `Inventory_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.send(buffer);
-    
-    await logActivity(req.headers["x-username"] || "System", `Exported inventory to Excel`);
-    
-  } catch (err) {
-    console.error("Excel export error:", err);
-    res.status(500).json({ message: "Export failed" });
-  }
-});
-
-app.post("/api/inventory/import/excel", async (req, res) => {
-  try {
-    const { data } = req.body;
-    const username = req.headers["x-username"];
-    
-    if (!data || !Array.isArray(data)) {
-      return res.status(400).json({ message: "Invalid data format" });
-    }
-    
-    let importedCount = 0;
-    let updatedCount = 0;
-    let errors = [];
-    
-    for (const item of data) {
-      try {
-        const { SKU, 'Product Name': name, Category: category, Quantity: quantity, 'Unit Cost': unitCost, 'Unit Price': unitPrice } = item;
-        
-        if (!SKU || !name) {
-          errors.push(`Missing SKU or Name for item: ${JSON.stringify(item)}`);
-          continue;
-        }
-        
-        // Check if item exists
-        const existingItem = await Inventory.findOne({ sku: SKU });
-        
-        if (existingItem) {
-          // Update existing
-          existingItem.name = name;
-          existingItem.category = category || existingItem.category;
-          existingItem.quantity = Number(quantity) || existingItem.quantity;
-          existingItem.unitCost = Number(unitCost) || existingItem.unitCost;
-          existingItem.unitPrice = Number(unitPrice) || existingItem.unitPrice;
-          await existingItem.save();
-          updatedCount++;
-        } else {
-          // Create new
-          await Inventory.create({
-            sku: SKU,
-            name: name,
-            category: category || '',
-            quantity: Number(quantity) || 0,
-            unitCost: Number(unitCost) || 0,
-            unitPrice: Number(unitPrice) || 0
-          });
-          importedCount++;
-        }
-      } catch (err) {
-        errors.push(`Error processing item: ${JSON.stringify(item)} - ${err.message}`);
-      }
-    }
-    
-    await logActivity(username, `Imported ${importedCount} new items, updated ${updatedCount} items from Excel`);
-    
-    res.json({
-      success: true,
-      message: `Import completed: ${importedCount} new items imported, ${updatedCount} items updated`,
-      importedCount,
-      updatedCount,
-      errorCount: errors.length,
-      errors: errors.slice(0, 10) // Return only first 10 errors
-    });
-    
-  } catch (err) {
-    console.error("Excel import error:", err);
-    res.status(500).json({ message: "Import failed" });
-  }
-});
-
-// ============================================================================
-//                          BACKUP AND RESTORE
-// ============================================================================
-app.get("/api/system/backup", async (req, res) => {
-  try {
-    const username = req.headers["x-username"];
-    
-    // Get all data
-    const inventory = await Inventory.find({}).lean();
-    const purchases = await Purchase.find({}).lean();
-    const sales = await Sales.find({}).lean();
-    const documents = await Doc.find({}).select('-data').lean();
-    const folders = await Folder.find({}).lean();
-    const users = await User.find({}).lean();
-    const company = await Company.find({}).lean();
-    const logs = await ActivityLog.find({}).lean();
-    
-    const backupData = {
-      timestamp: new Date(),
-      createdBy: username,
-      data: {
-        inventory: inventory.map(i => ({ ...i, id: i._id.toString() })),
-        purchases: purchases.map(p => ({ ...p, id: p._id.toString() })),
-        sales: sales.map(s => ({ ...s, id: s._id.toString() })),
-        documents: documents.map(d => ({ ...d, id: d._id.toString() })),
-        folders: folders.map(f => ({ ...f, id: f._id.toString() })),
-        users: users.map(u => ({ ...u, id: u._id.toString() })),
-        company: company.map(c => ({ ...c, id: c._id.toString() })),
-        logs: logs.map(l => ({ ...l, id: l._id.toString() }))
-      }
-    };
-    
-    const filename = `System_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/json');
-    res.send(JSON.stringify(backupData, null, 2));
-    
-    await logActivity(username, `Created system backup`);
-    
-  } catch (err) {
-    console.error("Backup error:", err);
-    res.status(500).json({ message: "Backup failed" });
-  }
-});
-
-// ============================================================================
-//                          SYSTEM HEALTH CHECK
-// ============================================================================
-app.get("/api/system/health", async (req, res) => {
-  try {
-    // Check database connection
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    
-    // Check collections
-    const inventoryCount = await Inventory.countDocuments({});
-    const purchaseCount = await Purchase.countDocuments({});
-    const salesCount = await Sales.countDocuments({});
-    const documentCount = await Doc.countDocuments({});
-    const userCount = await User.countDocuments({});
-    
-    // Check for recent errors in logs
-    const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(10).lean();
-    const errorLogs = recentLogs.filter(log => log.action && log.action.toLowerCase().includes('error'));
-    
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      database: {
-        status: dbStatus,
-        collections: {
-          inventory: inventoryCount,
-          purchases: purchaseCount,
-          sales: salesCount,
-          documents: documentCount,
-          users: userCount
-        }
-      },
-      system: {
-        memory: process.memoryUsage(),
-        uptime: process.uptime(),
-        nodeVersion: process.version
-      },
-      issues: {
-        recentErrors: errorLogs.length,
-        details: errorLogs.slice(0, 3)
-      }
-    });
-    
-  } catch (err) {
-    console.error("Health check error:", err);
-    res.status(500).json({ 
-      status: 'unhealthy',
-      message: "Health check failed",
-      error: err.message 
-    });
   }
 });
 
