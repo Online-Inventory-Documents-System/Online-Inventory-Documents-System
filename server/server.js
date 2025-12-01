@@ -124,8 +124,7 @@ const DocumentSchema = new Schema({
   contentType: String,
   folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
   tags: [String],
-  createdBy: String,
-  reportType: { type: String, default: '' }
+  createdBy: String
 });
 const Doc = mongoose.model("Doc", DocumentSchema);
 
@@ -296,6 +295,7 @@ app.put("/api/account/password", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing username or new password" });
   }
 
+  // Verify the user is changing their own password
   if (username !== currentUser) {
     return res.status(403).json({ success: false, message: "You can only change your own password" });
   }
@@ -306,6 +306,7 @@ app.put("/api/account/password", async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    // Update password
     user.password = newPassword;
     await user.save();
 
@@ -334,6 +335,7 @@ app.delete("/api/account", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing username" });
   }
 
+  // Verify the user is deleting their own account
   if (username !== currentUser) {
     return res.status(403).json({ success: false, message: "You can only delete your own account" });
   }
@@ -429,6 +431,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     const { startDate, endDate, reportType = 'inventory' } = req.body;
     let items = await Inventory.find({}).lean();
 
+    // Apply date range filter if provided
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -509,6 +512,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
+        // PERFECT COLUMN ALIGNMENT - FIXED CALCULATIONS
         const columns = [
           { name: "SKU", x: 40, width: 70 },
           { name: "Product Name", x: 110, width: 110 },
@@ -524,14 +528,17 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let y = 150;
 
         function drawTableHeader() {
+          // Draw header background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
+          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
+          // Header text
           doc.font("Helvetica-Bold").fontSize(9);
           columns.forEach(col => {
             doc.text(col.name, col.x + 3, y + 5);
@@ -548,14 +555,17 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           const potentialRevenue = qty * price;
           const potentialProfit = potentialRevenue - inventoryValue;
 
+          // Draw row background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
+          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
+          // Data text
           doc.font("Helvetica").fontSize(8);
           doc.text(item.sku || "", columns[0].x + 3, y + 5);
           doc.text(item.name || "", columns[1].x + 3, y + 5);
@@ -577,6 +587,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           };
         }
 
+        // Draw header
         drawTableHeader();
         
         let subtotalQty = 0;
@@ -606,8 +617,10 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const lastPageIndex = doc.bufferedPageRange().count - 1;
         doc.switchToPage(lastPageIndex);
         
+        // FIXED: Better positioning for summary box
         let boxY = y + 20;
         if (boxY > 450) {
+          // If we're running out of space, add a new page for summary
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           boxY = 40;
         }
@@ -643,9 +656,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['inventory-report', 'pdf', 'report'],
-      reportType: 'inventory-report',
-      createdBy: printedBy
+      tags: ['inventory-report', 'pdf']
     });
 
     console.log(`✅ PDF saved to database with ID: ${savedDoc._id}`);
@@ -665,13 +676,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    FIXED: ENHANCED PURCHASE REPORT WITH BETTER LAYOUT
+//                    PURCHASE REPORT WITH DATE RANGE
 // ============================================================================
 app.post("/api/purchases/report/pdf", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     let purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
 
+    // Apply date range filter if provided
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -689,7 +701,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
       ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
       : 'All Dates';
     
-    const filename = `Purchase_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+    const filename = `Purchase_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     console.log(`📊 Generating Purchase PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -705,143 +717,103 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.on('data', (d) => bufs.push(d));
         doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-        // Header
+        // Header - two column design
         const topY = 36;
         
-        // Company Info
-        doc.fontSize(16).font('Helvetica-Bold')
+        // Left column - Company Info
+        doc.fontSize(14).font('Helvetica-Bold')
            .text(company.name, 36, topY);
         doc.fontSize(10).font('Helvetica')
-           .text(company.address, 36, topY + 22);
-        doc.text(`Phone: ${company.phone}`, 36, topY + 37);
-        doc.text(`Email: ${company.email}`, 36, topY + 52);
+           .text(company.address, 36, topY + 18, { continued: false });
+        doc.text(`Phone: ${company.phone}`);
+        doc.text(`Email: ${company.email}`);
 
-        // Report Title
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('PURCHASE REPORT', 36, topY + 80);
+        // Right column - Report Meta
+        const rightX = 360;
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('PURCHASE REPORT', rightX, topY, { align: 'right' });
         doc.fontSize(10).font('Helvetica')
-           .text(`Date Range: ${dateRangeText}`, 36, topY + 100);
-        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 36, topY + 115);
-        doc.text(`By: ${printedBy}`, 36, topY + 130);
-        
-        // Calculate totals
+           .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
+        doc.text(`By: ${printedBy}`, { align: 'right' });
+        doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
+        doc.text(`Total Orders: ${purchases.length}`, { align: 'right' });
+
+        // Calculate grand total
         const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
-        const totalOrders = purchases.length;
-        const totalItems = purchases.reduce((sum, purchase) => sum + purchase.items.length, 0);
-        
-        // Summary box
-        doc.rect(360, topY + 80, 200, 80).stroke();
-        doc.font('Helvetica-Bold').fontSize(10)
-           .text('SUMMARY', 370, topY + 85);
-        doc.font('Helvetica').fontSize(9);
-        doc.text(`Total Orders: ${totalOrders}`, 370, topY + 102);
-        doc.text(`Total Items: ${totalItems}`, 370, topY + 117);
-        doc.text(`Grand Total: RM ${grandTotal.toFixed(2)}`, 370, topY + 132);
+        doc.font('Helvetica-Bold')
+           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
 
-        // Start purchases table
-        let y = topY + 180;
-        
-        // Check if we need a new page
-        if (y > 700) {
-          doc.addPage();
-          y = 36;
-        }
+        doc.moveDown(2);
 
-        // Table header
-        const tableTop = y;
+        // Report table header
+        const tableTop = 140;
         const colX = { 
-          order: 36, 
-          supplier: 100, 
-          date: 250, 
+          purchaseId: 36, 
+          supplier: 180, 
           items: 320, 
-          total: 420, 
-          status: 500
+          amount: 420, 
+          date: 500 
         };
 
         doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('Order ID', colX.order, tableTop);
+        doc.text('Purchase ID', colX.purchaseId, tableTop);
         doc.text('Supplier', colX.supplier, tableTop);
-        doc.text('Date', colX.date, tableTop);
-        doc.text('Items', colX.items, tableTop, { width: 50, align: 'center' });
-        doc.text('Amount', colX.total, tableTop, { width: 70, align: 'right' });
-        doc.text('Status', colX.status, tableTop, { width: 70, align: 'center' });
+        doc.text('Items', colX.items, tableTop);
+        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
+        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
 
         // Table header line
-        doc.moveTo(36, tableTop + 16).lineTo(570, tableTop + 16).stroke();
+        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
 
         // Table rows
         doc.font('Helvetica').fontSize(9);
-        let currentY = tableTop + 24;
+        let y = tableTop + 24;
         
         purchases.forEach((purchase, index) => {
           // Check for page break
-          if (currentY > 700) {
+          if (y > 700) {
             doc.addPage();
-            currentY = 36;
-            
-            // Redraw table header
+            y = 60;
+            // Redraw header on new page
             doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('Order ID', colX.order, currentY);
-            doc.text('Supplier', colX.supplier, currentY);
-            doc.text('Date', colX.date, currentY);
-            doc.text('Items', colX.items, currentY, { width: 50, align: 'center' });
-            doc.text('Amount', colX.total, currentY, { width: 70, align: 'right' });
-            doc.text('Status', colX.status, currentY, { width: 70, align: 'center' });
-            doc.moveTo(36, currentY + 16).lineTo(570, currentY + 16).stroke();
-            currentY += 24;
+            doc.text('Purchase ID', colX.purchaseId, y);
+            doc.text('Supplier', colX.supplier, y);
+            doc.text('Items', colX.items, y);
+            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
+            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
+            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+            y += 24;
             doc.font('Helvetica').fontSize(9);
           }
 
           // Alternate row background
           if (index % 2 === 0) {
-            doc.rect(36, currentY - 4, 534, 18)
-               .fillColor('#f5f5f5')
+            doc.rect(36, y - 4, 524, 18)
+               .fillColor('#f8f9fa')
                .fill();
           }
 
           doc.fillColor('#000000')
-             .text(purchase.purchaseId || 'N/A', colX.order, currentY, { width: 60 })
-             .text(purchase.supplier || 'N/A', colX.supplier, currentY, { width: 140 })
-             .text(new Date(purchase.purchaseDate).toLocaleDateString(), colX.date, currentY, { width: 60 })
-             .text(String(purchase.items?.length || 0), colX.items, currentY, { width: 50, align: 'center' })
-             .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, colX.total, currentY, { width: 70, align: 'right' })
-             .text('✓ Completed', colX.status, currentY, { width: 70, align: 'center' });
+             .text(purchase.purchaseId || 'N/A', colX.purchaseId, y, { width: 140 })
+             .text(purchase.supplier || 'N/A', colX.supplier, y, { width: 130 })
+             .text(`${purchase.items.length} items`, colX.items, y, { width: 90, align: 'center' })
+             .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
+             .text(new Date(purchase.purchaseDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
 
-          currentY += 18;
-          
-          // Add space for item details if needed
-          if (purchase.items && purchase.items.length > 0) {
-            purchase.items.forEach(item => {
-              if (currentY > 700) {
-                doc.addPage();
-                currentY = 36;
-              }
-              
-              const indent = 50;
-              doc.fontSize(8)
-                 .text(`• ${item.productName} (${item.sku}): ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${item.totalAmount.toFixed(2)}`, 
-                       colX.order + indent, currentY, { width: 450 });
-              currentY += 12;
-            });
-            currentY += 5;
-          }
+          y += 18;
         });
 
-        // Final summary
-        const summaryY = Math.min(currentY + 20, 720);
-        doc.moveTo(360, summaryY).lineTo(560, summaryY).stroke();
+        // Summary section
+        const summaryY = Math.min(y + 20, 720);
+        doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
         doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('FINAL SUMMARY', 370, summaryY + 12);
-        doc.font('Helvetica').fontSize(9);
-        doc.text(`Total Purchase Orders: ${totalOrders}`, 370, summaryY + 30);
-        doc.text(`Total Items Purchased: ${totalItems}`, 370, summaryY + 45);
-        doc.font('Helvetica-Bold')
-           .text(`Grand Total Amount: RM ${grandTotal.toFixed(2)}`, 370, summaryY + 65);
+        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
 
         // Footer
         doc.fontSize(9).font('Helvetica')
-           .text(`Generated by ${company.name} Inventory System`, 36, doc.page.height - 40, { align: 'center', width: doc.page.width - 72 });
+           .text(`Generated by ${company.name} Inventory System`, 36, 760, { align: 'center', width: 520 });
 
         // Page numbers
         const range = doc.bufferedPageRange();
@@ -870,9 +842,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['purchase-report', 'pdf', 'report'],
-      reportType: 'purchase-report',
-      createdBy: printedBy
+      tags: ['purchase-report', 'pdf']
     });
 
     console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
@@ -890,13 +860,14 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    FIXED: ENHANCED SALES REPORT WITH BETTER LAYOUT
+//                    SALES REPORT WITH DATE RANGE
 // ============================================================================
 app.post("/api/sales/report/pdf", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     let sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
 
+    // Apply date range filter if provided
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -914,7 +885,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
       ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
       : 'All Dates';
     
-    const filename = `Sales_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+    const filename = `Sales_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     console.log(`📊 Generating Sales PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -930,143 +901,103 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.on('data', (d) => bufs.push(d));
         doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-        // Header
+        // Header - two column design
         const topY = 36;
         
-        // Company Info
-        doc.fontSize(16).font('Helvetica-Bold')
+        // Left column - Company Info
+        doc.fontSize(14).font('Helvetica-Bold')
            .text(company.name, 36, topY);
         doc.fontSize(10).font('Helvetica')
-           .text(company.address, 36, topY + 22);
-        doc.text(`Phone: ${company.phone}`, 36, topY + 37);
-        doc.text(`Email: ${company.email}`, 36, topY + 52);
+           .text(company.address, 36, topY + 18, { continued: false });
+        doc.text(`Phone: ${company.phone}`);
+        doc.text(`Email: ${company.email}`);
 
-        // Report Title
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text('SALES REPORT', 36, topY + 80);
+        // Right column - Report Meta
+        const rightX = 360;
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('SALES REPORT', rightX, topY, { align: 'right' });
         doc.fontSize(10).font('Helvetica')
-           .text(`Date Range: ${dateRangeText}`, 36, topY + 100);
-        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 36, topY + 115);
-        doc.text(`By: ${printedBy}`, 36, topY + 130);
-        
-        // Calculate totals
+           .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
+        doc.text(`By: ${printedBy}`, { align: 'right' });
+        doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
+        doc.text(`Total Orders: ${sales.length}`, { align: 'right' });
+
+        // Calculate grand total
         const grandTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
-        const totalOrders = sales.length;
-        const totalItems = sales.reduce((sum, sale) => sum + sale.items.length, 0);
-        
-        // Summary box
-        doc.rect(360, topY + 80, 200, 80).stroke();
-        doc.font('Helvetica-Bold').fontSize(10)
-           .text('SUMMARY', 370, topY + 85);
-        doc.font('Helvetica').fontSize(9);
-        doc.text(`Total Orders: ${totalOrders}`, 370, topY + 102);
-        doc.text(`Total Items: ${totalItems}`, 370, topY + 117);
-        doc.text(`Grand Total: RM ${grandTotal.toFixed(2)}`, 370, topY + 132);
+        doc.font('Helvetica-Bold')
+           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
 
-        // Start sales table
-        let y = topY + 180;
-        
-        // Check if we need a new page
-        if (y > 700) {
-          doc.addPage();
-          y = 36;
-        }
+        doc.moveDown(2);
 
-        // Table header
-        const tableTop = y;
+        // Report table header
+        const tableTop = 140;
         const colX = { 
-          order: 36, 
-          customer: 100, 
-          date: 250, 
+          salesId: 36, 
+          customer: 180, 
           items: 320, 
-          total: 420, 
-          status: 500
+          amount: 420, 
+          date: 500 
         };
 
         doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('Order ID', colX.order, tableTop);
+        doc.text('Sales ID', colX.salesId, tableTop);
         doc.text('Customer', colX.customer, tableTop);
-        doc.text('Date', colX.date, tableTop);
-        doc.text('Items', colX.items, tableTop, { width: 50, align: 'center' });
-        doc.text('Amount', colX.total, tableTop, { width: 70, align: 'right' });
-        doc.text('Status', colX.status, tableTop, { width: 70, align: 'center' });
+        doc.text('Items', colX.items, tableTop);
+        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
+        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
 
         // Table header line
-        doc.moveTo(36, tableTop + 16).lineTo(570, tableTop + 16).stroke();
+        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
 
         // Table rows
         doc.font('Helvetica').fontSize(9);
-        let currentY = tableTop + 24;
+        let y = tableTop + 24;
         
         sales.forEach((sale, index) => {
           // Check for page break
-          if (currentY > 700) {
+          if (y > 700) {
             doc.addPage();
-            currentY = 36;
-            
-            // Redraw table header
+            y = 60;
+            // Redraw header on new page
             doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('Order ID', colX.order, currentY);
-            doc.text('Customer', colX.customer, currentY);
-            doc.text('Date', colX.date, currentY);
-            doc.text('Items', colX.items, currentY, { width: 50, align: 'center' });
-            doc.text('Amount', colX.total, currentY, { width: 70, align: 'right' });
-            doc.text('Status', colX.status, currentY, { width: 70, align: 'center' });
-            doc.moveTo(36, currentY + 16).lineTo(570, currentY + 16).stroke();
-            currentY += 24;
+            doc.text('Sales ID', colX.salesId, y);
+            doc.text('Customer', colX.customer, y);
+            doc.text('Items', colX.items, y);
+            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
+            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
+            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+            y += 24;
             doc.font('Helvetica').fontSize(9);
           }
 
           // Alternate row background
           if (index % 2 === 0) {
-            doc.rect(36, currentY - 4, 534, 18)
-               .fillColor('#f5f5f5')
+            doc.rect(36, y - 4, 524, 18)
+               .fillColor('#f8f9fa')
                .fill();
           }
 
           doc.fillColor('#000000')
-             .text(sale.salesId || 'N/A', colX.order, currentY, { width: 60 })
-             .text(sale.customer || 'N/A', colX.customer, currentY, { width: 140 })
-             .text(new Date(sale.salesDate).toLocaleDateString(), colX.date, currentY, { width: 60 })
-             .text(String(sale.items?.length || 0), colX.items, currentY, { width: 50, align: 'center' })
-             .text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, colX.total, currentY, { width: 70, align: 'right' })
-             .text('✓ Completed', colX.status, currentY, { width: 70, align: 'center' });
+             .text(sale.salesId || 'N/A', colX.salesId, y, { width: 140 })
+             .text(sale.customer || 'N/A', colX.customer, y, { width: 130 })
+             .text(`${sale.items.length} items`, colX.items, y, { width: 90, align: 'center' })
+             .text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
+             .text(new Date(sale.salesDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
 
-          currentY += 18;
-          
-          // Add space for item details if needed
-          if (sale.items && sale.items.length > 0) {
-            sale.items.forEach(item => {
-              if (currentY > 700) {
-                doc.addPage();
-                currentY = 36;
-              }
-              
-              const indent = 50;
-              doc.fontSize(8)
-                 .text(`• ${item.productName} (${item.sku}): ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${item.totalAmount.toFixed(2)}`, 
-                       colX.order + indent, currentY, { width: 450 });
-              currentY += 12;
-            });
-            currentY += 5;
-          }
+          y += 18;
         });
 
-        // Final summary
-        const summaryY = Math.min(currentY + 20, 720);
-        doc.moveTo(360, summaryY).lineTo(560, summaryY).stroke();
+        // Summary section
+        const summaryY = Math.min(y + 20, 720);
+        doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
         doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('FINAL SUMMARY', 370, summaryY + 12);
-        doc.font('Helvetica').fontSize(9);
-        doc.text(`Total Sales Orders: ${totalOrders}`, 370, summaryY + 30);
-        doc.text(`Total Items Sold: ${totalItems}`, 370, summaryY + 45);
-        doc.font('Helvetica-Bold')
-           .text(`Grand Total Revenue: RM ${grandTotal.toFixed(2)}`, 370, summaryY + 65);
+        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
 
         // Footer
         doc.fontSize(9).font('Helvetica')
-           .text(`Generated by ${company.name} Inventory System`, 36, doc.page.height - 40, { align: 'center', width: doc.page.width - 72 });
+           .text(`Generated by ${company.name} Inventory System`, 36, 760, { align: 'center', width: 520 });
 
         // Page numbers
         const range = doc.bufferedPageRange();
@@ -1095,9 +1026,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['sales-report', 'pdf', 'report'],
-      reportType: 'sales-report',
-      createdBy: printedBy
+      tags: ['sales-report', 'pdf']
     });
 
     console.log(`✅ Sales PDF saved to database with ID: ${savedDoc._id}`);
@@ -1121,455 +1050,65 @@ app.post("/api/reports/generate-all", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     const printedBy = req.headers["x-username"] || "System";
-    
-    console.log(`📊 Generating all reports for date range: ${startDate} to ${endDate}`);
 
-    // Generate inventory report
-    const inventoryBuffer = await generateInventoryReportBuffer(startDate, endDate, printedBy);
-    const inventoryDoc = await saveReportToDatabase(
-      `Inventory_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`,
-      inventoryBuffer,
-      printedBy,
-      'inventory-report'
-    );
+    // Generate all three reports
+    const reports = [
+      { type: 'inventory', endpoint: '/api/inventory/report/pdf' },
+      { type: 'purchase', endpoint: '/api/purchases/report/pdf' },
+      { type: 'sales', endpoint: '/api/sales/report/pdf' }
+    ];
 
-    // Generate purchase report
-    const purchaseBuffer = await generatePurchaseReportBuffer(startDate, endDate, printedBy);
-    const purchaseDoc = await saveReportToDatabase(
-      `Purchase_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`,
-      purchaseBuffer,
-      printedBy,
-      'purchase-report'
-    );
+    const results = [];
 
-    // Generate sales report
-    const salesBuffer = await generateSalesReportBuffer(startDate, endDate, printedBy);
-    const salesDoc = await saveReportToDatabase(
-      `Sales_Report_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`,
-      salesBuffer,
-      printedBy,
-      'sales-report'
-    );
+    for (const report of reports) {
+      try {
+        // Create a mock response object to capture the PDF
+        const mockRes = {
+          setHeader: () => {},
+          send: (buffer) => {
+            results.push({
+              type: report.type,
+              buffer: buffer,
+              success: true
+            });
+          }
+        };
+
+        // Call the respective report function
+        const reqObj = {
+          body: { startDate, endDate },
+          headers: { "x-username": printedBy }
+        };
+
+        if (report.type === 'inventory') {
+          await require('./server').generateInventoryReport(reqObj, mockRes);
+        } else if (report.type === 'purchase') {
+          await require('./server').generatePurchaseReport(reqObj, mockRes);
+        } else if (report.type === 'sales') {
+          await require('./server').generateSalesReport(reqObj, mockRes);
+        }
+
+      } catch (err) {
+        console.error(`Error generating ${report.type} report:`, err);
+        results.push({
+          type: report.type,
+          error: err.message,
+          success: false
+        });
+      }
+    }
 
     res.json({
       success: true,
-      message: "All reports generated successfully!",
-      reports: [
-        { type: 'inventory', id: inventoryDoc._id, name: inventoryDoc.name },
-        { type: 'purchase', id: purchaseDoc._id, name: purchaseDoc.name },
-        { type: 'sales', id: salesDoc._id, name: salesDoc.name }
-      ]
+      message: `Generated ${results.filter(r => r.success).length} out of 3 reports`,
+      results: results
     });
 
   } catch (err) {
-    console.error("❌ Generate all reports error:", err);
-    res.status(500).json({ success: false, message: "Failed to generate reports: " + err.message });
+    console.error("Generate all reports error:", err);
+    res.status(500).json({ success: false, message: "Failed to generate reports" });
   }
 });
-
-// Helper function to save report to database
-async function saveReportToDatabase(filename, buffer, printedBy, reportType) {
-  console.log(`💾 Saving ${reportType} to database: ${buffer.length} bytes`);
-
-  const savedDoc = await Doc.create({
-    name: filename,
-    size: buffer.length,
-    date: new Date(),
-    data: buffer,
-    contentType: "application/pdf",
-    tags: [reportType, 'pdf', 'report'],
-    reportType: reportType,
-    createdBy: printedBy
-  });
-
-  console.log(`✅ ${reportType} saved to database with ID: ${savedDoc._id}`);
-  await logActivity(printedBy, `Generated ${reportType} PDF: ${filename}`);
-  
-  return savedDoc;
-}
-
-// Helper functions for report generation
-async function generateInventoryReportBuffer(startDate, endDate, printedBy) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      let items = await Inventory.find({}).lean();
-
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        items = items.filter(item => {
-          const itemDate = new Date(item.createdAt);
-          return itemDate >= start && itemDate <= end;
-        });
-      }
-
-      const company = await getCompanyInfo();
-      
-      const pdfBuffer = await new Promise((innerResolve, innerReject) => {
-        try {
-          const doc = new PDFDocument({
-            size: "A4",
-            layout: "landscape",
-            margin: 40,
-            bufferPages: true
-          });
-          
-          const chunks = [];
-          doc.on('data', chunk => chunks.push(chunk));
-          doc.on('end', () => innerResolve(Buffer.concat(chunks)));
-          
-          doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
-          doc.fontSize(10).font("Helvetica");
-          doc.text(company.address, 40, 70);
-          doc.text(`Phone: ${company.phone}`, 40, 85);
-          doc.text(`Email: ${company.email}`, 40, 100);
-
-          doc.font("Helvetica-Bold").fontSize(15)
-             .text("INVENTORY REPORT", 620, 40);
-
-          doc.font("Helvetica").fontSize(10);
-          doc.text(`Print Date: ${new Date().toLocaleString()}`, 620, 63);
-          doc.text(`Date Range: ${startDate && endDate ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 'All Dates'}`, 620, 78);
-          doc.text(`Printed by: ${printedBy}`, 620, 93);
-
-          doc.moveTo(40, 130).lineTo(800, 130).stroke();
-
-          const rowHeight = 18;
-          const columns = [
-            { name: "SKU", x: 40, width: 70 },
-            { name: "Product Name", x: 110, width: 110 },
-            { name: "Category", x: 220, width: 80 },
-            { name: "Quantity", x: 300, width: 60 },
-            { name: "Unit Cost", x: 360, width: 70 },
-            { name: "Unit Price", x: 430, width: 70 },
-            { name: "Inventory Value", x: 500, width: 85 },
-            { name: "Potential Revenue", x: 585, width: 95 },
-            { name: "Potential Profit", x: 680, width: 100 }
-          ];
-          
-          let y = 150;
-
-          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
-          for (let i = 1; i < columns.length; i++) {
-            doc.moveTo(columns[i].x, y)
-               .lineTo(columns[i].x, y + rowHeight)
-               .stroke();
-          }
-          
-          doc.font("Helvetica-Bold").fontSize(9);
-          columns.forEach(col => {
-            doc.text(col.name, col.x + 3, y + 5);
-          });
-          
-          y += rowHeight;
-
-          doc.font("Helvetica").fontSize(8);
-          items.forEach(item => {
-            const qty = Number(item.quantity || 0);
-            const cost = Number(item.unitCost || 0);
-            const price = Number(item.unitPrice || 0);
-            const inventoryValue = qty * cost;
-            const potentialRevenue = qty * price;
-            const potentialProfit = potentialRevenue - inventoryValue;
-
-            doc.rect(columns[0].x, y, 740, rowHeight).stroke();
-            for (let i = 1; i < columns.length; i++) {
-              doc.moveTo(columns[i].x, y)
-                 .lineTo(columns[i].x, y + rowHeight)
-                 .stroke();
-            }
-            
-            doc.text(item.sku || "", columns[0].x + 3, y + 5);
-            doc.text(item.name || "", columns[1].x + 3, y + 5);
-            doc.text(item.category || "", columns[2].x + 3, y + 5);
-            doc.text(String(qty), columns[3].x + 3, y + 5);
-            doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
-            doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
-            doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
-            doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
-            doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
-            
-            y += rowHeight;
-          });
-
-          doc.end();
-        } catch (error) {
-          innerReject(error);
-        }
-      });
-
-      resolve(pdfBuffer);
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
-async function generatePurchaseReportBuffer(startDate, endDate, printedBy) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      let purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
-
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        purchases = purchases.filter(purchase => {
-          const purchaseDate = new Date(purchase.purchaseDate);
-          return purchaseDate >= start && purchaseDate <= end;
-        });
-      }
-
-      const company = await getCompanyInfo();
-      
-      const pdfBuffer = await new Promise((innerResolve, innerReject) => {
-        try {
-          const doc = new PDFDocument({ 
-            size: 'A4', 
-            margin: 36,
-            bufferPages: true
-          });
-          
-          const chunks = [];
-          doc.on('data', chunk => chunks.push(chunk));
-          doc.on('end', () => innerResolve(Buffer.concat(chunks)));
-          
-          const topY = 36;
-          
-          doc.fontSize(16).font('Helvetica-Bold')
-             .text(company.name, 36, topY);
-          doc.fontSize(10).font('Helvetica')
-             .text(company.address, 36, topY + 22);
-          doc.text(`Phone: ${company.phone}`, 36, topY + 37);
-          doc.text(`Email: ${company.email}`, 36, topY + 52);
-
-          doc.fontSize(14).font('Helvetica-Bold')
-             .text('PURCHASE REPORT', 36, topY + 80);
-          doc.fontSize(10).font('Helvetica')
-             .text(`Date Range: ${startDate && endDate ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 'All Dates'}`, 36, topY + 100);
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 36, topY + 115);
-          doc.text(`By: ${printedBy}`, 36, topY + 130);
-          
-          const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
-          const totalOrders = purchases.length;
-          
-          doc.rect(360, topY + 80, 200, 60).stroke();
-          doc.font('Helvetica-Bold').fontSize(10)
-             .text('SUMMARY', 370, topY + 85);
-          doc.font('Helvetica').fontSize(9);
-          doc.text(`Total Orders: ${totalOrders}`, 370, topY + 102);
-          doc.text(`Grand Total: RM ${grandTotal.toFixed(2)}`, 370, topY + 117);
-
-          let y = topY + 180;
-          
-          purchases.forEach((purchase, index) => {
-            if (y > 700) {
-              doc.addPage();
-              y = 36;
-            }
-
-            doc.fontSize(11).font('Helvetica-Bold')
-               .text(`Purchase Order: ${purchase.purchaseId}`, 36, y);
-            doc.fontSize(10).font('Helvetica')
-               .text(`Supplier: ${purchase.supplier || 'N/A'}`, 36, y + 18);
-            doc.text(`Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}`, 36, y + 33);
-            doc.text(`Total: RM ${(purchase.totalAmount || 0).toFixed(2)}`, 36, y + 48);
-            
-            y += 70;
-
-            const itemTableTop = y;
-            const colX = { 
-              sku: 36, 
-              name: 120, 
-              qty: 350, 
-              price: 420, 
-              total: 500 
-            };
-
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('SKU', colX.sku, itemTableTop);
-            doc.text('Product Name', colX.name, itemTableTop);
-            doc.text('Qty', colX.qty, itemTableTop, { width: 60, align: 'center' });
-            doc.text('Unit Price', colX.price, itemTableTop, { width: 70, align: 'right' });
-            doc.text('Total', colX.total, itemTableTop, { width: 70, align: 'right' });
-
-            doc.moveTo(36, itemTableTop + 16).lineTo(560, itemTableTop + 16).stroke();
-
-            doc.font('Helvetica').fontSize(9);
-            let itemY = itemTableTop + 24;
-            
-            purchase.items.forEach((item, itemIndex) => {
-              if (itemIndex % 2 === 0) {
-                doc.rect(36, itemY - 4, 524, 18)
-                   .fillColor('#f5f5f5')
-                   .fill();
-              }
-
-              doc.fillColor('#000000')
-                 .text(item.sku || 'N/A', colX.sku, itemY, { width: 80 })
-                 .text(item.productName || 'N/A', colX.name, itemY, { width: 220 })
-                 .text(String(item.quantity || 0), colX.qty, itemY, { width: 60, align: 'center' })
-                 .text(`RM ${(item.purchasePrice || 0).toFixed(2)}`, colX.price, itemY, { width: 70, align: 'right' })
-                 .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, colX.total, itemY, { width: 70, align: 'right' });
-
-              itemY += 18;
-            });
-            
-            y = itemY + 20;
-            
-            if (index < purchases.length - 1) {
-              doc.moveTo(36, y).lineTo(560, y).stroke();
-              y += 30;
-            }
-          });
-
-          doc.end();
-        } catch (error) {
-          innerReject(error);
-        }
-      });
-
-      resolve(pdfBuffer);
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
-async function generateSalesReportBuffer(startDate, endDate, printedBy) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      let sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
-
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        sales = sales.filter(sale => {
-          const salesDate = new Date(sale.salesDate);
-          return salesDate >= start && salesDate <= end;
-        });
-      }
-
-      const company = await getCompanyInfo();
-      
-      const pdfBuffer = await new Promise((innerResolve, innerReject) => {
-        try {
-          const doc = new PDFDocument({ 
-            size: 'A4', 
-            margin: 36,
-            bufferPages: true
-          });
-          
-          const chunks = [];
-          doc.on('data', chunk => chunks.push(chunk));
-          doc.on('end', () => innerResolve(Buffer.concat(chunks)));
-          
-          const topY = 36;
-          
-          doc.fontSize(16).font('Helvetica-Bold')
-             .text(company.name, 36, topY);
-          doc.fontSize(10).font('Helvetica')
-             .text(company.address, 36, topY + 22);
-          doc.text(`Phone: ${company.phone}`, 36, topY + 37);
-          doc.text(`Email: ${company.email}`, 36, topY + 52);
-
-          doc.fontSize(14).font('Helvetica-Bold')
-             .text('SALES REPORT', 36, topY + 80);
-          doc.fontSize(10).font('Helvetica')
-             .text(`Date Range: ${startDate && endDate ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}` : 'All Dates'}`, 36, topY + 100);
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, 36, topY + 115);
-          doc.text(`By: ${printedBy}`, 36, topY + 130);
-          
-          const grandTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
-          const totalOrders = sales.length;
-          
-          doc.rect(360, topY + 80, 200, 60).stroke();
-          doc.font('Helvetica-Bold').fontSize(10)
-             .text('SUMMARY', 370, topY + 85);
-          doc.font('Helvetica').fontSize(9);
-          doc.text(`Total Orders: ${totalOrders}`, 370, topY + 102);
-          doc.text(`Grand Total: RM ${grandTotal.toFixed(2)}`, 370, topY + 117);
-
-          let y = topY + 180;
-          
-          sales.forEach((sale, index) => {
-            if (y > 700) {
-              doc.addPage();
-              y = 36;
-            }
-
-            doc.fontSize(11).font('Helvetica-Bold')
-               .text(`Sales Order: ${sale.salesId}`, 36, y);
-            doc.fontSize(10).font('Helvetica')
-               .text(`Customer: ${sale.customer || 'N/A'}`, 36, y + 18);
-            doc.text(`Date: ${new Date(sale.salesDate).toLocaleDateString()}`, 36, y + 33);
-            doc.text(`Total: RM ${(sale.totalAmount || 0).toFixed(2)}`, 36, y + 48);
-            
-            y += 70;
-
-            const itemTableTop = y;
-            const colX = { 
-              sku: 36, 
-              name: 120, 
-              qty: 350, 
-              price: 420, 
-              total: 500 
-            };
-
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('SKU', colX.sku, itemTableTop);
-            doc.text('Product Name', colX.name, itemTableTop);
-            doc.text('Qty', colX.qty, itemTableTop, { width: 60, align: 'center' });
-            doc.text('Unit Price', colX.price, itemTableTop, { width: 70, align: 'right' });
-            doc.text('Total', colX.total, itemTableTop, { width: 70, align: 'right' });
-
-            doc.moveTo(36, itemTableTop + 16).lineTo(560, itemTableTop + 16).stroke();
-
-            doc.font('Helvetica').fontSize(9);
-            let itemY = itemTableTop + 24;
-            
-            sale.items.forEach((item, itemIndex) => {
-              if (itemIndex % 2 === 0) {
-                doc.rect(36, itemY - 4, 524, 18)
-                   .fillColor('#f5f5f5')
-                   .fill();
-              }
-
-              doc.fillColor('#000000')
-                 .text(item.sku || 'N/A', colX.sku, itemY, { width: 80 })
-                 .text(item.productName || 'N/A', colX.name, itemY, { width: 220 })
-                 .text(String(item.quantity || 0), colX.qty, itemY, { width: 60, align: 'center' })
-                 .text(`RM ${(item.salePrice || 0).toFixed(2)}`, colX.price, itemY, { width: 70, align: 'right' })
-                 .text(`RM ${(item.totalAmount || 0).toFixed(2)}`, colX.total, itemY, { width: 70, align: 'right' });
-
-              itemY += 18;
-            });
-            
-            y = itemY + 20;
-            
-            if (index < sales.length - 1) {
-              doc.moveTo(36, y).lineTo(560, y).stroke();
-              y += 30;
-            }
-          });
-
-          doc.end();
-        } catch (error) {
-          innerReject(error);
-        }
-      });
-
-      resolve(pdfBuffer);
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
 
 // ============================================================================
 //                               PURCHASE CRUD
@@ -1609,8 +1148,10 @@ app.post("/api/purchases", async (req, res) => {
   try {
     const { supplier, purchaseDate, notes, items } = req.body;
     
+    // Generate unique purchase ID
     const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
+    // Calculate total amount and process each item
     let totalAmount = 0;
     const purchaseItems = [];
 
@@ -1626,9 +1167,11 @@ app.post("/api/purchases", async (req, res) => {
         totalAmount: itemTotal
       });
 
+      // Update inventory quantity
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        // Update unit cost if needed (optional)
         if (item.purchasePrice > 0) {
           inventoryItem.unitCost = item.purchasePrice;
         }
@@ -1662,11 +1205,13 @@ app.put("/api/purchases/:id", async (req, res) => {
   try {
     const { supplier, purchaseDate, notes, items } = req.body;
     
+    // Find existing purchase to revert inventory changes
     const existingPurchase = await Purchase.findById(req.params.id);
     if (!existingPurchase) {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
+    // Revert old inventory quantities
     for (const oldItem of existingPurchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
       if (inventoryItem) {
@@ -1675,6 +1220,7 @@ app.put("/api/purchases/:id", async (req, res) => {
       }
     }
 
+    // Calculate new total and apply new inventory changes
     let totalAmount = 0;
     const purchaseItems = [];
 
@@ -1690,6 +1236,7 @@ app.put("/api/purchases/:id", async (req, res) => {
         totalAmount: itemTotal
       });
 
+      // Update inventory quantity with new values
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
@@ -1731,6 +1278,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
     if (!purchase)
       return res.status(404).json({ message: "Purchase not found" });
 
+    // Revert inventory quantities
     for (const item of purchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
@@ -1787,8 +1335,10 @@ app.post("/api/sales", async (req, res) => {
   try {
     const { customer, salesDate, notes, items } = req.body;
     
+    // Generate unique sales ID
     const salesId = `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
+    // Calculate total amount and process each item
     let totalAmount = 0;
     const salesItems = [];
 
@@ -1804,6 +1354,7 @@ app.post("/api/sales", async (req, res) => {
         totalAmount: itemTotal
       });
 
+      // Update inventory quantity (reduce stock)
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         if (inventoryItem.quantity < item.quantity) {
@@ -1842,11 +1393,13 @@ app.put("/api/sales/:id", async (req, res) => {
   try {
     const { customer, salesDate, notes, items } = req.body;
     
+    // Find existing sales to revert inventory changes
     const existingSale = await Sales.findById(req.params.id);
     if (!existingSale) {
       return res.status(404).json({ message: "Sales not found" });
     }
 
+    // Revert old inventory quantities (add back the sold items)
     for (const oldItem of existingSale.items) {
       const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
       if (inventoryItem) {
@@ -1855,6 +1408,7 @@ app.put("/api/sales/:id", async (req, res) => {
       }
     }
 
+    // Calculate new total and apply new inventory changes
     let totalAmount = 0;
     const salesItems = [];
 
@@ -1870,6 +1424,7 @@ app.put("/api/sales/:id", async (req, res) => {
         totalAmount: itemTotal
       });
 
+      // Update inventory quantity with new values (reduce stock)
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         if (inventoryItem.quantity < item.quantity) {
@@ -1913,6 +1468,7 @@ app.delete("/api/sales/:id", async (req, res) => {
     if (!sale)
       return res.status(404).json({ message: "Sales not found" });
 
+    // Revert inventory quantities (add back the sold items)
     for (const item of sale.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
@@ -1942,10 +1498,11 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
     }
 
     const company = await getCompanyInfo();
-    const filename = `Purchase_Invoice_${purchase.purchaseId}.pdf`;
+    const filename = `Invoice_${purchase.purchaseId}.pdf`;
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
+        // Prepare data for the invoice template
         const invoiceData = {
           title: 'PURCHASE INVOICE',
           companyInfo: {
@@ -1978,6 +1535,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           extraNotes: purchase.notes || ''
         };
 
+        // Generate PDF using the template
         const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
@@ -1985,19 +1543,6 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
         reject(error);
       }
     });
-
-    const savedDoc = await Doc.create({
-      name: filename,
-      size: pdfBuffer.length,
-      date: new Date(),
-      data: pdfBuffer,
-      contentType: "application/pdf",
-      tags: ['purchase-invoice', 'pdf', 'invoice'],
-      reportType: 'purchase-invoice',
-      createdBy: req.headers["x-username"] || "System"
-    });
-
-    console.log(`✅ Purchase invoice saved to database with ID: ${savedDoc._id}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -2021,10 +1566,11 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
     }
 
     const company = await getCompanyInfo();
-    const filename = `Sales_Invoice_${sale.salesId}.pdf`;
+    const filename = `Invoice_${sale.salesId}.pdf`;
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
+        // Prepare data for the sales invoice template
         const invoiceData = {
           title: 'SALES INVOICE',
           companyInfo: {
@@ -2057,6 +1603,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           extraNotes: sale.notes || ''
         };
 
+        // Generate PDF using the template
         const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
@@ -2064,19 +1611,6 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
         reject(error);
       }
     });
-
-    const savedDoc = await Doc.create({
-      name: filename,
-      size: pdfBuffer.length,
-      date: new Date(),
-      data: pdfBuffer,
-      contentType: "application/pdf",
-      tags: ['sales-invoice', 'pdf', 'invoice'],
-      reportType: 'sales-invoice',
-      createdBy: req.headers["x-username"] || "System"
-    });
-
-    console.log(`✅ Sales invoice saved to database with ID: ${savedDoc._id}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -2158,9 +1692,11 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       let y = tableTop + 24;
       
       items.forEach((item, index) => {
+        // Check for page break
         if (y > 700) {
           doc.addPage();
           y = 60;
+          // Redraw table header on new page
           doc.fontSize(10).font('Helvetica-Bold');
           doc.text('Product Name', colX.item, y);
           doc.text('SKU', colX.sku, y);
@@ -2172,9 +1708,10 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
           doc.font('Helvetica').fontSize(9);
         }
 
+        // Alternate row background for better readability
         if (index % 2 === 0) {
           doc.rect(36, y - 4, 524, 18)
-             .fillColor('#f5f5f5')
+             .fillColor('#f8f9fa')
              .fill();
         }
 
@@ -2220,7 +1757,7 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
          .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
                36, 760, { align: 'center', width: 520 });
 
-      // Page numbers
+      // Page numbers for multi-page invoices
       const range = doc.bufferedPageRange();
       for (let i = 0; i < range.count; i++) {
         doc.switchToPage(i);
@@ -2264,6 +1801,7 @@ app.post("/api/folders", async (req, res) => {
       return res.status(400).json({ message: "Folder name is required" });
     }
 
+    // Check if folder with same name already exists in the same location
     const existingFolder = await Folder.findOne({ 
       name, 
       parentFolder: parentFolder || null 
@@ -2331,6 +1869,7 @@ app.delete("/api/folders/:id", async (req, res) => {
       return res.status(404).json({ message: "Folder not found" });
     }
 
+    // Check if folder has subfolders
     const subfolders = await Folder.find({ parentFolder: req.params.id });
     if (subfolders.length > 0) {
       return res.status(400).json({ 
@@ -2338,6 +1877,7 @@ app.delete("/api/folders/:id", async (req, res) => {
       });
     }
 
+    // Check if folder has documents
     const documents = await Doc.find({ folder: req.params.id });
     if (documents.length > 0) {
       return res.status(400).json({ 
@@ -2362,6 +1902,7 @@ app.post("/api/documents", async (req, res) => {
   console.log("📤 Document upload request received");
   
   try {
+    // Get the raw body as buffer
     const chunks = [];
     
     req.on('data', (chunk) => {
@@ -2398,6 +1939,7 @@ app.post("/api/documents", async (req, res) => {
           });
         }
 
+        // Validate file size (max 50MB)
         if (fileBuffer.length > 50 * 1024 * 1024) {
           console.error("❌ File too large:", fileBuffer.length);
           return res.status(400).json({ 
@@ -2407,6 +1949,7 @@ app.post("/api/documents", async (req, res) => {
 
         console.log(`✅ File validated: ${fileName}, size: ${fileBuffer.length} bytes`);
 
+        // Save to database
         const docu = await Doc.create({
           name: fileName,
           size: fileBuffer.length,
@@ -2427,6 +1970,7 @@ app.post("/api/documents", async (req, res) => {
         
         await logActivity(username, `Uploaded document: ${fileName}`);
         
+        // Return success response
         res.status(201).json([{ 
           ...docu.toObject(), 
           id: docu._id.toString() 
@@ -2485,7 +2029,7 @@ app.get("/api/documents", async (req, res) => {
   }
 });
 
-// Document check route
+// Document check route - to verify if file has data
 app.get("/api/documents/:id/check", async (req, res) => {
   try {
     const docu = await Doc.findById(req.params.id);
@@ -2594,6 +2138,7 @@ app.get("/api/documents/preview/:id", async (req, res) => {
       return res.status(400).json({ message: "Document content not available" });
     }
 
+    // Set appropriate headers for preview
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
     res.setHeader("Content-Disposition", `inline; filename="${docu.name}"`);
@@ -2621,6 +2166,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
 
     console.log(`📄 Found document: ${docu.name}, database size: ${docu.size} bytes`);
 
+    // More comprehensive data validation
     if (!docu.data || 
         !Buffer.isBuffer(docu.data) || 
         docu.data.length === 0 ||
@@ -2640,6 +2186,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
       });
     }
 
+    // Set headers for file download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
@@ -2647,6 +2194,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
     
     console.log(`✅ Sending file: ${docu.name}, size: ${docu.data.length} bytes`);
     
+    // Send the binary data
     res.send(docu.data);
 
     await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`);
@@ -2684,169 +2232,36 @@ app.delete("/api/cleanup-documents", async (req, res) => {
 });
 
 // ============================================================================
-//                    FIXED: GET REPORTS BY TYPE WITH PROPER QUERY
+//                    STATEMENTS - GET REPORTS BY TYPE
 // ============================================================================
 app.get("/api/statements/:type", async (req, res) => {
   try {
-    const { type } = req.params;
-    
-    let query = {};
-    
-    switch (type) {
-      case 'inventory-reports':
-        query = { 
-          $or: [
-            { reportType: 'inventory-report' },
-            { tags: { $in: ['inventory-report', 'report'] } },
-            { name: { $regex: /inventory.*report/i } }
-          ]
-        };
-        break;
-      case 'purchase-invoices':
-        query = { 
-          $or: [
-            { reportType: 'purchase-invoice' },
-            { tags: { $in: ['purchase-invoice', 'invoice'] } },
-            { name: { $regex: /purchase.*invoice/i } }
-          ]
-        };
-        break;
-      case 'sales-invoices':
-        query = { 
-          $or: [
-            { reportType: 'sales-invoice' },
-            { tags: { $in: ['sales-invoice', 'invoice'] } },
-            { name: { $regex: /sales.*invoice/i } }
-          ]
-        };
-        break;
-      case 'purchase-reports':
-        query = { 
-          $or: [
-            { reportType: 'purchase-report' },
-            { tags: { $in: ['purchase-report', 'report'] } },
-            { name: { $regex: /purchase.*report/i } }
-          ]
-        };
-        break;
-      case 'sales-reports':
-        query = { 
-          $or: [
-            { reportType: 'sales-report' },
-            { tags: { $in: ['sales-report', 'report'] } },
-            { name: { $regex: /sales.*report/i } }
-          ]
-        };
-        break;
-      case 'all-reports':
-        query = { 
-          $or: [
-            { reportType: { $regex: /report$/i } },
-            { tags: { $in: ['report'] } },
-            { name: { $regex: /report/i } }
-          ]
-        };
-        break;
-      case 'all-invoices':
-        query = { 
-          $or: [
-            { reportType: { $regex: /invoice$/i } },
-            { tags: { $in: ['invoice'] } },
-            { name: { $regex: /invoice/i } }
-          ]
-        };
-        break;
-      default:
-        return res.status(400).json({ message: "Invalid statement type" });
+    const { type } = req.params; // inventory-report, purchase-report, sales-report
+    let tags = [];
+
+    if (type === 'inventory-reports') {
+      tags = ['inventory-report'];
+    } else if (type === 'purchase-invoices') {
+      tags = ['purchase-invoice'];
+    } else if (type === 'sales-invoices') {
+      tags = ['sales-invoice'];
+    } else {
+      return res.status(400).json({ message: "Invalid statement type" });
     }
 
-    const docs = await Doc.find(query).select('-data').sort({ date: -1 }).lean();
+    const docs = await Doc.find({ 
+      tags: { $in: tags }
+    }).select('-data').sort({ date: -1 }).lean();
 
     const result = docs.map(d => ({
       ...d,
       id: d._id.toString()
     }));
 
-    const totalCount = result.length;
-    const totalSize = result.reduce((sum, doc) => sum + (doc.size || 0), 0);
-
-    res.json({
-      documents: result,
-      summary: {
-        totalCount,
-        totalSize: totalSize,
-        totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2)
-      }
-    });
-
+    res.json(result);
   } catch (err) {
     console.error("Statements get error:", err);
     res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
-//                    GET STATEMENTS SUMMARY
-// ============================================================================
-app.get("/api/statements-summary", async (req, res) => {
-  try {
-    const inventoryReports = await Doc.countDocuments({ 
-      $or: [
-        { reportType: 'inventory-report' },
-        { tags: { $in: ['inventory-report', 'report'] } },
-        { name: { $regex: /inventory.*report/i } }
-      ]
-    });
-    
-    const purchaseInvoices = await Doc.countDocuments({ 
-      $or: [
-        { reportType: 'purchase-invoice' },
-        { tags: { $in: ['purchase-invoice', 'invoice'] } },
-        { name: { $regex: /purchase.*invoice/i } }
-      ]
-    });
-    
-    const salesInvoices = await Doc.countDocuments({ 
-      $or: [
-        { reportType: 'sales-invoice' },
-        { tags: { $in: ['sales-invoice', 'invoice'] } },
-        { name: { $regex: /sales.*invoice/i } }
-      ]
-    });
-    
-    const purchaseReports = await Doc.countDocuments({ 
-      $or: [
-        { reportType: 'purchase-report' },
-        { tags: { $in: ['purchase-report', 'report'] } },
-        { name: { $regex: /purchase.*report/i } }
-      ]
-    });
-    
-    const salesReports = await Doc.countDocuments({ 
-      $or: [
-        { reportType: 'sales-report' },
-        { tags: { $in: ['sales-report', 'report'] } },
-        { name: { $regex: /sales.*report/i } }
-      ]
-    });
-
-    res.json({
-      success: true,
-      summary: {
-        inventoryReports,
-        purchaseInvoices,
-        salesInvoices,
-        purchaseReports,
-        salesReports,
-        totalReports: inventoryReports + purchaseReports + salesReports,
-        totalInvoices: purchaseInvoices + salesInvoices,
-        totalDocuments: inventoryReports + purchaseInvoices + salesInvoices + purchaseReports + salesReports
-      }
-    });
-
-  } catch (err) {
-    console.error("Statements summary error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -2864,79 +2279,6 @@ app.get("/api/logs", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
-//                          GET ALL DATA FOR DASHBOARD
-// ============================================================================
-app.get("/api/dashboard/stats", async (req, res) => {
-  try {
-    const inventoryCount = await Inventory.countDocuments({});
-    const purchaseCount = await Purchase.countDocuments({});
-    const salesCount = await Sales.countDocuments({});
-    const documentCount = await Doc.countDocuments({});
-    
-    const inventoryItems = await Inventory.find({}).lean();
-    let inventoryValue = 0;
-    let inventoryRevenue = 0;
-    let inventoryProfit = 0;
-    let totalStock = 0;
-    
-    inventoryItems.forEach(item => {
-      const qty = Number(item.quantity || 0);
-      const cost = Number(item.unitCost || 0);
-      const price = Number(item.unitPrice || 0);
-      const itemValue = qty * cost;
-      const itemRevenue = qty * price;
-      const itemProfit = itemRevenue - itemValue;
-      
-      inventoryValue += itemValue;
-      inventoryRevenue += itemRevenue;
-      inventoryProfit += itemProfit;
-      totalStock += qty;
-    });
-    
-    const purchases = await Purchase.find({}).lean();
-    const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-    
-    const sales = await Sales.find({}).lean();
-    const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-    
-    const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(5).lean();
-    
-    const lowStockItems = await Inventory.find({ quantity: { $lt: 10 } }).lean();
-    
-    res.json({
-      success: true,
-      stats: {
-        inventory: {
-          count: inventoryCount,
-          value: inventoryValue,
-          revenue: inventoryRevenue,
-          profit: inventoryProfit,
-          stock: totalStock,
-          lowStock: lowStockItems.length
-        },
-        purchases: {
-          count: purchaseCount,
-          total: purchaseTotal
-        },
-        sales: {
-          count: salesCount,
-          total: salesTotal
-        },
-        documents: {
-          count: documentCount
-        },
-        recentActivity: recentLogs,
-        lowStockItems: lowStockItems.slice(0, 5)
-      }
-    });
-    
-  } catch (err) {
-    console.error("Dashboard stats error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -2963,19 +2305,8 @@ async function ensureDefaultAdminAndStartupLog() {
       await logActivity("System", "Default admin user created");
     }
 
+    // Ensure company info exists
     await getCompanyInfo();
-    
-    const rootFolders = ['Reports', 'Invoices', 'Documents', 'Backups'];
-    for (const folderName of rootFolders) {
-      const exists = await Folder.findOne({ name: folderName, parentFolder: null });
-      if (!exists) {
-        await Folder.create({
-          name: folderName,
-          parentFolder: null,
-          createdBy: 'System'
-        });
-      }
-    }
     
     await logActivity("System", `Server started on port ${PORT}`);
   } catch (err) {
@@ -2983,11 +2314,15 @@ async function ensureDefaultAdminAndStartupLog() {
   }
 }
 
+// Export functions for report generation
+module.exports = {
+  generateInventoryReport: app.post("/api/inventory/report/pdf"),
+  generatePurchaseReport: app.post("/api/purchases/report/pdf"),
+  generateSalesReport: app.post("/api/sales/report/pdf")
+};
+
 (async () => {
   await ensureDefaultAdminAndStartupLog();
   console.log("Starting server...");
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 })();
-
-// Export app for testing
-module.exports = app;
