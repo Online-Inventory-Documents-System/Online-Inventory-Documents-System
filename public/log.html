@@ -9,52 +9,27 @@
 
 <body>
 <header>
-  <div class="header-content">
-    <div class="header-left">
-      <div class="logo-container">
-        <div class="logo">📋</div>
-        <h1>Activity Log</h1>
-      </div>
-    </div>
-    
-    <div class="header-right">
-      <nav>
-        <a href="inventory.html" class="nav-link">📊 Dashboard</a>
-        <a href="documents.html" class="nav-link">🗂️ Documents</a>
-        <a href="log.html" class="nav-link active">📋 Activity Log</a>
-        <button class="nav-button" onclick="window.location.href='setting.html'">⚙️ Settings</button>
-        <button class="nav-button" onclick="toggleTheme()">🌓 Theme</button>
-        <button class="nav-button" onclick="logout()">🚪 Logout</button>
-      </nav>
-      <div id="adminInfo">👤 <span id="adminName"></span></div>
-    </div>
-  </div>
-</header>
+  <h1>🕒 Activity Log</h1>
+    <nav>
+      <a href="inventory.html">Dashboard</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html" class="active">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
+  </header>
 
 <section id="activityLog">
   <h2>Recent Activities</h2>
 
-  <!-- User Login History Section -->
-  <div class="user-login-history">
-    <div class="login-history-header">
-      <h3>📱 User Login History</h3>
-      <button class="danger-btn clear-log-btn" onclick="clearActivityLog()">🗑️ Clear Log</button>
-    </div>
-    <div class="login-history-container">
-      <div class="login-history-list" id="loginHistoryList">
-        <!-- Dynamic login history items will be added here -->
-      </div>
-    </div>
-  </div>
-
-  <!-- Activity Log Table -->
   <div class="activity-table-container">
     <table id="activityTable">
       <thead>
         <tr>
           <th>User</th>
           <th>Action</th>
-          <th>Device & IP</th>
           <th>Time</th>
         </tr>
       </thead>
@@ -76,3 +51,4 @@
 
 </body>
 </html>
+
