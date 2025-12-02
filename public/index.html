@@ -32,17 +32,28 @@
 </head>
 <body>
   <header>
-    <h1>📦 Inventory Management System</h1>
-    <nav>
-      <a href="inventory.html" class="active">Dashboard</a>
-      <a href="documents.html">Documents</a>
-      <a href="log.html">Activity Log</a>
-      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
-      <button onclick="toggleTheme()">🌓 Mode</button>
-      <button onclick="logout()">🚪 Logout</button>
-      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
-    </nav>
+    <div class="header-content">
+      <div class="header-left">
+        <div class="logo-container">
+          <div class="logo">📦</div>
+          <h1>Inventory Management System</h1>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <nav>
+          <a href="inventory.html" class="nav-link active">📊 Dashboard</a>
+          <a href="documents.html" class="nav-link">🗂️ Documents</a>
+          <a href="log.html" class="nav-link">📋 Activity Log</a>
+          <button class="nav-button" onclick="window.location.href='setting.html'">⚙️ Settings</button>
+          <button class="nav-button" onclick="toggleTheme()">🌓 Theme</button>
+          <button class="nav-button" onclick="logout()">🚪 Logout</button>
+        </nav>
+        <div id="adminInfo">👤 <span id="adminName"></span></div>
+      </div>
+    </div>
   </header>
+
 
   <section>
     <!-- WELCOME SECTION -->
@@ -701,4 +712,5 @@
   </script>
 </body>
 </html>
+
 
