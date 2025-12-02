@@ -1,3 +1,5 @@
+[file name]: style.css
+[file content begin]
 /* =========================================
    General Page Styling (Modern Theme)
 ========================================= */
@@ -33,68 +35,139 @@ body {
   min-height: 100vh;
 }
 
+/* =========================================
+   UPDATED: Modern Navigation Bar
+========================================= */
 header {
-  background: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), #0056b3);
   color: white;
   padding: 15px 20px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.1);
 }
 
 header h1 {
   margin: 0;
   font-size: 1.8rem;
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  flex-wrap: wrap;
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  font-size: 2rem;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
 
 nav {
-  margin-top: 10px;
   display: flex;
+  gap: 5px;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
-  width: 100%;
+  align-items: center;
 }
 
-nav a {
+.nav-link {
   color: white;
   text-decoration: none;
   font-weight: 500;
-  padding: 8px 12px;
-  border-radius: 4px;
-  transition: background 0.2s;
-  white-space: nowrap;
+  padding: 10px 15px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
 }
 
-nav a:hover, nav a.active {
+.nav-link::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: -100%;
+  width: 100%;
+  height: 2px;
+  background: white;
+  transition: left 0.3s ease;
+}
+
+.nav-link:hover::before {
+  left: 0;
+}
+
+.nav-link:hover, .nav-link.active {
   background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
 }
 
-nav button {
-  background: var(--secondary-color);
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: none;
+.nav-link.active::before {
+  left: 0;
+}
+
+.nav-button {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   cursor: pointer;
-  transition: background 0.2s;
-  white-space: nowrap;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
 }
 
-nav button:hover {
-  background: #5a6268;
+.nav-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 #adminInfo {
   font-size: 0.9rem;
   margin-top: 5px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.9);
   text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-weight: 500;
 }
 
 /* =========================================
@@ -105,7 +178,7 @@ section {
   max-width: 95%;
   background: var(--card-light);
   padding: 25px;
-  border-radius: 10px;
+  border-radius: 15px;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
 }
@@ -114,31 +187,50 @@ section {
 .welcome-section {
   text-align: center;
   margin-bottom: 30px;
-  padding: 20px;
+  padding: 25px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 15px;
   color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.welcome-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,0 L100,0 L100,100 Z" fill="rgba(255,255,255,0.1)"/></svg>');
+  background-size: cover;
 }
 
 .welcome-section h2 {
-  margin: 0 0 10px 0;
+  margin: 0 0 15px 0;
   font-size: 2rem;
   font-weight: 700;
+  position: relative;
 }
 
 .welcome-section p {
   margin: 0 0 15px 0;
   font-size: 1.1rem;
   opacity: 0.9;
+  position: relative;
+  line-height: 1.6;
 }
 
 .welcome-section .clock {
   font-size: 1.1rem;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.2);
-  padding: 8px 15px;
+  padding: 10px 20px;
   border-radius: 25px;
   display: inline-block;
+  position: relative;
+  backdrop-filter: blur(10px);
+  color: #ff6b6b;
 }
 
 /* User Login History */
@@ -150,41 +242,73 @@ section {
   color: var(--primary-color);
   margin-bottom: 15px;
   font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .login-history-container {
   background: #f8f9fa;
   border-radius: 10px;
-  padding: 15px;
+  padding: 20px;
   border: 1px solid var(--border-color);
+  position: relative;
 }
 
-.login-history-list {
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 10px;
-}
-
-.login-history-item {
+.login-history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 15px;
-  margin-bottom: 8px;
+  margin-bottom: 15px;
+}
+
+.clear-log-btn {
+  background: var(--danger-color);
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.clear-log-btn:hover {
+  background: #c82333;
+}
+
+.login-history-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: white;
+}
+
+.login-history-item {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 15px;
+  padding: 12px 15px;
+  margin-bottom: 10px;
   background: white;
   border-radius: 8px;
   border-left: 4px solid var(--primary-color);
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
+  align-items: center;
 }
 
 .login-history-item:hover {
   transform: translateX(5px);
+  box-shadow: var(--shadow-sm);
 }
 
 .login-user {
   font-weight: 600;
   color: var(--primary-color);
-  min-width: 80px;
 }
 
 .login-time {
@@ -193,7 +317,11 @@ section {
 }
 
 .login-device {
-  font-size: 1.2rem;
+  font-size: 0.9rem;
+  color: var(--info-color);
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 /* Specific styling for inventory section to be even larger */
@@ -212,57 +340,127 @@ input[type="password"],
 input[type="file"],
 input[type="date"],
 input[type="email"],
+input[type="tel"],
 select,
 textarea {
     width: 100%;
     padding: 12px;
     margin-top: 5px;
     margin-bottom: 15px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
     box-sizing: border-box;
-    transition: border-color 0.2s;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
 }
 input:focus, select:focus, textarea:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
 
 .primary-btn, .secondary-btn, .success-btn, .danger-btn, .warning-btn, .info-btn {
     border: none;
-    padding: 10px 15px;
-    border-radius: 6px;
+    padding: 10px 20px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
-    transition: background 0.2s, transform 0.1s;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.95rem;
 }
-.primary-btn { background: var(--primary-color); color: white; }
-.primary-btn:hover { background: #0056b3; transform: translateY(-1px); }
+.primary-btn { 
+    background: var(--primary-color); 
+    color: white; 
+    box-shadow: 0 4px 6px rgba(0, 123, 255, 0.2);
+}
+.primary-btn:hover { 
+    background: #0056b3; 
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 123, 255, 0.3);
+}
 
-.secondary-btn { background: var(--secondary-color); color: white; }
-.secondary-btn:hover { background: #545b62; transform: translateY(-1px); }
+.secondary-btn { 
+    background: var(--secondary-color); 
+    color: white; 
+}
+.secondary-btn:hover { 
+    background: #545b62; 
+    transform: translateY(-2px);
+}
 
-.success-btn { background: var(--success-color); color: white; }
-.success-btn:hover { background: #1e7e34; transform: translateY(-1px); }
+.success-btn { 
+    background: var(--success-color); 
+    color: white; 
+}
+.success-btn:hover { 
+    background: #218838; 
+    transform: translateY(-2px);
+}
 
 .danger-btn { 
     background: var(--danger-color); 
     color: white; 
-    padding: 8px 12px; 
-    font-size: 0.9rem; 
+    padding: 8px 16px; 
 }
-.danger-btn:hover { background: #bd2130; transform: translateY(-1px); }
+.danger-btn:hover { 
+    background: #c82333; 
+    transform: translateY(-2px);
+}
 
-.warning-btn { background: var(--warning-color); color: #212529; }
-.warning-btn:hover { background: #e0a800; transform: translateY(-1px); }
+.warning-btn { 
+    background: var(--warning-color); 
+    color: #212529; 
+}
+.warning-btn:hover { 
+    background: #e0a800; 
+    transform: translateY(-2px);
+}
 
-.info-btn { background: var(--info-color); color: white; }
-.info-btn:hover { background: #138496; transform: translateY(-1px); }
+.info-btn { 
+    background: var(--info-color); 
+    color: white; 
+}
+.info-btn:hover { 
+    background: #138496; 
+    transform: translateY(-2px);
+}
 
 .action-btn {
     margin-left: 5px;
-    padding: 6px 10px;
+    padding: 6px 12px;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+.status-in-stock {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-low-stock {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-out-of-stock {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
 }
 
 /* =========================================
@@ -272,9 +470,11 @@ input:focus, select:focus, textarea:focus {
   max-width: 400px; 
   background: var(--card-light); 
   margin: 0 auto 100px auto; 
-  padding: 35px; 
-  border-radius: 10px; 
-  box-shadow: var(--shadow-md); 
+  padding: 40px; 
+  border-radius: 15px; 
+  box-shadow: var(--shadow-lg); 
+  position: relative;
+  overflow: hidden;
 }
 .toggle-link { 
   text-align: center; 
@@ -296,7 +496,7 @@ input:focus, select:focus, textarea:focus {
 .main-title-container {
     text-align: center;
     margin-top: 50px;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
     padding: 0 10px;
 }
 .main-title-container h1 {
@@ -305,12 +505,17 @@ input:focus, select:focus, textarea:focus {
     font-weight: 800;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
     margin: 0;
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 .login-container h2 {
     text-align: center;
     border-bottom: none;
     padding-bottom: 0;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    font-size: 1.8rem;
 }
 .login-container input { width: 100%; }
 .login-container button { width: 100%; margin-top: 10px; }
@@ -329,13 +534,13 @@ input:focus, select:focus, textarea:focus {
 .product-bar {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px; 
-    align-items: center; 
-    margin-bottom: 20px; 
-    padding: 15px;
+    gap: 15px; 
+    align-items: end; 
+    margin-bottom: 25px; 
+    padding: 20px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    background: var(--background-light);
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
 }
 
 .product-bar input { 
@@ -480,46 +685,50 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   LARGER TABLE STYLING FOR INVENTORY
+   UPDATED LARGER TABLE STYLING FOR INVENTORY
 ========================================= */
 .table-container {
     overflow-x: auto; 
     margin-top: 20px;
     box-shadow: var(--shadow-sm);
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border-color); 
     background: var(--card-light);
     max-width: 100%;
 }
 
-#inventoryTable, #documentsTable, #salesHistoryTable {
+#inventoryTable, #documentsTable, #salesHistoryTable, #purchaseHistoryTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    font-size: 0.82em;
-    min-width: 1100px;
+    font-size: 0.85em;
+    min-width: 1200px;
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
 #inventoryTable th, #inventoryTable td,
-#salesHistoryTable th, #salesHistoryTable td {
-    padding: 10px 12px;
+#salesHistoryTable th, #salesHistoryTable td,
+#purchaseHistoryTable th, #purchaseHistoryTable td {
+    padding: 12px 10px;
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
-    border-right: 1px solid #000000;
+    border-bottom: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
 }
 
 /* Remove border only from last column */
 #inventoryTable th:last-child, 
 #inventoryTable td:last-child,
 #salesHistoryTable th:last-child, 
-#salesHistoryTable td:last-child {
+#salesHistoryTable td:last-child,
+#purchaseHistoryTable th:last-child, 
+#purchaseHistoryTable td:last-child {
     border-right: none;
 }
 
 #inventoryTable thead th,
-#salesHistoryTable thead th {
-    background-color: var(--primary-color);
+#salesHistoryTable thead th,
+#purchaseHistoryTable thead th {
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
     color: white;
     font-weight: 600;
     text-transform: uppercase;
@@ -527,67 +736,89 @@ input:focus, select:focus, textarea:focus {
     position: sticky; 
     top: 0;
     border-right: 1px solid rgba(255, 255, 255, 0.3);
-    font-size: 0.8em;
-    padding: 12px 10px;
+    font-size: 0.82em;
+    padding: 14px 10px;
+    white-space: nowrap;
 }
 
 #inventoryTable thead th:last-child,
-#salesHistoryTable thead th:last-child {
+#salesHistoryTable thead th:last-child,
+#purchaseHistoryTable thead th:last-child {
     border-right: none;
 }
 
-/* COMPACT COLUMN WIDTHS FOR BETTER FIT */
-#inventoryTable th:nth-child(1), /* SKU */
-#inventoryTable td:nth-child(1) {
-    min-width: 80px;
-    max-width: 100px;
+/* NEW: Row Number Column */
+#inventoryTable th:first-child,
+#inventoryTable td:first-child {
+    min-width: 50px;
+    max-width: 60px;
+    text-align: center;
+    font-weight: bold;
+    background-color: #f8f9fa;
 }
 
-#inventoryTable th:nth-child(2), /* NAME */
+#inventoryTable th:first-child {
+    background: linear-gradient(135deg, #6c757d, #545b62);
+}
+
+/* UPDATED COLUMN WIDTHS FOR BETTER FIT */
+#inventoryTable th:nth-child(2), /* SKU */
 #inventoryTable td:nth-child(2) {
-    min-width: 120px;
-    max-width: 150px;
-}
-
-#inventoryTable th:nth-child(3), /* CATEGORY */
-#inventoryTable td:nth-child(3) {
     min-width: 90px;
     max-width: 120px;
 }
 
-#inventoryTable th:nth-child(4), /* QUANTITY */
+#inventoryTable th:nth-child(3), /* NAME */
+#inventoryTable td:nth-child(3) {
+    min-width: 130px;
+    max-width: 180px;
+}
+
+#inventoryTable th:nth-child(4), /* CATEGORY */
 #inventoryTable td:nth-child(4) {
-    min-width: 70px;
-    max-width: 80px;
+    min-width: 100px;
+    max-width: 140px;
+}
+
+#inventoryTable th:nth-child(5), /* QUANTITY */
+#inventoryTable td:nth-child(5) {
+    min-width: 80px;
+    max-width: 90px;
     text-align: center;
 }
 
 /* CURRENCY COLUMNS */
-#inventoryTable td:nth-child(5), /* Unit Cost */
-#inventoryTable td:nth-child(6), /* Unit Price */
-#inventoryTable td:nth-child(7), /* Inventory Value */
-#inventoryTable td:nth-child(8), /* Potential Revenue */
-#inventoryTable td:nth-child(9) { /* Potential Profit */
+#inventoryTable td:nth-child(6), /* Unit Cost */
+#inventoryTable td:nth-child(7), /* Unit Price */
+#inventoryTable td:nth-child(8), /* Inventory Value */
+#inventoryTable td:nth-child(9) { /* Potential Revenue */
     white-space: nowrap;
     text-align: right;
     font-family: 'Consolas', monospace;
     font-weight: bold;
-    min-width: 100px;
-    max-width: 120px;
+    min-width: 110px;
+    max-width: 130px;
 }
 
 /* Date column */
 #inventoryTable td:nth-child(10) {
     text-align: center;
-    min-width: 90px;
-    max-width: 100px;
+    min-width: 100px;
+    max-width: 120px;
 }
 
-/* Actions column */
+/* NEW: Status column */
 #inventoryTable td:nth-child(11) {
     text-align: center;
     min-width: 100px;
-    max-width: 110px;
+    max-width: 120px;
+}
+
+/* Actions column */
+#inventoryTable td:nth-child(12) {
+    text-align: center;
+    min-width: 120px;
+    max-width: 140px;
 }
 
 /* Documents table styling (no vertical borders) */
@@ -598,7 +829,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #documentsTable thead th {
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, var(--primary-color), #0056b3);
     color: white;
     font-weight: 600;
     text-transform: uppercase;
@@ -610,22 +841,10 @@ input:focus, select:focus, textarea:focus {
 /* Table row styles */
 #inventoryTable tbody tr:hover,
 #documentsTable tbody tr:hover,
-#salesHistoryTable tbody tr:hover {
-    background-color: #f1f1f1;
+#salesHistoryTable tbody tr:hover,
+#purchaseHistoryTable tbody tr:hover {
+    background-color: #f8f9fa;
     transition: background-color 0.2s;
-}
-
-#inventoryTable tbody tr.low-stock-row {
-    background-color: #fff8e1; 
-}
-#inventoryTable tbody tr.out-of-stock-row {
-    background-color: #fce4e4; 
-}
-#inventoryTable tbody tr.low-stock-row:hover {
-    background-color: #ffebac;
-}
-#inventoryTable tbody tr.out-of-stock-row:hover {
-    background-color: #f9d8d8;
 }
 
 .money {
@@ -638,8 +857,45 @@ input:focus, select:focus, textarea:focus {
     min-width: 150px;
 }
 .small-btn {
-    padding: 5px 8px;
+    padding: 6px 10px;
     font-size: 0.8em;
+}
+
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.pagination button {
+    padding: 8px 15px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
 }
 
 /* =========================================
@@ -679,7 +935,7 @@ input:focus, select:focus, textarea:focus {
 .quick-access-btn {
     padding: 30px;
     text-align: center;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 1.2rem;
     font-weight: 700;
     box-shadow: var(--shadow-md);
@@ -697,9 +953,9 @@ input:focus, select:focus, textarea:focus {
 #btn-documents:hover { background: #27ae60; }
 
 .info-card {
-    background: #f1f7fe;
+    background: linear-gradient(135deg, #f1f7fe, #e3f2fd);
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: var(--shadow-sm);
 }
 .clock { font-size: 1.2rem; font-weight: 600; margin-bottom: 15px; color: var(--primary-color); }
@@ -723,7 +979,16 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode header {
-  background: #0056b3;
+  background: linear-gradient(135deg, #0056b3, #004494);
+}
+
+.dark-mode .nav-link {
+  color: var(--text-dark);
+}
+
+.dark-mode .nav-button {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .dark-mode input, .dark-mode select, .dark-mode textarea {
@@ -746,44 +1011,28 @@ input:focus, select:focus, textarea:focus {
 }
 .dark-mode #inventoryTable thead th,
 .dark-mode #documentsTable thead th,
-.dark-mode #salesHistoryTable thead th {
-    background-color: #0056b3; 
+.dark-mode #salesHistoryTable thead th,
+.dark-mode #purchaseHistoryTable thead th {
+    background: linear-gradient(135deg, #0056b3, #004494);
 }
 .dark-mode #inventoryTable tbody tr:hover,
 .dark-mode #documentsTable tbody tr:hover,
-.dark-mode #salesHistoryTable tbody tr:hover {
+.dark-mode #salesHistoryTable tbody tr:hover,
+.dark-mode #purchaseHistoryTable tbody tr:hover {
     background-color: #3f4a56;
 }
 .dark-mode #inventoryTable th, .dark-mode #inventoryTable td,
 .dark-mode #documentsTable th, .dark-mode #documentsTable td,
-.dark-mode #salesHistoryTable th, .dark-mode #salesHistoryTable td {
+.dark-mode #salesHistoryTable th, .dark-mode #salesHistoryTable td,
+.dark-mode #purchaseHistoryTable th, .dark-mode #purchaseHistoryTable td {
     border-bottom-color: #495057;
-}
-
-/* Keep black vertical borders in dark mode */
-.dark-mode #inventoryTable th, 
-.dark-mode #inventoryTable td,
-.dark-mode #salesHistoryTable th, 
-.dark-mode #salesHistoryTable td {
-    border-right-color: #000000;
+    border-right-color: #495057;
 }
 
 .dark-mode #inventoryTable thead th,
-.dark-mode #salesHistoryTable thead th {
+.dark-mode #salesHistoryTable thead th,
+.dark-mode #purchaseHistoryTable thead th {
     border-right-color: rgba(255, 255, 255, 0.3);
-}
-
-.dark-mode #inventoryTable tbody tr.low-stock-row {
-    background-color: #4e4e3b; 
-}
-.dark-mode #inventoryTable tbody tr.out-of-stock-row {
-    background-color: #6b3f3f; 
-}
-.dark-mode #inventoryTable tbody tr.low-stock-row:hover {
-    background-color: #5d5d43;
-}
-.dark-mode #inventoryTable tbody tr.out-of-stock-row:hover {
-    background-color: #7b4f4f;
 }
 
 .dark-mode #logList li {
@@ -792,7 +1041,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode .info-card {
-    background: #343a40;
+    background: linear-gradient(135deg, #343a40, #2c3338);
 }
 
 /* Dark mode for date range search */
@@ -850,7 +1099,7 @@ input:focus, select:focus, textarea:focus {
 .activity-table-container {
   width: 100%;
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--card-light);
   box-shadow: var(--shadow-sm);
@@ -859,15 +1108,15 @@ input:focus, select:focus, textarea:focus {
 
 #activityTable {
   width: 100%;
-  min-width: 750px;
+  min-width: 800px;
   border-collapse: collapse;
 }
 
 #activityTable thead th {
-  background: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), #0056b3);
   color: white;
   font-weight: 600;
-  padding: 12px 15px;
+  padding: 14px 15px;
   text-align: left;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -885,7 +1134,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode #activityTable thead th {
-  background: #0056b3;
+  background: linear-gradient(135deg, #0056b3, #004494);
   color: #fff;
 }
 
@@ -927,7 +1176,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   MODERN SUMMARY CARDS
+   UPDATED MODERN SUMMARY CARDS
 ========================================= */
 .summary-cards {
   display: grid;
@@ -1138,8 +1387,8 @@ input:focus, select:focus, textarea:focus {
   background-color: var(--card-light);
   margin: 2% auto;
   padding: 0;
-  border-radius: 10px;
-  box-shadow: var(--shadow-md);
+  border-radius: 15px;
+  box-shadow: var(--shadow-lg);
   max-width: 90%;
   max-height: 90vh;
   overflow-y: auto;
@@ -1151,15 +1400,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 .x-large-modal {
-  width: 1000px;
+  width: 1200px;
   max-width: 95%;
 }
 
 .modal-header {
-  background: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), #0056b3);
   color: white;
-  padding: 20px;
-  border-radius: 10px 10px 0 0;
+  padding: 20px 30px;
+  border-radius: 15px 15px 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1168,6 +1417,7 @@ input:focus, select:focus, textarea:focus {
 .modal-header h2 {
   margin: 0;
   color: white;
+  font-size: 1.5rem;
 }
 
 .close {
@@ -1176,6 +1426,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 28px;
   font-weight: bold;
   cursor: pointer;
+  transition: color 0.3s;
 }
 
 .close:hover {
@@ -1183,7 +1434,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 30px;
 }
 
 .search-product-section,
@@ -1192,7 +1443,7 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 25px;
   padding: 20px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   background: #f8f9fa;
 }
 
@@ -1201,7 +1452,7 @@ input:focus, select:focus, textarea:focus {
   padding: 12px;
   margin-bottom: 15px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1rem;
 }
 
@@ -1209,7 +1460,7 @@ input:focus, select:focus, textarea:focus {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 8px;
   background: white;
 }
 
@@ -1247,8 +1498,8 @@ input:focus, select:focus, textarea:focus {
 .sales-items-container {
   margin: 20px 0;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 15px;
+  border-radius: 12px;
+  padding: 20px;
   background: #f8f9fa;
   max-height: 400px;
   overflow-y: auto;
@@ -1258,12 +1509,12 @@ input:focus, select:focus, textarea:focus {
 .sales-item-row {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
-  gap: 10px;
+  gap: 12px;
   align-items: end;
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 15px;
+  margin-bottom: 12px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: 8px;
   background: white;
   position: relative;
 }
@@ -1277,14 +1528,16 @@ input:focus, select:focus, textarea:focus {
   background: var(--danger-color);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 8px 12px;
   cursor: pointer;
   font-size: 0.9rem;
+  transition: background 0.3s;
 }
 
 .remove-item-btn:hover {
   background: #bd2130;
+  transform: translateY(-2px);
 }
 
 .purchase-summary,
@@ -1292,14 +1545,15 @@ input:focus, select:focus, textarea:focus {
   margin: 20px 0;
   padding: 20px;
   border: 2px solid var(--success-color);
-  border-radius: 8px;
+  border-radius: 12px;
   background: #f8fff9;
 }
 
 .total-amount-display {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   color: var(--success-color);
   text-align: right;
+  font-weight: 700;
 }
 
 .form-group {
@@ -1309,7 +1563,7 @@ input:focus, select:focus, textarea:focus {
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
+  gap: 20px;
 }
 
 .form-group label {
@@ -1324,8 +1578,8 @@ input:focus, select:focus, textarea:focus {
 .form-group select {
   width: 100%;
   padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
   font-size: 1rem;
   box-sizing: border-box;
 }
@@ -1337,11 +1591,11 @@ input:focus, select:focus, textarea:focus {
 
 .modal-actions {
   display: flex;
-  gap: 10px;
+  gap: 15px;
   justify-content: flex-end;
   margin-top: 25px;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #e0e0e0;
 }
 
 /* Purchase/Sales History Table */
@@ -1359,7 +1613,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #purchaseHistoryTable thead th {
-  background-color: var(--success-color);
+  background: linear-gradient(135deg, var(--success-color), #1e7e34);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -1367,7 +1621,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #salesHistoryTable thead th {
-  background-color: var(--info-color);
+  background: linear-gradient(135deg, var(--info-color), #138496);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -1427,11 +1681,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode #purchaseHistoryTable thead th {
-  background-color: #1e7e34;
+  background: linear-gradient(135deg, #1e7e34, #155724);
 }
 
 .dark-mode #salesHistoryTable thead th {
-  background-color: #138496;
+  background: linear-gradient(135deg, #138496, #0c5460);
 }
 
 .dark-mode #purchaseHistoryTable tbody tr:hover,
@@ -1481,9 +1735,9 @@ input:focus, select:focus, textarea:focus {
 .purchase-details-header,
 .sales-details-header {
   background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  padding: 25px;
+  border-radius: 12px;
+  margin-bottom: 25px;
   border: 1px solid var(--border-color);
 }
 
@@ -1509,13 +1763,13 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   color: var(--primary-color);
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   font-size: 0.9rem;
 }
 
 .detail-value {
   color: var(--text-light);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .dark-mode .detail-value {
@@ -1537,7 +1791,7 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  border-right: 1px solid #000000;
+  border-right: 1px solid #e0e0e0;
 }
 
 #purchaseHistoryTable th:last-child, 
@@ -1548,7 +1802,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #purchaseHistoryTable thead th {
-  background-color: var(--success-color);
+  background: linear-gradient(135deg, var(--success-color), #1e7e34);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -1556,12 +1810,12 @@ input:focus, select:focus, textarea:focus {
   position: sticky; 
   top: 0;
   border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.8em;
+  font-size: 0.82em;
   padding: 15px 15px;
 }
 
 #salesHistoryTable thead th {
-  background-color: var(--info-color);
+  background: linear-gradient(135deg, var(--info-color), #138496);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -1569,7 +1823,7 @@ input:focus, select:focus, textarea:focus {
   position: sticky; 
   top: 0;
   border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.8em;
+  font-size: 0.82em;
   padding: 15px 15px;
 }
 
@@ -1592,7 +1846,7 @@ input:focus, select:focus, textarea:focus {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  border-right: 1px solid #000000;
+  border-right: 1px solid #e0e0e0;
 }
 
 #purchaseDetailsTable th:last-child, 
@@ -1603,24 +1857,24 @@ input:focus, select:focus, textarea:focus {
 }
 
 #purchaseDetailsTable thead th {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), #0056b3);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.8em;
+  font-size: 0.82em;
   padding: 12px 12px;
 }
 
 #salesDetailsTable thead th {
-  background-color: var(--info-color);
+  background: linear-gradient(135deg, var(--info-color), #138496);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.8em;
+  font-size: 0.82em;
   padding: 12px 12px;
 }
 
@@ -1896,19 +2150,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode #purchaseHistoryTable thead th {
-  background-color: #1e7e34;
+  background: linear-gradient(135deg, #1e7e34, #155724);
 }
 
 .dark-mode #salesHistoryTable thead th {
-  background-color: #138496;
+  background: linear-gradient(135deg, #138496, #0c5460);
 }
 
 .dark-mode #purchaseDetailsTable thead th {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #0056b3, #004494);
 }
 
 .dark-mode #salesDetailsTable thead th {
-  background-color: #138496;
+  background: linear-gradient(135deg, #138496, #0c5460);
 }
 
 /* Responsive improvements */
@@ -1940,7 +2194,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Report Generation Modal Styling
+   UPDATED: Report Generation Modal Styling
 ========================================= */
 .report-options {
   display: grid;
@@ -1952,7 +2206,7 @@ input:focus, select:focus, textarea:focus {
 .report-option {
   background: #f8f9fa;
   border: 2px solid #e9ecef;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 20px;
   text-align: center;
   cursor: pointer;
@@ -1961,7 +2215,7 @@ input:focus, select:focus, textarea:focus {
 
 .report-option:hover {
   border-color: var(--primary-color);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2021,7 +2275,7 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 15px;
   padding: 10px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 8px;
   flex-wrap: wrap;
 }
 
@@ -2054,7 +2308,7 @@ input:focus, select:focus, textarea:focus {
 .folder-item {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -2063,7 +2317,7 @@ input:focus, select:focus, textarea:focus {
 
 .folder-item:hover {
   border-color: var(--primary-color);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2116,7 +2370,7 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   height: 600px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -2134,34 +2388,39 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Statements Section Styling
+   UPDATED: Statements Section Styling
 ========================================= */
 .statements-tabs {
   display: flex;
   gap: 5px;
   margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
   flex-wrap: wrap;
 }
 
 .tab-button {
-  padding: 10px 20px;
+  padding: 12px 24px;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--secondary-color);
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .tab-button:hover {
   color: var(--primary-color);
+  background: #f8f9fa;
 }
 
 .tab-button.active {
   color: var(--primary-color);
   border-bottom-color: var(--primary-color);
+  background: #f8f9fa;
 }
 
 .tab-content {
@@ -2189,24 +2448,24 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 5px;
 }
 
-/* Statement Summary */
+/* Updated Statement Summary */
 .statement-summary {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  padding: 15px;
+  margin-bottom: 20px;
+  padding: 15px 20px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--border-color);
 }
 
-.statement-count, .statement-size {
+.statement-count {
   font-weight: 600;
   color: var(--primary-color);
 }
 
-.statement-count span, .statement-size span {
+.statement-count span {
   color: var(--success-color);
 }
 
@@ -2234,7 +2493,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #inventoryReportsTable thead th {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), #0056b3);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -2242,7 +2501,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #purchaseInvoicesTable thead th {
-  background-color: var(--success-color);
+  background: linear-gradient(135deg, var(--success-color), #1e7e34);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -2250,7 +2509,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 #salesInvoicesTable thead th {
-  background-color: var(--info-color);
+  background: linear-gradient(135deg, var(--info-color), #138496);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -2264,15 +2523,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 .dark-mode #inventoryReportsTable thead th {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #0056b3, #004494);
 }
 
 .dark-mode #purchaseInvoicesTable thead th {
-  background-color: #1e7e34;
+  background: linear-gradient(135deg, #1e7e34, #155724);
 }
 
 .dark-mode #salesInvoicesTable thead th {
-  background-color: #138496;
+  background: linear-gradient(135deg, #138496, #0c5460);
 }
 
 .dark-mode #inventoryReportsTable tbody tr:hover,
@@ -2292,7 +2551,7 @@ input:focus, select:focus, textarea:focus {
 .company-info-preview {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 20px;
   margin-top: 20px;
 }
@@ -2335,6 +2594,26 @@ input:focus, select:focus, textarea:focus {
   justify-content: center;
 }
 
+/* Print button styles */
+.print-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
 /* =========================================
    Theme Persistence Fix
 ========================================= */
@@ -2367,6 +2646,11 @@ body[data-theme="dark"] section {
     padding: 10px 15px;
   }
   
+  .header-content {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
   header h1 {
     font-size: 1.4rem;
   }
@@ -2375,8 +2659,8 @@ body[data-theme="dark"] section {
     gap: 5px;
   }
   
-  nav a, nav button {
-    padding: 6px 8px;
+  .nav-link, .nav-button {
+    padding: 8px 12px;
     font-size: 0.9rem;
   }
   
@@ -2451,7 +2735,7 @@ body[data-theme="dark"] section {
   
   nav {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
   }
   
   .welcome-section {
@@ -2486,14 +2770,12 @@ body[data-theme="dark"] section {
   
   .tab-button {
     text-align: center;
+    justify-content: center;
   }
 }
 
 /* Print button visibility */
 #printPurchaseBtn, #printSalesBtn {
-  display: none !important;
+  display: inline-flex !important;
 }
-
-.print-visible {
-  display: inline-block !important;
-}
+[file content end]
