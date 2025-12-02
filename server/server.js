@@ -77,7 +77,6 @@ const PurchaseItemSchema = new Schema({
 const PurchaseSchema = new Schema({
   purchaseId: { type: String, unique: true, required: true },
   supplier: String,
-  supplierContact: String,
   purchaseDate: { type: Date, default: Date.now },
   notes: String,
   items: [PurchaseItemSchema],
@@ -86,7 +85,7 @@ const PurchaseSchema = new Schema({
 });
 const Purchase = mongoose.model("Purchase", PurchaseSchema);
 
-// ===== UPDATED Sales Schema with customerContact =====
+// ===== NEW: Sales Schema =====
 const SalesItemSchema = new Schema({
   sku: String,
   productName: String,
@@ -98,7 +97,6 @@ const SalesItemSchema = new Schema({
 const SalesSchema = new Schema({
   salesId: { type: String, unique: true, required: true },
   customer: String,
-  customerContact: String, // Added field
   salesDate: { type: Date, default: Date.now },
   notes: String,
   items: [SalesItemSchema],
@@ -130,11 +128,9 @@ const DocumentSchema = new Schema({
 });
 const Doc = mongoose.model("Doc", DocumentSchema);
 
-// ===== UPDATED Log Schema with device info =====
 const LogSchema = new Schema({
   user: String,
   action: String,
-  device: String,
   time: { type: Date, default: Date.now }
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
@@ -142,7 +138,7 @@ const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 // ===== Duplicate Log Protection =====
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
-async function logActivity(user, action, device = 'Unknown Device') {
+async function logActivity(user, action) {
   try {
     const safeUser = (user || "Unknown").toString();
     const safeAction = (action || "").toString();
@@ -166,7 +162,6 @@ async function logActivity(user, action, device = 'Unknown Device') {
     await ActivityLog.create({
       user: safeUser,
       action: safeAction,
-      device: device,
       time: new Date()
     });
 
@@ -217,7 +212,7 @@ app.post("/api/register", async (req, res) => {
       return res.status(409).json({ success: false, message: "Username already exists" });
 
     await User.create({ username, password });
-    await logActivity("System", `Registered user: ${username}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity("System", `Registered user: ${username}`);
 
     res.json({ success: true, message: "Registration successful" });
   } catch (err) {
@@ -237,7 +232,7 @@ app.post("/api/login", async (req, res) => {
     if (!user)
       return res.status(401).json({ success: false, message: "Invalid credentials" });
 
-    await logActivity(username, "Logged in", req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, "Logged in");
     res.json({ success: true, user: username });
   } catch (err) {
     console.error("login error", err);
@@ -275,7 +270,7 @@ app.put("/api/company", async (req, res) => {
       await company.save();
     }
 
-    await logActivity(username, "Updated company information", req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, "Updated company information");
     res.json({ success: true, message: "Company information updated" });
   } catch (err) {
     console.error("Company update error:", err);
@@ -315,7 +310,7 @@ app.put("/api/account/password", async (req, res) => {
     user.password = newPassword;
     await user.save();
 
-    await logActivity(username, "Changed password", req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, "Changed password");
     
     console.log(`✅ Password updated for user: ${username}`);
     res.json({ success: true, message: "Password updated successfully" });
@@ -351,7 +346,7 @@ app.delete("/api/account", async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    await logActivity("System", `Deleted user account: ${username}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity("System", `Deleted user account: ${username}`);
     
     console.log(`🗑️ Account deleted: ${username}`);
     res.json({ success: true, message: "Account deleted successfully" });
@@ -382,7 +377,7 @@ app.get("/api/inventory", async (req, res) => {
 app.post("/api/inventory", async (req, res) => {
   try {
     const item = await Inventory.create(req.body);
-    await logActivity(req.headers["x-username"], `Added: ${item.name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Added: ${item.name}`);
 
     res.status(201).json({
       ...item.toObject(),
@@ -401,7 +396,7 @@ app.put("/api/inventory/:id", async (req, res) => {
     if (!item)
       return res.status(404).json({ message: "Item not found" });
 
-    await logActivity(req.headers["x-username"], `Updated: ${item.name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Updated: ${item.name}`);
     res.json({
       ...item.toObject(),
       id: item._id.toString()
@@ -419,7 +414,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
     if (!item)
       return res.status(404).json({ message: "Item not found" });
 
-    await logActivity(req.headers["x-username"], `Deleted: ${item.name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Deleted: ${item.name}`);
     res.status(204).send();
 
   } catch (err) {
@@ -665,7 +660,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     });
 
     console.log(`✅ PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -851,7 +846,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
     });
 
     console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Purchase Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(printedBy, `Generated Purchase Report PDF: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -1035,7 +1030,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
     });
 
     console.log(`✅ Sales PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Sales Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(printedBy, `Generated Sales Report PDF: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -1329,7 +1324,7 @@ app.post("/api/reports/generate-all", async (req, res) => {
     });
 
     console.log(`✅ Comprehensive PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Comprehensive Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(printedBy, `Generated Comprehensive Report PDF: ${filename}`);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
@@ -1378,7 +1373,7 @@ app.get("/api/purchases/:id", async (req, res) => {
 
 app.post("/api/purchases", async (req, res) => {
   try {
-    const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
+    const { supplier, purchaseDate, notes, items } = req.body;
     
     // Generate unique purchase ID
     const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -1414,14 +1409,13 @@ app.post("/api/purchases", async (req, res) => {
     const purchase = await Purchase.create({
       purchaseId,
       supplier,
-      supplierContact: supplierContact || supplier || 'N/A',
       purchaseDate: purchaseDate || new Date(),
       notes,
       items: purchaseItems,
       totalAmount
     });
 
-    await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`);
 
     res.status(201).json({
       ...purchase.toObject(),
@@ -1436,7 +1430,7 @@ app.post("/api/purchases", async (req, res) => {
 
 app.put("/api/purchases/:id", async (req, res) => {
   try {
-    const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
+    const { supplier, purchaseDate, notes, items } = req.body;
     
     // Find existing purchase to revert inventory changes
     const existingPurchase = await Purchase.findById(req.params.id);
@@ -1484,7 +1478,6 @@ app.put("/api/purchases/:id", async (req, res) => {
       req.params.id,
       {
         supplier,
-        supplierContact: supplierContact || supplier || 'N/A',
         purchaseDate,
         notes,
         items: purchaseItems,
@@ -1493,7 +1486,7 @@ app.put("/api/purchases/:id", async (req, res) => {
       { new: true }
     );
 
-    await logActivity(req.headers["x-username"], `Updated purchase order: ${purchase.purchaseId}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Updated purchase order: ${purchase.purchaseId}`);
 
     res.json({
       ...purchase.toObject(),
@@ -1522,7 +1515,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
     }
 
     await Purchase.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted purchase order: ${purchase.purchaseId}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Deleted purchase order: ${purchase.purchaseId}`);
     res.status(204).send();
 
   } catch (err) {
@@ -1532,7 +1525,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                               SALES CRUD (UPDATED with customerContact)
+//                               SALES CRUD (NEW)
 // ============================================================================
 app.get("/api/sales", async (req, res) => {
   try {
@@ -1567,7 +1560,7 @@ app.get("/api/sales/:id", async (req, res) => {
 
 app.post("/api/sales", async (req, res) => {
   try {
-    const { customer, customerContact, salesDate, notes, items } = req.body;
+    const { customer, salesDate, notes, items } = req.body;
     
     // Generate unique sales ID
     const salesId = `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -1604,14 +1597,13 @@ app.post("/api/sales", async (req, res) => {
     const sale = await Sales.create({
       salesId,
       customer,
-      customerContact: customerContact || customer || 'N/A',
       salesDate: salesDate || new Date(),
       notes,
       items: salesItems,
       totalAmount
     });
 
-    await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items`);
 
     res.status(201).json({
       ...sale.toObject(),
@@ -1626,7 +1618,7 @@ app.post("/api/sales", async (req, res) => {
 
 app.put("/api/sales/:id", async (req, res) => {
   try {
-    const { customer, customerContact, salesDate, notes, items } = req.body;
+    const { customer, salesDate, notes, items } = req.body;
     
     // Find existing sales to revert inventory changes
     const existingSale = await Sales.findById(req.params.id);
@@ -1676,7 +1668,6 @@ app.put("/api/sales/:id", async (req, res) => {
       req.params.id,
       {
         customer,
-        customerContact: customerContact || customer || 'N/A',
         salesDate,
         notes,
         items: salesItems,
@@ -1685,7 +1676,7 @@ app.put("/api/sales/:id", async (req, res) => {
       { new: true }
     );
 
-    await logActivity(req.headers["x-username"], `Updated sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Updated sales order: ${sale.salesId}`);
 
     res.json({
       ...sale.toObject(),
@@ -1714,7 +1705,7 @@ app.delete("/api/sales/:id", async (req, res) => {
     }
 
     await Sales.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Deleted sales order: ${sale.salesId}`);
     res.status(204).send();
 
   } catch (err) {
@@ -1754,7 +1745,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           },
           customer: {
             name: purchase.supplier || 'Supplier',
-            contact: purchase.supplierContact || purchase.supplier || 'N/A'
+            contact: purchase.supplier || 'N/A'
           },
           items: purchase.items.map(item => ({
             name: item.productName || 'N/A',
@@ -1792,7 +1783,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE SALES INVOICE PDF (UPDATED)
+//                    SINGLE SALES INVOICE PDF (NEW)
 // ============================================================================
 app.get("/api/sales/invoice/:id", async (req, res) => {
   try {
@@ -1822,7 +1813,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           },
           customer: {
             name: sale.customer || 'Customer',
-            contact: sale.customerContact || sale.customer || 'N/A'
+            contact: sale.customer || 'N/A'
           },
           items: sale.items.map(item => ({
             name: item.productName || 'N/A',
@@ -2012,7 +2003,7 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
 }
 
 // ============================================================================
-//                    FOLDER MANAGEMENT
+//                    FOLDER MANAGEMENT (NEW)
 // ============================================================================
 app.get("/api/folders", async (req, res) => {
   try {
@@ -2053,7 +2044,7 @@ app.post("/api/folders", async (req, res) => {
       createdBy: username
     });
 
-    await logActivity(username, `Created folder: ${name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, `Created folder: ${name}`);
 
     res.status(201).json({
       ...folder.toObject(),
@@ -2085,7 +2076,7 @@ app.put("/api/folders/:id", async (req, res) => {
       return res.status(404).json({ message: "Folder not found" });
     }
 
-    await logActivity(username, `Renamed folder to: ${name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, `Renamed folder to: ${name}`);
 
     res.json({
       ...folder.toObject(),
@@ -2122,7 +2113,7 @@ app.delete("/api/folders/:id", async (req, res) => {
     }
 
     await Folder.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted folder: ${folder.name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Deleted folder: ${folder.name}`);
     res.status(204).send();
 
   } catch (err) {
@@ -2204,7 +2195,7 @@ app.post("/api/documents", async (req, res) => {
           folder: docu.folder
         });
         
-        await logActivity(username, `Uploaded document: ${fileName}`, req.headers['user-agent'] || 'Unknown Device');
+        await logActivity(username, `Uploaded document: ${fileName}`);
         
         // Return success response
         res.status(201).json([{ 
@@ -2320,7 +2311,7 @@ app.delete("/api/documents/:id", async (req, res) => {
     const docu = await Doc.findByIdAndDelete(req.params.id);
     if (!docu) return res.status(404).json({ message: "Document not found" });
 
-    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`);
     res.status(204).send();
 
   } catch (err) {
@@ -2347,7 +2338,7 @@ app.put("/api/documents/:id/move", async (req, res) => {
       return res.status(404).json({ message: "Document not found" });
     }
 
-    await logActivity(username, `Moved document: ${docu.name} to folder`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, `Moved document: ${docu.name} to folder`);
     res.json({
       ...docu.toObject(),
       id: docu._id.toString()
@@ -2433,7 +2424,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
     // Send the binary data
     res.send(docu.data);
 
-    await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`);
 
   } catch (err) {
     console.error("❌ Document download error:", err); 
@@ -2516,53 +2507,10 @@ app.get("/api/logs", async (req, res) => {
     res.json(logs.map(l => ({
       user: l.user,
       action: l.action,
-      device: l.device || 'Unknown Device',
       time: l.time ? new Date(l.time).toISOString() : new Date().toISOString()
     })));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
-//                               CLEAR ACTIVITY LOGS
-// ============================================================================
-app.delete("/api/logs/clear", async (req, res) => {
-  try {
-    // You can add authentication/authorization here
-    const result = await ActivityLog.deleteMany({});
-    
-    console.log(`Cleared ${result.deletedCount} activity logs`);
-    await logActivity(req.headers["x-username"] || "System", "Cleared all activity logs", req.headers['user-agent'] || 'Unknown Device');
-    
-    res.json({ 
-      success: true, 
-      message: `Cleared ${result.deletedCount} activity logs`,
-      deletedCount: result.deletedCount
-    });
-  } catch (err) {
-    console.error("Clear logs error:", err);
-    res.status(500).json({ success: false, message: "Failed to clear logs" });
-  }
-});
-
-// ============================================================================
-//                               LOGIN HISTORY ENDPOINT
-// ============================================================================
-app.get("/api/logs/login-history", async (req, res) => {
-  try {
-    const loginLogs = await ActivityLog.find({ 
-      action: 'Logged in' 
-    }).sort({ time: -1 }).limit(100).lean();
-    
-    res.json(loginLogs.map(log => ({
-      user: log.user,
-      time: log.time,
-      device: log.device || 'Unknown Device'
-    })));
-  } catch (err) {
-    console.error("Login history error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -2745,7 +2693,7 @@ app.get("/api/inventory/export/excel", async (req, res) => {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(buffer);
     
-    await logActivity(req.headers["x-username"] || "System", `Exported inventory to Excel`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"] || "System", `Exported inventory to Excel`);
     
   } catch (err) {
     console.error("Excel export error:", err);
@@ -2804,7 +2752,7 @@ app.post("/api/inventory/import/excel", async (req, res) => {
       }
     }
     
-    await logActivity(username, `Imported ${importedCount} new items, updated ${updatedCount} items from Excel`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, `Imported ${importedCount} new items, updated ${updatedCount} items from Excel`);
     
     res.json({
       success: true,
@@ -2859,7 +2807,7 @@ app.get("/api/system/backup", async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(JSON.stringify(backupData, null, 2));
     
-    await logActivity(username, `Created system backup`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(username, `Created system backup`);
     
   } catch (err) {
     console.error("Backup error:", err);
@@ -2940,7 +2888,7 @@ async function ensureDefaultAdminAndStartupLog() {
     const count = await User.countDocuments({}).exec();
     if (count === 0) {
       await User.create({ username: "admin", password: "password" });
-      await logActivity("System", "Default admin user created", 'System');
+      await logActivity("System", "Default admin user created");
     }
 
     // Ensure company info exists
@@ -2959,7 +2907,7 @@ async function ensureDefaultAdminAndStartupLog() {
       }
     }
     
-    await logActivity("System", `Server started on port ${PORT}`, 'System');
+    await logActivity("System", `Server started on port ${PORT}`);
   } catch (err) {
     console.error("Startup error:", err);
   }
