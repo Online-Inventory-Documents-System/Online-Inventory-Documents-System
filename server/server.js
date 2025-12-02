@@ -445,7 +445,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
     const company = await getCompanyInfo();
     const now = new Date();
-    const printDate = new Date(now).toLocaleString('en-US', {
+    const printDate = new Date(now).toLocaleString('en-MY', {
       timeZone: 'Asia/Kuala_Lumpur',
       year: 'numeric',
       month: '2-digit',
