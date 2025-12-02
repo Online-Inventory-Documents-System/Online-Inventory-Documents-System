@@ -1,5 +1,6 @@
 // public/js/script.js
 // Complete client-side script for Online Inventory & Documents System
+
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
   : "https://online-inventory-documents-system-olzt.onrender.com/api";
@@ -13,7 +14,6 @@ const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 
 let inventory = [];
 let activityLog = [];
-let loginHistory = [];
 let documents = [];
 let purchases = [];
 let sales = [];
@@ -22,12 +22,7 @@ let currentFolder = 'root';
 let companyInfo = {};
 const currentPage = window.location.pathname.split('/').pop();
 
-// Pagination variables
-let currentPageNumber = 1;
-let itemsPerPage = 10;
-let totalPages = 1;
-
-// Theme management
+// Enhanced theme persistence
 function initializeTheme() {
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.body.classList.toggle('dark-mode', savedTheme === 'dark');
@@ -116,7 +111,7 @@ function updateCompanyInfoDisplay() {
 }
 
 // =========================================
-// ENHANCED INVENTORY MANAGEMENT FUNCTIONS
+// INVENTORY MANAGEMENT FUNCTIONS
 // =========================================
 async function fetchInventory() {
   try {
@@ -124,89 +119,38 @@ async function fetchInventory() {
     if(!res.ok) throw new Error('Failed to fetch inventory');
     const data = await res.json();
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
-    updatePagination();
-    renderInventory(getPaginatedItems());
+    renderInventory(inventory);
     renderDashboardData();
   } catch(err) { console.error(err); }
-}
-
-function getPaginatedItems() {
-  const startIndex = (currentPageNumber - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  return inventory.slice(startIndex, endIndex);
-}
-
-function updatePagination() {
-  totalPages = Math.ceil(inventory.length / itemsPerPage);
-  if (currentPageNumber > totalPages) currentPageNumber = totalPages;
-  if (currentPageNumber < 1) currentPageNumber = 1;
-  
-  updatePaginationControls();
-}
-
-function updatePaginationControls() {
-  const pageInfo = qs('#pageInfo');
-  const firstBtn = qs('#firstPageBtn');
-  const prevBtn = qs('#prevPageBtn');
-  const nextBtn = qs('#nextPageBtn');
-  const lastBtn = qs('#lastPageBtn');
-  
-  if (pageInfo) {
-    pageInfo.textContent = `Page ${currentPageNumber} of ${totalPages}`;
-  }
-  
-  if (firstBtn) firstBtn.disabled = currentPageNumber === 1;
-  if (prevBtn) prevBtn.disabled = currentPageNumber === 1;
-  if (nextBtn) nextBtn.disabled = currentPageNumber === totalPages;
-  if (lastBtn) lastBtn.disabled = currentPageNumber === totalPages;
-}
-
-function goToPage(page) {
-  currentPageNumber = page;
-  updatePagination();
-  renderInventory(getPaginatedItems());
 }
 
 function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
   list.innerHTML = '';
-  
-  let totalValue = 0, totalRevenue = 0, totalStock = 0;
-  const startIndex = (currentPageNumber - 1) * itemsPerPage;
+  let totalValue = 0, totalRevenue = 0, totalProfit = 0, totalStock = 0;
 
-  items.forEach((it, index) => {
-    const itemNumber = startIndex + index + 1;
+  items.forEach(it => {
     const id = it.id || it._id;
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
     const invVal = qty * uc;
     const rev = qty * up;
+    const profit = rev - invVal;
     
     totalValue += invVal;
     totalRevenue += rev;
+    totalProfit += profit;
     totalStock += qty;
 
     const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
-    
-    // Determine status
-    let statusText = '';
-    let statusClass = '';
-    if (qty === 0) {
-      statusText = 'Out of Stock';
-      statusClass = 'status-out-of-stock';
-    } else if (qty < 10) {
-      statusText = 'Low Stock';
-      statusClass = 'status-low-stock';
-    } else {
-      statusText = 'In Stock';
-      statusClass = 'status-in-stock';
-    }
 
     const tr = document.createElement('tr');
+    if(qty === 0) tr.classList.add('out-of-stock-row');
+    else if(qty < 10) tr.classList.add('low-stock-row');
+
     tr.innerHTML = `
-      <td>${itemNumber}</td>
       <td>${escapeHtml(it.sku||'')}</td>
       <td>${escapeHtml(it.name||'')}</td>
       <td>${escapeHtml(it.category||'')}</td>
@@ -215,8 +159,8 @@ function renderInventory(items) {
       <td class="money">RM ${up.toFixed(2)}</td>
       <td class="money">RM ${invVal.toFixed(2)}</td>
       <td class="money">RM ${rev.toFixed(2)}</td>
+      <td class="money">RM ${profit.toFixed(2)}</td>
       <td>${date}</td>
-      <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
@@ -228,29 +172,9 @@ function renderInventory(items) {
   // Update summary cards
   if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalValue.toFixed(2)}`;
   if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+  if(qs('#cardTotalProfit')) qs('#cardTotalProfit').textContent = `RM ${totalProfit.toFixed(2)}`;
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
-  if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = inventory.length;
-  
-  // Update profit card with actual profit from sales
-  updateProfitCard();
-}
-
-function updateProfitCard() {
-  let totalProfit = 0;
-  sales.forEach(sale => {
-    sale.items.forEach(item => {
-      const inventoryItem = inventory.find(i => i.sku === item.sku);
-      if (inventoryItem) {
-        const unitCost = inventoryItem.unitCost || 0;
-        const profit = (item.salePrice - unitCost) * item.quantity;
-        totalProfit += profit;
-      }
-    });
-  });
-  
-  if (qs('#cardTotalProfit')) {
-    qs('#cardTotalProfit').textContent = `RM ${totalProfit.toFixed(2)}`;
-  }
+  if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
 }
 
 function searchInventory(){
@@ -301,11 +225,7 @@ function searchInventory(){
     });
   }
   
-  // Update pagination with filtered results
-  currentPageNumber = 1;
-  inventory = filtered;
-  updatePagination();
-  renderInventory(getPaginatedItems());
+  renderInventory(filtered);
 }
 
 // =========================================
@@ -313,7 +233,7 @@ function searchInventory(){
 // =========================================
 function filterByDateRange(startDate, endDate) {
   if (!startDate && !endDate) {
-    fetchInventory();
+    renderInventory(inventory);
     updateDateRangeStatus(false);
     return;
   }
@@ -347,10 +267,7 @@ function filterByDateRange(startDate, endDate) {
     return true;
   });
   
-  currentPageNumber = 1;
-  inventory = filtered;
-  updatePagination();
-  renderInventory(getPaginatedItems());
+  renderInventory(filtered);
   updateDateRangeStatus(true, startDate, endDate);
 }
 
@@ -398,7 +315,7 @@ function formatDateDisplay(dateString) {
 function clearDateRangeFilter() {
   if (qs('#startDate')) qs('#startDate').value = '';
   if (qs('#endDate')) qs('#endDate').value = '';
-  fetchInventory();
+  renderInventory(inventory);
   updateDateRangeStatus(false);
 }
 
@@ -531,7 +448,7 @@ async function bindProductPage(){
 }
 
 // =========================================
-// ENHANCED: Sales Management Functions
+// NEW: Sales Management Functions
 // =========================================
 async function fetchSales() {
   try {
@@ -540,7 +457,6 @@ async function fetchSales() {
     const data = await res.json();
     sales = data.map(s => ({ ...s, id: s.id || s._id }));
     renderSalesHistory();
-    updateProfitCard();
   } catch(err) {
     console.error('Fetch sales error:', err);
   }
@@ -556,14 +472,14 @@ function renderSalesHistory() {
     tr.innerHTML = `
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
-      <td>${escapeHtml(s.customerContact || 'N/A')}</td>
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
       <td>${new Date(s.salesDate).toLocaleDateString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
+        <button class="secondary-btn small-btn" onclick="editSalesPage('${s.id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
-        <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
+        <button class="success-btn small-btn" onclick="printSalesInvoice('${s.id}')">🖨️ Invoice</button>
       </td>
     `;
     list.appendChild(tr);
@@ -606,7 +522,6 @@ function closeNewSalesModal() {
 
 function resetSalesForm() {
   qs('#customerName').value = '';
-  qs('#customerContact').value = '';
   qs('#salesDate').value = new Date().toISOString().split('T')[0];
   qs('#salesNotes').value = '';
   qs('#productSearchSales').value = '';
@@ -729,17 +644,11 @@ function loadProductSearchForSales() {
 
 async function saveSalesOrder() {
   const customer = qs('#customerName').value.trim();
-  const customerContact = qs('#customerContact').value.trim();
   const salesDate = qs('#salesDate').value;
   const notes = qs('#salesNotes').value.trim();
   
   if (!customer) {
     alert('⚠️ Please enter customer name.');
-    return;
-  }
-  
-  if (!customerContact) {
-    alert('⚠️ Please enter customer contact.');
     return;
   }
   
@@ -789,14 +698,13 @@ async function saveSalesOrder() {
   
   const salesData = {
     customer,
-    customerContact,
     salesDate: salesDate || new Date().toISOString().split('T')[0],
     notes,
     items
   };
   
   // Create confirmation message
-  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customer}\nContact: ${customerContact}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customer}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
   });
@@ -816,8 +724,8 @@ async function saveSalesOrder() {
       const savedSales = await res.json();
       alert('✅ Sales order saved successfully!');
       
-      // Automatically print and save invoice
-      await printAndSaveSalesInvoice(savedSales.id);
+      // Show print button after successful save
+      qs('#printSalesBtn').classList.add('print-visible');
       
       closeNewSalesModal();
       await fetchInventory();
@@ -844,7 +752,6 @@ async function viewSalesDetails(salesId) {
     // Populate details
     qs('#detailSalesId').textContent = sale.salesId || 'N/A';
     qs('#detailCustomer').textContent = sale.customer || 'N/A';
-    qs('#detailCustomerContact').textContent = sale.customerContact || 'N/A';
     qs('#detailSalesDate').textContent = new Date(sale.salesDate).toLocaleDateString();
     qs('#detailSalesTotalAmount').textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
     
@@ -873,7 +780,7 @@ async function viewSalesDetails(salesId) {
     });
     
     // Set up print button
-    qs('#printSalesInvoiceBtn').onclick = () => printAndSaveSalesInvoice(salesId);
+    qs('#printSalesInvoiceBtn').onclick = () => printSalesInvoice(salesId);
     
     // Show modal
     qs('#salesDetailsModal').style.display = 'block';
@@ -886,6 +793,10 @@ async function viewSalesDetails(salesId) {
 
 function closeSalesDetailsModal() {
   qs('#salesDetailsModal').style.display = 'none';
+}
+
+function editSalesPage(salesId) {
+  window.location.href = `sales-edit.html?id=${encodeURIComponent(salesId)}`;
 }
 
 async function deleteSales(id) {
@@ -909,15 +820,8 @@ async function deleteSales(id) {
   }
 }
 
-async function printAndSaveSalesInvoice(salesId) {
+async function printSalesInvoice(salesId) {
   try {
-    const sale = sales.find(s => String(s.id) === String(salesId));
-    if (!sale) {
-      alert('Sales order not found');
-      return;
-    }
-    
-    // First, print the invoice
     const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -927,17 +831,14 @@ async function printAndSaveSalesInvoice(salesId) {
     a.style.display = 'none';
     a.href = url;
     
-    const filename = `Sales_Invoice_${sale.salesId}.pdf`;
+    const sale = sales.find(s => String(s.id) === String(salesId));
+    const filename = sale ? `Invoice_${sale.salesId}.pdf` : `Invoice_${salesId}.pdf`;
+    
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
-    
-    // Then, save to statements
-    await saveToStatements(blob, filename, 'sales');
-    
-    alert('✅ Invoice printed and saved to statements successfully!');
     
   } catch (e) {
     console.error('Print sales invoice error:', e);
@@ -946,7 +847,7 @@ async function printAndSaveSalesInvoice(salesId) {
 }
 
 // =========================================
-// ENHANCED: Purchase Management Functions
+// PURCHASE MANAGEMENT FUNCTIONS
 // =========================================
 async function fetchPurchases() {
   try {
@@ -970,14 +871,14 @@ function renderPurchaseHistory() {
     tr.innerHTML = `
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
-      <td>${escapeHtml(p.supplierContact || 'N/A')}</td>
       <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${new Date(p.purchaseDate).toLocaleDateString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
+        <button class="secondary-btn small-btn" onclick="editPurchasePage('${p.id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
-        <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
+        <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
       </td>
     `;
     list.appendChild(tr);
@@ -1030,7 +931,6 @@ function closeNewPurchaseModal() {
 
 function resetPurchaseForm() {
   qs('#supplierName').value = '';
-  qs('#supplierContact').value = '';
   qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
   qs('#purchaseNotes').value = '';
   qs('#productSearch').value = '';
@@ -1040,6 +940,9 @@ function resetPurchaseForm() {
   // Reset total amount displays
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = '0.00';
+  }
+  if (qs('#editTotalPurchaseAmount')) {
+    qs('#editTotalPurchaseAmount').textContent = '0.00';
   }
 }
 
@@ -1104,6 +1007,7 @@ function addProductItem(product = null) {
 
 function updateTotalAmount() {
   let newTotal = 0;
+  let editTotal = 0;
   
   // Calculate for new purchase modal
   const newItemRows = qsa('#purchaseItems .purchase-item-row');
@@ -1113,9 +1017,21 @@ function updateTotalAmount() {
     newTotal += itemTotal;
   });
   
+  // Calculate for edit purchase modal
+  const editItemRows = qsa('#editPurchaseItems .purchase-item-row');
+  editItemRows.forEach(row => {
+    const totalInput = row.querySelector('.product-total');
+    const itemTotal = Number(totalInput.value) || 0;
+    editTotal += itemTotal;
+  });
+  
   // Update displays
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = newTotal.toFixed(2);
+  }
+  
+  if (qs('#editTotalPurchaseAmount')) {
+    qs('#editTotalPurchaseAmount').textContent = editTotal.toFixed(2);
   }
 }
 
@@ -1161,7 +1077,6 @@ function loadProductSearch() {
 
 async function savePurchaseOrder() {
   const supplier = qs('#supplierName').value.trim();
-  const supplierContact = qs('#supplierContact').value.trim();
   const purchaseDate = qs('#purchaseDate').value;
   const notes = qs('#purchaseNotes').value.trim();
   
@@ -1170,15 +1085,10 @@ async function savePurchaseOrder() {
     return;
   }
   
-  if (!supplierContact) {
-    alert('⚠️ Please enter supplier contact.');
-    return;
-  }
-  
   const items = [];
   const itemRows = qsa('.purchase-item-row');
   
-  // Check if there are any items
+  // FIXED: Check if there are any items
   if (itemRows.length === 0) {
     alert('⚠️ Please add at least one product item.');
     return;
@@ -1215,14 +1125,13 @@ async function savePurchaseOrder() {
   
   const purchaseData = {
     supplier,
-    supplierContact,
     purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
     notes,
     items
   };
   
   // Create confirmation message
-  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
   });
@@ -1242,8 +1151,8 @@ async function savePurchaseOrder() {
       const savedPurchase = await res.json();
       alert('✅ Purchase order saved successfully!');
       
-      // Automatically print and save invoice
-      await printAndSavePurchaseInvoice(savedPurchase.id);
+      // Show print button after successful save
+      qs('#printPurchaseBtn').classList.add('print-visible');
       
       closeNewPurchaseModal();
       await fetchInventory();
@@ -1270,7 +1179,6 @@ async function viewPurchaseDetails(purchaseId) {
     // Populate details
     qs('#detailPurchaseId').textContent = purchase.purchaseId || 'N/A';
     qs('#detailSupplier').textContent = purchase.supplier || 'N/A';
-    qs('#detailSupplierContact').textContent = purchase.supplierContact || 'N/A';
     qs('#detailPurchaseDate').textContent = new Date(purchase.purchaseDate).toLocaleDateString();
     qs('#detailTotalAmount').textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
     
@@ -1299,7 +1207,7 @@ async function viewPurchaseDetails(purchaseId) {
     });
     
     // Set up print button
-    qs('#printPurchaseInvoiceBtn').onclick = () => printAndSavePurchaseInvoice(purchaseId);
+    qs('#printDetailsInvoiceBtn').onclick = () => printPurchaseInvoice(purchaseId);
     
     // Show modal
     qs('#purchaseDetailsModal').style.display = 'block';
@@ -1312,6 +1220,10 @@ async function viewPurchaseDetails(purchaseId) {
 
 function closePurchaseDetailsModal() {
   qs('#purchaseDetailsModal').style.display = 'none';
+}
+
+function editPurchasePage(purchaseId) {
+  window.location.href = `purchase-edit.html?id=${encodeURIComponent(purchaseId)}`;
 }
 
 async function deletePurchase(id) {
@@ -1335,15 +1247,8 @@ async function deletePurchase(id) {
   }
 }
 
-async function printAndSavePurchaseInvoice(purchaseId) {
+async function printPurchaseInvoice(purchaseId) {
   try {
-    const purchase = purchases.find(p => String(p.id) === String(purchaseId));
-    if (!purchase) {
-      alert('Purchase order not found');
-      return;
-    }
-    
-    // First, print the invoice
     const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1353,17 +1258,14 @@ async function printAndSavePurchaseInvoice(purchaseId) {
     a.style.display = 'none';
     a.href = url;
     
-    const filename = `Purchase_Invoice_${purchase.purchaseId}.pdf`;
+    const purchase = purchases.find(p => String(p.id) === String(purchaseId));
+    const filename = purchase ? `Invoice_${purchase.purchaseId}.pdf` : `Invoice_${purchaseId}.pdf`;
+    
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
-    
-    // Then, save to statements
-    await saveToStatements(blob, filename, 'purchase');
-    
-    alert('✅ Invoice printed and saved to statements successfully!');
     
   } catch (e) {
     console.error('Print invoice error:', e);
@@ -1372,33 +1274,7 @@ async function printAndSavePurchaseInvoice(purchaseId) {
 }
 
 // =========================================
-// NEW: Save to Statements Function
-// =========================================
-async function saveToStatements(blob, filename, type) {
-  try {
-    const formData = new FormData();
-    formData.append('file', blob, filename);
-    formData.append('type', type);
-    formData.append('username', getUsername());
-    
-    const res = await fetch(`${API_BASE}/statements/upload`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'X-Username': getUsername()
-      }
-    });
-    
-    if (!res.ok) {
-      console.error('Failed to save to statements:', await res.text());
-    }
-  } catch (e) {
-    console.error('Save to statements error:', e);
-  }
-}
-
-// =========================================
-// UPDATED: Enhanced Report Generation
+// NEW: Enhanced Report Generation with Date Range
 // =========================================
 function openReportModal() {
   const modal = qs('#reportModal');
@@ -1449,6 +1325,12 @@ async function generateSelectedReport() {
     case 'inventory':
       await generateInventoryReport(startDate, endDate);
       break;
+    case 'purchase':
+      await generatePurchaseReport(startDate, endDate);
+      break;
+    case 'sales':
+      await generateSalesReport(startDate, endDate);
+      break;
     case 'all':
       await generateAllReports(startDate, endDate);
       break;
@@ -1471,19 +1353,13 @@ async function generateInventoryReport(startDate, endDate) {
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    
-    const dateStr = new Date().toISOString().split('T')[0];
-    const filename = `Inventory_Report_${dateStr}.pdf`;
-    a.download = filename;
+    a.download = `Inventory_Report_${Date.now()}.pdf`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    // Save to statements
-    await saveToStatements(blob, filename, 'inventory');
-    
-    alert('✅ Inventory Report Generated and Saved Successfully!');
+    alert('✅ Inventory Report Generated Successfully!');
     
   } catch (e) {
     console.error('Inventory report error:', e);
@@ -1491,12 +1367,78 @@ async function generateInventoryReport(startDate, endDate) {
   }
 }
 
-async function generateAllReports(startDate, endDate) {
-  if (!confirm('Generate Inventory Report?')) return;
+async function generatePurchaseReport(startDate, endDate) {
+  if (!confirm('Generate Purchase Report?')) return;
   
   try {
-    // Generate inventory report only (removed purchase and sales reports)
+    const res = await apiFetch(`${API_BASE}/purchases/report/pdf`, {
+      method: 'POST',
+      body: JSON.stringify({ startDate, endDate })
+    });
+    
+    if (!res.ok) throw new Error('Failed to generate report');
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `Purchase_Report_${Date.now()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+    alert('✅ Purchase Report Generated Successfully!');
+    
+  } catch (e) {
+    console.error('Purchase report error:', e);
+    alert('❌ Failed to generate purchase report.');
+  }
+}
+
+async function generateSalesReport(startDate, endDate) {
+  if (!confirm('Generate Sales Report?')) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/report/pdf`, {
+      method: 'POST',
+      body: JSON.stringify({ startDate, endDate })
+    });
+    
+    if (!res.ok) throw new Error('Failed to generate report');
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = `Sales_Report_${Date.now()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+    alert('✅ Sales Report Generated Successfully!');
+    
+  } catch (e) {
+    console.error('Sales report error:', e);
+    alert('❌ Failed to generate sales report.');
+  }
+}
+
+async function generateAllReports(startDate, endDate) {
+  if (!confirm('Generate All Reports (Inventory, Purchase, Sales)?')) return;
+  
+  try {
+    // Generate inventory report
     await generateInventoryReport(startDate, endDate);
+    
+    // Generate purchase report
+    await generatePurchaseReport(startDate, endDate);
+    
+    // Generate sales report
+    await generateSalesReport(startDate, endDate);
     
     alert('✅ All Reports Generated Successfully!');
     
@@ -1507,84 +1449,7 @@ async function generateAllReports(startDate, endDate) {
 }
 
 // =========================================
-// NEW: Login History and Activity Log Functions
-// =========================================
-async function fetchLoginHistory() {
-  try {
-    const res = await apiFetch(`${API_BASE}/logs/login-history`);
-    if (res.ok) {
-      loginHistory = await res.json();
-      renderLoginHistory();
-    }
-  } catch (err) {
-    console.error('Fetch login history error:', err);
-  }
-}
-
-function renderLoginHistory() {
-  const list = qs('#loginHistoryList');
-  if (!list) return;
-  
-  list.innerHTML = '';
-  
-  // Sort by time (newest first)
-  const sortedHistory = [...loginHistory].sort((a, b) => new Date(b.time) - new Date(a.time));
-  
-  sortedHistory.forEach(log => {
-    const item = document.createElement('div');
-    item.className = 'login-history-item';
-    item.innerHTML = `
-      <div class="login-user">${escapeHtml(log.user || 'Unknown')}</div>
-      <div class="login-time">${new Date(log.time).toLocaleString()}</div>
-      <div class="login-device">${getDeviceIcon(log.device)} ${escapeHtml(log.device || 'Unknown Device')}</div>
-    `;
-    list.appendChild(item);
-  });
-}
-
-function getDeviceIcon(device) {
-  if (!device) return '📱';
-  if (device.toLowerCase().includes('mobile') || device.toLowerCase().includes('android') || device.toLowerCase().includes('iphone')) {
-    return '📱';
-  } else if (device.toLowerCase().includes('tablet') || device.toLowerCase().includes('ipad')) {
-    return '📟';
-  } else if (device.toLowerCase().includes('windows') || device.toLowerCase().includes('mac') || device.toLowerCase().includes('linux')) {
-    return '💻';
-  }
-  return '📱';
-}
-
-async function clearActivityLog() {
-  const password = prompt('Enter password to clear activity log:');
-  if (password !== '2323') {
-    alert('❌ Incorrect password!');
-    return;
-  }
-  
-  if (!confirm('⚠️ Are you sure you want to clear ALL activity logs? This action cannot be undone.')) {
-    return;
-  }
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/logs/clear`, {
-      method: 'DELETE'
-    });
-    
-    if (res.ok) {
-      alert('✅ Activity log cleared successfully!');
-      await fetchLogs();
-      await fetchLoginHistory();
-    } else {
-      alert('❌ Failed to clear activity log.');
-    }
-  } catch (err) {
-    console.error('Clear activity log error:', err);
-    alert('❌ Server error while clearing activity log.');
-  }
-}
-
-// =========================================
-// Folder Management for Documents
+// NEW: Folder Management for Documents
 // =========================================
 async function fetchFolders() {
   try {
@@ -2035,7 +1900,9 @@ async function downloadDocument(docId, fileName) {
     
     // Offer to regenerate if it's a report
     if (fileName.includes('Inventory_Report') && confirm('This report file appears to be corrupted. Would you like to generate a new one?')) {
-      generateInventoryReport();
+      if (fileName.endsWith('.pdf')) {
+        generateInventoryReport();
+      }
     }
   }
 }
@@ -2113,7 +1980,7 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
-// UPDATED: Statements Management
+// NEW: Statements Management
 // =========================================
 function openStatementsModal() {
   const modal = qs('#statementsModal');
@@ -2162,14 +2029,19 @@ function renderStatements(type, statements) {
   container.innerHTML = '';
   
   if (statements.length === 0) {
-    container.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">No statements found</td></tr>';
+    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
     return;
   }
   
+  let totalSize = 0;
+  
   statements.forEach(doc => {
+    totalSize += doc.size || 0;
+    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHtml(doc.name)}</td>
+      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
       <td>${new Date(doc.date).toLocaleString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
@@ -2182,8 +2054,10 @@ function renderStatements(type, statements) {
   
   // Update summary information
   const countElement = qs(`#${type.replace('-', '')}Count`);
+  const sizeElement = qs(`#${type.replace('-', '')}Size`);
   
   if (countElement) countElement.textContent = statements.length;
+  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
 }
 
 // =========================================
@@ -2195,11 +2069,6 @@ async function fetchLogs() {
     if(!res.ok) throw new Error('Failed to fetch logs');
     activityLog = await res.json();
     renderLogs();
-    
-    // Also fetch login history if on log page
-    if (currentPage.includes('log')) {
-      await fetchLoginHistory();
-    }
   } catch(err) { console.error(err); }
 }
 
@@ -2209,10 +2078,7 @@ function renderLogs() {
 
   list.innerHTML = "";
 
-  // Sort by time (newest first)
-  const sortedLogs = [...activityLog].sort((a, b) => new Date(b.time) - new Date(a.time));
-
-  sortedLogs.forEach(log => {
+  activityLog.forEach(log => {
     const tr = document.createElement("tr");
 
     const userCell = document.createElement("td");
@@ -2221,16 +2087,12 @@ function renderLogs() {
     const actionCell = document.createElement("td");
     actionCell.textContent = log.action || "";
 
-    const deviceCell = document.createElement("td");
-    deviceCell.innerHTML = `${getDeviceIcon(log.device)} ${escapeHtml(log.device || 'Unknown Device')}`;
-
     const timeCell = document.createElement("td");
     const timeStr = log.time ? new Date(log.time).toLocaleString() : "N/A";
     timeCell.textContent = timeStr;
 
     tr.appendChild(userCell);
     tr.appendChild(actionCell);
-    tr.appendChild(deviceCell);
     tr.appendChild(timeCell);
 
     list.appendChild(tr);
@@ -2252,14 +2114,16 @@ function renderDashboardData(){
   }
 
   if(qs('#dash_totalItems')) {
-    let totalValue = 0, totalRevenue = 0, totalStock = 0;
+    let totalValue = 0, totalRevenue = 0, totalProfit = 0, totalStock = 0;
     inventory.forEach(it => {
       const qty = Number(it.quantity || 0);
       const invVal = qty * Number(it.unitCost || 0);
       const rev = qty * Number(it.unitPrice || 0);
+      const profit = rev - invVal;
       
       totalValue += invVal;
       totalRevenue += rev;
+      totalProfit += profit;
       totalStock += qty;
     });
     qs('#dash_totalItems').textContent = inventory.length;
@@ -2267,22 +2131,8 @@ function renderDashboardData(){
     // Update dashboard cards if they exist
     if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = totalValue.toFixed(2);
     if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
-    if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
-    
-    // Update profit
-    let totalProfit = 0;
-    sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const inventoryItem = inventory.find(i => i.sku === item.sku);
-        if (inventoryItem) {
-          const unitCost = inventoryItem.unitCost || 0;
-          const profit = (item.salePrice - unitCost) * item.quantity;
-          totalProfit += profit;
-        }
-      });
-    });
-    
     if(qs('#dash_totalProfit')) qs('#dash_totalProfit').textContent = totalProfit.toFixed(2);
+    if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
   }
 }
 
@@ -2430,7 +2280,7 @@ function bindInventoryUI(){
   qs('#printPurchaseBtn')?.addEventListener('click', () => {
     // This would print the last saved purchase
     if (purchases.length > 0) {
-      printAndSavePurchaseInvoice(purchases[purchases.length - 1].id);
+      printPurchaseInvoice(purchases[purchases.length - 1].id);
     } else {
       alert('No recent purchase to print.');
     }
@@ -2445,7 +2295,7 @@ function bindInventoryUI(){
   qs('#printSalesBtn')?.addEventListener('click', () => {
     // This would print the last saved sales
     if (sales.length > 0) {
-      printAndSaveSalesInvoice(sales[sales.length - 1].id);
+      printSalesInvoice(sales[sales.length - 1].id);
     } else {
       alert('No recent sales to print.');
     }
@@ -2458,18 +2308,6 @@ function bindInventoryUI(){
   
   // Statements
   qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
-  
-  // Pagination
-  qs('#firstPageBtn')?.addEventListener('click', () => goToPage(1));
-  qs('#prevPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
-  qs('#nextPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
-  qs('#lastPageBtn')?.addEventListener('click', () => goToPage(totalPages));
-  qs('#itemsPerPage')?.addEventListener('change', function() {
-    itemsPerPage = parseInt(this.value);
-    currentPageNumber = 1;
-    updatePagination();
-    renderInventory(getPaginatedItems());
-  });
   
   // Modal close handlers
   qsa('.close').forEach(closeBtn => {
@@ -2519,8 +2357,6 @@ window.addEventListener('load', async () => {
     
     if(currentPage.includes('inventory') || currentPage === '' || currentPage === 'index.html') { 
       await fetchInventory(); 
-      await fetchPurchases();
-      await fetchSales();
       bindInventoryUI(); 
     }
     if(currentPage.includes('documents')) { 
@@ -2577,9 +2413,11 @@ window.closePurchaseHistoryModal = closePurchaseHistoryModal;
 window.openNewPurchaseModal = openNewPurchaseModal;
 window.closeNewPurchaseModal = closeNewPurchaseModal;
 window.savePurchaseOrder = savePurchaseOrder;
-window.printPurchaseInvoice = printAndSavePurchaseInvoice;
+window.printPurchaseInvoice = printPurchaseInvoice;
 window.deletePurchase = deletePurchase;
-window.viewPurchase = viewPurchaseDetails;
+window.editPurchase = editPurchase;
+window.viewPurchase = viewPurchase;
+window.editPurchasePage = editPurchasePage;
 window.closePurchaseDetailsModal = closePurchaseDetailsModal;
 
 // Sales functions
@@ -2588,9 +2426,11 @@ window.closeSalesHistoryModal = closeSalesHistoryModal;
 window.openNewSalesModal = openNewSalesModal;
 window.closeNewSalesModal = closeNewSalesModal;
 window.saveSalesOrder = saveSalesOrder;
-window.printSalesInvoice = printAndSaveSalesInvoice;
+window.printSalesInvoice = printSalesInvoice;
 window.deleteSales = deleteSales;
+window.editSales = editSales;
 window.viewSales = viewSalesDetails;
+window.editSalesPage = editSalesPage;
 window.closeSalesDetailsModal = closeSalesDetailsModal;
 
 // Report functions
@@ -2617,9 +2457,3 @@ window.updateCompanyInfo = updateCompanyInfo;
 window.login = login;
 window.register = register;
 window.toggleForm = toggleForm;
-
-// Activity Log functions
-window.clearActivityLog = clearActivityLog;
-
-// Pagination functions
-window.goToPage = goToPage;
