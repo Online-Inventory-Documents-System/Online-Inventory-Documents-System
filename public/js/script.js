@@ -1,8 +1,5 @@
-[file name]: script.js
-[file content begin]
 // public/js/script.js
 // Complete client-side script for Online Inventory & Documents System
-
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
   : "https://online-inventory-documents-system-olzt.onrender.com/api";
@@ -2626,4 +2623,3 @@ window.clearActivityLog = clearActivityLog;
 
 // Pagination functions
 window.goToPage = goToPage;
-[file content end]
