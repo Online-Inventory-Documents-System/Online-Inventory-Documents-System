@@ -13,7 +13,7 @@
     
     /* Red color for the clock */
     .clock {
-      color: #ff6b6b !important;
+      color: #a4f084 !important;
       font-weight: 600;
     }
     
@@ -32,26 +32,16 @@
 </head>
 <body>
   <header>
-    <div class="header-content">
-      <div class="header-left">
-        <div class="logo-container">
-          <div class="logo">📦</div>
-          <h1>Inventory Management System</h1>
-        </div>
-      </div>
-      
-      <div class="header-right">
-        <nav>
-          <a href="inventory.html" class="nav-link active">📊 Dashboard</a>
-          <a href="documents.html" class="nav-link">🗂️ Documents</a>
-          <a href="log.html" class="nav-link">📋 Activity Log</a>
-          <button class="nav-button" onclick="window.location.href='setting.html'">⚙️ Settings</button>
-          <button class="nav-button" onclick="toggleTheme()">🌓 Theme</button>
-          <button class="nav-button" onclick="logout()">🚪 Logout</button>
-        </nav>
-        <div id="adminInfo">👤 <span id="adminName"></span></div>
-      </div>
-    </div>
+    <h1>📦 Inventory Management System</h1>
+    <nav>
+      <a href="inventory.html" class="active">Dashboard</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
   </header>
 
   <section>
@@ -64,7 +54,7 @@
     </div>
 
     <!-- MODERN SUMMARY CARDS -->
-    <h2 class="section-title">System Overview</h2>
+    <h2 class="section-title">Summary Cards</h2>
     <div class="summary-cards">
       <div class="card card-total-products" onclick="showCardTooltip('Total number of products in inventory')">
         <div class="card-icon">📦</div>
@@ -93,10 +83,10 @@
         </div>
       </div>
       
-      <div class="card card-total-profit" onclick="showCardTooltip('Actual profit earned from completed sales transactions')">
+      <div class="card card-total-profit" onclick="showCardTooltip('Potential profit after subtracting inventory costs')">
         <div class="card-icon">💸</div>
         <div class="card-content">
-          <div class="card-title">Total Profit Earned</div>
+          <div class="card-title">Total Potential Profit</div>
           <div class="card-value" id="cardTotalProfit">RM 0.00</div>
           <div class="card-wave"></div>
         </div>
@@ -216,7 +206,6 @@
       <table id="inventoryTable">
           <thead>
               <tr>
-                  <th>#</th>
                   <th>SKU</th>
                   <th>Name</th>
                   <th>Category</th>
@@ -225,28 +214,13 @@
                   <th class="money">Unit Price</th>
                   <th class="money">Inventory Value</th>
                   <th class="money">Potential Revenue</th>
+                  <th class="money">Potential Profit</th>
                   <th>Date</th>
-                  <th>Status</th>
                   <th class="actions">Actions</th>
               </tr>
           </thead>
           <tbody id="inventoryList"></tbody>
       </table>
-    </div>
-    
-    <!-- Pagination Controls -->
-    <div class="pagination">
-      <button id="firstPageBtn" title="First Page">««</button>
-      <button id="prevPageBtn" title="Previous Page">«</button>
-      <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
-      <button id="nextPageBtn" title="Next Page">»</button>
-      <button id="lastPageBtn" title="Last Page">»»</button>
-      <select id="itemsPerPage">
-        <option value="10">10 items/page</option>
-        <option value="25">25 items/page</option>
-        <option value="50">50 items/page</option>
-        <option value="100">100 items/page</option>
-      </select>
     </div>
   </section>
 
@@ -265,7 +239,6 @@
               <tr>
                 <th>Purchase ID</th>
                 <th>Supplier</th>
-                <th>Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -293,7 +266,6 @@
               <tr>
                 <th>Sales ID</th>
                 <th>Customer</th>
-                <th>Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -324,10 +296,6 @@
             <div class="detail-group">
               <label>Supplier:</label>
               <span id="detailSupplier" class="detail-value"></span>
-            </div>
-            <div class="detail-group">
-              <label>Supplier Contact:</label>
-              <span id="detailSupplierContact" class="detail-value"></span>
             </div>
           </div>
           <div class="detail-row">
@@ -365,7 +333,7 @@
         </div>
 
         <div class="modal-actions">
-          <button id="printPurchaseInvoiceBtn" class="success-btn">🖨️ Print & Save Invoice</button>
+          <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
           <button id="closeDetailsModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -389,10 +357,6 @@
             <div class="detail-group">
               <label>Customer:</label>
               <span id="detailCustomer" class="detail-value"></span>
-            </div>
-            <div class="detail-group">
-              <label>Customer Contact:</label>
-              <span id="detailCustomerContact" class="detail-value"></span>
             </div>
           </div>
           <div class="detail-row">
@@ -430,7 +394,7 @@
         </div>
 
         <div class="modal-actions">
-          <button id="printSalesInvoiceBtn" class="success-btn">🖨️ Print & Save Invoice</button>
+          <button id="printSalesInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
           <button id="closeSalesDetailsModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -448,18 +412,11 @@
         <div class="form-row">
           <div class="form-group">
             <label for="supplierName">Supplier Name:</label>
-            <input type="text" id="supplierName" placeholder="Enter supplier name" required>
+            <input type="text" id="supplierName" placeholder="Enter supplier name">
           </div>
-          <div class="form-group">
-            <label for="supplierContact">Supplier Contact:</label>
-            <input type="tel" id="supplierContact" placeholder="Enter supplier phone/email" required>
-          </div>
-        </div>
-
-        <div class="form-row">
           <div class="form-group">
             <label for="purchaseDate">Purchase Date:</label>
-            <input type="date" id="purchaseDate" required>
+            <input type="date" id="purchaseDate">
           </div>
         </div>
 
@@ -489,7 +446,7 @@
 
         <div class="modal-actions">
           <button id="savePurchaseBtn" class="primary-btn">💾 Save Purchase Order</button>
-          <button id="printPurchaseBtn" class="success-btn" style="display: inline-flex;">🖨️ Print Invoice</button>
+          <button id="printPurchaseBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -507,18 +464,11 @@
         <div class="form-row">
           <div class="form-group">
             <label for="customerName">Customer Name:</label>
-            <input type="text" id="customerName" placeholder="Enter customer name" required>
+            <input type="text" id="customerName" placeholder="Enter customer name">
           </div>
-          <div class="form-group">
-            <label for="customerContact">Customer Contact:</label>
-            <input type="tel" id="customerContact" placeholder="Enter customer phone/email" required>
-          </div>
-        </div>
-
-        <div class="form-row">
           <div class="form-group">
             <label for="salesDate">Sales Date:</label>
-            <input type="date" id="salesDate" required>
+            <input type="date" id="salesDate">
           </div>
         </div>
 
@@ -548,14 +498,14 @@
 
         <div class="modal-actions">
           <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
-          <button id="printSalesBtn" class="success-btn" style="display: inline-flex;">🖨️ Print Invoice</button>
+          <button id="printSalesBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- UPDATED: Report Generation Modal -->
+  <!-- Report Generation Modal -->
   <div id="reportModal" class="modal">
     <div class="modal-content large-modal">
       <div class="modal-header">
@@ -579,12 +529,22 @@
           <div class="report-option" id="report-inventory" onclick="selectReportType('inventory')">
             <div class="icon">📦</div>
             <h3>Inventory Report</h3>
-            <p>Current stock levels, values, and analysis</p>
+            <p>Current stock levels, values, and profitability analysis</p>
+          </div>
+          <div class="report-option" id="report-purchase" onclick="selectReportType('purchase')">
+            <div class="icon">🛒</div>
+            <h3>Purchase Report</h3>
+            <p>All purchase orders with supplier details and totals</p>
+          </div>
+          <div class="report-option" id="report-sales" onclick="selectReportType('sales')">
+            <div class="icon">💰</div>
+            <h3>Sales Report</h3>
+            <p>All sales orders with customer details and revenue</p>
           </div>
           <div class="report-option" id="report-all" onclick="selectReportType('all')">
             <div class="icon">📊</div>
             <h3>All Reports</h3>
-            <p>Generate inventory report only</p>
+            <p>Generate all three reports at once</p>
           </div>
         </div>
 
@@ -598,7 +558,7 @@
     </div>
   </div>
 
-  <!-- UPDATED: Statements Modal -->
+  <!-- Statements Modal -->
   <div id="statementsModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -622,12 +582,14 @@
         <div id="content-inventory-reports" class="tab-content active">
           <div class="statement-summary">
             <div class="statement-count">Total Reports: <span id="inventoryReportsCount">0</span></div>
+            <div class="statement-size">Total Size: <span id="inventoryReportsSize">0 MB</span></div>
           </div>
           <div class="table-container"> 
             <table id="inventoryReportsTable">
               <thead>
                 <tr>
                   <th>Report Name</th>
+                  <th>Size</th>
                   <th>Generated Date</th>
                   <th class="actions">Actions</th>
                 </tr>
@@ -641,12 +603,14 @@
         <div id="content-purchase-invoices" class="tab-content">
           <div class="statement-summary">
             <div class="statement-count">Total Invoices: <span id="purchaseInvoicesCount">0</span></div>
+            <div class="statement-size">Total Size: <span id="purchaseInvoicesSize">0 MB</span></div>
           </div>
           <div class="table-container"> 
             <table id="purchaseInvoicesTable">
               <thead>
                 <tr>
                   <th>Invoice Name</th>
+                  <th>Size</th>
                   <th>Generated Date</th>
                   <th class="actions">Actions</th>
                 </tr>
@@ -660,12 +624,14 @@
         <div id="content-sales-invoices" class="tab-content">
           <div class="statement-summary">
             <div class="statement-count">Total Invoices: <span id="salesInvoicesCount">0</span></div>
+            <div class="statement-size">Total Size: <span id="salesInvoicesSize">0 MB</span></div>
           </div>
           <div class="table-container"> 
             <table id="salesInvoicesTable">
               <thead>
                 <tr>
                   <th>Invoice Name</th>
+                  <th>Size</th>
                   <th>Generated Date</th>
                   <th class="actions">Actions</th>
                 </tr>
@@ -735,3 +701,4 @@
   </script>
 </body>
 </html>
+
