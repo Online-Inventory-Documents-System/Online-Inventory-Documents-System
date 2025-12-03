@@ -17,6 +17,100 @@
       font-weight: 600;
     }
     
+    /* Status badges styling */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .status-in-stock {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status-low-stock {
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    
+    .status-out-of-stock {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    /* Pagination styling */
+    .pagination-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .pagination-info {
+      font-size: 0.9rem;
+      color: var(--secondary-color);
+    }
+    
+    .pagination-controls {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    
+    .pagination-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      background: var(--card-light);
+      color: var(--text-light);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      min-width: 32px;
+      text-align: center;
+    }
+    
+    .pagination-btn:hover:not(:disabled) {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .items-per-page {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.85rem;
+    }
+    
+    .items-per-page select {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--card-light);
+      color: var(--text-light);
+    }
+    
     @media (max-width: 1200px) {
       .action-buttons-grid {
         grid-template-columns: repeat(2, 1fr) !important;
@@ -27,33 +121,33 @@
       .action-buttons-grid {
         grid-template-columns: 1fr !important;
       }
+      
+      .pagination-container {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      
+      .pagination-controls {
+        width: 100%;
+        justify-content: center;
+      }
     }
   </style>
 </head>
 <body>
   <header>
-    <div class="header-content">
-      <div class="header-left">
-        <div class="logo-container">
-          <div class="logo">📦</div>
-          <h1>Inventory Management System</h1>
-        </div>
-      </div>
-      
-      <div class="header-right">
-        <nav>
-          <a href="inventory.html" class="nav-link active">📊 Dashboard</a>
-          <a href="documents.html" class="nav-link">🗂️ Documents</a>
-          <a href="log.html" class="nav-link">📋 Activity Log</a>
-          <button class="nav-button" onclick="window.location.href='setting.html'">⚙️ Settings</button>
-          <button class="nav-button" onclick="toggleTheme()">🌓 Theme</button>
-          <button class="nav-button" onclick="logout()">🚪 Logout</button>
-        </nav>
-        <div id="adminInfo">👤 <span id="adminName"></span></div>
-      </div>
-    </div>
+    <h1>📦 Inventory Management System</h1>
+    <nav>
+      <a href="inventory.html" class="active">Dashboard</a>
+      <a href="documents.html">Documents</a>
+      <a href="log.html">Activity Log</a>
+      <a href="setting.html" style="text-decoration: none;"><button>⚙️ Setting</button></a>
+      <button onclick="toggleTheme()">🌓 Mode</button>
+      <button onclick="logout()">🚪 Logout</button>
+      <div id="adminInfo">Logged in as: <span id="adminName"></span></div>
+    </nav>
   </header>
-
 
   <section>
     <!-- WELCOME SECTION -->
@@ -94,10 +188,11 @@
         </div>
       </div>
       
-      <div class="card card-total-profit" onclick="showCardTooltip('Potential profit after subtracting inventory costs')">
+      <!-- UPDATED: Changed from Potential Profit to Profit Earned -->
+      <div class="card card-total-profit" onclick="showCardTooltip('Total profit earned from completed sales')">
         <div class="card-icon">💸</div>
         <div class="card-content">
-          <div class="card-title">Total Potential Profit</div>
+          <div class="card-title">Total Profit Earned</div>
           <div class="card-value" id="cardTotalProfit">RM 0.00</div>
           <div class="card-wave"></div>
         </div>
@@ -118,6 +213,7 @@
     </div>
 
     <!-- ENHANCED ACTION BUTTONS GRID -->
+    <!-- UPDATED: Changed 'View Statements' to 'Add New Product' -->
     <div class="action-buttons-grid">
       <button class="action-card purchase-history" id="purchaseHistoryBtn">
         <div class="action-icon">📋</div>
@@ -164,17 +260,18 @@
         <div class="action-wave"></div>
       </button>
 
-      <button class="action-card view-statements" id="statementsBtn">
-        <div class="action-icon">🗂️</div>
+      <!-- UPDATED: Changed from View Statements to Add New Product -->
+      <button class="action-card add-new-product" id="addNewProductBtn">
+        <div class="action-icon">➕</div>
         <div class="action-content">
-          <div class="action-title">View Statements</div>
-          <div class="action-subtitle">Access all statements</div>
+          <div class="action-title">Add New Product</div>
+          <div class="action-subtitle">Add new inventory item</div>
         </div>
         <div class="action-wave"></div>
       </button>
     </div>
 
-    <h2>Add New Product</h2> 
+    <h2 id="addProductSection">Add New Product</h2> 
     <div class="product-bar">
       <input id="p_sku" placeholder="Item ID / SKU" type="text" />
       <input id="p_name" placeholder="Item Name" type="text" />
@@ -186,6 +283,33 @@
     </div>
 
     <h2>Current Inventory List</h2> 
+    
+    <!-- Pagination Controls -->
+    <div class="pagination-container">
+      <div class="pagination-info">
+        Showing <span id="currentPageStart">1</span>-<span id="currentPageEnd">10</span> of <span id="totalItems">0</span> items
+      </div>
+      <div class="pagination-controls">
+        <button class="pagination-btn" id="firstPageBtn" title="First Page">««</button>
+        <button class="pagination-btn" id="prevPageBtn" title="Previous Page">«</button>
+        
+        <div id="pageNumbers" class="page-numbers"></div>
+        
+        <button class="pagination-btn" id="nextPageBtn" title="Next Page">»</button>
+        <button class="pagination-btn" id="lastPageBtn" title="Last Page">»»</button>
+        
+        <div class="items-per-page">
+          <span>Show:</span>
+          <select id="itemsPerPageSelect">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
     <div class="controls">
       <div class="search-controls">
         <!-- Date Range Search Controls -->
@@ -225,13 +349,31 @@
                   <th class="money">Unit Price</th>
                   <th class="money">Inventory Value</th>
                   <th class="money">Potential Revenue</th>
-                  <th class="money">Potential Profit</th>
+                  <!-- UPDATED: Removed Potential Profit column -->
                   <th>Date</th>
+                  <!-- UPDATED: Added Status column -->
+                  <th class="status">Status</th>
                   <th class="actions">Actions</th>
               </tr>
           </thead>
           <tbody id="inventoryList"></tbody>
       </table>
+    </div>
+    
+    <!-- Pagination Footer -->
+    <div class="pagination-container" style="border-bottom: none; border-top: 1px solid var(--border-color); margin-top: 15px;">
+      <div class="pagination-info">
+        Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+      </div>
+      <div class="pagination-controls">
+        <button class="pagination-btn" id="firstPageBtnFooter" title="First Page">««</button>
+        <button class="pagination-btn" id="prevPageBtnFooter" title="Previous Page">«</button>
+        
+        <div id="pageNumbersFooter" class="page-numbers"></div>
+        
+        <button class="pagination-btn" id="nextPageBtnFooter" title="Next Page">»</button>
+        <button class="pagination-btn" id="lastPageBtnFooter" title="Last Page">»»</button>
+      </div>
     </div>
   </section>
 
@@ -280,7 +422,8 @@
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
-                <th class="actions">Actions</th>
+                <!-- UPDATED: Removed Actions column -->
+                <th class="actions">Download</th>
               </tr>
             </thead>
             <tbody id="salesHistoryList"></tbody>
@@ -537,26 +680,13 @@
 
         <h3>Select Report Type</h3>
         <div class="report-options">
+          <!-- UPDATED: Only keep Inventory Report -->
           <div class="report-option" id="report-inventory" onclick="selectReportType('inventory')">
             <div class="icon">📦</div>
             <h3>Inventory Report</h3>
-            <p>Current stock levels, values, and profitability analysis</p>
+            <p>Current stock levels, values, and status analysis</p>
           </div>
-          <div class="report-option" id="report-purchase" onclick="selectReportType('purchase')">
-            <div class="icon">🛒</div>
-            <h3>Purchase Report</h3>
-            <p>All purchase orders with supplier details and totals</p>
-          </div>
-          <div class="report-option" id="report-sales" onclick="selectReportType('sales')">
-            <div class="icon">💰</div>
-            <h3>Sales Report</h3>
-            <p>All sales orders with customer details and revenue</p>
-          </div>
-          <div class="report-option" id="report-all" onclick="selectReportType('all')">
-            <div class="icon">📊</div>
-            <h3>All Reports</h3>
-            <p>Generate all three reports at once</p>
-          </div>
+          <!-- REMOVED: Purchase and Sales Report options -->
         </div>
 
         <input type="hidden" id="selectedReportType" value="">
@@ -712,5 +842,3 @@
   </script>
 </body>
 </html>
-
-
