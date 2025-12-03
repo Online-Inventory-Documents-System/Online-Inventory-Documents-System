@@ -13,9 +13,6 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
-// ===== Global Profit Tracking =====
-let totalProfitEarned = 0;
-
 // ===== Middleware =====
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
@@ -54,7 +51,7 @@ const CompanySchema = new Schema({
   phone: { type: String, default: "01133127622" },
   email: { type: String, default: "lbcompany@gmail.com" },
   updatedAt: { type: Date, default: Date.now },
-  totalProfitEarned: { type: Number, default: 0 }  // Store profit in company record
+  totalProfitEarned: { type: Number, default: 0 }
 });
 const Company = mongoose.model("Company", CompanySchema);
 
@@ -89,14 +86,14 @@ const PurchaseSchema = new Schema({
 });
 const Purchase = mongoose.model("Purchase", PurchaseSchema);
 
-// ===== NEW: Sales Schema with Profit Tracking =====
+// ===== Sales Schema with Profit Tracking =====
 const SalesItemSchema = new Schema({
   sku: String,
   productName: String,
   quantity: { type: Number, default: 0 },
   salePrice: { type: Number, default: 0 },
-  unitCost: { type: Number, default: 0 },  // Added to track profit
-  profit: { type: Number, default: 0 },     // Profit for this item
+  unitCost: { type: Number, default: 0 },
+  profit: { type: Number, default: 0 },
   totalAmount: { type: Number, default: 0 }
 });
 
@@ -107,12 +104,12 @@ const SalesSchema = new Schema({
   notes: String,
   items: [SalesItemSchema],
   totalAmount: { type: Number, default: 0 },
-  totalProfit: { type: Number, default: 0 },  // Total profit for this sale
+  totalProfit: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 const Sales = mongoose.model("Sales", SalesSchema);
 
-// ===== NEW: Folder Schema for Document Management =====
+// ===== Folder Schema for Document Management =====
 const FolderSchema = new Schema({
   name: { type: String, required: true },
   parentFolder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
@@ -177,7 +174,7 @@ async function logActivity(user, action) {
   }
 }
 
-// ===== NEW: Get Company Information with Profit =====
+// ===== Get Company Information with Profit =====
 async function getCompanyInfo() {
   try {
     let company = await Company.findOne({});
@@ -208,12 +205,18 @@ async function updateTotalProfit(profitToAdd) {
       company.updatedAt = new Date();
       await company.save();
     }
-    totalProfitEarned = company.totalProfitEarned;
     return company.totalProfitEarned;
   } catch (err) {
     console.error("Update profit error:", err);
-    return totalProfitEarned;
+    return 0;
   }
+}
+
+// ===== Helper: Get Stock Status =====
+function getStockStatus(quantity) {
+  if (quantity === 0) return 'Out of Stock';
+  if (quantity <= 10) return 'Low Stock';
+  return 'In Stock';
 }
 
 // ===== Health Check =====
@@ -322,7 +325,6 @@ app.put("/api/account/password", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing username or new password" });
   }
 
-  // Verify the user is changing their own password
   if (username !== currentUser) {
     return res.status(403).json({ success: false, message: "You can only change your own password" });
   }
@@ -333,7 +335,6 @@ app.put("/api/account/password", async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
@@ -362,7 +363,6 @@ app.delete("/api/account", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing username" });
   }
 
-  // Verify the user is deleting their own account
   if (username !== currentUser) {
     return res.status(403).json({ success: false, message: "You can only delete your own account" });
   }
@@ -400,47 +400,6 @@ app.get("/api/inventory", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-
-app.get("/api/inventory/paginated", async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-
-    // Get total count
-    const total = await Inventory.countDocuments({});
-    
-    // Get paginated items
-    const items = await Inventory.find({})
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    const normalized = items.map(i => ({
-      ...i,
-      id: i._id.toString(),
-      status: getStockStatus(i.quantity)
-    }));
-
-    res.json({
-      items: normalized,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-      limit
-    });
-  } catch (err) {
-    console.error("inventory paginated error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Helper function for stock status
-function getStockStatus(quantity) {
-  if (quantity === 0) return 'Out of Stock';
-  if (quantity <= 10) return 'Low Stock';
-  return 'In Stock';
-}
 
 app.post("/api/inventory", async (req, res) => {
   try {
@@ -580,7 +539,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
-        // PERFECT COLUMN ALIGNMENT - UPDATED for STATUS column
         const columns = [
           { name: "SKU", x: 40, width: 70 },
           { name: "Product Name", x: 110, width: 110 },
@@ -596,17 +554,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let y = 150;
 
         function drawTableHeader() {
-          // Draw header background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Header text
           doc.font("Helvetica-Bold").fontSize(9);
           columns.forEach(col => {
             doc.text(col.name, col.x + 3, y + 5);
@@ -623,17 +578,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           const potentialRevenue = qty * price;
           const status = getStockStatus(qty);
 
-          // Draw row background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Data text
           doc.font("Helvetica").fontSize(8);
           doc.text(item.sku || "", columns[0].x + 3, y + 5);
           doc.text(item.name || "", columns[1].x + 3, y + 5);
@@ -644,7 +596,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
           doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
           
-          // Status with color coding
           if (status === 'In Stock') {
             doc.fillColor('green');
           } else if (status === 'Low Stock') {
@@ -653,7 +604,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
             doc.fillColor('red');
           }
           doc.text(status, columns[8].x + 3, y + 5);
-          doc.fillColor('black'); // Reset color
+          doc.fillColor('black');
           
           y += rowHeight;
           
@@ -665,7 +616,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           };
         }
 
-        // Draw header
         drawTableHeader();
         
         let subtotalQty = 0;
@@ -693,10 +643,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const lastPageIndex = doc.bufferedPageRange().count - 1;
         doc.switchToPage(lastPageIndex);
         
-        // FIXED: Better positioning for summary box
         let boxY = y + 20;
         if (boxY > 450) {
-          // If we're running out of space, add a new page for summary
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           boxY = 40;
         }
@@ -789,10 +737,8 @@ app.post("/api/purchases", async (req, res) => {
   try {
     const { supplier, purchaseDate, notes, items } = req.body;
     
-    // Generate unique purchase ID
     const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
-    // Calculate total amount and process each item
     let totalAmount = 0;
     const purchaseItems = [];
 
@@ -808,11 +754,9 @@ app.post("/api/purchases", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
-        // Update unit cost if needed (optional)
         if (item.purchasePrice > 0) {
           inventoryItem.unitCost = item.purchasePrice;
         }
@@ -831,61 +775,6 @@ app.post("/api/purchases", async (req, res) => {
 
     await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`);
 
-    // Create invoice PDF and save it automatically
-    try {
-      const company = await getCompanyInfo();
-      const invoiceFilename = `Purchase_Invoice_${purchaseId}.pdf`;
-
-      const invoiceBuffer = await generateInvoicePDFBuffer({
-        title: 'PURCHASE INVOICE',
-        companyInfo: {
-          name: company.name,
-          address: company.address,
-          phone: company.phone,
-          email: company.email
-        },
-        docMeta: {
-          reference: purchaseId,
-          dateString: new Date(purchase.purchaseDate).toLocaleDateString(),
-          status: 'PURCHASE'
-        },
-        customer: {
-          name: supplier || 'Supplier',
-          contact: supplier || 'N/A'
-        },
-        items: purchaseItems.map(item => ({
-          name: item.productName || 'N/A',
-          sku: item.sku || 'N/A',
-          qty: item.quantity || 0,
-          price: item.purchasePrice || 0,
-          total: item.totalAmount || 0
-        })),
-        totals: {
-          subtotal: totalAmount,
-          tax: 0,
-          grandTotal: totalAmount || 0
-        },
-        extraNotes: notes || ''
-      });
-
-      // Save invoice to database
-      await Doc.create({
-        name: invoiceFilename,
-        size: invoiceBuffer.length,
-        date: new Date(),
-        data: invoiceBuffer,
-        contentType: "application/pdf",
-        folder: null,
-        tags: ['purchase-invoice', 'pdf'],
-        createdBy: req.headers["x-username"]
-      });
-
-      console.log(`✅ Purchase invoice saved: ${invoiceFilename}`);
-    } catch (invoiceErr) {
-      console.error("Failed to create purchase invoice:", invoiceErr);
-      // Continue even if invoice creation fails
-    }
-
     res.status(201).json({
       ...purchase.toObject(),
       id: purchase._id.toString()
@@ -901,13 +790,11 @@ app.put("/api/purchases/:id", async (req, res) => {
   try {
     const { supplier, purchaseDate, notes, items } = req.body;
     
-    // Find existing purchase to revert inventory changes
     const existingPurchase = await Purchase.findById(req.params.id);
     if (!existingPurchase) {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
-    // Revert old inventory quantities
     for (const oldItem of existingPurchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
       if (inventoryItem) {
@@ -916,7 +803,6 @@ app.put("/api/purchases/:id", async (req, res) => {
       }
     }
 
-    // Calculate new total and apply new inventory changes
     let totalAmount = 0;
     const purchaseItems = [];
 
@@ -932,7 +818,6 @@ app.put("/api/purchases/:id", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity with new values
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
@@ -974,7 +859,6 @@ app.delete("/api/purchases/:id", async (req, res) => {
     if (!purchase)
       return res.status(404).json({ message: "Purchase not found" });
 
-    // Revert inventory quantities
     for (const item of purchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
@@ -994,7 +878,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                               SALES CRUD (UPDATED WITH PROFIT)
+//                               SALES CRUD
 // ============================================================================
 app.get("/api/sales", async (req, res) => {
   try {
@@ -1006,6 +890,17 @@ app.get("/api/sales", async (req, res) => {
     res.json(normalized);
   } catch (err) {
     console.error("sales get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// NEW: Get total profit earned
+app.get("/api/sales/total-profit", async (req, res) => {
+  try {
+    const company = await getCompanyInfo();
+    res.json({ totalProfit: company.totalProfitEarned || 0 });
+  } catch (err) {
+    console.error("Total profit get error", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -1029,21 +924,18 @@ app.get("/api/sales/:id", async (req, res) => {
 
 app.post("/api/sales", async (req, res) => {
   try {
-    const { customer, salesDate, notes, items } = req.body;
+    const { customer, salesDate, notes, items, totalProfit } = req.body;
     
-    // Generate unique sales ID
     const salesId = `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
-    // Calculate total amount and process each item
     let totalAmount = 0;
-    let totalProfit = 0;
+    let calculatedProfit = 0;
     const salesItems = [];
 
     for (const item of items) {
       const itemTotal = item.quantity * item.salePrice;
       totalAmount += itemTotal;
 
-      // Get current inventory item to calculate profit
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (!inventoryItem) {
         return res.status(400).json({ 
@@ -1051,10 +943,9 @@ app.post("/api/sales", async (req, res) => {
         });
       }
 
-      // Calculate profit: (salePrice - unitCost) * quantity
       const unitCost = inventoryItem.unitCost || 0;
       const itemProfit = (item.salePrice - unitCost) * item.quantity;
-      totalProfit += itemProfit;
+      calculatedProfit += itemProfit;
 
       salesItems.push({
         sku: item.sku,
@@ -1066,7 +957,6 @@ app.post("/api/sales", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity (reduce stock)
       if (inventoryItem.quantity < item.quantity) {
         return res.status(400).json({ 
           message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
@@ -1076,8 +966,7 @@ app.post("/api/sales", async (req, res) => {
       await inventoryItem.save();
     }
 
-    // Update total profit in company record
-    await updateTotalProfit(totalProfit);
+    await updateTotalProfit(calculatedProfit);
 
     const sale = await Sales.create({
       salesId,
@@ -1086,65 +975,10 @@ app.post("/api/sales", async (req, res) => {
       notes,
       items: salesItems,
       totalAmount,
-      totalProfit
+      totalProfit: calculatedProfit
     });
 
-    await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items, profit: RM ${totalProfit.toFixed(2)}`);
-
-    // Create invoice PDF and save it automatically
-    try {
-      const company = await getCompanyInfo();
-      const invoiceFilename = `Sales_Invoice_${salesId}.pdf`;
-
-      const invoiceBuffer = await generateInvoicePDFBuffer({
-        title: 'SALES INVOICE',
-        companyInfo: {
-          name: company.name,
-          address: company.address,
-          phone: company.phone,
-          email: company.email
-        },
-        docMeta: {
-          reference: salesId,
-          dateString: new Date(sale.salesDate).toLocaleDateString(),
-          status: 'SALES'
-        },
-        customer: {
-          name: customer || 'Customer',
-          contact: customer || 'N/A'
-        },
-        items: salesItems.map(item => ({
-          name: item.productName || 'N/A',
-          sku: item.sku || 'N/A',
-          qty: item.quantity || 0,
-          price: item.salePrice || 0,
-          total: item.totalAmount || 0
-        })),
-        totals: {
-          subtotal: totalAmount,
-          tax: 0,
-          grandTotal: totalAmount || 0
-        },
-        extraNotes: notes || ''
-      });
-
-      // Save invoice to database
-      await Doc.create({
-        name: invoiceFilename,
-        size: invoiceBuffer.length,
-        date: new Date(),
-        data: invoiceBuffer,
-        contentType: "application/pdf",
-        folder: null,
-        tags: ['sales-invoice', 'pdf'],
-        createdBy: req.headers["x-username"]
-      });
-
-      console.log(`✅ Sales invoice saved: ${invoiceFilename}`);
-    } catch (invoiceErr) {
-      console.error("Failed to create sales invoice:", invoiceErr);
-      // Continue even if invoice creation fails
-    }
+    await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items, profit: RM ${calculatedProfit.toFixed(2)}`);
 
     res.status(201).json({
       ...sale.toObject(),
@@ -1161,16 +995,13 @@ app.put("/api/sales/:id", async (req, res) => {
   try {
     const { customer, salesDate, notes, items } = req.body;
     
-    // Find existing sales to revert inventory changes and profit
     const existingSale = await Sales.findById(req.params.id);
     if (!existingSale) {
       return res.status(404).json({ message: "Sales not found" });
     }
 
-    // Revert old profit
     await updateTotalProfit(-existingSale.totalProfit);
 
-    // Revert old inventory quantities (add back the sold items)
     for (const oldItem of existingSale.items) {
       const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
       if (inventoryItem) {
@@ -1179,7 +1010,6 @@ app.put("/api/sales/:id", async (req, res) => {
       }
     }
 
-    // Calculate new total and apply new inventory changes
     let totalAmount = 0;
     let totalProfit = 0;
     const salesItems = [];
@@ -1188,7 +1018,6 @@ app.put("/api/sales/:id", async (req, res) => {
       const itemTotal = item.quantity * item.salePrice;
       totalAmount += itemTotal;
 
-      // Get current inventory item to calculate profit
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (!inventoryItem) {
         return res.status(400).json({ 
@@ -1196,7 +1025,6 @@ app.put("/api/sales/:id", async (req, res) => {
         });
       }
 
-      // Calculate profit: (salePrice - unitCost) * quantity
       const unitCost = inventoryItem.unitCost || 0;
       const itemProfit = (item.salePrice - unitCost) * item.quantity;
       totalProfit += itemProfit;
@@ -1211,7 +1039,6 @@ app.put("/api/sales/:id", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity with new values (reduce stock)
       if (inventoryItem.quantity < item.quantity) {
         return res.status(400).json({ 
           message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
@@ -1221,7 +1048,6 @@ app.put("/api/sales/:id", async (req, res) => {
       await inventoryItem.save();
     }
 
-    // Update total profit in company record
     await updateTotalProfit(totalProfit);
 
     const sale = await Sales.findByIdAndUpdate(
@@ -1256,10 +1082,8 @@ app.delete("/api/sales/:id", async (req, res) => {
     if (!sale)
       return res.status(404).json({ message: "Sales not found" });
 
-    // Revert profit
     await updateTotalProfit(-sale.totalProfit);
 
-    // Revert inventory quantities (add back the sold items)
     for (const item of sale.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
@@ -1293,7 +1117,6 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        // Prepare data for the invoice template
         const invoiceData = {
           title: 'PURCHASE INVOICE',
           companyInfo: {
@@ -1319,14 +1142,13 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
             total: item.totalAmount || 0
           })),
           totals: {
-            subtotal: purchase.subtotal || purchase.totalAmount,
+            subtotal: purchase.totalAmount,
             tax: 0,
             grandTotal: purchase.totalAmount || 0
           },
           extraNotes: purchase.notes || ''
         };
 
-        // Generate PDF using the template
         const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
@@ -1361,7 +1183,6 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        // Prepare data for the sales invoice template
         const invoiceData = {
           title: 'SALES INVOICE',
           companyInfo: {
@@ -1387,14 +1208,13 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
             total: item.totalAmount || 0
           })),
           totals: {
-            subtotal: sale.subtotal || sale.totalAmount,
+            subtotal: sale.totalAmount,
             tax: 0,
             grandTotal: sale.totalAmount || 0
           },
           extraNotes: sale.notes || ''
         };
 
-        // Generate PDF using the template
         const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
@@ -1414,7 +1234,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
   }
 });
 
-// ===== IMPROVED Helper: generate PDF buffer using PDFKit (two-column professional invoice) =====
+// ===== Helper: generate PDF buffer using PDFKit =====
 function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
   return new Promise((resolve, reject) => {
     try {
@@ -1428,10 +1248,8 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.on('data', (d) => bufs.push(d));
       doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-      // Header - two column design
       const topY = 36;
       
-      // Left column - Company Info
       doc.fontSize(14).font('Helvetica-Bold')
          .text(companyInfo.name || 'L&B COMPANY', 36, topY);
       doc.fontSize(10).font('Helvetica')
@@ -1439,7 +1257,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text(`Phone: ${companyInfo.phone || '01133127622'}`);
       doc.text(`Email: ${companyInfo.email || 'lbcompany@gmail.com'}`);
 
-      // Right column - Invoice Meta
       const rightX = 360;
       doc.fontSize(12).font('Helvetica-Bold')
          .text(title, rightX, topY, { align: 'right' });
@@ -1448,7 +1265,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text(`Date: ${docMeta.dateString || new Date().toLocaleDateString()}`, { align: 'right' });
       doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
 
-      // Customer Information
       const customerY = 120;
       doc.fontSize(10).font('Helvetica-Bold')
          .text(title.includes('PURCHASE') ? 'Supplier:' : 'Customer:', 36, customerY);
@@ -1458,7 +1274,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         doc.text(`Contact: ${customer.contact}`, 36, doc.y);
       }
 
-      // Items table header
       const tableTop = 170;
       const colX = { 
         item: 36, 
@@ -1475,19 +1290,15 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
       doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
 
-      // Table header line
       doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
 
-      // Table rows
       doc.font('Helvetica').fontSize(9);
       let y = tableTop + 24;
       
       items.forEach((item, index) => {
-        // Check for page break
         if (y > 700) {
           doc.addPage();
           y = 60;
-          // Redraw table header on new page
           doc.fontSize(10).font('Helvetica-Bold');
           doc.text('Product Name', colX.item, y);
           doc.text('SKU', colX.sku, y);
@@ -1499,7 +1310,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
           doc.font('Helvetica').fontSize(9);
         }
 
-        // Alternate row background for better readability
         if (index % 2 === 0) {
           doc.rect(36, y - 4, 524, 18)
              .fillColor('#f8f9fa')
@@ -1516,7 +1326,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         y += 18;
       });
 
-      // Totals section
       const totalsY = Math.max(y + 10, 650);
       doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
       
@@ -1535,7 +1344,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
       doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
 
-      // Notes section
       if (extraNotes) {
         doc.moveDown(2);
         doc.font('Helvetica').fontSize(9)
@@ -1543,12 +1351,10 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
            .text(extraNotes, 36, totalsY + 105, { width: 500 });
       }
 
-      // Footer
       doc.fontSize(9).font('Helvetica')
          .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
                36, 760, { align: 'center', width: 520 });
 
-      // Page numbers for multi-page invoices
       const range = doc.bufferedPageRange();
       for (let i = 0; i < range.count; i++) {
         doc.switchToPage(i);
@@ -1592,7 +1398,6 @@ app.post("/api/folders", async (req, res) => {
       return res.status(400).json({ message: "Folder name is required" });
     }
 
-    // Check if folder with same name already exists in the same location
     const existingFolder = await Folder.findOne({ 
       name, 
       parentFolder: parentFolder || null 
@@ -1660,7 +1465,6 @@ app.delete("/api/folders/:id", async (req, res) => {
       return res.status(404).json({ message: "Folder not found" });
     }
 
-    // Check if folder has subfolders
     const subfolders = await Folder.find({ parentFolder: req.params.id });
     if (subfolders.length > 0) {
       return res.status(400).json({ 
@@ -1668,7 +1472,6 @@ app.delete("/api/folders/:id", async (req, res) => {
       });
     }
 
-    // Check if folder has documents
     const documents = await Doc.find({ folder: req.params.id });
     if (documents.length > 0) {
       return res.status(400).json({ 
@@ -1693,7 +1496,6 @@ app.post("/api/documents", async (req, res) => {
   console.log("📤 Document upload request received");
   
   try {
-    // Get the raw body as buffer
     const chunks = [];
     
     req.on('data', (chunk) => {
@@ -1730,7 +1532,6 @@ app.post("/api/documents", async (req, res) => {
           });
         }
 
-        // Validate file size (max 50MB)
         if (fileBuffer.length > 50 * 1024 * 1024) {
           console.error("❌ File too large:", fileBuffer.length);
           return res.status(400).json({ 
@@ -1740,7 +1541,6 @@ app.post("/api/documents", async (req, res) => {
 
         console.log(`✅ File validated: ${fileName}, size: ${fileBuffer.length} bytes`);
 
-        // Save to database
         const docu = await Doc.create({
           name: fileName,
           size: fileBuffer.length,
@@ -1761,7 +1561,6 @@ app.post("/api/documents", async (req, res) => {
         
         await logActivity(username, `Uploaded document: ${fileName}`);
         
-        // Return success response
         res.status(201).json([{ 
           ...docu.toObject(), 
           id: docu._id.toString() 
@@ -1854,36 +1653,6 @@ app.delete("/api/documents/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    DOCUMENT MOVE TO FOLDER
-// ============================================================================
-app.put("/api/documents/:id/move", async (req, res) => {
-  try {
-    const { folderId } = req.body;
-    const username = req.headers["x-username"];
-
-    const docu = await Doc.findByIdAndUpdate(
-      req.params.id,
-      { folder: folderId || null },
-      { new: true }
-    );
-
-    if (!docu) {
-      return res.status(404).json({ message: "Document not found" });
-    }
-
-    await logActivity(username, `Moved document: ${docu.name} to folder`);
-    res.json({
-      ...docu.toObject(),
-      id: docu._id.toString()
-    });
-
-  } catch (err) {
-    console.error("document move error", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
 //                    DOCUMENT PREVIEW ENDPOINT
 // ============================================================================
 app.get("/api/documents/preview/:id", async (req, res) => {
@@ -1898,7 +1667,6 @@ app.get("/api/documents/preview/:id", async (req, res) => {
       return res.status(400).json({ message: "Document content not available" });
     }
 
-    // Set appropriate headers for preview
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
     res.setHeader("Content-Disposition", `inline; filename="${docu.name}"`);
@@ -1926,7 +1694,6 @@ app.get("/api/documents/download/:id", async (req, res) => {
 
     console.log(`📄 Found document: ${docu.name}, database size: ${docu.size} bytes`);
 
-    // More comprehensive data validation
     if (!docu.data || 
         !Buffer.isBuffer(docu.data) || 
         docu.data.length === 0 ||
@@ -1946,7 +1713,6 @@ app.get("/api/documents/download/:id", async (req, res) => {
       });
     }
 
-    // Set headers for file download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
@@ -1954,7 +1720,6 @@ app.get("/api/documents/download/:id", async (req, res) => {
     
     console.log(`✅ Sending file: ${docu.name}, size: ${docu.data.length} bytes`);
     
-    // Send the binary data
     res.send(docu.data);
 
     await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`);
@@ -2049,20 +1814,17 @@ app.get("/api/logs", async (req, res) => {
 });
 
 // ============================================================================
-//                          GET ALL DATA FOR DASHBOARD WITH PROFIT
+//                          GET ALL DATA FOR DASHBOARD
 // ============================================================================
 app.get("/api/dashboard/stats", async (req, res) => {
   try {
-    // Get company info with profit
     const company = await getCompanyInfo();
     
-    // Get counts
     const inventoryCount = await Inventory.countDocuments({});
     const purchaseCount = await Purchase.countDocuments({});
     const salesCount = await Sales.countDocuments({});
     const documentCount = await Doc.countDocuments({});
     
-    // Calculate inventory totals
     const inventoryItems = await Inventory.find({}).lean();
     let inventoryValue = 0;
     let inventoryRevenue = 0;
@@ -2080,25 +1842,20 @@ app.get("/api/dashboard/stats", async (req, res) => {
       inventoryRevenue += itemRevenue;
       totalStock += qty;
       
-      // Count low stock items
       if (qty <= 10) {
         lowStockCount++;
       }
     });
     
-    // Get purchase total
     const purchases = await Purchase.find({}).lean();
     const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
     
-    // Get sales total and profit
     const sales = await Sales.find({}).lean();
     const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
     const totalProfit = company.totalProfitEarned || 0;
     
-    // Get recent activity
     const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(5).lean();
     
-    // Get low stock items
     const lowStockItems = await Inventory.find({ quantity: { $lte: 10 } }).limit(5).lean();
     
     res.json({
@@ -2159,7 +1916,6 @@ app.get("/api/search", async (req, res) => {
     
     const searchTerm = q.toLowerCase().trim();
     
-    // Search inventory
     const inventoryResults = await Inventory.find({
       $or: [
         { sku: { $regex: searchTerm, $options: 'i' } },
@@ -2168,7 +1924,6 @@ app.get("/api/search", async (req, res) => {
       ]
     }).limit(10).lean();
     
-    // Search purchases
     const purchaseResults = await Purchase.find({
       $or: [
         { purchaseId: { $regex: searchTerm, $options: 'i' } },
@@ -2177,7 +1932,6 @@ app.get("/api/search", async (req, res) => {
       ]
     }).limit(10).lean();
     
-    // Search sales
     const salesResults = await Sales.find({
       $or: [
         { salesId: { $regex: searchTerm, $options: 'i' } },
@@ -2186,7 +1940,6 @@ app.get("/api/search", async (req, res) => {
       ]
     }).limit(10).lean();
     
-    // Search documents
     const documentResults = await Doc.find({
       name: { $regex: searchTerm, $options: 'i' }
     }).select('-data').limit(10).lean();
@@ -2211,10 +1964,8 @@ app.get("/api/inventory/export/excel", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     
-    // Create workbook
     const wb = xlsx.utils.book_new();
     
-    // Prepare data
     const data = items.map(item => ({
       SKU: item.sku || '',
       'Product Name': item.name || '',
@@ -2231,10 +1982,8 @@ app.get("/api/inventory/export/excel", async (req, res) => {
     const ws = xlsx.utils.json_to_sheet(data);
     xlsx.utils.book_append_sheet(wb, ws, "Inventory");
     
-    // Generate buffer
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
     
-    // Set headers
     const filename = `Inventory_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -2270,11 +2019,9 @@ app.post("/api/inventory/import/excel", async (req, res) => {
           continue;
         }
         
-        // Check if item exists
         const existingItem = await Inventory.findOne({ sku: SKU });
         
         if (existingItem) {
-          // Update existing
           existingItem.name = name;
           existingItem.category = category || existingItem.category;
           existingItem.quantity = Number(quantity) || existingItem.quantity;
@@ -2283,14 +2030,13 @@ app.post("/api/inventory/import/excel", async (req, res) => {
           await existingItem.save();
           updatedCount++;
         } else {
-          // Create new
           await Inventory.create({
             sku: SKU,
             name: name,
             category: category || '',
             quantity: Number(quantity) || 0,
             unitCost: Number(unitCost) || 0,
-            unitPrice = Number(unitPrice) || 0
+            unitPrice: Number(unitPrice) || 0
           });
           importedCount++;
         }
@@ -2307,7 +2053,7 @@ app.post("/api/inventory/import/excel", async (req, res) => {
       importedCount,
       updatedCount,
       errorCount: errors.length,
-      errors: errors.slice(0, 10) // Return only first 10 errors
+      errors: errors.slice(0, 10)
     });
     
   } catch (err) {
@@ -2323,7 +2069,6 @@ app.get("/api/system/backup", async (req, res) => {
   try {
     const username = req.headers["x-username"];
     
-    // Get all data
     const inventory = await Inventory.find({}).lean();
     const purchases = await Purchase.find({}).lean();
     const sales = await Sales.find({}).lean();
@@ -2367,17 +2112,14 @@ app.get("/api/system/backup", async (req, res) => {
 // ============================================================================
 app.get("/api/system/health", async (req, res) => {
   try {
-    // Check database connection
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     
-    // Check collections
     const inventoryCount = await Inventory.countDocuments({});
     const purchaseCount = await Purchase.countDocuments({});
     const salesCount = await Sales.countDocuments({});
     const documentCount = await Doc.countDocuments({});
     const userCount = await User.countDocuments({});
     
-    // Check for recent errors in logs
     const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(10).lean();
     const errorLogs = recentLogs.filter(log => log.action && log.action.toLowerCase().includes('error'));
     
@@ -2438,10 +2180,8 @@ async function ensureDefaultAdminAndStartupLog() {
       await logActivity("System", "Default admin user created");
     }
 
-    // Ensure company info exists
     await getCompanyInfo();
     
-    // Create default folders if they don't exist
     const rootFolders = ['Reports', 'Invoices', 'Documents', 'Backups'];
     for (const folderName of rootFolders) {
       const exists = await Folder.findOne({ name: folderName, parentFolder: null });
