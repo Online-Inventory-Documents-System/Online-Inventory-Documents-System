@@ -204,6 +204,170 @@ section {
 }
 
 /* =========================================
+   Status Badges Styling
+========================================= */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  min-width: 90px;
+}
+
+.status-in-stock {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-low-stock {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-out-of-stock {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Dark mode status badges */
+.dark-mode .status-in-stock {
+  background-color: #1e3a1e;
+  color: #a3d9a5;
+  border-color: #2d4a2d;
+}
+
+.dark-mode .status-low-stock {
+  background-color: #3a2e1e;
+  color: #f0d9a3;
+  border-color: #4a3d2d;
+}
+
+.dark-mode .status-out-of-stock {
+  background-color: #3a1e1e;
+  color: #f0a3a3;
+  border-color: #4a2d2d;
+}
+
+/* =========================================
+   Pagination Styling
+========================================= */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-light);
+  color: var(--text-light);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-width: 32px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.page-numbers {
+  display: flex;
+  gap: 2px;
+}
+
+.items-per-page {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85rem;
+  margin-left: 10px;
+}
+
+.items-per-page select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--card-light);
+  color: var(--text-light);
+}
+
+/* Dark mode pagination */
+.dark-mode .pagination-btn {
+  background: var(--card-dark);
+  color: var(--text-dark);
+  border-color: #495057;
+}
+
+.dark-mode .pagination-btn:hover:not(:disabled) {
+  background: #0056b3;
+  color: white;
+  border-color: #0056b3;
+}
+
+.dark-mode .pagination-btn.active {
+  background: #0056b3;
+  color: white;
+  border-color: #0056b3;
+}
+
+.dark-mode .items-per-page select {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
+}
+
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .pagination-controls {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* =========================================
    Form/Input Styling & Buttons
 ========================================= */
 input[type="text"], 
@@ -566,8 +730,7 @@ input:focus, select:focus, textarea:focus {
 #inventoryTable td:nth-child(5), /* Unit Cost */
 #inventoryTable td:nth-child(6), /* Unit Price */
 #inventoryTable td:nth-child(7), /* Inventory Value */
-#inventoryTable td:nth-child(8), /* Potential Revenue */
-#inventoryTable td:nth-child(9) { /* Potential Profit */
+#inventoryTable td:nth-child(8) { /* Potential Revenue - REMOVED Potential Profit */
     white-space: nowrap;
     text-align: right;
     font-family: 'Consolas', monospace;
@@ -577,10 +740,17 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Date column */
-#inventoryTable td:nth-child(10) {
+#inventoryTable td:nth-child(9) {
     text-align: center;
     min-width: 90px;
     max-width: 100px;
+}
+
+/* Status column */
+#inventoryTable td:nth-child(10) {
+    text-align: center;
+    min-width: 100px;
+    max-width: 110px;
 }
 
 /* Actions column */
@@ -1785,7 +1955,8 @@ input:focus, select:focus, textarea:focus {
       background: linear-gradient(135deg, #e74c3c, #c0392b);
     }
 
-    .action-card.view-statements {
+    /* UPDATED: Changed from view-statements to add-new-product */
+    .action-card.add-new-product {
       background: linear-gradient(135deg, #34495e, #2c3e50);
     }
 
@@ -2496,4 +2667,11 @@ body[data-theme="dark"] section {
 
 .print-visible {
   display: inline-block !important;
+}
+
+/* Status column styling */
+.status {
+  text-align: center;
+  min-width: 100px;
+  max-width: 110px;
 }
