@@ -126,12 +126,10 @@ function updatePagination(items) {
   const totalItems = items.length;
   totalPages = Math.ceil(totalItems / itemsPerPage);
   
-  // Ensure current page is within bounds
   if (currentPageNumber > totalPages) {
     currentPageNumber = totalPages || 1;
   }
   
-  // Update pagination info
   if (qs('#currentPage')) qs('#currentPage').textContent = currentPageNumber;
   if (qs('#totalPages')) qs('#totalPages').textContent = totalPages;
   if (qs('#totalItems')) qs('#totalItems').textContent = totalItems;
@@ -142,10 +140,7 @@ function updatePagination(items) {
   if (qs('#currentPageStart')) qs('#currentPageStart').textContent = start;
   if (qs('#currentPageEnd')) qs('#currentPageEnd').textContent = end;
   
-  // Update page number buttons
   updatePageNumberButtons();
-  
-  // Update button states
   updatePaginationButtonStates();
   
   return items.slice(start - 1, end);
@@ -162,10 +157,8 @@ function updatePageNumberButtons() {
   containers.forEach(container => {
     container.innerHTML = '';
     
-    // Always show first page
     addPageButton(container, 1);
     
-    // Show ellipsis if needed
     if (currentPageNumber > 3) {
       const ellipsis = document.createElement('span');
       ellipsis.textContent = '...';
@@ -173,7 +166,6 @@ function updatePageNumberButtons() {
       container.appendChild(ellipsis);
     }
     
-    // Show pages around current page
     const startPage = Math.max(2, currentPageNumber - 1);
     const endPage = Math.min(totalPages - 1, currentPageNumber + 1);
     
@@ -183,7 +175,6 @@ function updatePageNumberButtons() {
       }
     }
     
-    // Show ellipsis if needed
     if (currentPageNumber < totalPages - 2) {
       const ellipsis = document.createElement('span');
       ellipsis.textContent = '...';
@@ -191,7 +182,6 @@ function updatePageNumberButtons() {
       container.appendChild(ellipsis);
     }
     
-    // Always show last page if there is more than 1 page
     if (totalPages > 1) {
       addPageButton(container, totalPages);
     }
@@ -243,29 +233,24 @@ function changeItemsPerPage() {
   const select = qs('#itemsPerPageSelect');
   if (select) {
     itemsPerPage = parseInt(select.value);
-    currentPageNumber = 1; // Reset to first page when changing items per page
+    currentPageNumber = 1;
     renderInventory(filteredInventory);
   }
 }
 
 function bindPaginationEvents() {
-  // First page buttons
   qs('#firstPageBtn')?.addEventListener('click', () => goToPage(1));
   qs('#firstPageBtnFooter')?.addEventListener('click', () => goToPage(1));
   
-  // Previous page buttons
   qs('#prevPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
   qs('#prevPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
   
-  // Next page buttons
   qs('#nextPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
   qs('#nextPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
   
-  // Last page buttons
   qs('#lastPageBtn')?.addEventListener('click', () => goToPage(totalPages));
   qs('#lastPageBtnFooter')?.addEventListener('click', () => goToPage(totalPages));
   
-  // Items per page select
   qs('#itemsPerPageSelect')?.addEventListener('change', changeItemsPerPage);
 }
 
@@ -279,7 +264,6 @@ async function fetchInventory() {
     const data = await res.json();
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
     
-    // Fetch total profit earned from server
     await fetchTotalProfitEarned();
     
     filteredInventory = [...inventory];
@@ -288,7 +272,6 @@ async function fetchInventory() {
   } catch(err) { console.error(err); }
 }
 
-// NEW: Fetch total profit earned from server
 async function fetchTotalProfitEarned() {
   try {
     const res = await apiFetch(`${API_BASE}/sales/total-profit`);
@@ -302,7 +285,6 @@ async function fetchTotalProfitEarned() {
   }
 }
 
-// NEW: Update profit card with earned profit
 function updateProfitCard() {
   if (qs('#cardTotalProfit')) {
     qs('#cardTotalProfit').textContent = `RM ${totalProfitEarned.toFixed(2)}`;
@@ -313,12 +295,10 @@ function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
   
-  // Apply pagination
   const paginatedItems = updatePagination(items);
   
   list.innerHTML = '';
   let totalValue = 0, totalRevenue = 0, totalStock = 0;
-  // Note: totalProfit is now fetched from server (totalProfitEarned)
 
   paginatedItems.forEach(it => {
     const id = it.id || it._id;
@@ -334,7 +314,6 @@ function renderInventory(items) {
 
     const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
     
-    // Determine status
     let statusClass = '';
     let statusText = '';
     if (qty === 0) {
@@ -361,9 +340,7 @@ function renderInventory(items) {
       <td class="money">RM ${up.toFixed(2)}</td>
       <td class="money">RM ${invVal.toFixed(2)}</td>
       <td class="money">RM ${rev.toFixed(2)}</td>
-      <!-- UPDATED: Removed Potential Profit column -->
       <td>${date}</td>
-      <!-- UPDATED: Added Status column -->
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
@@ -373,10 +350,8 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  // Update summary cards
   if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalValue.toFixed(2)}`;
   if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
-  // UPDATED: Use totalProfitEarned instead of calculated profit
   updateProfitCard();
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
@@ -389,7 +364,6 @@ function searchInventory(){
   
   let filtered = inventory;
   
-  // Apply text filter if exists
   if (textQuery) {
     filtered = filtered.filter(item => 
       (item.sku||'').toLowerCase().includes(textQuery) || 
@@ -398,31 +372,27 @@ function searchInventory(){
     );
   }
   
-  // Apply date range filter if exists
   if (startDate || endDate) {
     filtered = filtered.filter(item => {
       if (!item.createdAt) return false;
       
       const itemDate = new Date(item.createdAt);
       
-      // If only start date is provided, filter items from that date forward
       if (startDate && !endDate) {
         const start = new Date(startDate);
         return itemDate >= start;
       }
       
-      // If only end date is provided, filter items up to that date
       if (!startDate && endDate) {
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // Include the entire end date
+        end.setHours(23, 59, 59, 999);
         return itemDate <= end;
       }
       
-      // If both dates are provided, filter items within the range
       if (startDate && endDate) {
         const start = new Date(startDate);
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // Include the entire end date
+        end.setHours(23, 59, 59, 999);
         return itemDate >= start && itemDate <= end;
       }
       
@@ -431,7 +401,7 @@ function searchInventory(){
   }
   
   filteredInventory = filtered;
-  currentPageNumber = 1; // Reset to first page when searching
+  currentPageNumber = 1;
   renderInventory(filtered);
 }
 
@@ -451,24 +421,21 @@ function filterByDateRange(startDate, endDate) {
     
     const itemDate = new Date(item.createdAt);
     
-    // If only start date is provided, filter items from that date forward
     if (startDate && !endDate) {
       const start = new Date(startDate);
       return itemDate >= start;
     }
     
-    // If only end date is provided, filter items up to that date
     if (!startDate && endDate) {
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
+      end.setHours(23, 59, 59, 999);
       return itemDate <= end;
     }
     
-    // If both dates are provided, filter items within the range
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
+      end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     }
     
@@ -476,7 +443,7 @@ function filterByDateRange(startDate, endDate) {
   });
   
   filteredInventory = filtered;
-  currentPageNumber = 1; // Reset to first page when filtering
+  currentPageNumber = 1;
   renderInventory(filtered);
   updateDateRangeStatus(true, startDate, endDate);
 }
@@ -526,7 +493,7 @@ function clearDateRangeFilter() {
   if (qs('#startDate')) qs('#startDate').value = '';
   if (qs('#endDate')) qs('#endDate').value = '';
   filteredInventory = [...inventory];
-  currentPageNumber = 1; // Reset to first page when clearing filter
+  currentPageNumber = 1;
   renderInventory(filteredInventory);
   updateDateRangeStatus(false);
 }
@@ -535,7 +502,6 @@ function applyDateRangeFilter() {
   const startDate = qs('#startDate')?.value;
   const endDate = qs('#endDate')?.value;
   
-  // Validate date range
   if (startDate && endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -550,13 +516,10 @@ function applyDateRangeFilter() {
 }
 
 function bindDateRangeFilterEvents() {
-  // Apply date range button event
   qs('#applyDateRangeBtn')?.addEventListener('click', applyDateRangeFilter);
   
-  // Clear date range button event
   qs('#clearDateRangeBtn')?.addEventListener('click', clearDateRangeFilter);
   
-  // Auto-apply when both dates are selected
   qs('#startDate')?.addEventListener('change', function() {
     if (qs('#endDate')?.value) {
       applyDateRangeFilter();
@@ -681,7 +644,6 @@ function renderSalesHistory() {
   
   sales.forEach(s => {
     const tr = document.createElement('tr');
-    // UPDATED: Removed Edit/Delete buttons, only keep Download and Preview
     tr.innerHTML = `
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
@@ -691,7 +653,6 @@ function renderSalesHistory() {
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
         <button class="success-btn small-btn" onclick="printSalesInvoice('${s.id}')">🖨️ Invoice</button>
-        <!-- REMOVED: Edit and Delete buttons -->
       </td>
     `;
     list.appendChild(tr);
@@ -778,7 +739,6 @@ function addSalesProductItem(product = null) {
   
   container.appendChild(itemRow);
   
-  // Add event listeners
   const quantityInput = itemRow.querySelector('.product-quantity');
   const priceInput = itemRow.querySelector('.product-price');
   const totalInput = itemRow.querySelector('.product-total');
@@ -872,7 +832,6 @@ async function saveSalesOrder() {
     return;
   }
   
-  // Calculate total profit for this sale
   let totalSaleProfit = 0;
   
   for (const row of itemRows) {
@@ -896,14 +855,12 @@ async function saveSalesOrder() {
       return;
     }
     
-    // Check stock availability
     const inventoryItem = inventory.find(item => item.sku === sku);
     if (inventoryItem && inventoryItem.quantity < quantity) {
       alert(`❌ Insufficient stock for ${productName}. Available: ${inventoryItem.quantity}, Requested: ${quantity}`);
       return;
     }
     
-    // Calculate profit for this item
     const unitCost = inventoryItem ? inventoryItem.unitCost : 0;
     const itemProfit = (salePrice - unitCost) * quantity;
     totalSaleProfit += itemProfit;
@@ -913,7 +870,7 @@ async function saveSalesOrder() {
       productName,
       quantity,
       salePrice,
-      unitCost // Include unit cost for profit calculation
+      unitCost
     });
   }
   
@@ -922,10 +879,9 @@ async function saveSalesOrder() {
     salesDate: salesDate || new Date().toISOString().split('T')[0],
     notes,
     items,
-    totalProfit: totalSaleProfit // Include total profit in sales data
+    totalProfit: totalSaleProfit
   };
   
-  // Create confirmation message
   let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customer}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
@@ -947,20 +903,14 @@ async function saveSalesOrder() {
       const savedSales = await res.json();
       alert('✅ Sales order saved successfully!');
       
-      // Show print button after successful save
       qs('#printSalesBtn').classList.add('print-visible');
       qs('#printSalesBtn').onclick = () => printSalesInvoice(savedSales.id);
       
-      // Fetch updated inventory and sales data
       await fetchInventory();
       await fetchSales();
       
-      // Update profit card with new total
       totalProfitEarned += totalSaleProfit;
       updateProfitCard();
-      
-      // Keep modal open for printing
-      // Don't close modal yet - let user print invoice
       
     } else {
       const error = await res.json();
@@ -972,7 +922,6 @@ async function saveSalesOrder() {
   }
 }
 
-// Sales Details Functions
 async function viewSalesDetails(salesId) {
   try {
     const res = await apiFetch(`${API_BASE}/sales/${salesId}`);
@@ -980,13 +929,11 @@ async function viewSalesDetails(salesId) {
     
     const sale = await res.json();
     
-    // Populate details
     qs('#detailSalesId').textContent = sale.salesId || 'N/A';
     qs('#detailCustomer').textContent = sale.customer || 'N/A';
     qs('#detailSalesDate').textContent = new Date(sale.salesDate).toLocaleDateString();
     qs('#detailSalesTotalAmount').textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
     
-    // Handle notes
     if (sale.notes && sale.notes.trim()) {
       qs('#detailSalesNotes').textContent = sale.notes;
       qs('#detailSalesNotesRow').style.display = 'flex';
@@ -994,7 +941,6 @@ async function viewSalesDetails(salesId) {
       qs('#detailSalesNotesRow').style.display = 'none';
     }
     
-    // Populate items table
     const itemsList = qs('#salesDetailsList');
     itemsList.innerHTML = '';
     
@@ -1010,10 +956,8 @@ async function viewSalesDetails(salesId) {
       itemsList.appendChild(tr);
     });
     
-    // Set up print button
     qs('#printSalesInvoiceBtn').onclick = () => printSalesInvoice(salesId);
     
-    // Show modal
     qs('#salesDetailsModal').style.display = 'block';
     
   } catch (e) {
@@ -1026,8 +970,6 @@ function closeSalesDetailsModal() {
   qs('#salesDetailsModal').style.display = 'none';
 }
 
-// REMOVED: editSalesPage function since sales are read-only
-
 async function deleteSales(id) {
   const sale = sales.find(s => String(s.id) === String(id));
   if (!sale) return;
@@ -1039,7 +981,7 @@ async function deleteSales(id) {
     if (res.status === 204) {
       await fetchSales();
       await fetchInventory();
-      await fetchTotalProfitEarned(); // Refresh total profit
+      await fetchTotalProfitEarned();
       alert('🗑️ Sales order deleted!');
     } else {
       alert('❌ Failed to delete sales order.');
@@ -1133,19 +1075,10 @@ function closePurchaseHistoryModal() {
 function openNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
-    // Reset form first
     resetPurchaseForm();
-    
-    // Clear any existing items
     qs('#purchaseItems').innerHTML = '';
-    
-    // Load product search
     loadProductSearch();
-    
-    // Show modal
     modal.style.display = 'block';
-    
-    // Reset total amount to ensure it's 0.00
     updateTotalAmount();
   }
 }
@@ -1154,7 +1087,6 @@ function closeNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'none';
-    // Reset form when closing to prevent state persistence
     resetPurchaseForm();
   }
 }
@@ -1167,7 +1099,6 @@ function resetPurchaseForm() {
   qs('#productResults').innerHTML = '';
   qs('#purchaseItems').innerHTML = '';
   
-  // Reset total amount displays
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = '0.00';
   }
@@ -1210,7 +1141,6 @@ function addProductItem(product = null) {
   
   container.appendChild(itemRow);
   
-  // Add event listeners for the new row
   const quantityInput = itemRow.querySelector('.product-quantity');
   const priceInput = itemRow.querySelector('.product-price');
   const totalInput = itemRow.querySelector('.product-total');
@@ -1225,13 +1155,11 @@ function addProductItem(product = null) {
   quantityInput.addEventListener('input', calculateTotal);
   priceInput.addEventListener('input', calculateTotal);
   
-  // Remove row button
   itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
     itemRow.remove();
     updateTotalAmount();
   });
   
-  // Calculate initial total
   calculateTotal();
 }
 
@@ -1239,7 +1167,6 @@ function updateTotalAmount() {
   let newTotal = 0;
   let editTotal = 0;
   
-  // Calculate for new purchase modal
   const newItemRows = qsa('#purchaseItems .purchase-item-row');
   newItemRows.forEach(row => {
     const totalInput = row.querySelector('.product-total');
@@ -1247,7 +1174,6 @@ function updateTotalAmount() {
     newTotal += itemTotal;
   });
   
-  // Calculate for edit purchase modal
   const editItemRows = qsa('#editPurchaseItems .purchase-item-row');
   editItemRows.forEach(row => {
     const totalInput = row.querySelector('.product-total');
@@ -1255,7 +1181,6 @@ function updateTotalAmount() {
     editTotal += itemTotal;
   });
   
-  // Update displays
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = newTotal.toFixed(2);
   }
@@ -1318,7 +1243,6 @@ async function savePurchaseOrder() {
   const items = [];
   const itemRows = qsa('.purchase-item-row');
   
-  // FIXED: Check if there are any items
   if (itemRows.length === 0) {
     alert('⚠️ Please add at least one product item.');
     return;
@@ -1360,7 +1284,6 @@ async function savePurchaseOrder() {
     items
   };
   
-  // Create confirmation message
   let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
@@ -1381,12 +1304,9 @@ async function savePurchaseOrder() {
       const savedPurchase = await res.json();
       alert('✅ Purchase order saved successfully!');
       
-      // Show print button after successful save
       qs('#printPurchaseBtn').classList.add('print-visible');
       qs('#printPurchaseBtn').onclick = () => printPurchaseInvoice(savedPurchase.id);
       
-      // Don't close modal yet - let user print invoice
-      // Fetch updated inventory and purchases data
       await fetchInventory();
       await fetchPurchases();
       
@@ -1400,7 +1320,6 @@ async function savePurchaseOrder() {
   }
 }
 
-// Purchase Details Functions
 async function viewPurchaseDetails(purchaseId) {
   try {
     const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
@@ -1408,13 +1327,11 @@ async function viewPurchaseDetails(purchaseId) {
     
     const purchase = await res.json();
     
-    // Populate details
     qs('#detailPurchaseId').textContent = purchase.purchaseId || 'N/A';
     qs('#detailSupplier').textContent = purchase.supplier || 'N/A';
     qs('#detailPurchaseDate').textContent = new Date(purchase.purchaseDate).toLocaleDateString();
     qs('#detailTotalAmount').textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
     
-    // Handle notes
     if (purchase.notes && purchase.notes.trim()) {
       qs('#detailNotes').textContent = purchase.notes;
       qs('#detailNotesRow').style.display = 'flex';
@@ -1422,7 +1339,6 @@ async function viewPurchaseDetails(purchaseId) {
       qs('#detailNotesRow').style.display = 'none';
     }
     
-    // Populate items table
     const itemsList = qs('#purchaseDetailsList');
     itemsList.innerHTML = '';
     
@@ -1438,10 +1354,8 @@ async function viewPurchaseDetails(purchaseId) {
       itemsList.appendChild(tr);
     });
     
-    // Set up print button
     qs('#printDetailsInvoiceBtn').onclick = () => printPurchaseInvoice(purchaseId);
     
-    // Show modal
     qs('#purchaseDetailsModal').style.display = 'block';
     
   } catch (e) {
@@ -1512,13 +1426,10 @@ function openReportModal() {
   const modal = qs('#reportModal');
   if (modal) {
     modal.style.display = 'block';
-    // Clear dates for full inventory report
     qs('#reportStartDate').value = '';
     qs('#reportEndDate').value = '';
     
-    // Reset selection
     qsa('.report-option').forEach(opt => opt.classList.remove('selected'));
-    // Auto-select inventory report
     selectReportType('inventory');
   }
 }
@@ -1557,7 +1468,6 @@ async function generateSelectedReport() {
     case 'inventory':
       await generateInventoryReport(startDate, endDate);
       break;
-    // REMOVED: Purchase and Sales reports
   }
 }
 
@@ -1578,7 +1488,6 @@ async function generateInventoryReport(startDate, endDate) {
     a.style.display = 'none';
     a.href = url;
     
-    // Create filename with date range or "Full"
     let filename = 'Inventory_Report';
     if (startDate || endDate) {
       const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
@@ -1602,8 +1511,6 @@ async function generateInventoryReport(startDate, endDate) {
     alert('❌ Failed to generate inventory report.');
   }
 }
-
-// REMOVED: generatePurchaseReport, generateSalesReport, generateAllReports functions
 
 // =========================================
 // NEW: Folder Management for Documents
@@ -1665,14 +1572,12 @@ function updateBreadcrumb() {
   
   breadcrumb.innerHTML = '';
   
-  // Root breadcrumb
   const rootItem = document.createElement('div');
   rootItem.className = `breadcrumb-item ${currentFolder === 'root' ? 'active' : ''}`;
   rootItem.textContent = 'Root';
   rootItem.addEventListener('click', () => navigateToFolder('root'));
   breadcrumb.appendChild(rootItem);
   
-  // Build path if not in root
   if (currentFolder !== 'root') {
     const folder = folders.find(f => f.id === currentFolder);
     if (folder) {
@@ -1791,7 +1696,6 @@ function renderDocuments(docs) {
     const id = d.id || d._id;
     const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
     
-    // Check if document is likely valid
     const isLikelyValid = d.size > 0 && parseFloat(sizeMB) > 0;
     const fileType = d.contentType || 'Unknown';
     
@@ -1811,7 +1715,6 @@ function renderDocuments(docs) {
           ⬇️ Download
         </button>
         <button class="danger-btn small-btn delete-btn" data-id="${id}">🗑️ Delete</button>
-        <!-- REMOVED: Verify button -->
         <button class="info-btn small-btn preview-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}" title="Preview">👁️ Preview</button>
       </td>
     `;
@@ -1821,7 +1724,6 @@ function renderDocuments(docs) {
   bindDocumentEvents();
 }
 
-// Update upload function to support folders
 async function uploadDocuments(){
   const fileInput = qs('#docUpload');
   const files = fileInput?.files;
@@ -1846,7 +1748,6 @@ async function uploadDocuments(){
   
   const file = files[0];
   
-  // Validate file size
   if (file.size === 0) {
     showMsg(msgEl, '⚠️ The selected file is empty (0 bytes).', 'red');
     return;
@@ -1909,7 +1810,6 @@ async function uploadDocuments(){
   }, 3000);
 }
 
-// NEW: Document preview function
 function previewDocument(docId, docName) {
   const previewUrl = `${API_BASE}/documents/preview/${docId}`;
   const modal = qs('#previewModal');
@@ -1939,9 +1839,7 @@ function searchDocuments() {
   renderDocuments(filtered);
 }
 
-// Add this function to bind events properly
 function bindDocumentEvents() {
-  // Download buttons
   qsa('.download-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
@@ -1950,7 +1848,6 @@ function bindDocumentEvents() {
     });
   });
 
-  // Delete buttons
   qsa('.delete-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
@@ -1958,9 +1855,6 @@ function bindDocumentEvents() {
     });
   });
 
-  // REMOVED: Verify button events
-
-  // Preview buttons
   qsa('.preview-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
@@ -1970,14 +1864,12 @@ function bindDocumentEvents() {
   });
 }
 
-// Improved download function with verification
 async function downloadDocument(docId, fileName) {
   if(!confirm(`Confirm Download: ${fileName}?`)) return;
   
   try {
     console.log(`Starting download: ${fileName} (ID: ${docId})`);
     
-    // Now download the document
     const res = await fetch(`${API_BASE}/documents/download/${docId}`);
     
     if(!res.ok) {
@@ -2015,7 +1907,6 @@ async function downloadDocument(docId, fileName) {
       throw new Error('Downloaded file is empty');
     }
 
-    // Create and trigger download
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
@@ -2024,7 +1915,6 @@ async function downloadDocument(docId, fileName) {
     document.body.appendChild(a);
     a.click();
     
-    // Clean up
     setTimeout(() => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
@@ -2036,7 +1926,6 @@ async function downloadDocument(docId, fileName) {
     console.error('Download error:', error);
     alert(`❌ Download Failed: ${error.message}`);
     
-    // Offer to regenerate if it's a report
     if (fileName.includes('Inventory_Report') && confirm('This report file appears to be corrupted. Would you like to generate a new one?')) {
       if (fileName.endsWith('.pdf')) {
         generateInventoryReport();
@@ -2044,8 +1933,6 @@ async function downloadDocument(docId, fileName) {
     }
   }
 }
-
-// REMOVED: verifyDocument function
 
 async function deleteDocumentConfirm(id) {
   const doc = documents.find(d => String(d.id) === String(id));
@@ -2073,7 +1960,6 @@ async function deleteDocumentConfirm(id) {
   }
 }
 
-// Cleanup corrupted documents function
 async function cleanupCorruptedDocuments() {
   if (!confirm('This will remove all documents that are corrupted or have 0 bytes. Continue?')) return;
   
@@ -2112,15 +1998,12 @@ function closeStatementsModal() {
 }
 
 function switchTab(tabName) {
-  // Update tab buttons
   qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
   qs(`#tab-${tabName}`).classList.add('active');
   
-  // Update tab content
   qsa('.tab-content').forEach(content => content.classList.remove('active'));
   qs(`#content-${tabName}`).classList.add('active');
   
-  // Load statements for the selected tab
   loadStatements(tabName);
 }
 
@@ -2166,7 +2049,6 @@ function renderStatements(type, statements) {
     container.appendChild(tr);
   });
   
-  // Update summary information
   const countElement = qs(`#${type.replace('-', '')}Count`);
   const sizeElement = qs(`#${type.replace('-', '')}Size`);
   
@@ -2240,10 +2122,8 @@ function renderDashboardData(){
     });
     qs('#dash_totalItems').textContent = inventory.length;
     
-    // Update dashboard cards if they exist
     if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = totalValue.toFixed(2);
     if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
-    // UPDATED: Use totalProfitEarned instead of calculated profit
     if(qs('#dash_totalProfit')) qs('#dash_totalProfit').textContent = totalProfitEarned.toFixed(2);
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
   }
@@ -2361,12 +2241,10 @@ function bindSettingPage(){
 // EDIT PAGE BINDING FUNCTIONS
 // =========================================
 function bindPurchaseEditPage() {
-  // Implementation for purchase edit page binding
   console.log('Purchase edit page binding');
 }
 
 function bindSalesEditPage() {
-  // Implementation for sales edit page binding
   console.log('Sales edit page binding');
 }
 
@@ -2378,7 +2256,6 @@ function scrollToAddProductForm() {
   if (addProductSection) {
     addProductSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
-    // Focus on first input field
     setTimeout(() => {
       const firstInput = qs('#p_sku');
       if (firstInput) {
@@ -2403,16 +2280,13 @@ function bindInventoryUI(){
     } 
   });
   
-  // NEW: Add New Product button (from dashboard)
   qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
   
-  // Purchase functionality
   qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
   qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
   qs('#addProductItem')?.addEventListener('click', () => addProductItem());
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
   qs('#printPurchaseBtn')?.addEventListener('click', () => {
-    // This would print the last saved purchase
     if (purchases.length > 0) {
       printPurchaseInvoice(purchases[purchases.length - 1].id);
     } else {
@@ -2421,13 +2295,11 @@ function bindInventoryUI(){
   });
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
   
-  // Sales functionality
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   qs('#addSalesProductItem')?.addEventListener('click', () => addSalesProductItem());
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
   qs('#printSalesBtn')?.addEventListener('click', () => {
-    // This would print the last saved sales
     if (sales.length > 0) {
       printSalesInvoice(sales[sales.length - 1].id);
     } else {
@@ -2436,14 +2308,11 @@ function bindInventoryUI(){
   });
   qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
   
-  // Report generation
   qs('#generateReportBtn')?.addEventListener('click', generateSelectedReport);
   qs('#closeReportModal')?.addEventListener('click', closeReportModal);
   
-  // Statements
   qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
   
-  // Modal close handlers
   qsa('.close').forEach(closeBtn => {
     closeBtn.addEventListener('click', function() {
       const modal = this.closest('.modal');
@@ -2465,10 +2334,7 @@ function bindInventoryUI(){
     if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
   });
   
-  // Date range filter events
   bindDateRangeFilterEvents();
-  
-  // Pagination events
   bindPaginationEvents();
 }
 
@@ -2489,7 +2355,6 @@ window.addEventListener('load', async () => {
   if(qs('#adminName')) qs('#adminName').textContent = adminName;
 
   try {
-    // Fetch company info first
     await fetchCompanyInfo();
     
     if(currentPage.includes('inventory') || currentPage === '' || currentPage === 'index.html') { 
@@ -2525,10 +2390,8 @@ document.addEventListener('DOMContentLoaded', ()=> {
   }
 });
 
-// Tooltip function for cards
 function showCardTooltip(message) {
-  // Simple alert for now, can be enhanced with a proper tooltip library
-  // alert(message);
+  // Simple alert for now
 }
 
 // =========================================
@@ -2540,11 +2403,9 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
-// REMOVED: verifyDocument
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
 
-// Purchase functions
 window.openPurchaseHistoryModal = openPurchaseHistoryModal;
 window.closePurchaseHistoryModal = closePurchaseHistoryModal;
 window.openNewPurchaseModal = openNewPurchaseModal;
@@ -2557,7 +2418,6 @@ window.viewPurchase = viewPurchase;
 window.editPurchasePage = editPurchasePage;
 window.closePurchaseDetailsModal = closePurchaseDetailsModal;
 
-// Sales functions
 window.openSalesHistoryModal = openSalesHistoryModal;
 window.closeSalesHistoryModal = closeSalesHistoryModal;
 window.openNewSalesModal = openNewSalesModal;
@@ -2565,32 +2425,25 @@ window.closeNewSalesModal = closeNewSalesModal;
 window.saveSalesOrder = saveSalesOrder;
 window.printSalesInvoice = printSalesInvoice;
 window.deleteSales = deleteSales;
-// REMOVED: editSales
 window.viewSales = viewSalesDetails;
-// REMOVED: editSalesPage
 window.closeSalesDetailsModal = closeSalesDetailsModal;
 
-// Report functions
 window.openReportModal = openReportModal;
 window.selectReportType = selectReportType;
 window.generateSelectedReport = generateSelectedReport;
 
-// Statements functions
 window.openStatementsModal = openStatementsModal;
 window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
 
-// Folder functions
 window.createFolder = createFolder;
 window.renameFolder = renameFolder;
 window.deleteFolder = deleteFolder;
 window.navigateToFolder = navigateToFolder;
 
-// Company info functions
 window.updateCompanyInfo = updateCompanyInfo;
 
-// Login/Register functions
 window.login = login;
 window.register = register;
 window.toggleForm = toggleForm;
