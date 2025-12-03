@@ -22,6 +22,15 @@ let currentFolder = 'root';
 let companyInfo = {};
 const currentPage = window.location.pathname.split('/').pop();
 
+// Pagination variables
+let currentPageNumber = 1;
+let itemsPerPage = 10;
+let totalPages = 1;
+let filteredInventory = [];
+
+// Total profit earned - NEW variable
+let totalProfitEarned = 0;
+
 // Enhanced theme persistence
 function initializeTheme() {
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -111,6 +120,156 @@ function updateCompanyInfoDisplay() {
 }
 
 // =========================================
+// PAGINATION FUNCTIONS
+// =========================================
+function updatePagination(items) {
+  const totalItems = items.length;
+  totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  // Ensure current page is within bounds
+  if (currentPageNumber > totalPages) {
+    currentPageNumber = totalPages || 1;
+  }
+  
+  // Update pagination info
+  if (qs('#currentPage')) qs('#currentPage').textContent = currentPageNumber;
+  if (qs('#totalPages')) qs('#totalPages').textContent = totalPages;
+  if (qs('#totalItems')) qs('#totalItems').textContent = totalItems;
+  
+  const start = ((currentPageNumber - 1) * itemsPerPage) + 1;
+  const end = Math.min(currentPageNumber * itemsPerPage, totalItems);
+  
+  if (qs('#currentPageStart')) qs('#currentPageStart').textContent = start;
+  if (qs('#currentPageEnd')) qs('#currentPageEnd').textContent = end;
+  
+  // Update page number buttons
+  updatePageNumberButtons();
+  
+  // Update button states
+  updatePaginationButtonStates();
+  
+  return items.slice(start - 1, end);
+}
+
+function updatePageNumberButtons() {
+  const pageNumbersContainer = qs('#pageNumbers');
+  const pageNumbersFooter = qs('#pageNumbersFooter');
+  
+  if (!pageNumbersContainer && !pageNumbersFooter) return;
+  
+  const containers = [pageNumbersContainer, pageNumbersFooter].filter(Boolean);
+  
+  containers.forEach(container => {
+    container.innerHTML = '';
+    
+    // Always show first page
+    addPageButton(container, 1);
+    
+    // Show ellipsis if needed
+    if (currentPageNumber > 3) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.style.padding = '6px';
+      container.appendChild(ellipsis);
+    }
+    
+    // Show pages around current page
+    const startPage = Math.max(2, currentPageNumber - 1);
+    const endPage = Math.min(totalPages - 1, currentPageNumber + 1);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      if (i > 1 && i < totalPages) {
+        addPageButton(container, i);
+      }
+    }
+    
+    // Show ellipsis if needed
+    if (currentPageNumber < totalPages - 2) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.style.padding = '6px';
+      container.appendChild(ellipsis);
+    }
+    
+    // Always show last page if there is more than 1 page
+    if (totalPages > 1) {
+      addPageButton(container, totalPages);
+    }
+  });
+}
+
+function addPageButton(container, pageNumber) {
+  const button = document.createElement('button');
+  button.className = `pagination-btn ${pageNumber === currentPageNumber ? 'active' : ''}`;
+  button.textContent = pageNumber;
+  button.onclick = () => goToPage(pageNumber);
+  container.appendChild(button);
+}
+
+function updatePaginationButtonStates() {
+  const buttons = {
+    first: ['firstPageBtn', 'firstPageBtnFooter'],
+    prev: ['prevPageBtn', 'prevPageBtnFooter'],
+    next: ['nextPageBtn', 'nextPageBtnFooter'],
+    last: ['lastPageBtn', 'lastPageBtnFooter']
+  };
+  
+  Object.entries(buttons).forEach(([type, ids]) => {
+    ids.forEach(id => {
+      const btn = qs(`#${id}`);
+      if (btn) {
+        switch(type) {
+          case 'first':
+          case 'prev':
+            btn.disabled = currentPageNumber === 1;
+            break;
+          case 'next':
+          case 'last':
+            btn.disabled = currentPageNumber === totalPages;
+            break;
+        }
+      }
+    });
+  });
+}
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages || page === currentPageNumber) return;
+  currentPageNumber = page;
+  renderInventory(filteredInventory);
+}
+
+function changeItemsPerPage() {
+  const select = qs('#itemsPerPageSelect');
+  if (select) {
+    itemsPerPage = parseInt(select.value);
+    currentPageNumber = 1; // Reset to first page when changing items per page
+    renderInventory(filteredInventory);
+  }
+}
+
+function bindPaginationEvents() {
+  // First page buttons
+  qs('#firstPageBtn')?.addEventListener('click', () => goToPage(1));
+  qs('#firstPageBtnFooter')?.addEventListener('click', () => goToPage(1));
+  
+  // Previous page buttons
+  qs('#prevPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
+  qs('#prevPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
+  
+  // Next page buttons
+  qs('#nextPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
+  qs('#nextPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
+  
+  // Last page buttons
+  qs('#lastPageBtn')?.addEventListener('click', () => goToPage(totalPages));
+  qs('#lastPageBtnFooter')?.addEventListener('click', () => goToPage(totalPages));
+  
+  // Items per page select
+  qs('#itemsPerPageSelect')?.addEventListener('change', changeItemsPerPage);
+}
+
+// =========================================
 // INVENTORY MANAGEMENT FUNCTIONS
 // =========================================
 async function fetchInventory() {
@@ -119,32 +278,75 @@ async function fetchInventory() {
     if(!res.ok) throw new Error('Failed to fetch inventory');
     const data = await res.json();
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
-    renderInventory(inventory);
+    
+    // Fetch total profit earned from server
+    await fetchTotalProfitEarned();
+    
+    filteredInventory = [...inventory];
+    renderInventory(filteredInventory);
     renderDashboardData();
   } catch(err) { console.error(err); }
+}
+
+// NEW: Fetch total profit earned from server
+async function fetchTotalProfitEarned() {
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/total-profit`);
+    if (res.ok) {
+      const data = await res.json();
+      totalProfitEarned = data.totalProfit || 0;
+      updateProfitCard();
+    }
+  } catch (err) {
+    console.error('Fetch total profit error:', err);
+  }
+}
+
+// NEW: Update profit card with earned profit
+function updateProfitCard() {
+  if (qs('#cardTotalProfit')) {
+    qs('#cardTotalProfit').textContent = `RM ${totalProfitEarned.toFixed(2)}`;
+  }
 }
 
 function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
+  
+  // Apply pagination
+  const paginatedItems = updatePagination(items);
+  
   list.innerHTML = '';
-  let totalValue = 0, totalRevenue = 0, totalProfit = 0, totalStock = 0;
+  let totalValue = 0, totalRevenue = 0, totalStock = 0;
+  // Note: totalProfit is now fetched from server (totalProfitEarned)
 
-  items.forEach(it => {
+  paginatedItems.forEach(it => {
     const id = it.id || it._id;
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
     const invVal = qty * uc;
     const rev = qty * up;
-    const profit = rev - invVal;
     
     totalValue += invVal;
     totalRevenue += rev;
-    totalProfit += profit;
     totalStock += qty;
 
     const date = it.createdAt ? new Date(it.createdAt).toLocaleDateString() : 'N/A';
+    
+    // Determine status
+    let statusClass = '';
+    let statusText = '';
+    if (qty === 0) {
+      statusClass = 'status-out-of-stock';
+      statusText = 'Out of Stock';
+    } else if (qty < 10) {
+      statusClass = 'status-low-stock';
+      statusText = 'Low Stock';
+    } else {
+      statusClass = 'status-in-stock';
+      statusText = 'In Stock';
+    }
 
     const tr = document.createElement('tr');
     if(qty === 0) tr.classList.add('out-of-stock-row');
@@ -159,8 +361,10 @@ function renderInventory(items) {
       <td class="money">RM ${up.toFixed(2)}</td>
       <td class="money">RM ${invVal.toFixed(2)}</td>
       <td class="money">RM ${rev.toFixed(2)}</td>
-      <td class="money">RM ${profit.toFixed(2)}</td>
+      <!-- UPDATED: Removed Potential Profit column -->
       <td>${date}</td>
+      <!-- UPDATED: Added Status column -->
+      <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
@@ -172,7 +376,8 @@ function renderInventory(items) {
   // Update summary cards
   if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalValue.toFixed(2)}`;
   if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
-  if(qs('#cardTotalProfit')) qs('#cardTotalProfit').textContent = `RM ${totalProfit.toFixed(2)}`;
+  // UPDATED: Use totalProfitEarned instead of calculated profit
+  updateProfitCard();
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
 }
@@ -225,6 +430,8 @@ function searchInventory(){
     });
   }
   
+  filteredInventory = filtered;
+  currentPageNumber = 1; // Reset to first page when searching
   renderInventory(filtered);
 }
 
@@ -233,7 +440,8 @@ function searchInventory(){
 // =========================================
 function filterByDateRange(startDate, endDate) {
   if (!startDate && !endDate) {
-    renderInventory(inventory);
+    filteredInventory = [...inventory];
+    renderInventory(filteredInventory);
     updateDateRangeStatus(false);
     return;
   }
@@ -267,6 +475,8 @@ function filterByDateRange(startDate, endDate) {
     return true;
   });
   
+  filteredInventory = filtered;
+  currentPageNumber = 1; // Reset to first page when filtering
   renderInventory(filtered);
   updateDateRangeStatus(true, startDate, endDate);
 }
@@ -315,7 +525,9 @@ function formatDateDisplay(dateString) {
 function clearDateRangeFilter() {
   if (qs('#startDate')) qs('#startDate').value = '';
   if (qs('#endDate')) qs('#endDate').value = '';
-  renderInventory(inventory);
+  filteredInventory = [...inventory];
+  currentPageNumber = 1; // Reset to first page when clearing filter
+  renderInventory(filteredInventory);
   updateDateRangeStatus(false);
 }
 
@@ -469,6 +681,7 @@ function renderSalesHistory() {
   
   sales.forEach(s => {
     const tr = document.createElement('tr');
+    // UPDATED: Removed Edit/Delete buttons, only keep Download and Preview
     tr.innerHTML = `
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
@@ -477,9 +690,8 @@ function renderSalesHistory() {
       <td>${new Date(s.salesDate).toLocaleDateString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
-        <button class="secondary-btn small-btn" onclick="editSalesPage('${s.id}')">✏️ Edit</button>
-        <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
         <button class="success-btn small-btn" onclick="printSalesInvoice('${s.id}')">🖨️ Invoice</button>
+        <!-- REMOVED: Edit and Delete buttons -->
       </td>
     `;
     list.appendChild(tr);
@@ -660,6 +872,9 @@ async function saveSalesOrder() {
     return;
   }
   
+  // Calculate total profit for this sale
+  let totalSaleProfit = 0;
+  
   for (const row of itemRows) {
     const sku = row.querySelector('.product-sku').value.trim();
     const productName = row.querySelector('.product-name').value.trim();
@@ -688,11 +903,17 @@ async function saveSalesOrder() {
       return;
     }
     
+    // Calculate profit for this item
+    const unitCost = inventoryItem ? inventoryItem.unitCost : 0;
+    const itemProfit = (salePrice - unitCost) * quantity;
+    totalSaleProfit += itemProfit;
+    
     items.push({
       sku,
       productName,
       quantity,
-      salePrice
+      salePrice,
+      unitCost // Include unit cost for profit calculation
     });
   }
   
@@ -700,7 +921,8 @@ async function saveSalesOrder() {
     customer,
     salesDate: salesDate || new Date().toISOString().split('T')[0],
     notes,
-    items
+    items,
+    totalProfit: totalSaleProfit // Include total profit in sales data
   };
   
   // Create confirmation message
@@ -709,6 +931,7 @@ async function saveSalesOrder() {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
   });
   confirmMessage += `\nTotal Amount: RM ${salesData.items.reduce((sum, item) => sum + (item.quantity * item.salePrice), 0).toFixed(2)}`;
+  confirmMessage += `\nTotal Profit: RM ${totalSaleProfit.toFixed(2)}`;
   
   if (!confirm(confirmMessage)) {
     return;
@@ -726,10 +949,18 @@ async function saveSalesOrder() {
       
       // Show print button after successful save
       qs('#printSalesBtn').classList.add('print-visible');
+      qs('#printSalesBtn').onclick = () => printSalesInvoice(savedSales.id);
       
-      closeNewSalesModal();
+      // Fetch updated inventory and sales data
       await fetchInventory();
       await fetchSales();
+      
+      // Update profit card with new total
+      totalProfitEarned += totalSaleProfit;
+      updateProfitCard();
+      
+      // Keep modal open for printing
+      // Don't close modal yet - let user print invoice
       
     } else {
       const error = await res.json();
@@ -795,9 +1026,7 @@ function closeSalesDetailsModal() {
   qs('#salesDetailsModal').style.display = 'none';
 }
 
-function editSalesPage(salesId) {
-  window.location.href = `sales-edit.html?id=${encodeURIComponent(salesId)}`;
-}
+// REMOVED: editSalesPage function since sales are read-only
 
 async function deleteSales(id) {
   const sale = sales.find(s => String(s.id) === String(id));
@@ -810,6 +1039,7 @@ async function deleteSales(id) {
     if (res.status === 204) {
       await fetchSales();
       await fetchInventory();
+      await fetchTotalProfitEarned(); // Refresh total profit
       alert('🗑️ Sales order deleted!');
     } else {
       alert('❌ Failed to delete sales order.');
@@ -1153,8 +1383,10 @@ async function savePurchaseOrder() {
       
       // Show print button after successful save
       qs('#printPurchaseBtn').classList.add('print-visible');
+      qs('#printPurchaseBtn').onclick = () => printPurchaseInvoice(savedPurchase.id);
       
-      closeNewPurchaseModal();
+      // Don't close modal yet - let user print invoice
+      // Fetch updated inventory and purchases data
       await fetchInventory();
       await fetchPurchases();
       
@@ -1280,14 +1512,14 @@ function openReportModal() {
   const modal = qs('#reportModal');
   if (modal) {
     modal.style.display = 'block';
-    // Set default dates (current month)
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    qs('#reportStartDate').value = firstDay.toISOString().split('T')[0];
-    qs('#reportEndDate').value = today.toISOString().split('T')[0];
+    // Clear dates for full inventory report
+    qs('#reportStartDate').value = '';
+    qs('#reportEndDate').value = '';
     
     // Reset selection
     qsa('.report-option').forEach(opt => opt.classList.remove('selected'));
+    // Auto-select inventory report
+    selectReportType('inventory');
   }
 }
 
@@ -1325,15 +1557,7 @@ async function generateSelectedReport() {
     case 'inventory':
       await generateInventoryReport(startDate, endDate);
       break;
-    case 'purchase':
-      await generatePurchaseReport(startDate, endDate);
-      break;
-    case 'sales':
-      await generateSalesReport(startDate, endDate);
-      break;
-    case 'all':
-      await generateAllReports(startDate, endDate);
-      break;
+    // REMOVED: Purchase and Sales reports
   }
 }
 
@@ -1353,7 +1577,19 @@ async function generateInventoryReport(startDate, endDate) {
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = `Inventory_Report_${Date.now()}.pdf`;
+    
+    // Create filename with date range or "Full"
+    let filename = 'Inventory_Report';
+    if (startDate || endDate) {
+      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
+      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
+      filename += `_${start}_to_${end}`;
+    } else {
+      filename += '_Full_List';
+    }
+    filename += `_${Date.now()}.pdf`;
+    
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -1367,86 +1603,7 @@ async function generateInventoryReport(startDate, endDate) {
   }
 }
 
-async function generatePurchaseReport(startDate, endDate) {
-  if (!confirm('Generate Purchase Report?')) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/report/pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ startDate, endDate })
-    });
-    
-    if (!res.ok) throw new Error('Failed to generate report');
-    
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = `Purchase_Report_${Date.now()}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    
-    alert('✅ Purchase Report Generated Successfully!');
-    
-  } catch (e) {
-    console.error('Purchase report error:', e);
-    alert('❌ Failed to generate purchase report.');
-  }
-}
-
-async function generateSalesReport(startDate, endDate) {
-  if (!confirm('Generate Sales Report?')) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/report/pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ startDate, endDate })
-    });
-    
-    if (!res.ok) throw new Error('Failed to generate report');
-    
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = `Sales_Report_${Date.now()}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    
-    alert('✅ Sales Report Generated Successfully!');
-    
-  } catch (e) {
-    console.error('Sales report error:', e);
-    alert('❌ Failed to generate sales report.');
-  }
-}
-
-async function generateAllReports(startDate, endDate) {
-  if (!confirm('Generate All Reports (Inventory, Purchase, Sales)?')) return;
-  
-  try {
-    // Generate inventory report
-    await generateInventoryReport(startDate, endDate);
-    
-    // Generate purchase report
-    await generatePurchaseReport(startDate, endDate);
-    
-    // Generate sales report
-    await generateSalesReport(startDate, endDate);
-    
-    alert('✅ All Reports Generated Successfully!');
-    
-  } catch (e) {
-    console.error('All reports error:', e);
-    alert('❌ Failed to generate some reports.');
-  }
-}
+// REMOVED: generatePurchaseReport, generateSalesReport, generateAllReports functions
 
 // =========================================
 // NEW: Folder Management for Documents
@@ -1654,7 +1811,7 @@ function renderDocuments(docs) {
           ⬇️ Download
         </button>
         <button class="danger-btn small-btn delete-btn" data-id="${id}">🗑️ Delete</button>
-        <button class="secondary-btn small-btn verify-btn" data-id="${id}" title="Verify File">🔍 Verify</button>
+        <!-- REMOVED: Verify button -->
         <button class="info-btn small-btn preview-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}" title="Preview">👁️ Preview</button>
       </td>
     `;
@@ -1801,13 +1958,7 @@ function bindDocumentEvents() {
     });
   });
 
-  // Verify buttons
-  qsa('.verify-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const id = this.getAttribute('data-id');
-      verifyDocument(id);
-    });
-  });
+  // REMOVED: Verify button events
 
   // Preview buttons
   qsa('.preview-btn').forEach(btn => {
@@ -1826,19 +1977,6 @@ async function downloadDocument(docId, fileName) {
   try {
     console.log(`Starting download: ${fileName} (ID: ${docId})`);
     
-    // First verify the document
-    const verifyRes = await fetch(`${API_BASE}/documents/${docId}/verify`);
-    if (!verifyRes.ok) {
-      throw new Error('Failed to verify document');
-    }
-    
-    const verifyData = await verifyRes.json();
-    console.log('Document verification:', verifyData);
-    
-    if (!verifyData.valid) {
-      throw new Error(`Document is corrupted or empty. Stored size: ${verifyData.storedSize} bytes, Actual data: ${verifyData.actualDataLength} bytes`);
-    }
-
     // Now download the document
     const res = await fetch(`${API_BASE}/documents/download/${docId}`);
     
@@ -1907,31 +2045,7 @@ async function downloadDocument(docId, fileName) {
   }
 }
 
-async function verifyDocument(docId) {
-  try {
-    const res = await fetch(`${API_BASE}/documents/${docId}/verify`);
-    if (res.ok) {
-      const data = await res.json();
-      
-      let message = `Document Verification:\n\n`;
-      message += `Name: ${data.name}\n`;
-      message += `Stored Size: ${data.storedSize} bytes\n`;
-      message += `Actual Data: ${data.actualDataLength} bytes\n`;
-      message += `Has Data: ${data.hasData ? 'YES' : 'NO'}\n`;
-      message += `Is Buffer: ${data.isBuffer ? 'YES' : 'NO'}\n`;
-      message += `Valid: ${data.valid ? 'YES ✅' : 'NO ❌'}\n`;
-      message += `Content Type: ${data.contentType}\n`;
-      message += `Upload Date: ${new Date(data.date).toLocaleString()}`;
-      
-      alert(message);
-    } else {
-      alert('Verification failed');
-    }
-  } catch (e) {
-    console.error('Verify error:', e);
-    alert('Verification failed: ' + e.message);
-  }
-}
+// REMOVED: verifyDocument function
 
 async function deleteDocumentConfirm(id) {
   const doc = documents.find(d => String(d.id) === String(id));
@@ -2114,16 +2228,14 @@ function renderDashboardData(){
   }
 
   if(qs('#dash_totalItems')) {
-    let totalValue = 0, totalRevenue = 0, totalProfit = 0, totalStock = 0;
+    let totalValue = 0, totalRevenue = 0, totalStock = 0;
     inventory.forEach(it => {
       const qty = Number(it.quantity || 0);
       const invVal = qty * Number(it.unitCost || 0);
       const rev = qty * Number(it.unitPrice || 0);
-      const profit = rev - invVal;
       
       totalValue += invVal;
       totalRevenue += rev;
-      totalProfit += profit;
       totalStock += qty;
     });
     qs('#dash_totalItems').textContent = inventory.length;
@@ -2131,7 +2243,8 @@ function renderDashboardData(){
     // Update dashboard cards if they exist
     if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = totalValue.toFixed(2);
     if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
-    if(qs('#dash_totalProfit')) qs('#dash_totalProfit').textContent = totalProfit.toFixed(2);
+    // UPDATED: Use totalProfitEarned instead of calculated profit
+    if(qs('#dash_totalProfit')) qs('#dash_totalProfit').textContent = totalProfitEarned.toFixed(2);
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
   }
 }
@@ -2258,6 +2371,24 @@ function bindSalesEditPage() {
 }
 
 // =========================================
+// NEW: Scroll to Add New Product Form
+// =========================================
+function scrollToAddProductForm() {
+  const addProductSection = qs('#addProductSection');
+  if (addProductSection) {
+    addProductSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Focus on first input field
+    setTimeout(() => {
+      const firstInput = qs('#p_sku');
+      if (firstInput) {
+        firstInput.focus();
+      }
+    }, 500);
+  }
+}
+
+// =========================================
 // ENHANCED UI BINDING
 // =========================================
 function bindInventoryUI(){
@@ -2271,6 +2402,9 @@ function bindInventoryUI(){
       searchInventory(); 
     } 
   });
+  
+  // NEW: Add New Product button (from dashboard)
+  qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
   
   // Purchase functionality
   qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
@@ -2333,6 +2467,9 @@ function bindInventoryUI(){
   
   // Date range filter events
   bindDateRangeFilterEvents();
+  
+  // Pagination events
+  bindPaginationEvents();
 }
 
 function bindDocumentsUI(){
@@ -2403,7 +2540,7 @@ window.openEditPageForItem = openEditPageForItem;
 window.confirmAndDeleteItem = confirmAndDeleteItem;
 window.downloadDocument = downloadDocument;
 window.deleteDocumentConfirm = deleteDocumentConfirm;
-window.verifyDocument = verifyDocument;
+// REMOVED: verifyDocument
 window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
 window.showCardTooltip = showCardTooltip;
 
@@ -2428,9 +2565,9 @@ window.closeNewSalesModal = closeNewSalesModal;
 window.saveSalesOrder = saveSalesOrder;
 window.printSalesInvoice = printSalesInvoice;
 window.deleteSales = deleteSales;
-window.editSales = editSales;
+// REMOVED: editSales
 window.viewSales = viewSalesDetails;
-window.editSalesPage = editSalesPage;
+// REMOVED: editSalesPage
 window.closeSalesDetailsModal = closeSalesDetailsModal;
 
 // Report functions
