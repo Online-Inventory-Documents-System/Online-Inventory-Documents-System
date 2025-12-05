@@ -1029,49 +1029,89 @@ async function viewSalesDetails(salesId) {
     const sale = await res.json();
     console.log('Sales details loaded:', sale);
     
-    // Check if DOM elements exist
-    if (!qs('#detailSalesId')) {
-      console.error('Sales detail DOM elements not found');
+    // Check if modal exists
+    if (!qs('#salesDetailsModal')) {
+      console.error('Sales details modal not found');
+      alert('Sales details modal is not available. Please refresh the page.');
       return;
     }
     
-    qs('#detailSalesId').textContent = sale.salesId || 'N/A';
-    qs('#detailCustomer').textContent = sale.customer || 'N/A';
-    qs('#detailCustomerContact').textContent = sale.customerContact || 'N/A';
-    qs('#detailSalesDate').textContent = new Date(sale.salesDate).toLocaleDateString();
-    qs('#detailSalesTotalAmount').textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
+    // Update sales details - using the correct element IDs from your HTML
+    const detailElements = {
+      'detailSalesId': 'detailSalesId',
+      'detailCustomer': 'detailCustomer',
+      'detailSalesDate': 'detailSalesDate',
+      'detailSalesTotalAmount': 'detailSalesTotalAmount',
+      'detailSalesNotes': 'detailSalesNotes',
+      'detailSalesNotesRow': 'detailSalesNotesRow'
+    };
     
-    if (sale.notes && sale.notes.trim()) {
-      qs('#detailSalesNotes').textContent = sale.notes;
-      qs('#detailSalesNotesRow').style.display = 'flex';
-    } else {
-      qs('#detailSalesNotesRow').style.display = 'none';
-    }
+    // Update each element if it exists
+    Object.entries(detailElements).forEach(([key, elementId]) => {
+      const element = qs(`#${elementId}`);
+      if (element) {
+        switch(key) {
+          case 'detailSalesId':
+            element.textContent = sale.salesId || 'N/A';
+            break;
+          case 'detailCustomer':
+            element.textContent = sale.customer || 'N/A';
+            break;
+          case 'detailSalesDate':
+            element.textContent = new Date(sale.salesDate).toLocaleDateString();
+            break;
+          case 'detailSalesTotalAmount':
+            element.textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
+            break;
+          case 'detailSalesNotes':
+            if (sale.notes && sale.notes.trim()) {
+              element.textContent = sale.notes;
+              const notesRow = qs('#detailSalesNotesRow');
+              if (notesRow) notesRow.style.display = 'flex';
+            } else {
+              const notesRow = qs('#detailSalesNotesRow');
+              if (notesRow) notesRow.style.display = 'none';
+            }
+            break;
+        }
+      } else {
+        console.warn(`Element #${elementId} not found`);
+      }
+    });
     
+    // Update sales items list
     const itemsList = qs('#salesDetailsList');
-    itemsList.innerHTML = '';
-    
-    if (sale.items && Array.isArray(sale.items)) {
-      sale.items.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${escapeHtml(item.sku || 'N/A')}</td>
-          <td>${escapeHtml(item.productName || 'N/A')}</td>
-          <td>${item.quantity || 0}</td>
-          <td class="money">RM ${(item.salePrice || 0).toFixed(2)}</td>
-          <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
-        `;
-        itemsList.appendChild(tr);
-      });
+    if (itemsList) {
+      itemsList.innerHTML = '';
+      
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach((item, index) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escapeHtml(item.sku || 'N/A')}</td>
+            <td>${escapeHtml(item.productName || 'N/A')}</td>
+            <td>${item.quantity || 0}</td>
+            <td class="money">RM ${(item.salePrice || 0).toFixed(2)}</td>
+            <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+          `;
+          itemsList.appendChild(tr);
+        });
+      }
     }
     
     // Set print button handler
-    const printBtn = qs('#printSalesDetailsInvoiceBtn');
+    const printBtn = qs('#printSalesInvoiceBtn');
     if (printBtn) {
       printBtn.onclick = () => printAndSaveSalesInvoice(salesId);
     }
     
-    qs('#salesDetailsModal').style.display = 'block';
+    // Show the modal
+    const modal = qs('#salesDetailsModal');
+    if (modal) {
+      modal.style.display = 'block';
+    } else {
+      console.error('Sales details modal element not found');
+    }
     
   } catch (e) {
     console.error('View sales details error:', e);
@@ -1080,7 +1120,10 @@ async function viewSalesDetails(salesId) {
 }
 
 function closeSalesDetailsModal() {
-  qs('#salesDetailsModal').style.display = 'none';
+  const modal = qs('#salesDetailsModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 async function deleteSales(id) {
@@ -1470,40 +1513,74 @@ async function viewPurchaseDetails(purchaseId) {
     const purchase = await res.json();
     console.log('Purchase details loaded:', purchase);
     
-    // Check if DOM elements exist
-    if (!qs('#detailPurchaseId')) {
-      console.error('Purchase detail DOM elements not found');
+    // Check if modal exists
+    if (!qs('#purchaseDetailsModal')) {
+      console.error('Purchase details modal not found');
+      alert('Purchase details modal is not available. Please refresh the page.');
       return;
     }
     
-    qs('#detailPurchaseId').textContent = purchase.purchaseId || 'N/A';
-    qs('#detailSupplier').textContent = purchase.supplier || 'N/A';
-    qs('#detailSupplierContact').textContent = purchase.supplierContact || 'N/A';
-    qs('#detailPurchaseDate').textContent = new Date(purchase.purchaseDate).toLocaleDateString();
-    qs('#detailTotalAmount').textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
+    // Update purchase details - using the correct element IDs from your HTML
+    const detailElements = {
+      'detailPurchaseId': 'detailPurchaseId',
+      'detailSupplier': 'detailSupplier',
+      'detailPurchaseDate': 'detailPurchaseDate',
+      'detailTotalAmount': 'detailTotalAmount',
+      'detailNotes': 'detailNotes',
+      'detailNotesRow': 'detailNotesRow'
+    };
     
-    if (purchase.notes && purchase.notes.trim()) {
-      qs('#detailNotes').textContent = purchase.notes;
-      qs('#detailNotesRow').style.display = 'flex';
-    } else {
-      qs('#detailNotesRow').style.display = 'none';
-    }
+    // Update each element if it exists
+    Object.entries(detailElements).forEach(([key, elementId]) => {
+      const element = qs(`#${elementId}`);
+      if (element) {
+        switch(key) {
+          case 'detailPurchaseId':
+            element.textContent = purchase.purchaseId || 'N/A';
+            break;
+          case 'detailSupplier':
+            element.textContent = purchase.supplier || 'N/A';
+            break;
+          case 'detailPurchaseDate':
+            element.textContent = new Date(purchase.purchaseDate).toLocaleDateString();
+            break;
+          case 'detailTotalAmount':
+            element.textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
+            break;
+          case 'detailNotes':
+            if (purchase.notes && purchase.notes.trim()) {
+              element.textContent = purchase.notes;
+              const notesRow = qs('#detailNotesRow');
+              if (notesRow) notesRow.style.display = 'flex';
+            } else {
+              const notesRow = qs('#detailNotesRow');
+              if (notesRow) notesRow.style.display = 'none';
+            }
+            break;
+        }
+      } else {
+        console.warn(`Element #${elementId} not found`);
+      }
+    });
     
+    // Update purchase items list
     const itemsList = qs('#purchaseDetailsList');
-    itemsList.innerHTML = '';
-    
-    if (purchase.items && Array.isArray(purchase.items)) {
-      purchase.items.forEach((item, index) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${escapeHtml(item.sku || 'N/A')}</td>
-          <td>${escapeHtml(item.productName || 'N/A')}</td>
-          <td>${item.quantity || 0}</td>
-          <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
-          <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
-        `;
-        itemsList.appendChild(tr);
-      });
+    if (itemsList) {
+      itemsList.innerHTML = '';
+      
+      if (purchase.items && Array.isArray(purchase.items)) {
+        purchase.items.forEach((item, index) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${escapeHtml(item.sku || 'N/A')}</td>
+            <td>${escapeHtml(item.productName || 'N/A')}</td>
+            <td>${item.quantity || 0}</td>
+            <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
+            <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+          `;
+          itemsList.appendChild(tr);
+        });
+      }
     }
     
     // Set print button handler
@@ -1512,7 +1589,13 @@ async function viewPurchaseDetails(purchaseId) {
       printBtn.onclick = () => printAndSavePurchaseInvoice(purchaseId);
     }
     
-    qs('#purchaseDetailsModal').style.display = 'block';
+    // Show the modal
+    const modal = qs('#purchaseDetailsModal');
+    if (modal) {
+      modal.style.display = 'block';
+    } else {
+      console.error('Purchase details modal element not found');
+    }
     
   } catch (e) {
     console.error('View purchase details error:', e);
@@ -1521,7 +1604,10 @@ async function viewPurchaseDetails(purchaseId) {
 }
 
 function closePurchaseDetailsModal() {
-  qs('#purchaseDetailsModal').style.display = 'none';
+  const modal = qs('#purchaseDetailsModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 async function deletePurchase(id) {
