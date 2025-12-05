@@ -752,10 +752,14 @@ function openNewSalesModal() {
   const modal = qs('#newSalesModal');
   if (modal) {
     resetSalesForm();
-    qs('#salesItems').innerHTML = '';
+    const salesItems = qs('#salesItems');
+    if (salesItems) salesItems.innerHTML = '';
     loadProductSearchForSales();
     modal.style.display = 'block';
     updateSalesTotalAmount();
+  } else {
+    console.error('New sales modal not found');
+    alert('Sales modal not found. Please check if the HTML is loaded correctly.');
   }
 }
 
@@ -768,18 +772,23 @@ function closeNewSalesModal() {
 }
 
 function resetSalesForm() {
-  qs('#customerName').value = '';
-  qs('#customerContact').value = '';
-  qs('#salesDate').value = new Date().toISOString().split('T')[0];
-  qs('#salesNotes').value = '';
-  qs('#productSearchSales').value = '';
-  qs('#productResultsSales').innerHTML = '';
-  qs('#salesItems').innerHTML = '';
-  qs('#totalSalesAmount').textContent = '0.00';
+  if (qs('#customerName')) qs('#customerName').value = '';
+  if (qs('#customerContact')) qs('#customerContact').value = '';
+  if (qs('#salesDate')) qs('#salesDate').value = new Date().toISOString().split('T')[0];
+  if (qs('#salesNotes')) qs('#salesNotes').value = '';
+  if (qs('#productSearchSales')) qs('#productSearchSales').value = '';
+  if (qs('#productResultsSales')) qs('#productResultsSales').innerHTML = '';
+  if (qs('#salesItems')) qs('#salesItems').innerHTML = '';
+  if (qs('#totalSalesAmount')) qs('#totalSalesAmount').textContent = '0.00';
 }
 
 function addSalesProductItem(product = null) {
   const container = qs('#salesItems');
+  if (!container) {
+    console.error('Sales items container not found');
+    return;
+  }
+  
   const itemId = `sales-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   
   const itemRow = document.createElement('div');
@@ -821,17 +830,22 @@ function addSalesProductItem(product = null) {
   const calculateTotal = () => {
     const qty = Number(quantityInput.value) || 0;
     const price = Number(priceInput.value) || 0;
-    totalInput.value = (qty * price).toFixed(2);
+    if (totalInput) {
+      totalInput.value = (qty * price).toFixed(2);
+    }
     updateSalesTotalAmount();
   };
   
-  quantityInput.addEventListener('input', calculateTotal);
-  priceInput.addEventListener('input', calculateTotal);
+  if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
+  if (priceInput) priceInput.addEventListener('input', calculateTotal);
   
-  itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
-    itemRow.remove();
-    updateSalesTotalAmount();
-  });
+  const removeBtn = itemRow.querySelector('.remove-item-btn');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      itemRow.remove();
+      updateSalesTotalAmount();
+    });
+  }
   
   calculateTotal();
 }
@@ -842,11 +856,15 @@ function updateSalesTotalAmount() {
   
   itemRows.forEach(row => {
     const totalInput = row.querySelector('.product-total');
-    const itemTotal = Number(totalInput.value) || 0;
-    total += itemTotal;
+    if (totalInput) {
+      const itemTotal = Number(totalInput.value) || 0;
+      total += itemTotal;
+    }
   });
   
-  qs('#totalSalesAmount').textContent = total.toFixed(2);
+  if (qs('#totalSalesAmount')) {
+    qs('#totalSalesAmount').textContent = total.toFixed(2);
+  }
 }
 
 function loadProductSearchForSales() {
@@ -912,10 +930,15 @@ async function saveSalesOrder() {
   }
   
   for (const row of itemRows) {
-    const sku = row.querySelector('.product-sku').value.trim();
-    const productName = row.querySelector('.product-name').value.trim();
-    const quantity = Number(row.querySelector('.product-quantity').value);
-    const salePrice = Number(row.querySelector('.product-price').value);
+    const skuInput = row.querySelector('.product-sku');
+    const nameInput = row.querySelector('.product-name');
+    const quantityInput = row.querySelector('.product-quantity');
+    const priceInput = row.querySelector('.product-price');
+    
+    const sku = skuInput ? skuInput.value.trim() : '';
+    const productName = nameInput ? nameInput.value.trim() : '';
+    const quantity = quantityInput ? Number(quantityInput.value) : 0;
+    const salePrice = priceInput ? Number(priceInput.value) : 0;
     
     if (!sku || !productName || !quantity || !salePrice) {
       alert('⚠️ Please fill in all fields for each product item.');
@@ -1157,10 +1180,14 @@ function openNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     resetPurchaseForm();
-    qs('#purchaseItems').innerHTML = '';
+    const purchaseItems = qs('#purchaseItems');
+    if (purchaseItems) purchaseItems.innerHTML = '';
     loadProductSearch();
     modal.style.display = 'block';
     updateTotalAmount();
+  } else {
+    console.error('New purchase modal not found');
+    alert('Purchase modal not found. Please check if the HTML is loaded correctly.');
   }
 }
 
@@ -1173,13 +1200,13 @@ function closeNewPurchaseModal() {
 }
 
 function resetPurchaseForm() {
-  qs('#supplierName').value = '';
-  qs('#supplierContact').value = '';
-  qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
-  qs('#purchaseNotes').value = '';
-  qs('#productSearch').value = '';
-  qs('#productResults').innerHTML = '';
-  qs('#purchaseItems').innerHTML = '';
+  if (qs('#supplierName')) qs('#supplierName').value = '';
+  if (qs('#supplierContact')) qs('#supplierContact').value = '';
+  if (qs('#purchaseDate')) qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
+  if (qs('#purchaseNotes')) qs('#purchaseNotes').value = '';
+  if (qs('#productSearch')) qs('#productSearch').value = '';
+  if (qs('#productResults')) qs('#productResults').innerHTML = '';
+  if (qs('#purchaseItems')) qs('#purchaseItems').innerHTML = '';
   
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = '0.00';
@@ -1188,6 +1215,11 @@ function resetPurchaseForm() {
 
 function addProductItem(product = null) {
   const container = qs('#purchaseItems');
+  if (!container) {
+    console.error('Purchase items container not found');
+    return;
+  }
+  
   const itemId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   
   const itemRow = document.createElement('div');
@@ -1227,17 +1259,22 @@ function addProductItem(product = null) {
   const calculateTotal = () => {
     const qty = Number(quantityInput.value) || 0;
     const price = Number(priceInput.value) || 0;
-    totalInput.value = (qty * price).toFixed(2);
+    if (totalInput) {
+      totalInput.value = (qty * price).toFixed(2);
+    }
     updateTotalAmount();
   };
   
-  quantityInput.addEventListener('input', calculateTotal);
-  priceInput.addEventListener('input', calculateTotal);
+  if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
+  if (priceInput) priceInput.addEventListener('input', calculateTotal);
   
-  itemRow.querySelector('.remove-item-btn').addEventListener('click', () => {
-    itemRow.remove();
-    updateTotalAmount();
-  });
+  const removeBtn = itemRow.querySelector('.remove-item-btn');
+  if (removeBtn) {
+    removeBtn.addEventListener('click', () => {
+      itemRow.remove();
+      updateTotalAmount();
+    });
+  }
   
   calculateTotal();
 }
@@ -1248,8 +1285,10 @@ function updateTotalAmount() {
   const newItemRows = qsa('#purchaseItems .purchase-item-row');
   newItemRows.forEach(row => {
     const totalInput = row.querySelector('.product-total');
-    const itemTotal = Number(totalInput.value) || 0;
-    newTotal += itemTotal;
+    if (totalInput) {
+      const itemTotal = Number(totalInput.value) || 0;
+      newTotal += itemTotal;
+    }
   });
   
   if (qs('#totalPurchaseAmount')) {
@@ -1320,10 +1359,15 @@ async function savePurchaseOrder() {
   }
   
   for (const row of itemRows) {
-    const sku = row.querySelector('.product-sku').value.trim();
-    const productName = row.querySelector('.product-name').value.trim();
-    const quantity = Number(row.querySelector('.product-quantity').value);
-    const purchasePrice = Number(row.querySelector('.product-price').value);
+    const skuInput = row.querySelector('.product-sku');
+    const nameInput = row.querySelector('.product-name');
+    const quantityInput = row.querySelector('.product-quantity');
+    const priceInput = row.querySelector('.product-price');
+    
+    const sku = skuInput ? skuInput.value.trim() : '';
+    const productName = nameInput ? nameInput.value.trim() : '';
+    const quantity = quantityInput ? Number(quantityInput.value) : 0;
+    const purchasePrice = priceInput ? Number(priceInput.value) : 0;
     
     if (!sku || !productName || !quantity || !purchasePrice) {
       alert('⚠️ Please fill in all fields for each product item.');
@@ -2350,7 +2394,7 @@ function scrollToAddProductForm() {
 }
 
 // =========================================
-// ENHANCED UI BINDING
+// ENHANCED UI BINDING - FIXED
 // =========================================
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
@@ -2366,14 +2410,19 @@ function bindInventoryUI(){
   
   qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
   
+  // Purchase buttons - FIXED: Using direct function calls
   qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
   qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
+  
+  // Sales buttons - FIXED: Using direct function calls
+  qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
+  qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
+  
+  // Other modal bindings
   qs('#addProductItem')?.addEventListener('click', () => addProductItem());
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
   
-  qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
-  qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   qs('#addSalesProductItem')?.addEventListener('click', () => addSalesProductItem());
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
   qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
