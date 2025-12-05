@@ -48,11 +48,20 @@ function toggleTheme(){
 // Enhanced API fetch with error handling
 async function apiFetch(url, options = {}) {
   const user = getUsername();
-  options.headers = {
-    'Content-Type': 'application/json',
-    'X-Username': user,
-    ...options.headers,
-  };
+  
+  // Only set Content-Type for requests that have a body
+  if (options.body) {
+    options.headers = {
+      'Content-Type': 'application/json',
+      'X-Username': user,
+      ...options.headers,
+    };
+  } else {
+    options.headers = {
+      'X-Username': user,
+      ...options.headers,
+    };
+  }
 
   try {
     const response = await fetch(url, options);
@@ -65,6 +74,23 @@ async function apiFetch(url, options = {}) {
     return response;
   } catch (error) {
     console.error('API fetch error:', error);
+    throw error;
+  }
+}
+
+// Simple fetch without headers for GET requests
+async function simpleFetch(url) {
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('Fetch error:', error);
     throw error;
   }
 }
@@ -696,7 +722,7 @@ async function bindProductPage(){
 }
 
 // =========================================
-// Sales Management Functions
+// Sales Management Functions - FIXED
 // =========================================
 async function fetchSales() {
   try {
@@ -1018,8 +1044,13 @@ async function saveSalesOrder() {
 
 async function viewSalesDetails(salesId) {
   try {
-    const res = await apiFetch(`${API_BASE}/sales/${salesId}`);
-    if (!res.ok) throw new Error('Failed to fetch sales details');
+    // Use simple fetch without headers for GET requests
+    const res = await simpleFetch(`${API_BASE}/sales/${salesId}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Failed to fetch sales details:', errorText);
+      throw new Error('Failed to fetch sales details');
+    }
     
     const sale = await res.json();
     
@@ -1057,7 +1088,7 @@ async function viewSalesDetails(salesId) {
     
   } catch (e) {
     console.error('View sales details error:', e);
-    alert('❌ Failed to load sales details.');
+    alert('❌ Failed to load sales details: ' + e.message);
   }
 }
 
@@ -1124,7 +1155,7 @@ async function printAndSaveSalesInvoice(salesId) {
 }
 
 // =========================================
-// PURCHASE MANAGEMENT FUNCTIONS
+// PURCHASE MANAGEMENT FUNCTIONS - FIXED
 // =========================================
 async function fetchPurchases() {
   try {
@@ -1441,8 +1472,13 @@ async function savePurchaseOrder() {
 
 async function viewPurchaseDetails(purchaseId) {
   try {
-    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
-    if (!res.ok) throw new Error('Failed to fetch purchase details');
+    // Use simple fetch without headers for GET requests
+    const res = await simpleFetch(`${API_BASE}/purchases/${purchaseId}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('Failed to fetch purchase details:', errorText);
+      throw new Error('Failed to fetch purchase details');
+    }
     
     const purchase = await res.json();
     
@@ -1480,7 +1516,7 @@ async function viewPurchaseDetails(purchaseId) {
     
   } catch (e) {
     console.error('View purchase details error:', e);
-    alert('❌ Failed to load purchase details.');
+    alert('❌ Failed to load purchase details: ' + e.message);
   }
 }
 
