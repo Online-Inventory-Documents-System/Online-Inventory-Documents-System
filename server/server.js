@@ -98,7 +98,7 @@ const SalesItemSchema = new Schema({
 const SalesSchema = new Schema({
   salesId: { type: String, unique: true, required: true },
   customer: String,
-  customerContact: String, // Added field
+  customerContact: String,
   salesDate: { type: Date, default: Date.now },
   notes: String,
   items: [SalesItemSchema],
@@ -300,7 +300,6 @@ app.put("/api/account/password", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing username or new password" });
   }
 
-  // Verify the user is changing their own password
   if (username !== currentUser) {
     return res.status(403).json({ success: false, message: "You can only change your own password" });
   }
@@ -311,7 +310,6 @@ app.put("/api/account/password", async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
@@ -340,7 +338,6 @@ app.delete("/api/account", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing username" });
   }
 
-  // Verify the user is deleting their own account
   if (username !== currentUser) {
     return res.status(403).json({ success: false, message: "You can only delete your own account" });
   }
@@ -429,7 +426,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    FIXED: ENHANCED PDF REPORT WITH DATE RANGE
+//                    ENHANCED PDF REPORT WITH DATE RANGE
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -441,7 +438,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       reportType
     });
 
-    // Build query for date range
     let query = {};
     
     if (startDate && endDate) {
@@ -449,7 +445,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
-      // Fix: Use MongoDB query instead of filtering in JavaScript
       query.createdAt = {
         $gte: start,
         $lte: end
@@ -469,7 +464,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     
     console.log(`Found ${items.length} items for report`);
 
-    // If no items found with date range, show all items
     if (items.length === 0 && (startDate || endDate)) {
       console.log(`No items found in date range, showing all items`);
       items = await Inventory.find({}).lean();
@@ -524,7 +518,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           reject(error);
         });
 
-        // ==================== PDF CONTENT GENERATION ====================
         doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
         doc.fontSize(10).font("Helvetica");
         doc.text(company.address, 40, 70);
@@ -544,7 +537,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
-        // PERFECT COLUMN ALIGNMENT - FIXED CALCULATIONS
         const columns = [
           { name: "SKU", x: 40, width: 70 },
           { name: "Product Name", x: 110, width: 110 },
@@ -560,17 +552,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let y = 150;
 
         function drawTableHeader() {
-          // Draw header background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Header text
           doc.font("Helvetica-Bold").fontSize(9);
           columns.forEach(col => {
             doc.text(col.name, col.x + 3, y + 5);
@@ -587,17 +576,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           const potentialRevenue = qty * price;
           const potentialProfit = potentialRevenue - inventoryValue;
 
-          // Draw row background and borders
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
-          // Draw vertical lines
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
-          // Data text
           doc.font("Helvetica").fontSize(8);
           doc.text(item.sku || "", columns[0].x + 3, y + 5);
           doc.text(item.name || "", columns[1].x + 3, y + 5);
@@ -619,7 +605,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           };
         }
 
-        // Draw header
         drawTableHeader();
         
         let subtotalQty = 0;
@@ -649,10 +634,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const lastPageIndex = doc.bufferedPageRange().count - 1;
         doc.switchToPage(lastPageIndex);
         
-        // FIXED: Better positioning for summary box
         let boxY = y + 20;
         if (boxY > 450) {
-          // If we're running out of space, add a new page for summary
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           boxY = 40;
         }
@@ -714,7 +697,6 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     
-    // Build query for date range
     let query = {};
     
     if (startDate && endDate) {
@@ -737,7 +719,6 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
 
     let purchases = await Purchase.find(query).sort({ purchaseDate: -1 }).lean();
 
-    // If no purchases found with date range, show all
     if (purchases.length === 0 && (startDate || endDate)) {
       purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
     }
@@ -764,10 +745,8 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.on('data', (d) => bufs.push(d));
         doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-        // Header - two column design
         const topY = 36;
         
-        // Left column - Company Info
         doc.fontSize(14).font('Helvetica-Bold')
            .text(company.name, 36, topY);
         doc.fontSize(10).font('Helvetica')
@@ -775,7 +754,6 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.text(`Phone: ${company.phone}`);
         doc.text(`Email: ${company.email}`);
 
-        // Right column - Report Meta
         const rightX = 360;
         doc.fontSize(12).font('Helvetica-Bold')
            .text('PURCHASE REPORT', rightX, topY, { align: 'right' });
@@ -785,14 +763,12 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
         doc.text(`Total Orders: ${purchases.length}`, { align: 'right' });
 
-        // Calculate grand total
         const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
         doc.font('Helvetica-Bold')
            .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
 
         doc.moveDown(2);
 
-        // Report table header
         const tableTop = 140;
         const colX = { 
           purchaseId: 36, 
@@ -809,19 +785,15 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
         doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
 
-        // Table header line
         doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
 
-        // Table rows
         doc.font('Helvetica').fontSize(9);
         let y = tableTop + 24;
         
         purchases.forEach((purchase, index) => {
-          // Check for page break
           if (y > 700) {
             doc.addPage();
             y = 60;
-            // Redraw header on new page
             doc.fontSize(10).font('Helvetica-Bold');
             doc.text('Purchase ID', colX.purchaseId, y);
             doc.text('Supplier', colX.supplier, y);
@@ -833,7 +805,6 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
             doc.font('Helvetica').fontSize(9);
           }
 
-          // Alternate row background
           if (index % 2 === 0) {
             doc.rect(36, y - 4, 524, 18)
                .fillColor('#f8f9fa')
@@ -850,7 +821,6 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
           y += 18;
         });
 
-        // Summary section
         const summaryY = Math.min(y + 20, 720);
         doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
@@ -858,11 +828,9 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
         doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
 
-        // Footer
         doc.fontSize(9).font('Helvetica')
            .text(`Generated by ${company.name} Inventory System`, 36, 760, { align: 'center', width: 520 });
 
-        // Page numbers
         const range = doc.bufferedPageRange();
         for (let i = 0; i < range.count; i++) {
           doc.switchToPage(i);
@@ -913,7 +881,6 @@ app.post("/api/sales/report/pdf", async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     
-    // Build query for date range
     let query = {};
     
     if (startDate && endDate) {
@@ -936,7 +903,6 @@ app.post("/api/sales/report/pdf", async (req, res) => {
 
     let sales = await Sales.find(query).sort({ salesDate: -1 }).lean();
 
-    // If no sales found with date range, show all
     if (sales.length === 0 && (startDate || endDate)) {
       sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
     }
@@ -963,10 +929,8 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.on('data', (d) => bufs.push(d));
         doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-        // Header - two column design
         const topY = 36;
         
-        // Left column - Company Info
         doc.fontSize(14).font('Helvetica-Bold')
            .text(company.name, 36, topY);
         doc.fontSize(10).font('Helvetica')
@@ -974,7 +938,6 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.text(`Phone: ${company.phone}`);
         doc.text(`Email: ${company.email}`);
 
-        // Right column - Report Meta
         const rightX = 360;
         doc.fontSize(12).font('Helvetica-Bold')
            .text('SALES REPORT', rightX, topY, { align: 'right' });
@@ -984,14 +947,12 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
         doc.text(`Total Orders: ${sales.length}`, { align: 'right' });
 
-        // Calculate grand total
         const grandTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
         doc.font('Helvetica-Bold')
            .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
 
         doc.moveDown(2);
 
-        // Report table header
         const tableTop = 140;
         const colX = { 
           salesId: 36, 
@@ -1008,19 +969,15 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
         doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
 
-        // Table header line
         doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
 
-        // Table rows
         doc.font('Helvetica').fontSize(9);
         let y = tableTop + 24;
         
         sales.forEach((sale, index) => {
-          // Check for page break
           if (y > 700) {
             doc.addPage();
             y = 60;
-            // Redraw header on new page
             doc.fontSize(10).font('Helvetica-Bold');
             doc.text('Sales ID', colX.salesId, y);
             doc.text('Customer', colX.customer, y);
@@ -1032,7 +989,6 @@ app.post("/api/sales/report/pdf", async (req, res) => {
             doc.font('Helvetica').fontSize(9);
           }
 
-          // Alternate row background
           if (index % 2 === 0) {
             doc.rect(36, y - 4, 524, 18)
                .fillColor('#f8f9fa')
@@ -1049,7 +1005,6 @@ app.post("/api/sales/report/pdf", async (req, res) => {
           y += 18;
         });
 
-        // Summary section
         const summaryY = Math.min(y + 20, 720);
         doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
         
@@ -1057,11 +1012,9 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
         doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
 
-        // Footer
         doc.fontSize(9).font('Helvetica')
            .text(`Generated by ${company.name} Inventory System`, 36, 760, { align: 'center', width: 520 });
 
-        // Page numbers
         const range = doc.bufferedPageRange();
         for (let i = 0; i < range.count; i++) {
           doc.switchToPage(i);
@@ -1115,7 +1068,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
     
     console.log(`📊 Generating all reports for date range: ${startDate} to ${endDate}`);
 
-    // Get all data with date range
     let inventoryQuery = {};
     let purchaseQuery = {};
     let salesQuery = {};
@@ -1140,7 +1092,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
       ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
       : 'All Dates';
 
-    // Create combined PDF
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
         const doc = new PDFDocument({ 
@@ -1153,7 +1104,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.on('data', (d) => bufs.push(d));
         doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-        // Header
         doc.fontSize(16).font('Helvetica-Bold')
            .text('COMPREHENSIVE BUSINESS REPORT', 36, 36, { align: 'center' });
         
@@ -1165,7 +1115,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
 
         doc.moveDown();
 
-        // Summary Section
         doc.fontSize(12).font('Helvetica-Bold')
            .text('EXECUTIVE SUMMARY', 36, 150);
         
@@ -1175,7 +1124,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.text(`• Purchase Orders: ${purchases.length}`);
         doc.text(`• Sales Orders: ${sales.length}`);
         
-        // Calculate totals
         const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
         const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
         const inventoryValue = inventoryItems.reduce((sum, item) => {
@@ -1187,11 +1135,9 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.text(`• Total Inventory Value: RM ${inventoryValue.toFixed(2)}`);
         doc.text(`• Gross Profit/Loss: RM ${(salesTotal - purchaseTotal).toFixed(2)}`);
 
-        // Add separator
         doc.moveDown();
         doc.moveTo(36, doc.y).lineTo(560, doc.y).stroke();
 
-        // Inventory Report Section
         doc.addPage();
         doc.fontSize(14).font('Helvetica-Bold')
            .text('INVENTORY REPORT', 36, 36);
@@ -1199,7 +1145,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.fontSize(10);
         doc.text(`Total Items: ${inventoryItems.length}`, 36, 60);
         
-        // Inventory table
         const invTableTop = 90;
         doc.font('Helvetica-Bold').fontSize(9);
         doc.text('SKU', 36, invTableTop);
@@ -1234,7 +1179,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
           invY += 12;
         });
 
-        // Purchase Report Section
         doc.addPage();
         doc.fontSize(14).font('Helvetica-Bold')
            .text('PURCHASE REPORT', 36, 36);
@@ -1242,7 +1186,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.fontSize(10);
         doc.text(`Total Purchase Orders: ${purchases.length} | Total Amount: RM ${purchaseTotal.toFixed(2)}`, 36, 60);
 
-        // Purchase table
         const purTableTop = 90;
         doc.font('Helvetica-Bold').fontSize(9);
         doc.text('Purchase ID', 36, purTableTop);
@@ -1271,7 +1214,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
           purY += 12;
         });
 
-        // Sales Report Section
         doc.addPage();
         doc.fontSize(14).font('Helvetica-Bold')
            .text('SALES REPORT', 36, 36);
@@ -1279,7 +1221,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.fontSize(10);
         doc.text(`Total Sales Orders: ${sales.length} | Total Amount: RM ${salesTotal.toFixed(2)}`, 36, 60);
 
-        // Sales table
         const salesTableTop = 90;
         doc.font('Helvetica-Bold').fontSize(9);
         doc.text('Sales ID', 36, salesTableTop);
@@ -1308,7 +1249,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
           salesY += 12;
         });
 
-        // Final Summary
         doc.addPage();
         doc.fontSize(14).font('Helvetica-Bold')
            .text('FINAL SUMMARY', 36, 36, { align: 'center' });
@@ -1339,12 +1279,10 @@ app.post("/api/reports/generate-all", async (req, res) => {
         }
         doc.fillColor('black');
 
-        // Footer
         doc.fontSize(9).font('Helvetica')
            .text(`Generated by ${company.name} Inventory System - Comprehensive Report`, 
                  36, 760, { align: 'center', width: 520 });
 
-        // Page numbers
         const range = doc.bufferedPageRange();
         for (let i = 0; i < range.count; i++) {
           doc.switchToPage(i);
@@ -1425,17 +1363,12 @@ app.get("/api/purchases/:id", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                    FIXED: SAVE PURCHASE ORDER
-// ============================================================================
 app.post("/api/purchases", async (req, res) => {
   try {
     const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
     
-    // Generate unique purchase ID
     const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
-    // Calculate total amount and process each item
     let totalAmount = 0;
     const purchaseItems = [];
 
@@ -1451,11 +1384,9 @@ app.post("/api/purchases", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
-        // Update unit cost if needed (optional)
         if (item.purchasePrice > 0) {
           inventoryItem.unitCost = item.purchasePrice;
         }
@@ -1475,11 +1406,10 @@ app.post("/api/purchases", async (req, res) => {
 
     await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
 
-    // Return the purchase object with proper ID
     res.status(201).json({
       ...purchase.toObject(),
       id: purchase._id.toString(),
-      purchaseId: purchase.purchaseId // Ensure purchaseId is included
+      purchaseId: purchase.purchaseId
     });
 
   } catch (err) {
@@ -1492,13 +1422,11 @@ app.put("/api/purchases/:id", async (req, res) => {
   try {
     const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
     
-    // Find existing purchase to revert inventory changes
     const existingPurchase = await Purchase.findById(req.params.id);
     if (!existingPurchase) {
       return res.status(404).json({ message: "Purchase not found" });
     }
 
-    // Revert old inventory quantities
     for (const oldItem of existingPurchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
       if (inventoryItem) {
@@ -1507,7 +1435,6 @@ app.put("/api/purchases/:id", async (req, res) => {
       }
     }
 
-    // Calculate new total and apply new inventory changes
     let totalAmount = 0;
     const purchaseItems = [];
 
@@ -1523,7 +1450,6 @@ app.put("/api/purchases/:id", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity with new values
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
@@ -1566,7 +1492,6 @@ app.delete("/api/purchases/:id", async (req, res) => {
     if (!purchase)
       return res.status(404).json({ message: "Purchase not found" });
 
-    // Revert inventory quantities
     for (const item of purchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
@@ -1586,7 +1511,7 @@ app.delete("/api/purchases/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                               SALES CRUD (UPDATED with customerContact)
+//                               SALES CRUD
 // ============================================================================
 app.get("/api/sales", async (req, res) => {
   try {
@@ -1619,17 +1544,12 @@ app.get("/api/sales/:id", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                    FIXED: SAVE SALES ORDER
-// ============================================================================
 app.post("/api/sales", async (req, res) => {
   try {
     const { customer, customerContact, salesDate, notes, items } = req.body;
     
-    // Generate unique sales ID
     const salesId = `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
-    // Calculate total amount and process each item
     let totalAmount = 0;
     const salesItems = [];
 
@@ -1645,7 +1565,6 @@ app.post("/api/sales", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity (reduce stock)
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         if (inventoryItem.quantity < item.quantity) {
@@ -1670,11 +1589,10 @@ app.post("/api/sales", async (req, res) => {
 
     await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
 
-    // Return the sales object with proper ID
     res.status(201).json({
       ...sale.toObject(),
       id: sale._id.toString(),
-      salesId: sale.salesId // Ensure salesId is included
+      salesId: sale.salesId
     });
 
   } catch (err) {
@@ -1687,13 +1605,11 @@ app.put("/api/sales/:id", async (req, res) => {
   try {
     const { customer, customerContact, salesDate, notes, items } = req.body;
     
-    // Find existing sales to revert inventory changes
     const existingSale = await Sales.findById(req.params.id);
     if (!existingSale) {
       return res.status(404).json({ message: "Sales not found" });
     }
 
-    // Revert old inventory quantities (add back the sold items)
     for (const oldItem of existingSale.items) {
       const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
       if (inventoryItem) {
@@ -1702,7 +1618,6 @@ app.put("/api/sales/:id", async (req, res) => {
       }
     }
 
-    // Calculate new total and apply new inventory changes
     let totalAmount = 0;
     const salesItems = [];
 
@@ -1718,7 +1633,6 @@ app.put("/api/sales/:id", async (req, res) => {
         totalAmount: itemTotal
       });
 
-      // Update inventory quantity with new values (reduce stock)
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
         if (inventoryItem.quantity < item.quantity) {
@@ -1763,7 +1677,6 @@ app.delete("/api/sales/:id", async (req, res) => {
     if (!sale)
       return res.status(404).json({ message: "Sales not found" });
 
-    // Revert inventory quantities (add back the sold items)
     for (const item of sale.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
@@ -1797,7 +1710,6 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        // Prepare data for the invoice template
         const invoiceData = {
           title: 'PURCHASE INVOICE',
           companyInfo: {
@@ -1830,7 +1742,6 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           extraNotes: purchase.notes || ''
         };
 
-        // Generate PDF using the template
         const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
@@ -1851,7 +1762,80 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE SALES INVOICE PDF (UPDATED)
+//                    SAVE PURCHASE INVOICE TO DOCUMENTS (NEW ENDPOINT)
+// ============================================================================
+app.post("/api/purchases/save-invoice/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const company = await getCompanyInfo();
+    const username = req.headers["x-username"] || "System";
+
+    const invoiceData = {
+      title: 'PURCHASE INVOICE',
+      companyInfo: {
+        name: company.name,
+        address: company.address,
+        phone: company.phone,
+        email: company.email
+      },
+      docMeta: {
+        reference: purchase.purchaseId,
+        dateString: new Date(purchase.purchaseDate).toLocaleDateString(),
+        status: 'PURCHASE'
+      },
+      customer: {
+        name: purchase.supplier || 'Supplier',
+        contact: purchase.supplierContact || purchase.supplier || 'N/A'
+      },
+      items: purchase.items.map(item => ({
+        name: item.productName || 'N/A',
+        sku: item.sku || 'N/A',
+        qty: item.quantity || 0,
+        price: item.purchasePrice || 0,
+        total: item.totalAmount || 0
+      })),
+      totals: {
+        subtotal: purchase.subtotal || purchase.totalAmount,
+        tax: 0,
+        grandTotal: purchase.totalAmount || 0
+      },
+      extraNotes: purchase.notes || ''
+    };
+
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
+
+    const filename = `Invoice_${purchase.purchaseId}.pdf`;
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['purchase-invoice', 'pdf', 'statement'],
+      createdBy: username
+    });
+
+    await logActivity(username, `Saved purchase invoice: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    const docObject = savedDoc.toObject();
+    delete docObject.data;
+    res.json({
+      ...docObject,
+      id: docObject._id.toString()
+    });
+
+  } catch (err) {
+    console.error("❌ Save Purchase Invoice Error:", err);
+    res.status(500).json({ message: "Failed to save purchase invoice: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SINGLE SALES INVOICE PDF
 // ============================================================================
 app.get("/api/sales/invoice/:id", async (req, res) => {
   try {
@@ -1865,7 +1849,6 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        // Prepare data for the sales invoice template
         const invoiceData = {
           title: 'SALES INVOICE',
           companyInfo: {
@@ -1898,7 +1881,6 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           extraNotes: sale.notes || ''
         };
 
-        // Generate PDF using the template
         const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
@@ -1918,7 +1900,80 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
   }
 });
 
-// ===== IMPROVED Helper: generate PDF buffer using PDFKit (two-column professional invoice) =====
+// ============================================================================
+//                    SAVE SALES INVOICE TO DOCUMENTS (NEW ENDPOINT)
+// ============================================================================
+app.post("/api/sales/save-invoice/:id", async (req, res) => {
+  try {
+    const sale = await Sales.findById(req.params.id).lean();
+    if (!sale) {
+      return res.status(404).json({ message: "Sales not found" });
+    }
+
+    const company = await getCompanyInfo();
+    const username = req.headers["x-username"] || "System";
+
+    const invoiceData = {
+      title: 'SALES INVOICE',
+      companyInfo: {
+        name: company.name,
+        address: company.address,
+        phone: company.phone,
+        email: company.email
+      },
+      docMeta: {
+        reference: sale.salesId,
+        dateString: new Date(sale.salesDate).toLocaleDateString(),
+        status: 'SALES'
+      },
+      customer: {
+        name: sale.customer || 'Customer',
+        contact: sale.customerContact || sale.customer || 'N/A'
+      },
+      items: sale.items.map(item => ({
+        name: item.productName || 'N/A',
+        sku: item.sku || 'N/A',
+        qty: item.quantity || 0,
+        price: item.salePrice || 0,
+        total: item.totalAmount || 0
+      })),
+      totals: {
+        subtotal: sale.subtotal || sale.totalAmount,
+        tax: 0,
+        grandTotal: sale.totalAmount || 0
+      },
+      extraNotes: sale.notes || ''
+    };
+
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
+
+    const filename = `Invoice_${sale.salesId}.pdf`;
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['sales-invoice', 'pdf', 'statement'],
+      createdBy: username
+    });
+
+    await logActivity(username, `Saved sales invoice: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    const docObject = savedDoc.toObject();
+    delete docObject.data;
+    res.json({
+      ...docObject,
+      id: docObject._id.toString()
+    });
+
+  } catch (err) {
+    console.error("❌ Save Sales Invoice Error:", err);
+    res.status(500).json({ message: "Failed to save sales invoice: " + err.message });
+  }
+});
+
+// ===== Helper: generate PDF buffer using PDFKit =====
 function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
   return new Promise((resolve, reject) => {
     try {
@@ -1932,10 +1987,8 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.on('data', (d) => bufs.push(d));
       doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-      // Header - two column design
       const topY = 36;
       
-      // Left column - Company Info
       doc.fontSize(14).font('Helvetica-Bold')
          .text(companyInfo.name || 'L&B COMPANY', 36, topY);
       doc.fontSize(10).font('Helvetica')
@@ -1943,7 +1996,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text(`Phone: ${companyInfo.phone || '01133127622'}`);
       doc.text(`Email: ${companyInfo.email || 'lbcompany@gmail.com'}`);
 
-      // Right column - Invoice Meta
       const rightX = 360;
       doc.fontSize(12).font('Helvetica-Bold')
          .text(title, rightX, topY, { align: 'right' });
@@ -1952,7 +2004,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text(`Date: ${docMeta.dateString || new Date().toLocaleDateString()}`, { align: 'right' });
       doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
 
-      // Customer Information
       const customerY = 120;
       doc.fontSize(10).font('Helvetica-Bold')
          .text(title.includes('PURCHASE') ? 'Supplier:' : 'Customer:', 36, customerY);
@@ -1962,7 +2013,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         doc.text(`Contact: ${customer.contact}`, 36, doc.y);
       }
 
-      // Items table header
       const tableTop = 170;
       const colX = { 
         item: 36, 
@@ -1979,19 +2029,15 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
       doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
 
-      // Table header line
       doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
 
-      // Table rows
       doc.font('Helvetica').fontSize(9);
       let y = tableTop + 24;
       
       items.forEach((item, index) => {
-        // Check for page break
         if (y > 700) {
           doc.addPage();
           y = 60;
-          // Redraw table header on new page
           doc.fontSize(10).font('Helvetica-Bold');
           doc.text('Product Name', colX.item, y);
           doc.text('SKU', colX.sku, y);
@@ -2003,7 +2049,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
           doc.font('Helvetica').fontSize(9);
         }
 
-        // Alternate row background for better readability
         if (index % 2 === 0) {
           doc.rect(36, y - 4, 524, 18)
              .fillColor('#f8f9fa')
@@ -2020,7 +2065,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         y += 18;
       });
 
-      // Totals section
       const totalsY = Math.max(y + 10, 650);
       doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
       
@@ -2039,7 +2083,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
       doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
 
-      // Notes section
       if (extraNotes) {
         doc.moveDown(2);
         doc.font('Helvetica').fontSize(9)
@@ -2047,12 +2090,10 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
            .text(extraNotes, 36, totalsY + 105, { width: 500 });
       }
 
-      // Footer
       doc.fontSize(9).font('Helvetica')
          .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
                36, 760, { align: 'center', width: 520 });
 
-      // Page numbers for multi-page invoices
       const range = doc.bufferedPageRange();
       for (let i = 0; i < range.count; i++) {
         doc.switchToPage(i);
@@ -2096,7 +2137,6 @@ app.post("/api/folders", async (req, res) => {
       return res.status(400).json({ message: "Folder name is required" });
     }
 
-    // Check if folder with same name already exists in the same location
     const existingFolder = await Folder.findOne({ 
       name, 
       parentFolder: parentFolder || null 
@@ -2164,7 +2204,6 @@ app.delete("/api/folders/:id", async (req, res) => {
       return res.status(404).json({ message: "Folder not found" });
     }
 
-    // Check if folder has subfolders
     const subfolders = await Folder.find({ parentFolder: req.params.id });
     if (subfolders.length > 0) {
       return res.status(400).json({ 
@@ -2172,7 +2211,6 @@ app.delete("/api/folders/:id", async (req, res) => {
       });
     }
 
-    // Check if folder has documents
     const documents = await Doc.find({ folder: req.params.id });
     if (documents.length > 0) {
       return res.status(400).json({ 
@@ -2197,7 +2235,6 @@ app.post("/api/documents", async (req, res) => {
   console.log("📤 Document upload request received");
   
   try {
-    // Get the raw body as buffer
     const chunks = [];
     
     req.on('data', (chunk) => {
@@ -2234,7 +2271,6 @@ app.post("/api/documents", async (req, res) => {
           });
         }
 
-        // Validate file size (max 50MB)
         if (fileBuffer.length > 50 * 1024 * 1024) {
           console.error("❌ File too large:", fileBuffer.length);
           return res.status(400).json({ 
@@ -2244,7 +2280,6 @@ app.post("/api/documents", async (req, res) => {
 
         console.log(`✅ File validated: ${fileName}, size: ${fileBuffer.length} bytes`);
 
-        // Save to database
         const docu = await Doc.create({
           name: fileName,
           size: fileBuffer.length,
@@ -2265,7 +2300,6 @@ app.post("/api/documents", async (req, res) => {
         
         await logActivity(username, `Uploaded document: ${fileName}`, req.headers['user-agent'] || 'Unknown Device');
         
-        // Return success response
         res.status(201).json([{ 
           ...docu.toObject(), 
           id: docu._id.toString() 
@@ -2324,7 +2358,6 @@ app.get("/api/documents", async (req, res) => {
   }
 });
 
-// Document check route - to verify if file has data
 app.get("/api/documents/:id/check", async (req, res) => {
   try {
     const docu = await Doc.findById(req.params.id);
@@ -2343,9 +2376,6 @@ app.get("/api/documents/:id/check", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                    DOCUMENT VERIFICATION ENDPOINT
-// ============================================================================
 app.get("/api/documents/:id/verify", async (req, res) => {
   try {
     const docu = await Doc.findById(req.params.id);
@@ -2388,9 +2418,6 @@ app.delete("/api/documents/:id", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                    DOCUMENT MOVE TO FOLDER
-// ============================================================================
 app.put("/api/documents/:id/move", async (req, res) => {
   try {
     const { folderId } = req.body;
@@ -2418,9 +2445,6 @@ app.put("/api/documents/:id/move", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                    DOCUMENT PREVIEW ENDPOINT
-// ============================================================================
 app.get("/api/documents/preview/:id", async (req, res) => {
   try {
     const docu = await Doc.findById(req.params.id);
@@ -2433,7 +2457,6 @@ app.get("/api/documents/preview/:id", async (req, res) => {
       return res.status(400).json({ message: "Document content not available" });
     }
 
-    // Set appropriate headers for preview
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
     res.setHeader("Content-Disposition", `inline; filename="${docu.name}"`);
@@ -2445,9 +2468,6 @@ app.get("/api/documents/preview/:id", async (req, res) => {
   }
 });
 
-// ============================================================================
-//                             DOCUMENTS DOWNLOAD
-// ============================================================================
 app.get("/api/documents/download/:id", async (req, res) => {
   try {
     console.log(`📥 Download request for document: ${req.params.id}`);
@@ -2461,7 +2481,6 @@ app.get("/api/documents/download/:id", async (req, res) => {
 
     console.log(`📄 Found document: ${docu.name}, database size: ${docu.size} bytes`);
 
-    // More comprehensive data validation
     if (!docu.data || 
         !Buffer.isBuffer(docu.data) || 
         docu.data.length === 0 ||
@@ -2481,7 +2500,6 @@ app.get("/api/documents/download/:id", async (req, res) => {
       });
     }
 
-    // Set headers for file download
     res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
     res.setHeader("Content-Length", docu.data.length);
@@ -2489,7 +2507,6 @@ app.get("/api/documents/download/:id", async (req, res) => {
     
     console.log(`✅ Sending file: ${docu.name}, size: ${docu.data.length} bytes`);
     
-    // Send the binary data
     res.send(docu.data);
 
     await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`, req.headers['user-agent'] || 'Unknown Device');
@@ -2540,13 +2557,13 @@ app.get("/api/statements/:type", async (req, res) => {
         query.tags.$in = ['inventory-report', 'pdf'];
         break;
       case 'purchase-invoices':
-        query.tags.$in = ['purchase-report', 'pdf'];
+        query.tags.$in = ['purchase-invoice', 'purchase-report', 'pdf', 'statement'];
         break;
       case 'sales-invoices':
-        query.tags.$in = ['sales-report', 'pdf'];
+        query.tags.$in = ['sales-invoice', 'sales-report', 'pdf', 'statement'];
         break;
       case 'all-reports':
-        query.tags.$in = ['inventory-report', 'purchase-report', 'sales-report', 'comprehensive-report', 'pdf'];
+        query.tags.$in = ['inventory-report', 'purchase-report', 'sales-report', 'comprehensive-report', 'purchase-invoice', 'sales-invoice', 'pdf', 'statement'];
         break;
       default:
         return res.status(400).json({ message: "Invalid statement type" });
@@ -2589,7 +2606,6 @@ app.get("/api/logs", async (req, res) => {
 // ============================================================================
 app.delete("/api/logs/clear", async (req, res) => {
   try {
-    // You can add authentication/authorization here
     const result = await ActivityLog.deleteMany({});
     
     console.log(`Cleared ${result.deletedCount} activity logs`);
@@ -2631,13 +2647,11 @@ app.get("/api/logs/login-history", async (req, res) => {
 // ============================================================================
 app.get("/api/dashboard/stats", async (req, res) => {
   try {
-    // Get counts
     const inventoryCount = await Inventory.countDocuments({});
     const purchaseCount = await Purchase.countDocuments({});
     const salesCount = await Sales.countDocuments({});
     const documentCount = await Doc.countDocuments({});
     
-    // Calculate totals
     const inventoryItems = await Inventory.find({}).lean();
     let inventoryValue = 0;
     let inventoryRevenue = 0;
@@ -2658,18 +2672,14 @@ app.get("/api/dashboard/stats", async (req, res) => {
       totalStock += qty;
     });
     
-    // Get purchase total
     const purchases = await Purchase.find({}).lean();
     const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
     
-    // Get sales total
     const sales = await Sales.find({}).lean();
     const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
     
-    // Get recent activity
     const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(5).lean();
     
-    // Get low stock items
     const lowStockItems = await Inventory.find({ quantity: { $lt: 10 } }).lean();
     
     res.json({
@@ -2723,7 +2733,6 @@ app.get("/api/search", async (req, res) => {
     
     const searchTerm = q.toLowerCase().trim();
     
-    // Search inventory
     const inventoryResults = await Inventory.find({
       $or: [
         { sku: { $regex: searchTerm, $options: 'i' } },
@@ -2732,7 +2741,6 @@ app.get("/api/search", async (req, res) => {
       ]
     }).limit(10).lean();
     
-    // Search purchases
     const purchaseResults = await Purchase.find({
       $or: [
         { purchaseId: { $regex: searchTerm, $options: 'i' } },
@@ -2741,7 +2749,6 @@ app.get("/api/search", async (req, res) => {
       ]
     }).limit(10).lean();
     
-    // Search sales
     const salesResults = await Sales.find({
       $or: [
         { salesId: { $regex: searchTerm, $options: 'i' } },
@@ -2750,7 +2757,6 @@ app.get("/api/search", async (req, res) => {
       ]
     }).limit(10).lean();
     
-    // Search documents
     const documentResults = await Doc.find({
       name: { $regex: searchTerm, $options: 'i' }
     }).select('-data').limit(10).lean();
@@ -2775,10 +2781,8 @@ app.get("/api/inventory/export/excel", async (req, res) => {
   try {
     const items = await Inventory.find({}).lean();
     
-    // Create workbook
     const wb = xlsx.utils.book_new();
     
-    // Prepare data
     const data = items.map(item => ({
       SKU: item.sku || '',
       'Product Name': item.name || '',
@@ -2795,10 +2799,8 @@ app.get("/api/inventory/export/excel", async (req, res) => {
     const ws = xlsx.utils.json_to_sheet(data);
     xlsx.utils.book_append_sheet(wb, ws, "Inventory");
     
-    // Generate buffer
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
     
-    // Set headers
     const filename = `Inventory_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -2834,11 +2836,9 @@ app.post("/api/inventory/import/excel", async (req, res) => {
           continue;
         }
         
-        // Check if item exists
         const existingItem = await Inventory.findOne({ sku: SKU });
         
         if (existingItem) {
-          // Update existing
           existingItem.name = name;
           existingItem.category = category || existingItem.category;
           existingItem.quantity = Number(quantity) || existingItem.quantity;
@@ -2847,7 +2847,6 @@ app.post("/api/inventory/import/excel", async (req, res) => {
           await existingItem.save();
           updatedCount++;
         } else {
-          // Create new
           await Inventory.create({
             sku: SKU,
             name: name,
@@ -2871,7 +2870,7 @@ app.post("/api/inventory/import/excel", async (req, res) => {
       importedCount,
       updatedCount,
       errorCount: errors.length,
-      errors: errors.slice(0, 10) // Return only first 10 errors
+      errors: errors.slice(0, 10)
     });
     
   } catch (err) {
@@ -2887,7 +2886,6 @@ app.get("/api/system/backup", async (req, res) => {
   try {
     const username = req.headers["x-username"];
     
-    // Get all data
     const inventory = await Inventory.find({}).lean();
     const purchases = await Purchase.find({}).lean();
     const sales = await Sales.find({}).lean();
@@ -2931,17 +2929,14 @@ app.get("/api/system/backup", async (req, res) => {
 // ============================================================================
 app.get("/api/system/health", async (req, res) => {
   try {
-    // Check database connection
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     
-    // Check collections
     const inventoryCount = await Inventory.countDocuments({});
     const purchaseCount = await Purchase.countDocuments({});
     const salesCount = await Sales.countDocuments({});
     const documentCount = await Doc.countDocuments({});
     const userCount = await User.countDocuments({});
     
-    // Check for recent errors in logs
     const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(10).lean();
     const errorLogs = recentLogs.filter(log => log.action && log.action.toLowerCase().includes('error'));
     
@@ -3002,10 +2997,8 @@ async function ensureDefaultAdminAndStartupLog() {
       await logActivity("System", "Default admin user created", 'System');
     }
 
-    // Ensure company info exists
     await getCompanyInfo();
     
-    // Create default folders if they don't exist
     const rootFolders = ['Reports', 'Invoices', 'Documents', 'Backups'];
     for (const folderName of rootFolders) {
       const exists = await Folder.findOne({ name: folderName, parentFolder: null });
