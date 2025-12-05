@@ -1346,6 +1346,7 @@ app.get("/api/purchases", async (req, res) => {
   }
 });
 
+// ===== FIXED: Purchase Details Endpoint =====
 app.get("/api/purchases/:id", async (req, res) => {
   try {
     const purchase = await Purchase.findById(req.params.id).lean();
@@ -1353,10 +1354,14 @@ app.get("/api/purchases/:id", async (req, res) => {
       return res.status(404).json({ message: "Purchase not found" });
     }
     
-    res.json({
+    // Include both id and _id for compatibility
+    const response = {
       ...purchase,
-      id: purchase._id.toString()
-    });
+      id: purchase._id.toString(),
+      _id: purchase._id.toString()
+    };
+    
+    res.json(response);
   } catch (err) {
     console.error("purchase get error", err);
     res.status(500).json({ message: "Server error" });
@@ -1527,6 +1532,7 @@ app.get("/api/sales", async (req, res) => {
   }
 });
 
+// ===== FIXED: Sales Details Endpoint =====
 app.get("/api/sales/:id", async (req, res) => {
   try {
     const sale = await Sales.findById(req.params.id).lean();
@@ -1534,10 +1540,14 @@ app.get("/api/sales/:id", async (req, res) => {
       return res.status(404).json({ message: "Sales not found" });
     }
     
-    res.json({
+    // Include both id and _id for compatibility
+    const response = {
       ...sale,
-      id: sale._id.toString()
-    });
+      id: sale._id.toString(),
+      _id: sale._id.toString()
+    };
+    
+    res.json(response);
   } catch (err) {
     console.error("sales get error", err);
     res.status(500).json({ message: "Server error" });
@@ -1735,7 +1745,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
             total: item.totalAmount || 0
           })),
           totals: {
-            subtotal: purchase.subtotal || purchase.totalAmount,
+            subtotal: purchase.totalAmount || 0,
             tax: 0,
             grandTotal: purchase.totalAmount || 0
           },
@@ -1799,7 +1809,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
         total: item.totalAmount || 0
       })),
       totals: {
-        subtotal: purchase.subtotal || purchase.totalAmount,
+        subtotal: purchase.totalAmount || 0,
         tax: 0,
         grandTotal: purchase.totalAmount || 0
       },
@@ -1874,7 +1884,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
             total: item.totalAmount || 0
           })),
           totals: {
-            subtotal: sale.subtotal || sale.totalAmount,
+            subtotal: sale.totalAmount || 0,
             tax: 0,
             grandTotal: sale.totalAmount || 0
           },
@@ -1938,7 +1948,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
         total: item.totalAmount || 0
       })),
       totals: {
-        subtotal: sale.subtotal || sale.totalAmount,
+        subtotal: sale.totalAmount || 0,
         tax: 0,
         grandTotal: sale.totalAmount || 0
       },
@@ -2852,8 +2862,8 @@ app.post("/api/inventory/import/excel", async (req, res) => {
             name: name,
             category: category || '',
             quantity: Number(quantity) || 0,
-            unitCost = Number(unitCost) || 0,
-            unitPrice = Number(unitPrice) || 0
+            unitCost: Number(unitCost) || 0,
+            unitPrice: Number(unitPrice) || 0
           });
           importedCount++;
         }
