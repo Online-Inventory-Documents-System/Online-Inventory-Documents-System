@@ -1,190 +1,269 @@
-// server.js
-// Complete Node.js server for Online Inventory & Documents System
+// server/server.js
+// MongoDB (Mongoose) based server for Online Inventory & Documents Management System
 
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const xlsx = require('xlsx');
+const mongoose = require('mongoose');
 const path = require('path');
-const fs = require('fs').promises;
-const multer = require('multer');
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
-const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
+const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 
-// Middleware
+// ===== Middleware =====
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/inventoryDB';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+// ===== MongoDB Connection =====
+if (!MONGODB_URI) {
+  console.error("MONGODB_URI is not set.");
+  process.exit(1);
+}
 
-// Models
-const userSchema = new mongoose.Schema({
-  username: { type: String, unique: true, required: true },
-  password: { type: String, required: true }
+mongoose.set("strictQuery", false);
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log("Connected to MongoDB Atlas"))
+.catch(err => {
+  console.error("MongoDB connect error:", err);
+  process.exit(1);
 });
-const User = mongoose.model('User', userSchema);
 
-const inventorySchema = new mongoose.Schema({
-  sku: { type: String, required: true },
-  name: { type: String, required: true },
+const { Schema } = mongoose;
+
+// ===== Schemas =====
+const UserSchema = new Schema({
+  username: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model("User", UserSchema);
+
+const CompanySchema = new Schema({
+  name: { type: String, default: "L&B Company" },
+  address: { type: String, default: "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka" },
+  phone: { type: String, default: "01133127622" },
+  email: { type: String, default: "lbcompany@gmail.com" },
+  updatedAt: { type: Date, default: Date.now }
+});
+const Company = mongoose.model("Company", CompanySchema);
+
+const InventorySchema = new Schema({
+  sku: String,
+  name: String,
   category: String,
   quantity: { type: Number, default: 0 },
   unitCost: { type: Number, default: 0 },
   unitPrice: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
-const Inventory = mongoose.model('Inventory', inventorySchema);
+const Inventory = mongoose.model("Inventory", InventorySchema);
 
-const activityLogSchema = new mongoose.Schema({
-  user: String,
-  action: String,
-  time: { type: Date, default: Date.now }
+// ===== Updated Purchase Schema for Multiple Products =====
+const PurchaseItemSchema = new Schema({
+  sku: String,
+  productName: String,
+  quantity: { type: Number, default: 0 },
+  purchasePrice: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 }
 });
-const ActivityLog = mongoose.model('ActivityLog', activityLogSchema);
 
-const purchaseSchema = new mongoose.Schema({
+const PurchaseSchema = new Schema({
   purchaseId: { type: String, unique: true, required: true },
-  supplier: { type: String, required: true },
+  supplier: String,
   supplierContact: String,
   purchaseDate: { type: Date, default: Date.now },
-  items: [{
-    sku: String,
-    productName: String,
-    quantity: Number,
-    purchasePrice: Number,
-    totalAmount: Number
-  }],
-  totalAmount: Number,
   notes: String,
+  items: [PurchaseItemSchema],
+  totalAmount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
-const Purchase = mongoose.model('Purchase', purchaseSchema);
+const Purchase = mongoose.model("Purchase", PurchaseSchema);
 
-const salesSchema = new mongoose.Schema({
+// ===== UPDATED Sales Schema with customerContact =====
+const SalesItemSchema = new Schema({
+  sku: String,
+  productName: String,
+  quantity: { type: Number, default: 0 },
+  salePrice: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 }
+});
+
+const SalesSchema = new Schema({
   salesId: { type: String, unique: true, required: true },
-  customer: { type: String, required: true },
+  customer: String,
   customerContact: String,
   salesDate: { type: Date, default: Date.now },
-  items: [{
-    sku: String,
-    productName: String,
-    quantity: Number,
-    salePrice: Number,
-    totalAmount: Number
-  }],
-  totalAmount: Number,
-  totalProfit: Number,
   notes: String,
+  items: [SalesItemSchema],
+  totalAmount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
-const Sales = mongoose.model('Sales', salesSchema);
+const Sales = mongoose.model("Sales", SalesSchema);
 
-const documentSchema = new mongoose.Schema({
+// ===== NEW: Folder Schema for Document Management =====
+const FolderSchema = new Schema({
+  name: { type: String, required: true },
+  parentFolder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
+  path: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now },
+  createdBy: String
+});
+const Folder = mongoose.model("Folder", FolderSchema);
+
+// ===== Updated Document Schema with Folder Support =====
+const DocumentSchema = new Schema({
   name: String,
-  contentType: String,
-  data: Buffer,
   size: Number,
   date: { type: Date, default: Date.now },
-  uploadedBy: String,
-  folderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null }
+  data: Buffer,
+  contentType: String,
+  folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
+  tags: [String],
+  createdBy: String
 });
-const Document = mongoose.model('Document', documentSchema);
+const Doc = mongoose.model("Doc", DocumentSchema);
 
-const folderSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  parentFolder: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null },
-  createdBy: String,
-  createdAt: { type: Date, default: Date.now }
+// ===== UPDATED Log Schema with device info =====
+const LogSchema = new Schema({
+  user: String,
+  action: String,
+  device: String,
+  time: { type: Date, default: Date.now }
 });
-const Folder = mongoose.model('Folder', folderSchema);
+const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
-const companySchema = new mongoose.Schema({
-  name: { type: String, default: 'L&B Company' },
-  address: { type: String, default: 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka' },
-  phone: { type: String, default: '01133127622' },
-  email: { type: String, default: 'lbcompany@gmail.com' }
-});
-const Company = mongoose.model('Company', companySchema);
+// ===== Duplicate Log Protection =====
+const DUPLICATE_WINDOW_MS = 30 * 1000;
 
-// Generate ID function
-function generateId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+async function logActivity(user, action, device = 'Unknown Device') {
+  try {
+    const safeUser = (user || "Unknown").toString();
+    const safeAction = (action || "").toString();
+    const now = Date.now();
+
+    const last = await ActivityLog.findOne({}).sort({ time: -1 }).lean().exec();
+    if (last) {
+      const lastUser = last.user || "Unknown";
+      const lastAction = last.action || "";
+      const lastTime = last.time ? new Date(last.time).getTime() : 0;
+
+      if (
+        lastUser === safeUser &&
+        lastAction === safeAction &&
+        now - lastTime <= DUPLICATE_WINDOW_MS
+      ) {
+        return;
+      }
+    }
+
+    await ActivityLog.create({
+      user: safeUser,
+      action: safeAction,
+      device: device,
+      time: new Date()
+    });
+
+  } catch (err) {
+    console.error("logActivity error:", err);
+  }
 }
 
-// Authentication Middleware
-const authenticate = async (req, res, next) => {
-  const username = req.headers['x-username'];
-  if (!username) return res.status(401).json({ message: 'Unauthorized: No username provided' });
-  
+// ===== NEW: Get Company Information =====
+async function getCompanyInfo() {
   try {
-    const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ message: 'Unauthorized: User not found' });
-    next();
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Routes
-app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
-    
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ message: 'Invalid credentials' });
-    
-    await ActivityLog.create({ user: username, action: 'User logged in' });
-    res.json({ message: 'Login successful' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.post('/api/register', async (req, res) => {
-  const { username, password, securityCode } = req.body;
-  if (securityCode !== 'Admin@123') {
-    return res.status(403).json({ message: 'Invalid security code' });
-  }
-  
-  try {
-    const existing = await User.findOne({ username });
-    if (existing) return res.status(400).json({ message: 'Username already exists' });
-    
-    const hashed = await bcrypt.hash(password, 10);
-    await User.create({ username, password: hashed });
-    await ActivityLog.create({ user: username, action: 'New user registered' });
-    res.json({ message: 'Registration successful' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Company Info Routes
-app.get('/api/company', async (req, res) => {
-  try {
-    let company = await Company.findOne();
+    let company = await Company.findOne({});
     if (!company) {
       company = await Company.create({});
     }
-    res.json(company);
+    return company;
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("Company info error:", err);
+    return {
+      name: "L&B Company",
+      address: "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka",
+      phone: "01133127622",
+      email: "lbcompany@gmail.com"
+    };
+  }
+}
+
+// ===== Health Check =====
+app.get("/api/test", (req, res) => {
+  res.json({ success: true, message: "API is up", time: new Date().toISOString() });
+});
+
+// ============================================================================
+//                               AUTH SYSTEM
+// ============================================================================
+app.post("/api/register", async (req, res) => {
+  const { username, password, securityCode } = req.body || {};
+
+  if (securityCode !== SECURITY_CODE)
+    return res.status(403).json({ success: false, message: "Invalid security code" });
+
+  if (!username || !password)
+    return res.status(400).json({ success: false, message: "Missing username or password" });
+
+  try {
+    const exists = await User.findOne({ username }).lean();
+    if (exists)
+      return res.status(409).json({ success: false, message: "Username already exists" });
+
+    await User.create({ username, password });
+    await logActivity("System", `Registered user: ${username}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.json({ success: true, message: "Registration successful" });
+  } catch (err) {
+    console.error("register error", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-app.put('/api/company', async (req, res) => {
-  const { name, address, phone, email } = req.body;
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body || {};
+
+  if (!username || !password)
+    return res.status(400).json({ success: false, message: "Missing credentials" });
+
   try {
-    let company = await Company.findOne();
+    const user = await User.findOne({ username, password }).lean();
+    if (!user)
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+
+    await logActivity(username, "Logged in", req.headers['user-agent'] || 'Unknown Device');
+    res.json({ success: true, user: username });
+  } catch (err) {
+    console.error("login error", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                           COMPANY INFORMATION
+// ============================================================================
+app.get("/api/company", async (req, res) => {
+  try {
+    const company = await getCompanyInfo();
+    res.json(company);
+  } catch (err) {
+    console.error("Company get error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.put("/api/company", async (req, res) => {
+  try {
+    const { name, address, phone, email } = req.body;
+    const username = req.headers["x-username"];
+
+    let company = await Company.findOne({});
     if (!company) {
       company = await Company.create({ name, address, phone, email });
     } else {
@@ -192,894 +271,2258 @@ app.put('/api/company', async (req, res) => {
       company.address = address;
       company.phone = phone;
       company.email = email;
+      company.updatedAt = new Date();
       await company.save();
     }
-    await ActivityLog.create({ 
-      user: req.headers['x-username'] || 'System', 
-      action: 'Updated company information' 
+
+    await logActivity(username, "Updated company information", req.headers['user-agent'] || 'Unknown Device');
+    res.json({ success: true, message: "Company information updated" });
+  } catch (err) {
+    console.error("Company update error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                           PASSWORD CHANGE & ACCOUNT MANAGEMENT
+// ============================================================================
+app.put("/api/account/password", async (req, res) => {
+  const { username, newPassword, securityCode } = req.body || {};
+  const currentUser = req.headers["x-username"];
+
+  console.log(`Password change request for: ${username}, from: ${currentUser}`);
+
+  if (securityCode !== SECURITY_CODE) {
+    return res.status(403).json({ success: false, message: "Invalid security code" });
+  }
+
+  if (!username || !newPassword) {
+    return res.status(400).json({ success: false, message: "Missing username or new password" });
+  }
+
+  if (username !== currentUser) {
+    return res.status(403).json({ success: false, message: "You can only change your own password" });
+  }
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    await logActivity(username, "Changed password", req.headers['user-agent'] || 'Unknown Device');
+    
+    console.log(`✅ Password updated for user: ${username}`);
+    res.json({ success: true, message: "Password updated successfully" });
+
+  } catch (err) {
+    console.error("Password change error", err);
+    res.status(500).json({ success: false, message: "Server error during password change" });
+  }
+});
+
+app.delete("/api/account", async (req, res) => {
+  const { username, securityCode } = req.body || {};
+  const currentUser = req.headers["x-username"];
+
+  console.log(`Account deletion request for: ${username}, from: ${currentUser}`);
+
+  if (securityCode !== SECURITY_CODE) {
+    return res.status(403).json({ success: false, message: "Invalid security code" });
+  }
+
+  if (!username) {
+    return res.status(400).json({ success: false, message: "Missing username" });
+  }
+
+  if (username !== currentUser) {
+    return res.status(403).json({ success: false, message: "You can only delete your own account" });
+  }
+
+  try {
+    const user = await User.findOneAndDelete({ username });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    await logActivity("System", `Deleted user account: ${username}`, req.headers['user-agent'] || 'Unknown Device');
+    
+    console.log(`🗑️ Account deleted: ${username}`);
+    res.json({ success: true, message: "Account deleted successfully" });
+
+  } catch (err) {
+    console.error("Account deletion error", err);
+    res.status(500).json({ success: false, message: "Server error during account deletion" });
+  }
+});
+
+// ============================================================================
+//                                 INVENTORY CRUD
+// ============================================================================
+app.get("/api/inventory", async (req, res) => {
+  try {
+    const items = await Inventory.find({}).lean();
+    const normalized = items.map(i => ({
+      ...i,
+      id: i._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("inventory get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.post("/api/inventory", async (req, res) => {
+  try {
+    const item = await Inventory.create(req.body);
+    await logActivity(req.headers["x-username"], `Added: ${item.name}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.status(201).json({
+      ...item.toObject(),
+      id: item._id.toString()
     });
-    res.json({ message: 'Company info updated' });
+
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("inventory post error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Inventory Routes
-app.get('/api/inventory', authenticate, async (req, res) => {
+app.put("/api/inventory/:id", async (req, res) => {
   try {
-    const items = await Inventory.find();
-    res.json(items);
+    const item = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!item)
+      return res.status(404).json({ message: "Item not found" });
+
+    await logActivity(req.headers["x-username"], `Updated: ${item.name}`, req.headers['user-agent'] || 'Unknown Device');
+    res.json({
+      ...item.toObject(),
+      id: item._id.toString()
+    });
+
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("inventory update error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.post('/api/inventory', authenticate, async (req, res) => {
+app.delete("/api/inventory/:id", async (req, res) => {
   try {
-    const { sku, name, category, quantity, unitCost, unitPrice } = req.body;
-    const existing = await Inventory.findOne({ sku });
-    if (existing) {
-      return res.status(400).json({ message: 'SKU already exists' });
+    const item = await Inventory.findByIdAndDelete(req.params.id);
+    if (!item)
+      return res.status(404).json({ message: "Item not found" });
+
+    await logActivity(req.headers["x-username"], `Deleted: ${item.name}`, req.headers['user-agent'] || 'Unknown Device');
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("inventory delete error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                    ENHANCED PDF REPORT WITH DATE RANGE
+// ============================================================================
+app.post("/api/inventory/report/pdf", async (req, res) => {
+  try {
+    const { startDate, endDate, reportType = 'inventory' } = req.body;
+    
+    console.log(`📊 Generating inventory report with date range:`, {
+      startDate,
+      endDate,
+      reportType
+    });
+
+    let query = {};
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      query.createdAt = {
+        $gte: start,
+        $lte: end
+      };
+      
+      console.log(`Querying items between ${start} and ${end}`);
+    } else if (startDate) {
+      const start = new Date(startDate);
+      query.createdAt = { $gte: start };
+    } else if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.createdAt = { $lte: end };
+    }
+
+    let items = await Inventory.find(query).lean();
+    
+    console.log(`Found ${items.length} items for report`);
+
+    if (items.length === 0 && (startDate || endDate)) {
+      console.log(`No items found in date range, showing all items`);
+      items = await Inventory.find({}).lean();
+    }
+
+    const company = await getCompanyInfo();
+    const now = new Date();
+    const printDate = new Date(now).toLocaleString('en-US', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const reportId = `INV-REP-${Date.now()}`;
+    const printedBy = req.headers["x-username"] || "System";
+    const dateRangeText = startDate && endDate 
+      ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
+      : 'All Dates';
+    
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
+
+    console.log(`📊 Generating PDF report: ${filename}, Date Range: ${dateRangeText}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        let pdfChunks = [];
+
+        const doc = new PDFDocument({
+          size: "A4",
+          layout: "landscape",
+          margin: 40,
+          bufferPages: true
+        });
+
+        doc.on("data", chunk => {
+          pdfChunks.push(chunk);
+        });
+        
+        doc.on("end", () => {
+          const buffer = Buffer.concat(pdfChunks);
+          console.log(`✅ PDF generation completed: ${buffer.length} bytes`);
+          resolve(buffer);
+        });
+        
+        doc.on("error", (error) => {
+          console.error('❌ PDF generation error:', error);
+          reject(error);
+        });
+
+        doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
+        doc.fontSize(10).font("Helvetica");
+        doc.text(company.address, 40, 70);
+        doc.text(`Phone: ${company.phone}`, 40, 85);
+        doc.text(`Email: ${company.email}`, 40, 100);
+
+        doc.font("Helvetica-Bold").fontSize(15)
+           .text("INVENTORY REPORT", 620, 40);
+
+        doc.font("Helvetica").fontSize(10);
+        doc.text(`Print Date: ${printDate}`, 620, 63);
+        doc.text(`Report ID: ${reportId}`, 620, 78);
+        doc.text(`Date Range: ${dateRangeText}`, 620, 93);
+        doc.text(`Printed by: ${printedBy}`, 620, 108);
+
+        doc.moveTo(40, 130).lineTo(800, 130).stroke();
+
+        const rowHeight = 18;
+        
+        const columns = [
+          { name: "SKU", x: 40, width: 70 },
+          { name: "Product Name", x: 110, width: 110 },
+          { name: "Category", x: 220, width: 80 },
+          { name: "Quantity", x: 300, width: 60 },
+          { name: "Unit Cost", x: 360, width: 70 },
+          { name: "Unit Price", x: 430, width: 70 },
+          { name: "Inventory Value", x: 500, width: 85 },
+          { name: "Potential Revenue", x: 585, width: 95 },
+          { name: "Potential Profit", x: 680, width: 100 }
+        ];
+        
+        let y = 150;
+
+        function drawTableHeader() {
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+          
+          for (let i = 1; i < columns.length; i++) {
+            doc.moveTo(columns[i].x, y)
+               .lineTo(columns[i].x, y + rowHeight)
+               .stroke();
+          }
+          
+          doc.font("Helvetica-Bold").fontSize(9);
+          columns.forEach(col => {
+            doc.text(col.name, col.x + 3, y + 5);
+          });
+          
+          y += rowHeight;
+        }
+
+        function drawTableRow(item) {
+          const qty = Number(item.quantity || 0);
+          const cost = Number(item.unitCost || 0);
+          const price = Number(item.unitPrice || 0);
+          const inventoryValue = qty * cost;
+          const potentialRevenue = qty * price;
+          const potentialProfit = potentialRevenue - inventoryValue;
+
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+          
+          for (let i = 1; i < columns.length; i++) {
+            doc.moveTo(columns[i].x, y)
+               .lineTo(columns[i].x, y + rowHeight)
+               .stroke();
+          }
+          
+          doc.font("Helvetica").fontSize(8);
+          doc.text(item.sku || "", columns[0].x + 3, y + 5);
+          doc.text(item.name || "", columns[1].x + 3, y + 5);
+          doc.text(item.category || "", columns[2].x + 3, y + 5);
+          doc.text(String(qty), columns[3].x + 3, y + 5);
+          doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
+          doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
+          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
+          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
+          doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
+          
+          y += rowHeight;
+          
+          return {
+            qty,
+            inventoryValue,
+            potentialRevenue,
+            potentialProfit
+          };
+        }
+
+        drawTableHeader();
+        
+        let subtotalQty = 0;
+        let totalValue = 0;
+        let totalRevenue = 0;
+        let totalProfit = 0;
+        let rowsOnPage = 0;
+
+        for (const item of items) {
+          if (rowsOnPage === 10) {
+            doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+            y = 40;
+            rowsOnPage = 0;
+            drawTableHeader();
+          }
+
+          const calculations = drawTableRow(item);
+          
+          subtotalQty += calculations.qty;
+          totalValue += calculations.inventoryValue;
+          totalRevenue += calculations.potentialRevenue;
+          totalProfit += calculations.potentialProfit;
+          
+          rowsOnPage++;
+        }
+
+        const lastPageIndex = doc.bufferedPageRange().count - 1;
+        doc.switchToPage(lastPageIndex);
+        
+        let boxY = y + 20;
+        if (boxY > 450) {
+          doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+          boxY = 40;
+        }
+        
+        doc.rect(560, boxY, 230, 88).stroke();
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
+        doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
+        doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
+        doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, 570, boxY + 64);
+
+        doc.flushPages();
+
+        const pages = doc.bufferedPageRange();
+        for (let i = 0; i < pages.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(9).text(`Generated by ${company.name} Inventory System`, 0, doc.page.height - 40, { align: "center" });
+          doc.text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 25, { align: "center" });
+        }
+        
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['inventory-report', 'pdf']
+    });
+
+    console.log(`✅ PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+    console.log(`📤 PDF sent to browser: ${filename}`);
+
+  } catch (err) {
+    console.error("❌ PDF Generation Error:", err);
+    res.status(500).json({ message: "PDF generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    PURCHASE REPORT WITH DATE RANGE
+// ============================================================================
+app.post("/api/purchases/report/pdf", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.body;
+    
+    let query = {};
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      query.purchaseDate = {
+        $gte: start,
+        $lte: end
+      };
+    } else if (startDate) {
+      const start = new Date(startDate);
+      query.purchaseDate = { $gte: start };
+    } else if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.purchaseDate = { $lte: end };
+    }
+
+    let purchases = await Purchase.find(query).sort({ purchaseDate: -1 }).lean();
+
+    if (purchases.length === 0 && (startDate || endDate)) {
+      purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+    }
+
+    const company = await getCompanyInfo();
+    const printedBy = req.headers["x-username"] || "System";
+    const dateRangeText = startDate && endDate 
+      ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
+      : 'All Dates';
+    
+    const filename = `Purchase_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    console.log(`📊 Generating Purchase PDF report: ${filename}, Date Range: ${dateRangeText}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ 
+          size: 'A4', 
+          margin: 36,
+          bufferPages: true
+        });
+        
+        const bufs = [];
+        doc.on('data', (d) => bufs.push(d));
+        doc.on('end', () => resolve(Buffer.concat(bufs)));
+
+        const topY = 36;
+        
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text(company.name, 36, topY);
+        doc.fontSize(10).font('Helvetica')
+           .text(company.address, 36, topY + 18, { continued: false });
+        doc.text(`Phone: ${company.phone}`);
+        doc.text(`Email: ${company.email}`);
+
+        const rightX = 360;
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('PURCHASE REPORT', rightX, topY, { align: 'right' });
+        doc.fontSize(10).font('Helvetica')
+           .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
+        doc.text(`By: ${printedBy}`, { align: 'right' });
+        doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
+        doc.text(`Total Orders: ${purchases.length}`, { align: 'right' });
+
+        const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
+        doc.font('Helvetica-Bold')
+           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
+
+        doc.moveDown(2);
+
+        const tableTop = 140;
+        const colX = { 
+          purchaseId: 36, 
+          supplier: 180, 
+          items: 320, 
+          amount: 420, 
+          date: 500 
+        };
+
+        doc.fontSize(10).font('Helvetica-Bold');
+        doc.text('Purchase ID', colX.purchaseId, tableTop);
+        doc.text('Supplier', colX.supplier, tableTop);
+        doc.text('Items', colX.items, tableTop);
+        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
+        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
+
+        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+
+        doc.font('Helvetica').fontSize(9);
+        let y = tableTop + 24;
+        
+        purchases.forEach((purchase, index) => {
+          if (y > 700) {
+            doc.addPage();
+            y = 60;
+            doc.fontSize(10).font('Helvetica-Bold');
+            doc.text('Purchase ID', colX.purchaseId, y);
+            doc.text('Supplier', colX.supplier, y);
+            doc.text('Items', colX.items, y);
+            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
+            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
+            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+            y += 24;
+            doc.font('Helvetica').fontSize(9);
+          }
+
+          if (index % 2 === 0) {
+            doc.rect(36, y - 4, 524, 18)
+               .fillColor('#f8f9fa')
+               .fill();
+          }
+
+          doc.fillColor('#000000')
+             .text(purchase.purchaseId || 'N/A', colX.purchaseId, y, { width: 140 })
+             .text(purchase.supplier || 'N/A', colX.supplier, y, { width: 130 })
+             .text(`${purchase.items.length} items`, colX.items, y, { width: 90, align: 'center' })
+             .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
+             .text(new Date(purchase.purchaseDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
+
+          y += 18;
+        });
+
+        const summaryY = Math.min(y + 20, 720);
+        doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
+        
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
+
+        doc.fontSize(9).font('Helvetica')
+           .text(`Generated by ${company.name} Inventory System`, 36, 760, { align: 'center', width: 520 });
+
+        const range = doc.bufferedPageRange();
+        for (let i = 0; i < range.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(8)
+             .fillColor('#666666')
+             .text(`Page ${i + 1} of ${range.count}`, 36, doc.page.height - 30, { 
+               align: 'center', 
+               width: doc.page.width - 72 
+             });
+        }
+
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving Purchase PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['purchase-report', 'pdf']
+    });
+
+    console.log(`✅ Purchase PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Purchase Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Purchase PDF Generation Error:", err);
+    res.status(500).json({ message: "Purchase PDF generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SALES REPORT WITH DATE RANGE
+// ============================================================================
+app.post("/api/sales/report/pdf", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.body;
+    
+    let query = {};
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      query.salesDate = {
+        $gte: start,
+        $lte: end
+      };
+    } else if (startDate) {
+      const start = new Date(startDate);
+      query.salesDate = { $gte: start };
+    } else if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.salesDate = { $lte: end };
+    }
+
+    let sales = await Sales.find(query).sort({ salesDate: -1 }).lean();
+
+    if (sales.length === 0 && (startDate || endDate)) {
+      sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
+    }
+
+    const company = await getCompanyInfo();
+    const printedBy = req.headers["x-username"] || "System";
+    const dateRangeText = startDate && endDate 
+      ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
+      : 'All Dates';
+    
+    const filename = `Sales_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    console.log(`📊 Generating Sales PDF report: ${filename}, Date Range: ${dateRangeText}`);
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ 
+          size: 'A4', 
+          margin: 36,
+          bufferPages: true
+        });
+        
+        const bufs = [];
+        doc.on('data', (d) => bufs.push(d));
+        doc.on('end', () => resolve(Buffer.concat(bufs)));
+
+        const topY = 36;
+        
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text(company.name, 36, topY);
+        doc.fontSize(10).font('Helvetica')
+           .text(company.address, 36, topY + 18, { continued: false });
+        doc.text(`Phone: ${company.phone}`);
+        doc.text(`Email: ${company.email}`);
+
+        const rightX = 360;
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('SALES REPORT', rightX, topY, { align: 'right' });
+        doc.fontSize(10).font('Helvetica')
+           .text(`Generated: ${new Date().toLocaleString()}`, rightX, topY + 20, { align: 'right' });
+        doc.text(`By: ${printedBy}`, { align: 'right' });
+        doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
+        doc.text(`Total Orders: ${sales.length}`, { align: 'right' });
+
+        const grandTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+        doc.font('Helvetica-Bold')
+           .text(`Grand Total: RM ${grandTotal.toFixed(2)}`, { align: 'right' });
+
+        doc.moveDown(2);
+
+        const tableTop = 140;
+        const colX = { 
+          salesId: 36, 
+          customer: 180, 
+          items: 320, 
+          amount: 420, 
+          date: 500 
+        };
+
+        doc.fontSize(10).font('Helvetica-Bold');
+        doc.text('Sales ID', colX.salesId, tableTop);
+        doc.text('Customer', colX.customer, tableTop);
+        doc.text('Items', colX.items, tableTop);
+        doc.text('Amount', colX.amount, tableTop, { width: 70, align: 'right' });
+        doc.text('Date', colX.date, tableTop, { width: 70, align: 'center' });
+
+        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+
+        doc.font('Helvetica').fontSize(9);
+        let y = tableTop + 24;
+        
+        sales.forEach((sale, index) => {
+          if (y > 700) {
+            doc.addPage();
+            y = 60;
+            doc.fontSize(10).font('Helvetica-Bold');
+            doc.text('Sales ID', colX.salesId, y);
+            doc.text('Customer', colX.customer, y);
+            doc.text('Items', colX.items, y);
+            doc.text('Amount', colX.amount, y, { width: 70, align: 'right' });
+            doc.text('Date', colX.date, y, { width: 70, align: 'center' });
+            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+            y += 24;
+            doc.font('Helvetica').fontSize(9);
+          }
+
+          if (index % 2 === 0) {
+            doc.rect(36, y - 4, 524, 18)
+               .fillColor('#f8f9fa')
+               .fill();
+          }
+
+          doc.fillColor('#000000')
+             .text(sale.salesId || 'N/A', colX.salesId, y, { width: 140 })
+             .text(sale.customer || 'N/A', colX.customer, y, { width: 130 })
+             .text(`${sale.items.length} items`, colX.items, y, { width: 90, align: 'center' })
+             .text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
+             .text(new Date(sale.salesDate).toLocaleDateString(), colX.date, y, { width: 70, align: 'center' });
+
+          y += 18;
+        });
+
+        const summaryY = Math.min(y + 20, 720);
+        doc.moveTo(300, summaryY).lineTo(560, summaryY).stroke();
+        
+        doc.font('Helvetica-Bold').fontSize(10);
+        doc.text('GRAND TOTAL', 400, summaryY + 12, { width: 90, align: 'right' });
+        doc.text(`RM ${grandTotal.toFixed(2)}`, 500, summaryY + 12, { width: 70, align: 'right' });
+
+        doc.fontSize(9).font('Helvetica')
+           .text(`Generated by ${company.name} Inventory System`, 36, 760, { align: 'center', width: 520 });
+
+        const range = doc.bufferedPageRange();
+        for (let i = 0; i < range.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(8)
+             .fillColor('#666666')
+             .text(`Page ${i + 1} of ${range.count}`, 36, doc.page.height - 30, { 
+               align: 'center', 
+               width: doc.page.width - 72 
+             });
+        }
+
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    console.log(`💾 Saving Sales PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['sales-report', 'pdf']
+    });
+
+    console.log(`✅ Sales PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Sales Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Sales PDF Generation Error:", err);
+    res.status(500).json({ message: "Sales PDF generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    GENERATE ALL REPORTS
+// ============================================================================
+app.post("/api/reports/generate-all", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.body;
+    const printedBy = req.headers["x-username"] || "System";
+    
+    console.log(`📊 Generating all reports for date range: ${startDate} to ${endDate}`);
+
+    let inventoryQuery = {};
+    let purchaseQuery = {};
+    let salesQuery = {};
+    
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      inventoryQuery.createdAt = { $gte: start, $lte: end };
+      purchaseQuery.purchaseDate = { $gte: start, $lte: end };
+      salesQuery.salesDate = { $gte: start, $lte: end };
+    }
+
+    let inventoryItems = await Inventory.find(inventoryQuery).lean();
+    let purchases = await Purchase.find(purchaseQuery).sort({ purchaseDate: -1 }).lean();
+    let sales = await Sales.find(salesQuery).sort({ salesDate: -1 }).lean();
+
+    const company = await getCompanyInfo();
+    const now = new Date();
+    const dateRangeText = startDate && endDate 
+      ? `${new Date(startDate).toLocaleDateString()} to ${new Date(endDate).toLocaleDateString()}`
+      : 'All Dates';
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ 
+          size: 'A4', 
+          margin: 36,
+          bufferPages: true
+        });
+        
+        const bufs = [];
+        doc.on('data', (d) => bufs.push(d));
+        doc.on('end', () => resolve(Buffer.concat(bufs)));
+
+        doc.fontSize(16).font('Helvetica-Bold')
+           .text('COMPREHENSIVE BUSINESS REPORT', 36, 36, { align: 'center' });
+        
+        doc.fontSize(10).font('Helvetica')
+           .text(`${company.name}`, 36, 70, { align: 'center' })
+           .text(`${company.address} | Phone: ${company.phone} | Email: ${company.email}`, 36, 85, { align: 'center' })
+           .text(`Date Range: ${dateRangeText} | Generated: ${new Date().toLocaleString()}`, 36, 100, { align: 'center' })
+           .text(`Generated by: ${printedBy}`, 36, 115, { align: 'center' });
+
+        doc.moveDown();
+
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text('EXECUTIVE SUMMARY', 36, 150);
+        
+        doc.moveDown(0.5);
+        doc.fontSize(10).font('Helvetica');
+        doc.text(`• Inventory Items: ${inventoryItems.length}`);
+        doc.text(`• Purchase Orders: ${purchases.length}`);
+        doc.text(`• Sales Orders: ${sales.length}`);
+        
+        const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+        const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+        const inventoryValue = inventoryItems.reduce((sum, item) => {
+          return sum + ((item.quantity || 0) * (item.unitCost || 0));
+        }, 0);
+        
+        doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`);
+        doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`);
+        doc.text(`• Total Inventory Value: RM ${inventoryValue.toFixed(2)}`);
+        doc.text(`• Gross Profit/Loss: RM ${(salesTotal - purchaseTotal).toFixed(2)}`);
+
+        doc.moveDown();
+        doc.moveTo(36, doc.y).lineTo(560, doc.y).stroke();
+
+        doc.addPage();
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text('INVENTORY REPORT', 36, 36);
+        
+        doc.fontSize(10);
+        doc.text(`Total Items: ${inventoryItems.length}`, 36, 60);
+        
+        const invTableTop = 90;
+        doc.font('Helvetica-Bold').fontSize(9);
+        doc.text('SKU', 36, invTableTop);
+        doc.text('Product', 100, invTableTop);
+        doc.text('Category', 250, invTableTop);
+        doc.text('Qty', 350, invTableTop);
+        doc.text('Cost', 400, invTableTop);
+        doc.text('Price', 450, invTableTop);
+        doc.text('Value', 500, invTableTop);
+
+        doc.moveTo(36, invTableTop + 8).lineTo(560, invTableTop + 8).stroke();
+
+        doc.font('Helvetica').fontSize(8);
+        let invY = invTableTop + 16;
+        
+        inventoryItems.slice(0, 30).forEach((item, index) => {
+          if (invY > 700) {
+            doc.addPage();
+            invY = 36;
+          }
+
+          const invVal = (item.quantity || 0) * (item.unitCost || 0);
+          
+          doc.text(item.sku || 'N/A', 36, invY, { width: 60 });
+          doc.text(item.name || 'N/A', 100, invY, { width: 140 });
+          doc.text(item.category || 'N/A', 250, invY, { width: 90 });
+          doc.text(String(item.quantity || 0), 350, invY, { width: 40, align: 'right' });
+          doc.text(`RM ${(item.unitCost || 0).toFixed(2)}`, 400, invY, { width: 40, align: 'right' });
+          doc.text(`RM ${(item.unitPrice || 0).toFixed(2)}`, 450, invY, { width: 40, align: 'right' });
+          doc.text(`RM ${invVal.toFixed(2)}`, 500, invY, { width: 50, align: 'right' });
+          
+          invY += 12;
+        });
+
+        doc.addPage();
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text('PURCHASE REPORT', 36, 36);
+        
+        doc.fontSize(10);
+        doc.text(`Total Purchase Orders: ${purchases.length} | Total Amount: RM ${purchaseTotal.toFixed(2)}`, 36, 60);
+
+        const purTableTop = 90;
+        doc.font('Helvetica-Bold').fontSize(9);
+        doc.text('Purchase ID', 36, purTableTop);
+        doc.text('Supplier', 150, purTableTop);
+        doc.text('Items', 300, purTableTop);
+        doc.text('Amount', 400, purTableTop);
+        doc.text('Date', 480, purTableTop);
+
+        doc.moveTo(36, purTableTop + 8).lineTo(560, purTableTop + 8).stroke();
+
+        doc.font('Helvetica').fontSize(8);
+        let purY = purTableTop + 16;
+        
+        purchases.slice(0, 30).forEach((purchase, index) => {
+          if (purY > 700) {
+            doc.addPage();
+            purY = 36;
+          }
+
+          doc.text(purchase.purchaseId || 'N/A', 36, purY, { width: 110 });
+          doc.text(purchase.supplier || 'N/A', 150, purY, { width: 140 });
+          doc.text(`${purchase.items.length} items`, 300, purY, { width: 90, align: 'center' });
+          doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 400, purY, { width: 70, align: 'right' });
+          doc.text(new Date(purchase.purchaseDate).toLocaleDateString(), 480, purY, { width: 70, align: 'center' });
+          
+          purY += 12;
+        });
+
+        doc.addPage();
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text('SALES REPORT', 36, 36);
+        
+        doc.fontSize(10);
+        doc.text(`Total Sales Orders: ${sales.length} | Total Amount: RM ${salesTotal.toFixed(2)}`, 36, 60);
+
+        const salesTableTop = 90;
+        doc.font('Helvetica-Bold').fontSize(9);
+        doc.text('Sales ID', 36, salesTableTop);
+        doc.text('Customer', 150, salesTableTop);
+        doc.text('Items', 300, salesTableTop);
+        doc.text('Amount', 400, salesTableTop);
+        doc.text('Date', 480, salesTableTop);
+
+        doc.moveTo(36, salesTableTop + 8).lineTo(560, salesTableTop + 8).stroke();
+
+        doc.font('Helvetica').fontSize(8);
+        let salesY = salesTableTop + 16;
+        
+        sales.slice(0, 30).forEach((sale, index) => {
+          if (salesY > 700) {
+            doc.addPage();
+            salesY = 36;
+          }
+
+          doc.text(sale.salesId || 'N/A', 36, salesY, { width: 110 });
+          doc.text(sale.customer || 'N/A', 150, salesY, { width: 140 });
+          doc.text(`${sale.items.length} items`, 300, salesY, { width: 90, align: 'center' });
+          doc.text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, 400, salesY, { width: 70, align: 'right' });
+          doc.text(new Date(sale.salesDate).toLocaleDateString(), 480, salesY, { width: 70, align: 'center' });
+          
+          salesY += 12;
+        });
+
+        doc.addPage();
+        doc.fontSize(14).font('Helvetica-Bold')
+           .text('FINAL SUMMARY', 36, 36, { align: 'center' });
+        
+        doc.moveDown();
+        doc.fontSize(12);
+        
+        const summaryY = 90;
+        doc.text(`Inventory Summary:`, 36, summaryY);
+        doc.text(`• Total Items: ${inventoryItems.length}`, 50, summaryY + 20);
+        doc.text(`• Total Inventory Value: RM ${inventoryValue.toFixed(2)}`, 50, summaryY + 35);
+        
+        doc.text(`Purchase Summary:`, 36, summaryY + 60);
+        doc.text(`• Total Purchase Orders: ${purchases.length}`, 50, summaryY + 80);
+        doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`, 50, summaryY + 95);
+        
+        doc.text(`Sales Summary:`, 36, summaryY + 120);
+        doc.text(`• Total Sales Orders: ${sales.length}`, 50, summaryY + 140);
+        doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`, 50, summaryY + 155);
+        
+        doc.text(`Financial Summary:`, 36, summaryY + 180);
+        doc.text(`• Gross Profit/Loss: RM ${(salesTotal - purchaseTotal).toFixed(2)}`, 50, summaryY + 200);
+        
+        if (salesTotal > purchaseTotal) {
+          doc.fillColor('green').text(`• Status: PROFITABLE`, 50, summaryY + 215);
+        } else {
+          doc.fillColor('red').text(`• Status: LOSS`, 50, summaryY + 215);
+        }
+        doc.fillColor('black');
+
+        doc.fontSize(9).font('Helvetica')
+           .text(`Generated by ${company.name} Inventory System - Comprehensive Report`, 
+                 36, 760, { align: 'center', width: 520 });
+
+        const range = doc.bufferedPageRange();
+        for (let i = 0; i < range.count; i++) {
+          doc.switchToPage(i);
+          doc.fontSize(8)
+             .fillColor('#666666')
+             .text(`Page ${i + 1} of ${range.count} - Comprehensive Report`, 
+                   36, doc.page.height - 30, { 
+                     align: 'center', 
+                     width: doc.page.width - 72 
+                   });
+        }
+
+        doc.end();
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    const filename = `Comprehensive_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    console.log(`💾 Saving Comprehensive PDF to database: ${pdfBuffer.length} bytes`);
+
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['comprehensive-report', 'all-reports', 'pdf']
+    });
+
+    console.log(`✅ Comprehensive PDF saved to database with ID: ${savedDoc._id}`);
+    await logActivity(printedBy, `Generated Comprehensive Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Comprehensive Report Generation Error:", err);
+    res.status(500).json({ message: "Comprehensive report generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                               PURCHASE CRUD
+// ============================================================================
+app.get("/api/purchases", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("purchases get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/purchases/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
     }
     
-    const newItem = await Inventory.create({ sku, name, category, quantity, unitCost, unitPrice });
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Added product: ${name} (${sku})` 
+    res.json({
+      ...purchase,
+      id: purchase._id.toString()
     });
-    res.status(201).json(newItem);
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("purchase get error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.put('/api/inventory/:id', authenticate, async (req, res) => {
-  try {
-    const updated = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Updated product: ${updated.name}` 
-    });
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.delete('/api/inventory/:id', authenticate, async (req, res) => {
-  try {
-    const item = await Inventory.findById(req.params.id);
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    
-    await Inventory.findByIdAndDelete(req.params.id);
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Deleted product: ${item.name}` 
-    });
-    res.status(204).send();
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Purchase Routes
-app.get('/api/purchases', authenticate, async (req, res) => {
-  try {
-    const purchases = await Purchase.find().sort({ purchaseDate: -1 });
-    res.json(purchases);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.get('/api/purchases/:id', authenticate, async (req, res) => {
-  try {
-    const purchase = await Purchase.findById(req.params.id);
-    if (!purchase) return res.status(404).json({ message: 'Purchase not found' });
-    res.json(purchase);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.post('/api/purchases', authenticate, async (req, res) => {
+app.post("/api/purchases", async (req, res) => {
   try {
     const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
     
-    // Calculate totals
-    const processedItems = items.map(item => ({
-      ...item,
-      totalAmount: (item.quantity || 0) * (item.purchasePrice || 0)
-    }));
+    const purchaseId = `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
-    const totalAmount = processedItems.reduce((sum, item) => sum + item.totalAmount, 0);
-    
-    const purchaseData = {
-      purchaseId: generateId('PUR'),
-      supplier,
-      supplierContact,
-      purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
-      items: processedItems,
-      totalAmount,
-      notes
-    };
-    
-    const purchase = await Purchase.create(purchaseData);
-    
-    // Update inventory quantities
+    let totalAmount = 0;
+    const purchaseItems = [];
+
     for (const item of items) {
+      const itemTotal = item.quantity * item.purchasePrice;
+      totalAmount += itemTotal;
+
+      purchaseItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        totalAmount: itemTotal
+      });
+
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
-        inventoryItem.quantity += item.quantity;
-        inventoryItem.unitCost = item.purchasePrice; // Update unit cost
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        if (item.purchasePrice > 0) {
+          inventoryItem.unitCost = item.purchasePrice;
+        }
         await inventoryItem.save();
-      } else {
-        // Create new inventory item if it doesn't exist
-        await Inventory.create({
-          sku: item.sku,
-          name: item.productName,
-          quantity: item.quantity,
-          unitCost: item.purchasePrice,
-          unitPrice: item.purchasePrice * 1.3 // Add 30% markup by default
-        });
       }
     }
-    
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Created purchase order: ${purchase.purchaseId} for ${supplier}` 
+
+    const purchase = await Purchase.create({
+      purchaseId,
+      supplier,
+      supplierContact: supplierContact || supplier || 'N/A',
+      purchaseDate: purchaseDate || new Date(),
+      notes,
+      items: purchaseItems,
+      totalAmount
     });
-    
-    res.status(201).json(purchase);
+
+    await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.status(201).json({
+      ...purchase.toObject(),
+      id: purchase._id.toString(),
+      purchaseId: purchase.purchaseId
+    });
+
   } catch (err) {
-    console.error('Purchase creation error:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("purchase post error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.delete('/api/purchases/:id', authenticate, async (req, res) => {
+app.put("/api/purchases/:id", async (req, res) => {
+  try {
+    const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
+    
+    const existingPurchase = await Purchase.findById(req.params.id);
+    if (!existingPurchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    for (const oldItem of existingPurchase.items) {
+      const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = Math.max(0, (inventoryItem.quantity || 0) - oldItem.quantity);
+        await inventoryItem.save();
+      }
+    }
+
+    let totalAmount = 0;
+    const purchaseItems = [];
+
+    for (const item of items) {
+      const itemTotal = item.quantity * item.purchasePrice;
+      totalAmount += itemTotal;
+
+      purchaseItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        totalAmount: itemTotal
+      });
+
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        if (item.purchasePrice > 0) {
+          inventoryItem.unitCost = item.purchasePrice;
+        }
+        await inventoryItem.save();
+      }
+    }
+
+    const purchase = await Purchase.findByIdAndUpdate(
+      req.params.id,
+      {
+        supplier,
+        supplierContact: supplierContact || supplier || 'N/A',
+        purchaseDate,
+        notes,
+        items: purchaseItems,
+        totalAmount
+      },
+      { new: true }
+    );
+
+    await logActivity(req.headers["x-username"], `Updated purchase order: ${purchase.purchaseId}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.json({
+      ...purchase.toObject(),
+      id: purchase._id.toString()
+    });
+
+  } catch (err) {
+    console.error("purchase update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/purchases/:id", async (req, res) => {
   try {
     const purchase = await Purchase.findById(req.params.id);
-    if (!purchase) return res.status(404).json({ message: 'Purchase not found' });
-    
-    // Revert inventory quantities
+    if (!purchase)
+      return res.status(404).json({ message: "Purchase not found" });
+
     for (const item of purchase.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
-        inventoryItem.quantity = Math.max(0, inventoryItem.quantity - item.quantity);
+        inventoryItem.quantity = Math.max(0, (inventoryItem.quantity || 0) - item.quantity);
         await inventoryItem.save();
       }
     }
-    
+
     await Purchase.findByIdAndDelete(req.params.id);
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Deleted purchase order: ${purchase.purchaseId}` 
-    });
-    
+    await logActivity(req.headers["x-username"], `Deleted purchase order: ${purchase.purchaseId}`, req.headers['user-agent'] || 'Unknown Device');
     res.status(204).send();
+
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("purchase delete error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Sales Routes
-app.get('/api/sales', authenticate, async (req, res) => {
+// ============================================================================
+//                               SALES CRUD
+// ============================================================================
+app.get("/api/sales", async (req, res) => {
   try {
-    const sales = await Sales.find().sort({ salesDate: -1 });
-    res.json(sales);
+    const sales = await Sales.find({}).sort({ salesDate: -1 }).lean();
+    const normalized = sales.map(s => ({
+      ...s,
+      id: s._id.toString()
+    }));
+    res.json(normalized);
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("sales get error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.get('/api/sales/:id', authenticate, async (req, res) => {
+app.get("/api/sales/:id", async (req, res) => {
   try {
-    const sale = await Sales.findById(req.params.id);
-    if (!sale) return res.status(404).json({ message: 'Sales not found' });
-    res.json(sale);
+    const sale = await Sales.findById(req.params.id).lean();
+    if (!sale) {
+      return res.status(404).json({ message: "Sales not found" });
+    }
+    
+    res.json({
+      ...sale,
+      id: sale._id.toString()
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("sales get error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.post('/api/sales', authenticate, async (req, res) => {
+app.post("/api/sales", async (req, res) => {
   try {
     const { customer, customerContact, salesDate, notes, items } = req.body;
     
-    // Calculate totals and check stock
-    const processedItems = [];
-    let totalAmount = 0;
-    let totalProfit = 0;
+    const salesId = `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     
+    let totalAmount = 0;
+    const salesItems = [];
+
     for (const item of items) {
-      const inventoryItem = await Inventory.findOne({ sku: item.sku });
-      if (!inventoryItem) {
-        return res.status(400).json({ message: `Product ${item.productName} (${item.sku}) not found in inventory` });
-      }
-      
-      if (inventoryItem.quantity < item.quantity) {
-        return res.status(400).json({ 
-          message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
-        });
-      }
-      
-      const itemTotal = (item.quantity || 0) * (item.salePrice || 0);
-      const itemProfit = (item.salePrice - (inventoryItem.unitCost || 0)) * item.quantity;
-      
-      processedItems.push({
-        ...item,
+      const itemTotal = item.quantity * item.salePrice;
+      totalAmount += itemTotal;
+
+      salesItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        salePrice: item.salePrice,
         totalAmount: itemTotal
       });
-      
-      totalAmount += itemTotal;
-      totalProfit += itemProfit;
-    }
-    
-    const salesData = {
-      salesId: generateId('SAL'),
-      customer,
-      customerContact,
-      salesDate: salesDate ? new Date(salesDate) : new Date(),
-      items: processedItems,
-      totalAmount,
-      totalProfit,
-      notes
-    };
-    
-    const sale = await Sales.create(salesData);
-    
-    // Update inventory quantities
-    for (const item of items) {
+
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
-        inventoryItem.quantity = Math.max(0, inventoryItem.quantity - item.quantity);
+        if (inventoryItem.quantity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
+          });
+        }
+        inventoryItem.quantity = (inventoryItem.quantity || 0) - item.quantity;
         await inventoryItem.save();
       }
     }
-    
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Created sales order: ${sale.salesId} for ${customer}` 
+
+    const sale = await Sales.create({
+      salesId,
+      customer,
+      customerContact: customerContact || customer || 'N/A',
+      salesDate: salesDate || new Date(),
+      notes,
+      items: salesItems,
+      totalAmount
     });
-    
-    res.status(201).json(sale);
+
+    await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.status(201).json({
+      ...sale.toObject(),
+      id: sale._id.toString(),
+      salesId: sale.salesId
+    });
+
   } catch (err) {
-    console.error('Sales creation error:', err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error("sales post error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.delete('/api/sales/:id', authenticate, async (req, res) => {
+app.put("/api/sales/:id", async (req, res) => {
+  try {
+    const { customer, customerContact, salesDate, notes, items } = req.body;
+    
+    const existingSale = await Sales.findById(req.params.id);
+    if (!existingSale) {
+      return res.status(404).json({ message: "Sales not found" });
+    }
+
+    for (const oldItem of existingSale.items) {
+      const inventoryItem = await Inventory.findOne({ sku: oldItem.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + oldItem.quantity;
+        await inventoryItem.save();
+      }
+    }
+
+    let totalAmount = 0;
+    const salesItems = [];
+
+    for (const item of items) {
+      const itemTotal = item.quantity * item.salePrice;
+      totalAmount += itemTotal;
+
+      salesItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        salePrice: item.salePrice,
+        totalAmount: itemTotal
+      });
+
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        if (inventoryItem.quantity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
+          });
+        }
+        inventoryItem.quantity = (inventoryItem.quantity || 0) - item.quantity;
+        await inventoryItem.save();
+      }
+    }
+
+    const sale = await Sales.findByIdAndUpdate(
+      req.params.id,
+      {
+        customer,
+        customerContact: customerContact || customer || 'N/A',
+        salesDate,
+        notes,
+        items: salesItems,
+        totalAmount
+      },
+      { new: true }
+    );
+
+    await logActivity(req.headers["x-username"], `Updated sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.json({
+      ...sale.toObject(),
+      id: sale._id.toString()
+    });
+
+  } catch (err) {
+    console.error("sales update error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.delete("/api/sales/:id", async (req, res) => {
   try {
     const sale = await Sales.findById(req.params.id);
-    if (!sale) return res.status(404).json({ message: 'Sales not found' });
-    
-    // Restore inventory quantities
+    if (!sale)
+      return res.status(404).json({ message: "Sales not found" });
+
     for (const item of sale.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
-        inventoryItem.quantity += item.quantity;
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
         await inventoryItem.save();
       }
     }
-    
+
     await Sales.findByIdAndDelete(req.params.id);
-    await ActivityLog.create({ 
-      user: req.headers['x-username'], 
-      action: `Deleted sales order: ${sale.salesId}` 
-    });
-    
+    await logActivity(req.headers["x-username"], `Deleted sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
     res.status(204).send();
+
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("sales delete error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// PDF Generation Functions
-async function generatePurchaseInvoice(purchaseId) {
+// ============================================================================
+//                    SINGLE PURCHASE INVOICE PDF
+// ============================================================================
+app.get("/api/purchases/invoice/:id", async (req, res) => {
   try {
-    const purchase = await Purchase.findById(purchaseId);
-    if (!purchase) throw new Error('Purchase not found');
-    
-    const company = await Company.findOne() || {};
-    
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 800]);
-    const { width, height } = page.getSize();
-    
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    
-    // Title
-    page.drawText('PURCHASE INVOICE', {
-      x: 50,
-      y: height - 50,
-      size: 24,
-      font: boldFont,
-      color: rgb(0, 0, 0.5)
-    });
-    
-    // Company Info
-    page.drawText(`${company.name || 'L&B Company'}`, {
-      x: 50,
-      y: height - 90,
-      size: 12,
-      font: boldFont
-    });
-    page.drawText(`${company.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka'}`, {
-      x: 50,
-      y: height - 110,
-      size: 10,
-      font
-    });
-    page.drawText(`Phone: ${company.phone || '01133127622'} | Email: ${company.email || 'lbcompany@gmail.com'}`, {
-      x: 50,
-      y: height - 125,
-      size: 10,
-      font
-    });
-    
-    // Invoice Details
-    page.drawText(`Invoice No: ${purchase.purchaseId}`, {
-      x: 400,
-      y: height - 90,
-      size: 10,
-      font
-    });
-    page.drawText(`Date: ${new Date(purchase.purchaseDate).toLocaleDateString()}`, {
-      x: 400,
-      y: height - 105,
-      size: 10,
-      font
-    });
-    
-    // Supplier Info
-    page.drawText('Supplier Information:', {
-      x: 50,
-      y: height - 160,
-      size: 12,
-      font: boldFont
-    });
-    page.drawText(`${purchase.supplier}`, {
-      x: 50,
-      y: height - 180,
-      size: 10,
-      font
-    });
-    if (purchase.supplierContact) {
-      page.drawText(`Contact: ${purchase.supplierContact}`, {
-        x: 50,
-        y: height - 195,
-        size: 10,
-        font
-      });
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
     }
-    
-    // Items Table Header
-    const tableTop = height - 240;
-    page.drawText('Item', { x: 50, y: tableTop, size: 10, font: boldFont });
-    page.drawText('Quantity', { x: 250, y: tableTop, size: 10, font: boldFont });
-    page.drawText('Price', { x: 350, y: tableTop, size: 10, font: boldFont });
-    page.drawText('Total', { x: 450, y: tableTop, size: 10, font: boldFont });
-    
-    // Items
-    let y = tableTop - 20;
-    purchase.items.forEach(item => {
-      page.drawText(item.productName || '', { x: 50, y, size: 10, font });
-      page.drawText(item.quantity.toString(), { x: 250, y, size: 10, font });
-      page.drawText(`RM ${(item.purchasePrice || 0).toFixed(2)}`, { x: 350, y, size: 10, font });
-      page.drawText(`RM ${(item.totalAmount || 0).toFixed(2)}`, { x: 450, y, size: 10, font });
-      y -= 20;
-    });
-    
-    // Total
-    y -= 20;
-    page.drawText('Total Amount:', { x: 350, y, size: 10, font: boldFont });
-    page.drawText(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, { x: 450, y, size: 10, font: boldFont });
-    
-    // Notes
-    if (purchase.notes) {
-      y -= 40;
-      page.drawText('Notes:', { x: 50, y, size: 10, font: boldFont });
-      page.drawText(purchase.notes, { x: 50, y: y - 15, size: 10, font, maxWidth: 500 });
-    }
-    
-    // Footer
-    page.drawText('Thank you for your business!', {
-      x: 200,
-      y: 50,
-      size: 12,
-      font: boldFont,
-      color: rgb(0.5, 0.5, 0.5)
-    });
-    
-    const pdfBytes = await pdfDoc.save();
-    return pdfBytes;
-  } catch (error) {
-    console.error('Error generating purchase invoice:', error);
-    throw error;
-  }
-}
 
-async function generateSalesInvoice(salesId) {
-  try {
-    const sale = await Sales.findById(salesId);
-    if (!sale) throw new Error('Sales not found');
-    
-    const company = await Company.findOne() || {};
-    
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 800]);
-    const { width, height } = page.getSize();
-    
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    
-    // Title
-    page.drawText('SALES INVOICE', {
-      x: 50,
-      y: height - 50,
-      size: 24,
-      font: boldFont,
-      color: rgb(0.5, 0, 0)
-    });
-    
-    // Company Info
-    page.drawText(`${company.name || 'L&B Company'}`, {
-      x: 50,
-      y: height - 90,
-      size: 12,
-      font: boldFont
-    });
-    page.drawText(`${company.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka'}`, {
-      x: 50,
-      y: height - 110,
-      size: 10,
-      font
-    });
-    page.drawText(`Phone: ${company.phone || '01133127622'} | Email: ${company.email || 'lbcompany@gmail.com'}`, {
-      x: 50,
-      y: height - 125,
-      size: 10,
-      font
-    });
-    
-    // Invoice Details
-    page.drawText(`Invoice No: ${sale.salesId}`, {
-      x: 400,
-      y: height - 90,
-      size: 10,
-      font
-    });
-    page.drawText(`Date: ${new Date(sale.salesDate).toLocaleDateString()}`, {
-      x: 400,
-      y: height - 105,
-      size: 10,
-      font
-    });
-    
-    // Customer Info
-    page.drawText('Customer Information:', {
-      x: 50,
-      y: height - 160,
-      size: 12,
-      font: boldFont
-    });
-    page.drawText(`${sale.customer}`, {
-      x: 50,
-      y: height - 180,
-      size: 10,
-      font
-    });
-    if (sale.customerContact) {
-      page.drawText(`Contact: ${sale.customerContact}`, {
-        x: 50,
-        y: height - 195,
-        size: 10,
-        font
-      });
-    }
-    
-    // Items Table Header
-    const tableTop = height - 240;
-    page.drawText('Item', { x: 50, y: tableTop, size: 10, font: boldFont });
-    page.drawText('Quantity', { x: 250, y: tableTop, size: 10, font: boldFont });
-    page.drawText('Price', { x: 350, y: tableTop, size: 10, font: boldFont });
-    page.drawText('Total', { x: 450, y: tableTop, size: 10, font: boldFont });
-    
-    // Items
-    let y = tableTop - 20;
-    sale.items.forEach(item => {
-      page.drawText(item.productName || '', { x: 50, y, size: 10, font });
-      page.drawText(item.quantity.toString(), { x: 250, y, size: 10, font });
-      page.drawText(`RM ${(item.salePrice || 0).toFixed(2)}`, { x: 350, y, size: 10, font });
-      page.drawText(`RM ${(item.totalAmount || 0).toFixed(2)}`, { x: 450, y, size: 10, font });
-      y -= 20;
-    });
-    
-    // Totals
-    y -= 20;
-    page.drawText('Subtotal:', { x: 350, y, size: 10, font });
-    page.drawText(`RM ${(sale.totalAmount || 0).toFixed(2)}`, { x: 450, y, size: 10, font });
-    
-    y -= 20;
-    page.drawText('Total Amount:', { x: 350, y, size: 10, font: boldFont });
-    page.drawText(`RM ${(sale.totalAmount || 0).toFixed(2)}`, { x: 450, y, size: 10, font: boldFont });
-    
-    if (sale.totalProfit) {
-      y -= 20;
-      page.drawText('Profit:', { x: 350, y, size: 10, font });
-      page.drawText(`RM ${(sale.totalProfit || 0).toFixed(2)}`, { x: 450, y, size: 10, font });
-    }
-    
-    // Notes
-    if (sale.notes) {
-      y -= 40;
-      page.drawText('Notes:', { x: 50, y, size: 10, font: boldFont });
-      page.drawText(sale.notes, { x: 50, y: y - 15, size: 10, font, maxWidth: 500 });
-    }
-    
-    // Footer
-    page.drawText('Thank you for your purchase!', {
-      x: 200,
-      y: 50,
-      size: 12,
-      font: boldFont,
-      color: rgb(0.5, 0.5, 0.5)
-    });
-    
-    const pdfBytes = await pdfDoc.save();
-    return pdfBytes;
-  } catch (error) {
-    console.error('Error generating sales invoice:', error);
-    throw error;
-  }
-}
+    const company = await getCompanyInfo();
+    const filename = `Invoice_${purchase.purchaseId}.pdf`;
 
-async function generateInventoryReport(startDate, endDate) {
-  try {
-    const query = {};
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        query.createdAt.$lte = end;
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        const invoiceData = {
+          title: 'PURCHASE INVOICE',
+          companyInfo: {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email
+          },
+          docMeta: {
+            reference: purchase.purchaseId,
+            dateString: new Date(purchase.purchaseDate).toLocaleDateString(),
+            status: 'PURCHASE'
+          },
+          customer: {
+            name: purchase.supplier || 'Supplier',
+            contact: purchase.supplierContact || purchase.supplier || 'N/A'
+          },
+          items: purchase.items.map(item => ({
+            name: item.productName || 'N/A',
+            sku: item.sku || 'N/A',
+            qty: item.quantity || 0,
+            price: item.purchasePrice || 0,
+            total: item.totalAmount || 0
+          })),
+          totals: {
+            subtotal: purchase.subtotal || purchase.totalAmount,
+            tax: 0,
+            grandTotal: purchase.totalAmount || 0
+          },
+          extraNotes: purchase.notes || ''
+        };
+
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
+        resolve(buffer);
+
+      } catch (error) {
+        reject(error);
       }
+    });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Purchase Invoice Generation Error:", err);
+    res.status(500).json({ message: "Purchase invoice generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SAVE PURCHASE INVOICE TO DOCUMENTS (NEW ENDPOINT)
+// ============================================================================
+app.post("/api/purchases/save-invoice/:id", async (req, res) => {
+  try {
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
     }
-    
-    const items = await Inventory.find(query).sort({ category: 1, name: 1 });
-    const company = await Company.findOne() || {};
-    
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([600, 800]);
-    const { width, height } = page.getSize();
-    
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    
-    // Title
-    page.drawText('INVENTORY REPORT', {
-      x: 50,
-      y: height - 50,
-      size: 24,
-      font: boldFont,
-      color: rgb(0, 0.5, 0)
+
+    const company = await getCompanyInfo();
+    const username = req.headers["x-username"] || "System";
+
+    const invoiceData = {
+      title: 'PURCHASE INVOICE',
+      companyInfo: {
+        name: company.name,
+        address: company.address,
+        phone: company.phone,
+        email: company.email
+      },
+      docMeta: {
+        reference: purchase.purchaseId,
+        dateString: new Date(purchase.purchaseDate).toLocaleDateString(),
+        status: 'PURCHASE'
+      },
+      customer: {
+        name: purchase.supplier || 'Supplier',
+        contact: purchase.supplierContact || purchase.supplier || 'N/A'
+      },
+      items: purchase.items.map(item => ({
+        name: item.productName || 'N/A',
+        sku: item.sku || 'N/A',
+        qty: item.quantity || 0,
+        price: item.purchasePrice || 0,
+        total: item.totalAmount || 0
+      })),
+      totals: {
+        subtotal: purchase.subtotal || purchase.totalAmount,
+        tax: 0,
+        grandTotal: purchase.totalAmount || 0
+      },
+      extraNotes: purchase.notes || ''
+    };
+
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
+
+    const filename = `Invoice_${purchase.purchaseId}.pdf`;
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['purchase-invoice', 'pdf', 'statement'],
+      createdBy: username
     });
-    
-    // Company Info
-    page.drawText(`${company.name || 'L&B Company'}`, {
-      x: 50,
-      y: height - 90,
-      size: 12,
-      font: boldFont
+
+    await logActivity(username, `Saved purchase invoice: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    const docObject = savedDoc.toObject();
+    delete docObject.data;
+    res.json({
+      ...docObject,
+      id: docObject._id.toString()
     });
-    
-    // Date Range
-    let dateRangeText = 'Full Inventory List';
-    if (startDate || endDate) {
-      dateRangeText = 'Period: ';
-      if (startDate) dateRangeText += `${new Date(startDate).toLocaleDateString()} `;
-      if (endDate) dateRangeText += `to ${new Date(endDate).toLocaleDateString()}`;
+
+  } catch (err) {
+    console.error("❌ Save Purchase Invoice Error:", err);
+    res.status(500).json({ message: "Failed to save purchase invoice: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SINGLE SALES INVOICE PDF
+// ============================================================================
+app.get("/api/sales/invoice/:id", async (req, res) => {
+  try {
+    const sale = await Sales.findById(req.params.id).lean();
+    if (!sale) {
+      return res.status(404).json({ message: "Sales not found" });
     }
-    page.drawText(dateRangeText, {
-      x: 50,
-      y: height - 110,
-      size: 10,
-      font
+
+    const company = await getCompanyInfo();
+    const filename = `Invoice_${sale.salesId}.pdf`;
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        const invoiceData = {
+          title: 'SALES INVOICE',
+          companyInfo: {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email
+          },
+          docMeta: {
+            reference: sale.salesId,
+            dateString: new Date(sale.salesDate).toLocaleDateString(),
+            status: 'SALES'
+          },
+          customer: {
+            name: sale.customer || 'Customer',
+            contact: sale.customerContact || sale.customer || 'N/A'
+          },
+          items: sale.items.map(item => ({
+            name: item.productName || 'N/A',
+            sku: item.sku || 'N/A',
+            qty: item.quantity || 0,
+            price: item.salePrice || 0,
+            total: item.totalAmount || 0
+          })),
+          totals: {
+            subtotal: sale.subtotal || sale.totalAmount,
+            tax: 0,
+            grandTotal: sale.totalAmount || 0
+          },
+          extraNotes: sale.notes || ''
+        };
+
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
+        resolve(buffer);
+
+      } catch (error) {
+        reject(error);
+      }
     });
-    
-    page.drawText(`Generated on: ${new Date().toLocaleDateString()}`, {
-      x: 50,
-      y: height - 125,
-      size: 10,
-      font
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Sales Invoice Generation Error:", err);
+    res.status(500).json({ message: "Sales invoice generation failed: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    SAVE SALES INVOICE TO DOCUMENTS (NEW ENDPOINT)
+// ============================================================================
+app.post("/api/sales/save-invoice/:id", async (req, res) => {
+  try {
+    const sale = await Sales.findById(req.params.id).lean();
+    if (!sale) {
+      return res.status(404).json({ message: "Sales not found" });
+    }
+
+    const company = await getCompanyInfo();
+    const username = req.headers["x-username"] || "System";
+
+    const invoiceData = {
+      title: 'SALES INVOICE',
+      companyInfo: {
+        name: company.name,
+        address: company.address,
+        phone: company.phone,
+        email: company.email
+      },
+      docMeta: {
+        reference: sale.salesId,
+        dateString: new Date(sale.salesDate).toLocaleDateString(),
+        status: 'SALES'
+      },
+      customer: {
+        name: sale.customer || 'Customer',
+        contact: sale.customerContact || sale.customer || 'N/A'
+      },
+      items: sale.items.map(item => ({
+        name: item.productName || 'N/A',
+        sku: item.sku || 'N/A',
+        qty: item.quantity || 0,
+        price: item.salePrice || 0,
+        total: item.totalAmount || 0
+      })),
+      totals: {
+        subtotal: sale.subtotal || sale.totalAmount,
+        tax: 0,
+        grandTotal: sale.totalAmount || 0
+      },
+      extraNotes: sale.notes || ''
+    };
+
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
+
+    const filename = `Invoice_${sale.salesId}.pdf`;
+    const savedDoc = await Doc.create({
+      name: filename,
+      size: pdfBuffer.length,
+      date: new Date(),
+      data: pdfBuffer,
+      contentType: "application/pdf",
+      tags: ['sales-invoice', 'pdf', 'statement'],
+      createdBy: username
     });
-    
-    // Table Header
-    const tableTop = height - 160;
-    const colX = [50, 150, 250, 350, 450, 500];
-    const headers = ['SKU', 'Name', 'Category', 'Qty', 'Cost', 'Price'];
-    
-    headers.forEach((header, i) => {
-      page.drawText(header, {
-        x: colX[i],
-        y: tableTop,
-        size: 10,
-        font: boldFont
+
+    await logActivity(username, `Saved sales invoice: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+
+    const docObject = savedDoc.toObject();
+    delete docObject.data;
+    res.json({
+      ...docObject,
+      id: docObject._id.toString()
+    });
+
+  } catch (err) {
+    console.error("❌ Save Sales Invoice Error:", err);
+    res.status(500).json({ message: "Failed to save sales invoice: " + err.message });
+  }
+});
+
+// ===== Helper: generate PDF buffer using PDFKit =====
+function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 36,
+        bufferPages: true 
       });
-    });
-    
-    // Items
-    let y = tableTop - 20;
-    let totalValue = 0;
-    let totalRevenue = 0;
-    let totalStock = 0;
-    
-    items.forEach(item => {
-      if (y < 100) {
-        page = pdfDoc.addPage([600, 800]);
-        y = height - 50;
+      
+      const bufs = [];
+      doc.on('data', (d) => bufs.push(d));
+      doc.on('end', () => resolve(Buffer.concat(bufs)));
+
+      const topY = 36;
+      
+      doc.fontSize(14).font('Helvetica-Bold')
+         .text(companyInfo.name || 'L&B COMPANY', 36, topY);
+      doc.fontSize(10).font('Helvetica')
+         .text(companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', 36, topY + 18, { continued: false });
+      doc.text(`Phone: ${companyInfo.phone || '01133127622'}`);
+      doc.text(`Email: ${companyInfo.email || 'lbcompany@gmail.com'}`);
+
+      const rightX = 360;
+      doc.fontSize(12).font('Helvetica-Bold')
+         .text(title, rightX, topY, { align: 'right' });
+      doc.fontSize(10).font('Helvetica')
+         .text(`No: ${docMeta.reference || ''}`, rightX, topY + 20, { align: 'right' });
+      doc.text(`Date: ${docMeta.dateString || new Date().toLocaleDateString()}`, { align: 'right' });
+      doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
+
+      const customerY = 120;
+      doc.fontSize(10).font('Helvetica-Bold')
+         .text(title.includes('PURCHASE') ? 'Supplier:' : 'Customer:', 36, customerY);
+      doc.font('Helvetica')
+         .text(customer.name || 'N/A', 36, customerY + 15);
+      if (customer.contact) {
+        doc.text(`Contact: ${customer.contact}`, 36, doc.y);
+      }
+
+      const tableTop = 170;
+      const colX = { 
+        item: 36, 
+        sku: 260, 
+        qty: 360, 
+        price: 420, 
+        total: 500 
+      };
+      
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Product Name', colX.item, tableTop);
+      doc.text('SKU', colX.sku, tableTop);
+      doc.text('Qty', colX.qty, tableTop);
+      doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
+      doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
+
+      doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+
+      doc.font('Helvetica').fontSize(9);
+      let y = tableTop + 24;
+      
+      items.forEach((item, index) => {
+        if (y > 700) {
+          doc.addPage();
+          y = 60;
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('Product Name', colX.item, y);
+          doc.text('SKU', colX.sku, y);
+          doc.text('Qty', colX.qty, y);
+          doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
+          doc.text('Total', colX.total, y, { width: 70, align: 'right' });
+          doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+          y += 24;
+          doc.font('Helvetica').fontSize(9);
+        }
+
+        if (index % 2 === 0) {
+          doc.rect(36, y - 4, 524, 18)
+             .fillColor('#f8f9fa')
+             .fill();
+        }
+
+        doc.fillColor('#000000')
+           .text(item.name || 'N/A', colX.item, y, { width: 220 })
+           .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
+           .text(String(item.qty || 0), colX.qty, y, { width: 50, align: 'center' })
+           .text(`RM ${Number(item.price || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
+           .text(`RM ${Number(item.total || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
         
-        // Add continuation header
-        headers.forEach((header, i) => {
-          page.drawText(header, {
-            x: colX[i],
-            y: y,
-            size: 10,
-            font: boldFont
-          });
-        });
-        y -= 20;
+        y += 18;
+      });
+
+      const totalsY = Math.max(y + 10, 650);
+      doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
+      
+      const subtotal = totals.subtotal || items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+      const tax = totals.tax || 0;
+      const grand = totals.grandTotal || subtotal + tax;
+      
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
+      
+      doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
+      
+      doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
+      doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
+
+      if (extraNotes) {
+        doc.moveDown(2);
+        doc.font('Helvetica').fontSize(9)
+           .text('Notes:', 36, totalsY + 90)
+           .text(extraNotes, 36, totalsY + 105, { width: 500 });
       }
-      
-      page.drawText(item.sku || '', { x: colX[0], y, size: 9, font });
-      page.drawText(item.name || '', { x: colX[1], y, size: 9, font });
-      page.drawText(item.category || '', { x: colX[2], y, size: 9, font });
-      page.drawText(item.quantity.toString(), { x: colX[3], y, size: 9, font });
-      page.drawText(`RM ${(item.unitCost || 0).toFixed(2)}`, { x: colX[4], y, size: 9, font });
-      page.drawText(`RM ${(item.unitPrice || 0).toFixed(2)}`, { x: colX[5], y, size: 9, font });
-      
-      totalValue += item.quantity * item.unitCost;
-      totalRevenue += item.quantity * item.unitPrice;
-      totalStock += item.quantity;
-      y -= 15;
-    });
-    
-    // Summary
-    y -= 20;
-    page.drawText(`Total Items: ${items.length}`, { x: 50, y, size: 10, font: boldFont });
-    page.drawText(`Total Stock: ${totalStock}`, { x: 200, y, size: 10, font: boldFont });
-    
-    y -= 20;
-    page.drawText(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, { x: 50, y, size: 10, font: boldFont });
-    page.drawText(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, { x: 300, y, size: 10, font: boldFont });
-    
-    const pdfBytes = await pdfDoc.save();
-    return pdfBytes;
-  } catch (error) {
-    console.error('Error generating inventory report:', error);
-    throw error;
-  }
+
+      doc.fontSize(9).font('Helvetica')
+         .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
+               36, 760, { align: 'center', width: 520 });
+
+      const range = doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#666666')
+           .text(`Page ${i + 1} of ${range.count}`, 
+                 36, doc.page.height - 30, 
+                 { align: 'center', width: doc.page.width - 72 });
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
 }
 
-// Purchase Invoice PDF
-app.get('/api/purchases/invoice/:id', authenticate, async (req, res) => {
+// ============================================================================
+//                    FOLDER MANAGEMENT
+// ============================================================================
+app.get("/api/folders", async (req, res) => {
   try {
-    const pdfBytes = await generatePurchaseInvoice(req.params.id);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Purchase_Invoice_${req.params.id}.pdf"`);
-    res.send(pdfBytes);
-  } catch (error) {
-    res.status(500).json({ message: 'Error generating invoice' });
+    const folders = await Folder.find({}).sort({ name: 1 }).lean();
+    const normalized = folders.map(f => ({
+      ...f,
+      id: f._id.toString()
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("folders get error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Sales Invoice PDF
-app.get('/api/sales/invoice/:id', authenticate, async (req, res) => {
+app.post("/api/folders", async (req, res) => {
   try {
-    const pdfBytes = await generateSalesInvoice(req.params.id);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Sales_Invoice_${req.params.id}.pdf"`);
-    res.send(pdfBytes);
-  } catch (error) {
-    res.status(500).json({ message: 'Error generating invoice' });
-  }
-});
+    const { name, parentFolder } = req.body;
+    const username = req.headers["x-username"];
 
-// Inventory Report PDF
-app.post('/api/inventory/report/pdf', authenticate, async (req, res) => {
-  try {
-    const { startDate, endDate } = req.body;
-    const pdfBytes = await generateInventoryReport(startDate, endDate);
-    res.setHeader('Content-Type', 'application/pdf');
-    
-    let filename = 'Inventory_Report';
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
-      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
-      filename += `_${start}_to_${end}`;
-    } else {
-      filename += '_Full_List';
+    if (!name) {
+      return res.status(400).json({ message: "Folder name is required" });
     }
-    filename += `.pdf`;
+
+    const existingFolder = await Folder.findOne({ 
+      name, 
+      parentFolder: parentFolder || null 
+    });
     
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(pdfBytes);
-  } catch (error) {
-    res.status(500).json({ message: 'Error generating report' });
+    if (existingFolder) {
+      return res.status(409).json({ message: "Folder with this name already exists" });
+    }
+
+    const folder = await Folder.create({
+      name,
+      parentFolder: parentFolder || null,
+      createdBy: username
+    });
+
+    await logActivity(username, `Created folder: ${name}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.status(201).json({
+      ...folder.toObject(),
+      id: folder._id.toString()
+    });
+
+  } catch (err) {
+    console.error("folder post error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Save Invoice to Documents
-app.post('/api/purchases/save-invoice/:id', authenticate, async (req, res) => {
+app.put("/api/folders/:id", async (req, res) => {
   try {
-    const pdfBytes = await generatePurchaseInvoice(req.params.id);
-    const purchase = await Purchase.findById(req.params.id);
-    
-    const document = new Document({
-      name: `Purchase_Invoice_${purchase.purchaseId}.pdf`,
-      contentType: 'application/pdf',
-      data: pdfBytes,
-      size: pdfBytes.length,
-      uploadedBy: req.headers['x-username'],
-      folderId: null // Save to root
+    const { name } = req.body;
+    const username = req.headers["x-username"];
+
+    if (!name) {
+      return res.status(400).json({ message: "Folder name is required" });
+    }
+
+    const folder = await Folder.findByIdAndUpdate(
+      req.params.id,
+      { name },
+      { new: true }
+    );
+
+    if (!folder) {
+      return res.status(404).json({ message: "Folder not found" });
+    }
+
+    await logActivity(username, `Renamed folder to: ${name}`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.json({
+      ...folder.toObject(),
+      id: folder._id.toString()
     });
-    
-    await document.save();
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Saved purchase invoice: ${purchase.purchaseId} to documents`
-    });
-    
-    res.json({ message: 'Invoice saved to documents' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error saving invoice' });
+
+  } catch (err) {
+    console.error("folder update error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.post('/api/sales/save-invoice/:id', authenticate, async (req, res) => {
+app.delete("/api/folders/:id", async (req, res) => {
   try {
-    const pdfBytes = await generateSalesInvoice(req.params.id);
-    const sale = await Sales.findById(req.params.id);
-    
-    const document = new Document({
-      name: `Sales_Invoice_${sale.salesId}.pdf`,
-      contentType: 'application/pdf',
-      data: pdfBytes,
-      size: pdfBytes.length,
-      uploadedBy: req.headers['x-username'],
-      folderId: null // Save to root
-    });
-    
-    await document.save();
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Saved sales invoice: ${sale.salesId} to documents`
-    });
-    
-    res.json({ message: 'Invoice saved to documents' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error saving invoice' });
+    const folder = await Folder.findById(req.params.id);
+    if (!folder) {
+      return res.status(404).json({ message: "Folder not found" });
+    }
+
+    const subfolders = await Folder.find({ parentFolder: req.params.id });
+    if (subfolders.length > 0) {
+      return res.status(400).json({ 
+        message: "Cannot delete folder that contains subfolders. Please delete subfolders first." 
+      });
+    }
+
+    const documents = await Doc.find({ folder: req.params.id });
+    if (documents.length > 0) {
+      return res.status(400).json({ 
+        message: "Cannot delete folder that contains documents. Please move or delete documents first." 
+      });
+    }
+
+    await Folder.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted folder: ${folder.name}`, req.headers['user-agent'] || 'Unknown Device');
+    res.status(204).send();
+
+  } catch (err) {
+    console.error("folder delete error", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Document Routes with Folder Support
-app.get('/api/documents', authenticate, async (req, res) => {
+// ============================================================================
+//                    DOCUMENTS UPLOAD WITH FOLDER SUPPORT
+// ============================================================================
+app.post("/api/documents", async (req, res) => {
+  console.log("📤 Document upload request received");
+  
   try {
-    const folderId = req.query.folder;
+    const chunks = [];
+    
+    req.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
+
+    req.on('end', async () => {
+      try {
+        const fileBuffer = Buffer.concat(chunks);
+        const contentType = req.headers['content-type']; 
+        const fileName = req.headers['x-file-name'];     
+        const username = req.headers["x-username"];
+        const folderId = req.headers['x-folder-id'];
+
+        console.log(`📄 Upload details:`, {
+          fileName,
+          contentType,
+          fileSize: fileBuffer.length,
+          username,
+          folderId
+        });
+
+        if (!fileBuffer || fileBuffer.length === 0) {
+          console.error("❌ Empty file buffer received");
+          return res.status(400).json({ 
+            message: "No file content received. File is empty." 
+          });
+        }
+
+        if (!fileName) {
+          console.error("❌ No filename provided");
+          return res.status(400).json({ 
+            message: "Filename is required." 
+          });
+        }
+
+        if (fileBuffer.length > 50 * 1024 * 1024) {
+          console.error("❌ File too large:", fileBuffer.length);
+          return res.status(400).json({ 
+            message: "File size exceeds 50MB limit." 
+          });
+        }
+
+        console.log(`✅ File validated: ${fileName}, size: ${fileBuffer.length} bytes`);
+
+        const docu = await Doc.create({
+          name: fileName,
+          size: fileBuffer.length,
+          date: new Date(),
+          data: fileBuffer,
+          contentType: contentType || "application/octet-stream",
+          folder: folderId || null,
+          createdBy: username
+        });
+        
+        console.log(`💾 File saved to database:`, {
+          id: docu._id,
+          name: docu.name,
+          size: docu.size,
+          contentType: docu.contentType,
+          folder: docu.folder
+        });
+        
+        await logActivity(username, `Uploaded document: ${fileName}`, req.headers['user-agent'] || 'Unknown Device');
+        
+        res.status(201).json([{ 
+          ...docu.toObject(), 
+          id: docu._id.toString() 
+        }]);
+
+        console.log(`✅ Upload completed successfully: ${fileName}`);
+
+      } catch (error) {
+        console.error("❌ Upload processing error:", error);
+        res.status(500).json({ 
+          message: "File processing failed: " + error.message 
+        });
+      }
+    });
+
+    req.on('error', (error) => {
+      console.error("❌ Request error during upload:", error);
+      res.status(500).json({ 
+        message: "Upload failed due to connection error." 
+      });
+    });
+
+  } catch (error) {
+    console.error("❌ Upload endpoint error:", error);
+    res.status(500).json({ 
+      message: "Upload failed: " + error.message 
+    });
+  }
+});
+
+// ============================================================================
+//                    DOCUMENTS WITH FOLDER SUPPORT
+// ============================================================================
+app.get("/api/documents", async (req, res) => {
+  try {
+    const { folder } = req.query;
     let query = {};
     
-    if (folderId && folderId !== 'root') {
-      query.folderId = folderId;
-    } else if (folderId === 'root') {
-      query.folderId = null;
+    if (folder) {
+      if (folder === 'root') {
+        query.folder = null;
+      } else {
+        query.folder = folder;
+      }
     }
-    
-    const documents = await Document.find(query).sort({ date: -1 });
-    res.json(documents);
+
+    const docs = await Doc.find(query).select('-data').sort({ date: -1 }).lean();
+    const result = docs.map(d => ({ 
+      ...d, 
+      id: d._id.toString()
+    }));
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-app.post('/api/documents', authenticate, async (req, res) => {
+app.get("/api/documents/:id/check", async (req, res) => {
   try {
-    const fileBuffer = req.body;
-    const fileName = decodeURIComponent(req.headers['x-file-name'] || 'unnamed');
-    const contentType = req.headers['content-type'] || 'application/octet-stream';
-    const folderId = req.headers['x-folder-id'] || null;
-    
-    if (!fileBuffer || fileBuffer.length === 0) {
-      return res.status(400).json({ message: 'File is empty' });
+    const docu = await Doc.findById(req.params.id);
+    if (!docu) {
+      return res.status(404).json({ hasData: false });
     }
     
-    const document = new Document({
-      name: fileName,
-      contentType: contentType,
-      data: fileBuffer,
-      size: fileBuffer.length,
-      uploadedBy: req.headers['x-username'],
-      folderId: folderId || null
+    res.json({
+      hasData: !!(docu.data && docu.data.length > 0),
+      size: docu.size,
+      name: docu.name
     });
-    
-    await document.save();
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Uploaded document: ${fileName}`
-    });
-    
-    res.status(201).json({ message: 'File uploaded successfully', id: document._id });
   } catch (err) {
-    console.error('Upload error:', err);
-    res.status(500).json({ message: 'Server error during upload' });
+    console.error("Document check error:", err);
+    res.status(500).json({ hasData: false });
   }
 });
 
-app.get('/api/documents/download/:id', authenticate, async (req, res) => {
+app.get("/api/documents/:id/verify", async (req, res) => {
   try {
-    const document = await Document.findById(req.params.id);
-    if (!document) return res.status(404).json({ message: 'Document not found' });
-    
-    res.setHeader('Content-Type', document.contentType);
-    res.setHeader('Content-Length', document.data.length);
-    res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
-    res.send(document.data);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.get('/api/documents/preview/:id', authenticate, async (req, res) => {
-  try {
-    const document = await Document.findById(req.params.id);
-    if (!document) return res.status(404).json({ message: 'Document not found' });
-    
-    // For PDFs, serve as PDF
-    if (document.contentType === 'application/pdf') {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${document.name}"`);
-      return res.send(document.data);
+    const docu = await Doc.findById(req.params.id);
+    if (!docu) {
+      return res.status(404).json({ valid: false, message: "Document not found" });
     }
     
-    // For images, serve as image
-    if (document.contentType.startsWith('image/')) {
-      res.setHeader('Content-Type', document.contentType);
-      return res.send(document.data);
-    }
+    const isValid = docu.data && 
+                   Buffer.isBuffer(docu.data) && 
+                   docu.data.length > 0 && 
+                   docu.data.length === docu.size;
     
-    // For other types, offer download
-    res.setHeader('Content-Type', document.contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
-    res.send(document.data);
+    res.json({
+      valid: isValid,
+      name: docu.name,
+      storedSize: docu.size,
+      actualDataLength: docu.data ? docu.data.length : 0,
+      hasData: !!docu.data,
+      isBuffer: Buffer.isBuffer(docu.data),
+      contentType: docu.contentType,
+      date: docu.date
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("Document verification error:", err);
+    res.status(500).json({ valid: false, message: "Verification failed" });
   }
 });
 
-app.delete('/api/documents/:id', authenticate, async (req, res) => {
+app.delete("/api/documents/:id", async (req, res) => {
   try {
-    const document = await Document.findById(req.params.id);
-    if (!document) return res.status(404).json({ message: 'Document not found' });
-    
-    await Document.findByIdAndDelete(req.params.id);
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Deleted document: ${document.name}`
-    });
-    
+    const docu = await Doc.findByIdAndDelete(req.params.id);
+    if (!docu) return res.status(404).json({ message: "Document not found" });
+
+    await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`, req.headers['user-agent'] || 'Unknown Device');
     res.status(204).send();
+
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Cleanup corrupted documents
-app.delete('/api/cleanup-documents', authenticate, async (req, res) => {
+app.put("/api/documents/:id/move", async (req, res) => {
   try {
-    const result = await Document.deleteMany({
+    const { folderId } = req.body;
+    const username = req.headers["x-username"];
+
+    const docu = await Doc.findByIdAndUpdate(
+      req.params.id,
+      { folder: folderId || null },
+      { new: true }
+    );
+
+    if (!docu) {
+      return res.status(404).json({ message: "Document not found" });
+    }
+
+    await logActivity(username, `Moved document: ${docu.name} to folder`, req.headers['user-agent'] || 'Unknown Device');
+    res.json({
+      ...docu.toObject(),
+      id: docu._id.toString()
+    });
+
+  } catch (err) {
+    console.error("document move error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+app.get("/api/documents/preview/:id", async (req, res) => {
+  try {
+    const docu = await Doc.findById(req.params.id);
+    
+    if (!docu) {
+      return res.status(404).json({ message: "Document not found" });
+    }
+
+    if (!docu.data || docu.data.length === 0) {
+      return res.status(400).json({ message: "Document content not available" });
+    }
+
+    res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
+    res.setHeader("Content-Length", docu.data.length);
+    res.setHeader("Content-Disposition", `inline; filename="${docu.name}"`);
+    res.send(docu.data);
+
+  } catch (err) {
+    console.error("Document preview error:", err);
+    res.status(500).json({ message: "Preview failed" });
+  }
+});
+
+app.get("/api/documents/download/:id", async (req, res) => {
+  try {
+    console.log(`📥 Download request for document: ${req.params.id}`);
+    
+    const docu = await Doc.findById(req.params.id);
+    
+    if (!docu) {
+      console.log('❌ Document not found');
+      return res.status(404).json({ message: "Document not found" });
+    }
+
+    console.log(`📄 Found document: ${docu.name}, database size: ${docu.size} bytes`);
+
+    if (!docu.data || 
+        !Buffer.isBuffer(docu.data) || 
+        docu.data.length === 0 ||
+        docu.size === 0 ||
+        docu.data.length !== docu.size) {
+      
+      console.error('❌ Document data is invalid:', {
+        hasData: !!docu.data,
+        isBuffer: Buffer.isBuffer(docu.data),
+        dataLength: docu.data ? docu.data.length : 0,
+        storedSize: docu.size,
+        isValid: docu.data && docu.data.length === docu.size
+      });
+      
+      return res.status(400).json({ 
+        message: "File content not available or corrupted." 
+      });
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${docu.name}"`);
+    res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
+    res.setHeader("Content-Length", docu.data.length);
+    res.setHeader("Cache-Control", "no-cache");
+    
+    console.log(`✅ Sending file: ${docu.name}, size: ${docu.data.length} bytes`);
+    
+    res.send(docu.data);
+
+    await logActivity(req.headers["x-username"] || "System", `Downloaded document: ${docu.name}`, req.headers['user-agent'] || 'Unknown Device');
+
+  } catch (err) {
+    console.error("❌ Document download error:", err); 
+    res.status(500).json({ message: "Server error during download: " + err.message });
+  }
+});
+
+// ============================================================================
+//                    CLEANUP BROKEN DOCUMENTS
+// ============================================================================
+app.delete("/api/cleanup-documents", async (req, res) => {
+  try {
+    const result = await Doc.deleteMany({
       $or: [
         { data: { $exists: false } },
         { data: null },
@@ -1088,204 +2531,497 @@ app.delete('/api/cleanup-documents', authenticate, async (req, res) => {
       ]
     });
     
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Cleaned up ${result.deletedCount} corrupted documents`
+    console.log(`Cleaned up ${result.deletedCount} broken documents`);
+    res.json({ 
+      success: true, 
+      message: `Cleaned up ${result.deletedCount} broken documents`,
+      deletedCount: result.deletedCount
     });
+  } catch (err) {
+    console.error("Cleanup error:", err);
+    res.status(500).json({ success: false, message: "Cleanup failed" });
+  }
+});
+
+// ============================================================================
+//                    STATEMENTS - GET REPORTS BY TYPE
+// ============================================================================
+app.get("/api/statements/:type", async (req, res) => {
+  try {
+    const { type } = req.params;
+    
+    let query = { tags: { $in: [] } };
+    
+    switch (type) {
+      case 'inventory-reports':
+        query.tags.$in = ['inventory-report', 'pdf'];
+        break;
+      case 'purchase-invoices':
+        query.tags.$in = ['purchase-invoice', 'purchase-report', 'pdf', 'statement'];
+        break;
+      case 'sales-invoices':
+        query.tags.$in = ['sales-invoice', 'sales-report', 'pdf', 'statement'];
+        break;
+      case 'all-reports':
+        query.tags.$in = ['inventory-report', 'purchase-report', 'sales-report', 'comprehensive-report', 'purchase-invoice', 'sales-invoice', 'pdf', 'statement'];
+        break;
+      default:
+        return res.status(400).json({ message: "Invalid statement type" });
+    }
+
+    const docs = await Doc.find(query).select('-data').sort({ date: -1 }).lean();
+
+    const result = docs.map(d => ({
+      ...d,
+      id: d._id.toString()
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error("Statements get error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                               ACTIVITY LOGS
+// ============================================================================
+app.get("/api/logs", async (req, res) => {
+  try {
+    const logs = await ActivityLog.find({}).sort({ time: -1 }).limit(500).lean();
+    res.json(logs.map(l => ({
+      user: l.user,
+      action: l.action,
+      device: l.device || 'Unknown Device',
+      time: l.time ? new Date(l.time).toISOString() : new Date().toISOString()
+    })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                               CLEAR ACTIVITY LOGS
+// ============================================================================
+app.delete("/api/logs/clear", async (req, res) => {
+  try {
+    const result = await ActivityLog.deleteMany({});
+    
+    console.log(`Cleared ${result.deletedCount} activity logs`);
+    await logActivity(req.headers["x-username"] || "System", "Cleared all activity logs", req.headers['user-agent'] || 'Unknown Device');
+    
+    res.json({ 
+      success: true, 
+      message: `Cleared ${result.deletedCount} activity logs`,
+      deletedCount: result.deletedCount
+    });
+  } catch (err) {
+    console.error("Clear logs error:", err);
+    res.status(500).json({ success: false, message: "Failed to clear logs" });
+  }
+});
+
+// ============================================================================
+//                               LOGIN HISTORY ENDPOINT
+// ============================================================================
+app.get("/api/logs/login-history", async (req, res) => {
+  try {
+    const loginLogs = await ActivityLog.find({ 
+      action: 'Logged in' 
+    }).sort({ time: -1 }).limit(100).lean();
+    
+    res.json(loginLogs.map(log => ({
+      user: log.user,
+      time: log.time,
+      device: log.device || 'Unknown Device'
+    })));
+  } catch (err) {
+    console.error("Login history error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ============================================================================
+//                          GET ALL DATA FOR DASHBOARD
+// ============================================================================
+app.get("/api/dashboard/stats", async (req, res) => {
+  try {
+    const inventoryCount = await Inventory.countDocuments({});
+    const purchaseCount = await Purchase.countDocuments({});
+    const salesCount = await Sales.countDocuments({});
+    const documentCount = await Doc.countDocuments({});
+    
+    const inventoryItems = await Inventory.find({}).lean();
+    let inventoryValue = 0;
+    let inventoryRevenue = 0;
+    let inventoryProfit = 0;
+    let totalStock = 0;
+    
+    inventoryItems.forEach(item => {
+      const qty = Number(item.quantity || 0);
+      const cost = Number(item.unitCost || 0);
+      const price = Number(item.unitPrice || 0);
+      const itemValue = qty * cost;
+      const itemRevenue = qty * price;
+      const itemProfit = itemRevenue - itemValue;
+      
+      inventoryValue += itemValue;
+      inventoryRevenue += itemRevenue;
+      inventoryProfit += itemProfit;
+      totalStock += qty;
+    });
+    
+    const purchases = await Purchase.find({}).lean();
+    const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    
+    const sales = await Sales.find({}).lean();
+    const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+    
+    const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(5).lean();
+    
+    const lowStockItems = await Inventory.find({ quantity: { $lt: 10 } }).lean();
     
     res.json({
       success: true,
-      deletedCount: result.deletedCount,
-      message: `Removed ${result.deletedCount} corrupted documents`
+      stats: {
+        inventory: {
+          count: inventoryCount,
+          value: inventoryValue,
+          revenue: inventoryRevenue,
+          profit: inventoryProfit,
+          stock: totalStock,
+          lowStock: lowStockItems.length
+        },
+        purchases: {
+          count: purchaseCount,
+          total: purchaseTotal
+        },
+        sales: {
+          count: salesCount,
+          total: salesTotal
+        },
+        documents: {
+          count: documentCount
+        },
+        recentActivity: recentLogs,
+        lowStockItems: lowStockItems.slice(0, 5)
+      }
     });
+    
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("Dashboard stats error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-// Folder Routes
-app.get('/api/folders', authenticate, async (req, res) => {
+// ============================================================================
+//                          SEARCH ACROSS ALL DATA
+// ============================================================================
+app.get("/api/search", async (req, res) => {
   try {
-    const folders = await Folder.find().sort({ createdAt: -1 });
-    res.json(folders);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.post('/api/folders', authenticate, async (req, res) => {
-  try {
-    const { name, parentFolder } = req.body;
+    const { q } = req.query;
     
-    const folder = new Folder({
-      name,
-      parentFolder: parentFolder || null,
-      createdBy: req.headers['x-username']
-    });
-    
-    await folder.save();
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Created folder: ${name}`
-    });
-    
-    res.status(201).json(folder);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.put('/api/folders/:id', authenticate, async (req, res) => {
-  try {
-    const { name } = req.body;
-    const folder = await Folder.findByIdAndUpdate(
-      req.params.id,
-      { name },
-      { new: true }
-    );
-    
-    if (!folder) return res.status(404).json({ message: 'Folder not found' });
-    
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Renamed folder to: ${name}`
-    });
-    
-    res.json(folder);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-app.delete('/api/folders/:id', authenticate, async (req, res) => {
-  try {
-    const folder = await Folder.findById(req.params.id);
-    if (!folder) return res.status(404).json({ message: 'Folder not found' });
-    
-    // Check if folder has documents
-    const docCount = await Document.countDocuments({ folderId: req.params.id });
-    if (docCount > 0) {
-      return res.status(400).json({ 
-        message: `Cannot delete folder. It contains ${docCount} document(s). Please delete or move them first.` 
+    if (!q || q.trim().length < 2) {
+      return res.json({
+        inventory: [],
+        purchases: [],
+        sales: [],
+        documents: []
       });
     }
     
-    // Check for subfolders
-    const subfolderCount = await Folder.countDocuments({ parentFolder: req.params.id });
-    if (subfolderCount > 0) {
-      return res.status(400).json({ 
-        message: `Cannot delete folder. It contains ${subfolderCount} subfolder(s). Please delete them first.` 
-      });
-    }
+    const searchTerm = q.toLowerCase().trim();
     
-    await Folder.findByIdAndDelete(req.params.id);
-    await ActivityLog.create({
-      user: req.headers['x-username'],
-      action: `Deleted folder: ${folder.name}`
+    const inventoryResults = await Inventory.find({
+      $or: [
+        { sku: { $regex: searchTerm, $options: 'i' } },
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { category: { $regex: searchTerm, $options: 'i' } }
+      ]
+    }).limit(10).lean();
+    
+    const purchaseResults = await Purchase.find({
+      $or: [
+        { purchaseId: { $regex: searchTerm, $options: 'i' } },
+        { supplier: { $regex: searchTerm, $options: 'i' } },
+        { 'items.productName': { $regex: searchTerm, $options: 'i' } }
+      ]
+    }).limit(10).lean();
+    
+    const salesResults = await Sales.find({
+      $or: [
+        { salesId: { $regex: searchTerm, $options: 'i' } },
+        { customer: { $regex: searchTerm, $options: 'i' } },
+        { 'items.productName': { $regex: searchTerm, $options: 'i' } }
+      ]
+    }).limit(10).lean();
+    
+    const documentResults = await Doc.find({
+      name: { $regex: searchTerm, $options: 'i' }
+    }).select('-data').limit(10).lean();
+    
+    res.json({
+      inventory: inventoryResults.map(i => ({ ...i, id: i._id.toString() })),
+      purchases: purchaseResults.map(p => ({ ...p, id: p._id.toString() })),
+      sales: salesResults.map(s => ({ ...s, id: s._id.toString() })),
+      documents: documentResults.map(d => ({ ...d, id: d._id.toString() }))
     });
     
-    res.status(204).send();
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("Search error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Statements Routes (Organized Documents)
-app.get('/api/statements/:type', authenticate, async (req, res) => {
+// ============================================================================
+//                          IMPORT/EXPORT FUNCTIONS
+// ============================================================================
+app.get("/api/inventory/export/excel", async (req, res) => {
   try {
-    let query = {};
-    const type = req.params.type;
+    const items = await Inventory.find({}).lean();
     
-    switch(type) {
-      case 'inventory-reports':
-        query.name = /Inventory_Report/i;
-        break;
-      case 'sales-invoices':
-        query.name = /Sales_Invoice/i;
-        break;
-      case 'purchase-invoices':
-        query.name = /Purchase_Invoice/i;
-        break;
-      case 'other-documents':
-        query.name = { $not: /(Inventory_Report|Sales_Invoice|Purchase_Invoice)/i };
-        break;
+    const wb = xlsx.utils.book_new();
+    
+    const data = items.map(item => ({
+      SKU: item.sku || '',
+      'Product Name': item.name || '',
+      Category: item.category || '',
+      Quantity: item.quantity || 0,
+      'Unit Cost': item.unitCost || 0,
+      'Unit Price': item.unitPrice || 0,
+      'Inventory Value': (item.quantity || 0) * (item.unitCost || 0),
+      'Potential Revenue': (item.quantity || 0) * (item.unitPrice || 0),
+      'Potential Profit': ((item.quantity || 0) * (item.unitPrice || 0)) - ((item.quantity || 0) * (item.unitCost || 0)),
+      'Created Date': new Date(item.createdAt).toLocaleDateString()
+    }));
+    
+    const ws = xlsx.utils.json_to_sheet(data);
+    xlsx.utils.book_append_sheet(wb, ws, "Inventory");
+    
+    const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    const filename = `Inventory_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+    
+    await logActivity(req.headers["x-username"] || "System", `Exported inventory to Excel`, req.headers['user-agent'] || 'Unknown Device');
+    
+  } catch (err) {
+    console.error("Excel export error:", err);
+    res.status(500).json({ message: "Export failed" });
+  }
+});
+
+app.post("/api/inventory/import/excel", async (req, res) => {
+  try {
+    const { data } = req.body;
+    const username = req.headers["x-username"];
+    
+    if (!data || !Array.isArray(data)) {
+      return res.status(400).json({ message: "Invalid data format" });
     }
     
-    const documents = await Document.find(query).sort({ date: -1 });
-    res.json(documents);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Activity Log Routes
-app.get('/api/logs', authenticate, async (req, res) => {
-  try {
-    const logs = await ActivityLog.find().sort({ time: -1 }).limit(100);
-    res.json(logs);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Account Management Routes
-app.put('/api/account/password', authenticate, async (req, res) => {
-  try {
-    const { username, newPassword, securityCode } = req.body;
-    if (securityCode !== 'Admin@123') {
-      return res.status(403).json({ message: 'Invalid security code' });
+    let importedCount = 0;
+    let updatedCount = 0;
+    let errors = [];
+    
+    for (const item of data) {
+      try {
+        const { SKU, 'Product Name': name, Category: category, Quantity: quantity, 'Unit Cost': unitCost, 'Unit Price': unitPrice } = item;
+        
+        if (!SKU || !name) {
+          errors.push(`Missing SKU or Name for item: ${JSON.stringify(item)}`);
+          continue;
+        }
+        
+        const existingItem = await Inventory.findOne({ sku: SKU });
+        
+        if (existingItem) {
+          existingItem.name = name;
+          existingItem.category = category || existingItem.category;
+          existingItem.quantity = Number(quantity) || existingItem.quantity;
+          existingItem.unitCost = Number(unitCost) || existingItem.unitCost;
+          existingItem.unitPrice = Number(unitPrice) || existingItem.unitPrice;
+          await existingItem.save();
+          updatedCount++;
+        } else {
+          await Inventory.create({
+            sku: SKU,
+            name: name,
+            category: category || '',
+            quantity: Number(quantity) || 0,
+            unitCost: Number(unitCost) || 0,
+            unitPrice: Number(unitPrice) || 0
+          });
+          importedCount++;
+        }
+      } catch (err) {
+        errors.push(`Error processing item: ${JSON.stringify(item)} - ${err.message}`);
+      }
     }
     
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    await logActivity(username, `Imported ${importedCount} new items, updated ${updatedCount} items from Excel`, req.headers['user-agent'] || 'Unknown Device');
     
-    const hashed = await bcrypt.hash(newPassword, 10);
-    user.password = hashed;
-    await user.save();
-    
-    await ActivityLog.create({
-      user: username,
-      action: 'Changed password'
+    res.json({
+      success: true,
+      message: `Import completed: ${importedCount} new items imported, ${updatedCount} items updated`,
+      importedCount,
+      updatedCount,
+      errorCount: errors.length,
+      errors: errors.slice(0, 10)
     });
     
-    res.json({ message: 'Password updated successfully' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("Excel import error:", err);
+    res.status(500).json({ message: "Import failed" });
   }
 });
 
-app.delete('/api/account', authenticate, async (req, res) => {
+// ============================================================================
+//                          BACKUP AND RESTORE
+// ============================================================================
+app.get("/api/system/backup", async (req, res) => {
   try {
-    const { username, securityCode } = req.body;
-    if (securityCode !== 'Admin@123') {
-      return res.status(403).json({ message: 'Invalid security code' });
-    }
+    const username = req.headers["x-username"];
     
-    const user = await User.findOne({ username });
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    const inventory = await Inventory.find({}).lean();
+    const purchases = await Purchase.find({}).lean();
+    const sales = await Sales.find({}).lean();
+    const documents = await Doc.find({}).select('-data').lean();
+    const folders = await Folder.find({}).lean();
+    const users = await User.find({}).lean();
+    const company = await Company.find({}).lean();
+    const logs = await ActivityLog.find({}).lean();
     
-    await User.deleteOne({ username });
+    const backupData = {
+      timestamp: new Date(),
+      createdBy: username,
+      data: {
+        inventory: inventory.map(i => ({ ...i, id: i._id.toString() })),
+        purchases: purchases.map(p => ({ ...p, id: p._id.toString() })),
+        sales: sales.map(s => ({ ...s, id: s._id.toString() })),
+        documents: documents.map(d => ({ ...d, id: d._id.toString() })),
+        folders: folders.map(f => ({ ...f, id: f._id.toString() })),
+        users: users.map(u => ({ ...u, id: u._id.toString() })),
+        company: company.map(c => ({ ...c, id: c._id.toString() })),
+        logs: logs.map(l => ({ ...l, id: l._id.toString() }))
+      }
+    };
     
-    await ActivityLog.create({
-      user: 'System',
-      action: `Deleted account: ${username}`
+    const filename = `System_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(backupData, null, 2));
+    
+    await logActivity(username, `Created system backup`, req.headers['user-agent'] || 'Unknown Device');
+    
+  } catch (err) {
+    console.error("Backup error:", err);
+    res.status(500).json({ message: "Backup failed" });
+  }
+});
+
+// ============================================================================
+//                          SYSTEM HEALTH CHECK
+// ============================================================================
+app.get("/api/system/health", async (req, res) => {
+  try {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    const inventoryCount = await Inventory.countDocuments({});
+    const purchaseCount = await Purchase.countDocuments({});
+    const salesCount = await Sales.countDocuments({});
+    const documentCount = await Doc.countDocuments({});
+    const userCount = await User.countDocuments({});
+    
+    const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(10).lean();
+    const errorLogs = recentLogs.filter(log => log.action && log.action.toLowerCase().includes('error'));
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: dbStatus,
+        collections: {
+          inventory: inventoryCount,
+          purchases: purchaseCount,
+          sales: salesCount,
+          documents: documentCount,
+          users: userCount
+        }
+      },
+      system: {
+        memory: process.memoryUsage(),
+        uptime: process.uptime(),
+        nodeVersion: process.version
+      },
+      issues: {
+        recentErrors: errorLogs.length,
+        details: errorLogs.slice(0, 3)
+      }
     });
     
-    res.json({ message: 'Account deleted successfully' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error("Health check error:", err);
+    res.status(500).json({ 
+      status: 'unhealthy',
+      message: "Health check failed",
+      error: err.message 
+    });
   }
 });
 
-// Serve React build files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'client/build')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-  });
+// ============================================================================
+//                              SERVE FRONTEND
+// ============================================================================
+app.use(express.static(path.join(__dirname, "../public")));
+
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/"))
+    return res.status(404).json({ message: "API route not found" });
+
+  res.sendFile(path.join(__dirname, "../public/index.html"));
+});
+
+// ============================================================================
+//                        STARTUP HELPER + START SERVER
+// ============================================================================
+async function ensureDefaultAdminAndStartupLog() {
+  try {
+    const count = await User.countDocuments({}).exec();
+    if (count === 0) {
+      await User.create({ username: "admin", password: "password" });
+      await logActivity("System", "Default admin user created", 'System');
+    }
+
+    await getCompanyInfo();
+    
+    const rootFolders = ['Reports', 'Invoices', 'Documents', 'Backups'];
+    for (const folderName of rootFolders) {
+      const exists = await Folder.findOne({ name: folderName, parentFolder: null });
+      if (!exists) {
+        await Folder.create({
+          name: folderName,
+          parentFolder: null,
+          createdBy: 'System'
+        });
+      }
+    }
+    
+    await logActivity("System", `Server started on port ${PORT}`, 'System');
+  } catch (err) {
+    console.error("Startup error:", err);
+  }
 }
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-});
+(async () => {
+  await ensureDefaultAdminAndStartupLog();
+  console.log("Starting server...");
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+})();
+
+// Export app for testing
+module.exports = app;
