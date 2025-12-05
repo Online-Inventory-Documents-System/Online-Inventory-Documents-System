@@ -2432,6 +2432,10 @@ function bindInventoryUI(){
   
   qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
   
+  // Close buttons for detail modals
+  qs('#closeDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
+  qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
+  
   qsa('.close').forEach(closeBtn => {
     closeBtn.addEventListener('click', function() {
       const modal = this.closest('.modal');
@@ -2514,7 +2518,7 @@ function showCardTooltip(message) {
 }
 
 // =========================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// EXPORT FUNCTIONS TO GLOBAL SCOPE - FIXED
 // =========================================
 window.logout = logout;
 window.toggleTheme = toggleTheme;
