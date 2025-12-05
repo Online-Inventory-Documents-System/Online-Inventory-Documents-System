@@ -28,7 +28,7 @@ let itemsPerPage = 10;
 let totalPages = 1;
 let filteredInventory = [];
 
-// Total profit earned - NEW variable
+// Total profit earned
 let totalProfitEarned = 0;
 
 // Enhanced theme persistence
@@ -38,14 +38,14 @@ function initializeTheme() {
   document.body.setAttribute('data-theme', savedTheme);
 }
 
-function toggleTheme(){
+function toggleTheme(){ 
   const isDark = document.body.classList.toggle('dark-mode');
   const theme = isDark ? 'dark' : 'light';
   document.body.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
 }
 
-// Fetch wrapper
+// Enhanced API fetch with error handling
 async function apiFetch(url, options = {}) {
   const user = getUsername();
   options.headers = {
@@ -54,7 +54,37 @@ async function apiFetch(url, options = {}) {
     ...options.headers,
   };
 
-  return fetch(url, options);
+  try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('API fetch error:', error);
+    throw error;
+  }
+}
+
+// Data validation helper
+function validateRequiredFields(fields) {
+  const errors = [];
+  
+  fields.forEach(({ name, value, label }) => {
+    if (!value || value.trim() === '') {
+      errors.push(`${label} is required`);
+    }
+  });
+  
+  if (errors.length > 0) {
+    alert(`⚠️ Please fix the following:\n\n${errors.join('\n')}`);
+    return false;
+  }
+  
+  return true;
 }
 
 // Auth redirect
@@ -69,7 +99,7 @@ function logout(){
 }
 
 // =========================================
-// NEW: Company Information Management
+// Company Information Management
 // =========================================
 async function fetchCompanyInfo() {
   try {
@@ -117,6 +147,26 @@ function updateCompanyInfoDisplay() {
   if (qs('#companyAddressDisplay')) qs('#companyAddressDisplay').textContent = companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka';
   if (qs('#companyPhoneDisplay')) qs('#companyPhoneDisplay').textContent = companyInfo.phone || '01133127622';
   if (qs('#companyEmailDisplay')) qs('#companyEmailDisplay').textContent = companyInfo.email || 'lbcompany@gmail.com';
+}
+
+// =========================================
+// Unified Data Fetching
+// =========================================
+async function fetchAllData() {
+  try {
+    await Promise.all([
+      fetchInventory(),
+      fetchSales(),
+      fetchPurchases(),
+      fetchLogs(),
+      fetchCompanyInfo()
+    ]);
+    
+    // Update profit after all data is loaded
+    updateProfitCard();
+  } catch (error) {
+    console.error('Error fetching all data:', error);
+  }
 }
 
 // =========================================
@@ -264,31 +314,54 @@ async function fetchInventory() {
     const data = await res.json();
     inventory = data.map(i => ({ ...i, id: i.id || i._id }));
     
-    await fetchTotalProfitEarned();
-    
     filteredInventory = [...inventory];
     renderInventory(filteredInventory);
     renderDashboardData();
-  } catch(err) { console.error(err); }
-}
-
-async function fetchTotalProfitEarned() {
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/total-profit`);
-    if (res.ok) {
-      const data = await res.json();
-      totalProfitEarned = data.totalProfit || 0;
-      updateProfitCard();
-    }
-  } catch (err) {
-    console.error('Fetch total profit error:', err);
+  } catch(err) { 
+    console.error('Fetch inventory error:', err); 
   }
 }
 
+// Unified profit calculation
 function updateProfitCard() {
-  if (qs('#cardTotalProfit')) {
-    qs('#cardTotalProfit').textContent = `RM ${totalProfitEarned.toFixed(2)}`;
+  let calculatedProfit = 0;
+  
+  // Calculate profit from sales
+  if (sales && sales.length > 0) {
+    sales.forEach(sale => {
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(item => {
+          const inventoryItem = inventory.find(i => i.sku === item.sku);
+          if (inventoryItem) {
+            const unitCost = inventoryItem.unitCost || 0;
+            const salePrice = item.salePrice || 0;
+            const quantity = item.quantity || 0;
+            calculatedProfit += (salePrice - unitCost) * quantity;
+          }
+        });
+      }
+      // Also add direct profit if available from API
+      if (sale.totalProfit) {
+        calculatedProfit += sale.totalProfit;
+      }
+    });
   }
+  
+  // Update total profit
+  totalProfitEarned = calculatedProfit;
+  
+  // Update all profit displays
+  const profitElements = [
+    '#cardTotalProfit',
+    '#dash_totalProfit',
+    '#totalProfitDisplay'
+  ];
+  
+  profitElements.forEach(selector => {
+    if (qs(selector)) {
+      qs(selector).textContent = `RM ${totalProfitEarned.toFixed(2)}`;
+    }
+  });
 }
 
 function renderInventory(items) {
@@ -623,7 +696,7 @@ async function bindProductPage(){
 }
 
 // =========================================
-// NEW: Sales Management Functions
+// Sales Management Functions
 // =========================================
 async function fetchSales() {
   try {
@@ -652,7 +725,8 @@ function renderSalesHistory() {
       <td>${new Date(s.salesDate).toLocaleDateString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printSalesInvoice('${s.id}')">🖨️ Invoice</button>
+        <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
+        <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
       </td>
     `;
     list.appendChild(tr);
@@ -695,6 +769,7 @@ function closeNewSalesModal() {
 
 function resetSalesForm() {
   qs('#customerName').value = '';
+  qs('#customerContact').value = '';
   qs('#salesDate').value = new Date().toISOString().split('T')[0];
   qs('#salesNotes').value = '';
   qs('#productSearchSales').value = '';
@@ -815,14 +890,18 @@ function loadProductSearchForSales() {
 }
 
 async function saveSalesOrder() {
-  const customer = qs('#customerName').value.trim();
-  const salesDate = qs('#salesDate').value;
-  const notes = qs('#salesNotes').value.trim();
-  
-  if (!customer) {
-    alert('⚠️ Please enter customer name.');
+  // Validate required fields
+  if (!validateRequiredFields([
+    { name: 'customer', value: qs('#customerName').value.trim(), label: 'Customer name' },
+    { name: 'contact', value: qs('#customerContact').value.trim(), label: 'Customer contact' }
+  ])) {
     return;
   }
+  
+  const customer = qs('#customerName').value.trim();
+  const customerContact = qs('#customerContact').value.trim();
+  const salesDate = qs('#salesDate').value;
+  const notes = qs('#salesNotes').value.trim();
   
   const items = [];
   const itemRows = qsa('.sales-item-row');
@@ -831,8 +910,6 @@ async function saveSalesOrder() {
     alert('⚠️ Please add at least one product item.');
     return;
   }
-  
-  let totalSaleProfit = 0;
   
   for (const row of itemRows) {
     const sku = row.querySelector('.product-sku').value.trim();
@@ -861,33 +938,27 @@ async function saveSalesOrder() {
       return;
     }
     
-    const unitCost = inventoryItem ? inventoryItem.unitCost : 0;
-    const itemProfit = (salePrice - unitCost) * quantity;
-    totalSaleProfit += itemProfit;
-    
     items.push({
       sku,
       productName,
       quantity,
-      salePrice,
-      unitCost
+      salePrice
     });
   }
   
   const salesData = {
     customer,
+    customerContact,
     salesDate: salesDate || new Date().toISOString().split('T')[0],
     notes,
-    items,
-    totalProfit: totalSaleProfit
+    items
   };
   
-  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customer}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customer}\nContact: ${customerContact}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
   });
   confirmMessage += `\nTotal Amount: RM ${salesData.items.reduce((sum, item) => sum + (item.quantity * item.salePrice), 0).toFixed(2)}`;
-  confirmMessage += `\nTotal Profit: RM ${totalSaleProfit.toFixed(2)}`;
   
   if (!confirm(confirmMessage)) {
     return;
@@ -903,14 +974,14 @@ async function saveSalesOrder() {
       const savedSales = await res.json();
       alert('✅ Sales order saved successfully!');
       
-      qs('#printSalesBtn').classList.add('print-visible');
-      qs('#printSalesBtn').onclick = () => printSalesInvoice(savedSales.id);
-      
+      // Refresh data
       await fetchInventory();
       await fetchSales();
       
-      totalProfitEarned += totalSaleProfit;
-      updateProfitCard();
+      // Automatically print and save invoice
+      await printAndSaveSalesInvoice(savedSales.id);
+      
+      closeNewSalesModal();
       
     } else {
       const error = await res.json();
@@ -931,6 +1002,7 @@ async function viewSalesDetails(salesId) {
     
     qs('#detailSalesId').textContent = sale.salesId || 'N/A';
     qs('#detailCustomer').textContent = sale.customer || 'N/A';
+    qs('#detailCustomerContact').textContent = sale.customerContact || 'N/A';
     qs('#detailSalesDate').textContent = new Date(sale.salesDate).toLocaleDateString();
     qs('#detailSalesTotalAmount').textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
     
@@ -956,7 +1028,7 @@ async function viewSalesDetails(salesId) {
       itemsList.appendChild(tr);
     });
     
-    qs('#printSalesInvoiceBtn').onclick = () => printSalesInvoice(salesId);
+    qs('#printSalesInvoiceBtn').onclick = () => printAndSaveSalesInvoice(salesId);
     
     qs('#salesDetailsModal').style.display = 'block';
     
@@ -981,7 +1053,7 @@ async function deleteSales(id) {
     if (res.status === 204) {
       await fetchSales();
       await fetchInventory();
-      await fetchTotalProfitEarned();
+      updateProfitCard();
       alert('🗑️ Sales order deleted!');
     } else {
       alert('❌ Failed to delete sales order.');
@@ -992,8 +1064,9 @@ async function deleteSales(id) {
   }
 }
 
-async function printSalesInvoice(salesId) {
+async function printAndSaveSalesInvoice(salesId) {
   try {
+    // Print the invoice
     const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1012,8 +1085,17 @@ async function printSalesInvoice(salesId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
+    // Save to statements/documents
+    const saveRes = await apiFetch(`${API_BASE}/sales/save-invoice/${salesId}`, {
+      method: 'POST'
+    });
+    
+    if (saveRes.ok) {
+      console.log('✅ Invoice saved to documents');
+    }
+    
   } catch (e) {
-    console.error('Print sales invoice error:', e);
+    console.error('Print and save invoice error:', e);
     alert('❌ Failed to generate sales invoice.');
   }
 }
@@ -1048,9 +1130,8 @@ function renderPurchaseHistory() {
       <td>${new Date(p.purchaseDate).toLocaleDateString()}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
-        <button class="secondary-btn small-btn" onclick="editPurchasePage('${p.id}')">✏️ Edit</button>
+        <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
         <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
-        <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
       </td>
     `;
     list.appendChild(tr);
@@ -1093,6 +1174,7 @@ function closeNewPurchaseModal() {
 
 function resetPurchaseForm() {
   qs('#supplierName').value = '';
+  qs('#supplierContact').value = '';
   qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
   qs('#purchaseNotes').value = '';
   qs('#productSearch').value = '';
@@ -1101,9 +1183,6 @@ function resetPurchaseForm() {
   
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = '0.00';
-  }
-  if (qs('#editTotalPurchaseAmount')) {
-    qs('#editTotalPurchaseAmount').textContent = '0.00';
   }
 }
 
@@ -1165,7 +1244,6 @@ function addProductItem(product = null) {
 
 function updateTotalAmount() {
   let newTotal = 0;
-  let editTotal = 0;
   
   const newItemRows = qsa('#purchaseItems .purchase-item-row');
   newItemRows.forEach(row => {
@@ -1174,19 +1252,8 @@ function updateTotalAmount() {
     newTotal += itemTotal;
   });
   
-  const editItemRows = qsa('#editPurchaseItems .purchase-item-row');
-  editItemRows.forEach(row => {
-    const totalInput = row.querySelector('.product-total');
-    const itemTotal = Number(totalInput.value) || 0;
-    editTotal += itemTotal;
-  });
-  
   if (qs('#totalPurchaseAmount')) {
     qs('#totalPurchaseAmount').textContent = newTotal.toFixed(2);
-  }
-  
-  if (qs('#editTotalPurchaseAmount')) {
-    qs('#editTotalPurchaseAmount').textContent = editTotal.toFixed(2);
   }
 }
 
@@ -1231,14 +1298,18 @@ function loadProductSearch() {
 }
 
 async function savePurchaseOrder() {
-  const supplier = qs('#supplierName').value.trim();
-  const purchaseDate = qs('#purchaseDate').value;
-  const notes = qs('#purchaseNotes').value.trim();
-  
-  if (!supplier) {
-    alert('⚠️ Please enter supplier name.');
+  // Validate required fields
+  if (!validateRequiredFields([
+    { name: 'supplier', value: qs('#supplierName').value.trim(), label: 'Supplier name' },
+    { name: 'contact', value: qs('#supplierContact').value.trim(), label: 'Supplier contact' }
+  ])) {
     return;
   }
+  
+  const supplier = qs('#supplierName').value.trim();
+  const supplierContact = qs('#supplierContact').value.trim();
+  const purchaseDate = qs('#purchaseDate').value;
+  const notes = qs('#purchaseNotes').value.trim();
   
   const items = [];
   const itemRows = qsa('.purchase-item-row');
@@ -1279,12 +1350,13 @@ async function savePurchaseOrder() {
   
   const purchaseData = {
     supplier,
+    supplierContact,
     purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
     notes,
     items
   };
   
-  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
   });
@@ -1304,11 +1376,14 @@ async function savePurchaseOrder() {
       const savedPurchase = await res.json();
       alert('✅ Purchase order saved successfully!');
       
-      qs('#printPurchaseBtn').classList.add('print-visible');
-      qs('#printPurchaseBtn').onclick = () => printPurchaseInvoice(savedPurchase.id);
-      
+      // Refresh data
       await fetchInventory();
       await fetchPurchases();
+      
+      // Automatically print and save invoice
+      await printAndSavePurchaseInvoice(savedPurchase.id);
+      
+      closeNewPurchaseModal();
       
     } else {
       const error = await res.json();
@@ -1329,6 +1404,7 @@ async function viewPurchaseDetails(purchaseId) {
     
     qs('#detailPurchaseId').textContent = purchase.purchaseId || 'N/A';
     qs('#detailSupplier').textContent = purchase.supplier || 'N/A';
+    qs('#detailSupplierContact').textContent = purchase.supplierContact || 'N/A';
     qs('#detailPurchaseDate').textContent = new Date(purchase.purchaseDate).toLocaleDateString();
     qs('#detailTotalAmount').textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
     
@@ -1354,7 +1430,7 @@ async function viewPurchaseDetails(purchaseId) {
       itemsList.appendChild(tr);
     });
     
-    qs('#printDetailsInvoiceBtn').onclick = () => printPurchaseInvoice(purchaseId);
+    qs('#printDetailsInvoiceBtn').onclick = () => printAndSavePurchaseInvoice(purchaseId);
     
     qs('#purchaseDetailsModal').style.display = 'block';
     
@@ -1366,10 +1442,6 @@ async function viewPurchaseDetails(purchaseId) {
 
 function closePurchaseDetailsModal() {
   qs('#purchaseDetailsModal').style.display = 'none';
-}
-
-function editPurchasePage(purchaseId) {
-  window.location.href = `purchase-edit.html?id=${encodeURIComponent(purchaseId)}`;
 }
 
 async function deletePurchase(id) {
@@ -1393,8 +1465,9 @@ async function deletePurchase(id) {
   }
 }
 
-async function printPurchaseInvoice(purchaseId) {
+async function printAndSavePurchaseInvoice(purchaseId) {
   try {
+    // Print the invoice
     const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1413,14 +1486,23 @@ async function printPurchaseInvoice(purchaseId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
+    // Save to statements/documents
+    const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
+      method: 'POST'
+    });
+    
+    if (saveRes.ok) {
+      console.log('✅ Purchase invoice saved to documents');
+    }
+    
   } catch (e) {
-    console.error('Print invoice error:', e);
+    console.error('Print and save invoice error:', e);
     alert('❌ Failed to generate invoice.');
   }
 }
 
 // =========================================
-// NEW: Enhanced Report Generation with Date Range
+// Enhanced Report Generation with Date Range
 // =========================================
 function openReportModal() {
   const modal = qs('#reportModal');
@@ -1513,7 +1595,7 @@ async function generateInventoryReport(startDate, endDate) {
 }
 
 // =========================================
-// NEW: Folder Management for Documents
+// Folder Management for Documents
 // =========================================
 async function fetchFolders() {
   try {
@@ -1980,7 +2062,7 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
-// NEW: Statements Management
+// Statements Management
 // =========================================
 function openStatementsModal() {
   const modal = qs('#statementsModal');
@@ -2122,10 +2204,12 @@ function renderDashboardData(){
     });
     qs('#dash_totalItems').textContent = inventory.length;
     
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = totalValue.toFixed(2);
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = totalRevenue.toFixed(2);
-    if(qs('#dash_totalProfit')) qs('#dash_totalProfit').textContent = totalProfitEarned.toFixed(2);
+    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalValue.toFixed(2)}`;
+    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
+    
+    // Update profit using the unified function
+    updateProfitCard();
   }
 }
 
@@ -2249,7 +2333,7 @@ function bindSalesEditPage() {
 }
 
 // =========================================
-// NEW: Scroll to Add New Product Form
+// Scroll to Add New Product Form
 // =========================================
 function scrollToAddProductForm() {
   const addProductSection = qs('#addProductSection');
@@ -2286,26 +2370,12 @@ function bindInventoryUI(){
   qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
   qs('#addProductItem')?.addEventListener('click', () => addProductItem());
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
-  qs('#printPurchaseBtn')?.addEventListener('click', () => {
-    if (purchases.length > 0) {
-      printPurchaseInvoice(purchases[purchases.length - 1].id);
-    } else {
-      alert('No recent purchase to print.');
-    }
-  });
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
   
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   qs('#addSalesProductItem')?.addEventListener('click', () => addSalesProductItem());
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
-  qs('#printSalesBtn')?.addEventListener('click', () => {
-    if (sales.length > 0) {
-      printSalesInvoice(sales[sales.length - 1].id);
-    } else {
-      alert('No recent sales to print.');
-    }
-  });
   qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
   
   qs('#generateReportBtn')?.addEventListener('click', generateSelectedReport);
@@ -2355,10 +2425,11 @@ window.addEventListener('load', async () => {
   if(qs('#adminName')) qs('#adminName').textContent = adminName;
 
   try {
-    await fetchCompanyInfo();
+    // Fetch all data in parallel for better performance
+    await fetchAllData();
     
+    // Bind UI based on current page
     if(currentPage.includes('inventory') || currentPage === '' || currentPage === 'index.html') { 
-      await fetchInventory(); 
       bindInventoryUI(); 
     }
     if(currentPage.includes('documents')) { 
@@ -2366,15 +2437,14 @@ window.addEventListener('load', async () => {
       await fetchDocuments(); 
       bindDocumentsUI(); 
     }
-    if(currentPage.includes('log') || currentPage === '' || currentPage === 'index.html') { 
-      await fetchLogs(); 
-      await fetchInventory(); 
-    }
     if(currentPage.includes('product')) bindProductPage();
     if(currentPage.includes('setting')) bindSettingPage();
     if(currentPage.includes('purchase-edit')) bindPurchaseEditPage();
     if(currentPage.includes('sales-edit')) bindSalesEditPage();
-  } catch(e) { console.error('Init error', e); }
+  } catch(e) { 
+    console.error('Init error', e); 
+    alert('Error loading data. Please refresh the page.');
+  }
 });
 
 // =========================================
@@ -2411,11 +2481,9 @@ window.closePurchaseHistoryModal = closePurchaseHistoryModal;
 window.openNewPurchaseModal = openNewPurchaseModal;
 window.closeNewPurchaseModal = closeNewPurchaseModal;
 window.savePurchaseOrder = savePurchaseOrder;
-window.printPurchaseInvoice = printPurchaseInvoice;
+window.printAndSavePurchaseInvoice = printAndSavePurchaseInvoice;
 window.deletePurchase = deletePurchase;
-window.editPurchase = editPurchase;
-window.viewPurchase = viewPurchase;
-window.editPurchasePage = editPurchasePage;
+window.viewPurchaseDetails = viewPurchaseDetails;
 window.closePurchaseDetailsModal = closePurchaseDetailsModal;
 
 window.openSalesHistoryModal = openSalesHistoryModal;
@@ -2423,9 +2491,9 @@ window.closeSalesHistoryModal = closeSalesHistoryModal;
 window.openNewSalesModal = openNewSalesModal;
 window.closeNewSalesModal = closeNewSalesModal;
 window.saveSalesOrder = saveSalesOrder;
-window.printSalesInvoice = printSalesInvoice;
+window.printAndSaveSalesInvoice = printAndSaveSalesInvoice;
 window.deleteSales = deleteSales;
-window.viewSales = viewSalesDetails;
+window.viewSalesDetails = viewSalesDetails;
 window.closeSalesDetailsModal = closeSalesDetailsModal;
 
 window.openReportModal = openReportModal;
