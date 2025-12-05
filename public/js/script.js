@@ -48,20 +48,11 @@ function toggleTheme(){
 // Enhanced API fetch with error handling
 async function apiFetch(url, options = {}) {
   const user = getUsername();
-  
-  // Only set Content-Type for requests that have a body
-  if (options.body) {
-    options.headers = {
-      'Content-Type': 'application/json',
-      'X-Username': user,
-      ...options.headers,
-    };
-  } else {
-    options.headers = {
-      'X-Username': user,
-      ...options.headers,
-    };
-  }
+  options.headers = {
+    'Content-Type': 'application/json',
+    'X-Username': user,
+    ...options.headers,
+  };
 
   try {
     const response = await fetch(url, options);
@@ -74,23 +65,6 @@ async function apiFetch(url, options = {}) {
     return response;
   } catch (error) {
     console.error('API fetch error:', error);
-    throw error;
-  }
-}
-
-// Simple fetch without headers for GET requests
-async function simpleFetch(url) {
-  try {
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || `HTTP ${response.status}`);
-    }
-    
-    return response;
-  } catch (error) {
-    console.error('Fetch error:', error);
     throw error;
   }
 }
@@ -935,15 +909,14 @@ function loadProductSearchForSales() {
 
 async function saveSalesOrder() {
   // Validate required fields
-  if (!validateRequiredFields([
-    { name: 'customer', value: qs('#customerName').value.trim(), label: 'Customer name' },
-    { name: 'contact', value: qs('#customerContact').value.trim(), label: 'Customer contact' }
-  ])) {
+  const customerName = qs('#customerName')?.value?.trim();
+  const customerContact = qs('#customerContact')?.value?.trim();
+  
+  if (!customerName || !customerContact) {
+    alert('⚠️ Please enter customer name and contact information.');
     return;
   }
   
-  const customer = qs('#customerName').value.trim();
-  const customerContact = qs('#customerContact').value.trim();
   const salesDate = qs('#salesDate').value;
   const notes = qs('#salesNotes').value.trim();
   
@@ -996,14 +969,14 @@ async function saveSalesOrder() {
   }
   
   const salesData = {
-    customer,
-    customerContact,
+    customer: customerName,
+    customerContact: customerContact,
     salesDate: salesDate || new Date().toISOString().split('T')[0],
     notes,
     items
   };
   
-  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customer}\nContact: ${customerContact}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customerName}\nContact: ${customerContact}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
   });
@@ -1042,17 +1015,25 @@ async function saveSalesOrder() {
   }
 }
 
+// ===== FIXED: View Sales Details Function =====
 async function viewSalesDetails(salesId) {
   try {
-    // Use simple fetch without headers for GET requests
-    const res = await simpleFetch(`${API_BASE}/sales/${salesId}`);
+    console.log(`Fetching sales details for ID: ${salesId}`);
+    
+    const res = await apiFetch(`${API_BASE}/sales/${salesId}`);
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Failed to fetch sales details:', errorText);
-      throw new Error('Failed to fetch sales details');
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to fetch sales details');
     }
     
     const sale = await res.json();
+    console.log('Sales details loaded:', sale);
+    
+    // Check if DOM elements exist
+    if (!qs('#detailSalesId')) {
+      console.error('Sales detail DOM elements not found');
+      return;
+    }
     
     qs('#detailSalesId').textContent = sale.salesId || 'N/A';
     qs('#detailCustomer').textContent = sale.customer || 'N/A';
@@ -1070,25 +1051,31 @@ async function viewSalesDetails(salesId) {
     const itemsList = qs('#salesDetailsList');
     itemsList.innerHTML = '';
     
-    sale.items.forEach((item, index) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(item.sku || 'N/A')}</td>
-        <td>${escapeHtml(item.productName || 'N/A')}</td>
-        <td>${item.quantity || 0}</td>
-        <td class="money">RM ${(item.salePrice || 0).toFixed(2)}</td>
-        <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
-      `;
-      itemsList.appendChild(tr);
-    });
+    if (sale.items && Array.isArray(sale.items)) {
+      sale.items.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(item.sku || 'N/A')}</td>
+          <td>${escapeHtml(item.productName || 'N/A')}</td>
+          <td>${item.quantity || 0}</td>
+          <td class="money">RM ${(item.salePrice || 0).toFixed(2)}</td>
+          <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+        `;
+        itemsList.appendChild(tr);
+      });
+    }
     
-    qs('#printSalesInvoiceBtn').onclick = () => printAndSaveSalesInvoice(salesId);
+    // Set print button handler
+    const printBtn = qs('#printSalesDetailsInvoiceBtn');
+    if (printBtn) {
+      printBtn.onclick = () => printAndSaveSalesInvoice(salesId);
+    }
     
     qs('#salesDetailsModal').style.display = 'block';
     
   } catch (e) {
     console.error('View sales details error:', e);
-    alert('❌ Failed to load sales details: ' + e.message);
+    alert(`❌ Failed to load sales details: ${e.message}`);
   }
 }
 
@@ -1369,15 +1356,14 @@ function loadProductSearch() {
 
 async function savePurchaseOrder() {
   // Validate required fields
-  if (!validateRequiredFields([
-    { name: 'supplier', value: qs('#supplierName').value.trim(), label: 'Supplier name' },
-    { name: 'contact', value: qs('#supplierContact').value.trim(), label: 'Supplier contact' }
-  ])) {
+  const supplierName = qs('#supplierName')?.value?.trim();
+  const supplierContact = qs('#supplierContact')?.value?.trim();
+  
+  if (!supplierName || !supplierContact) {
+    alert('⚠️ Please enter supplier name and contact information.');
     return;
   }
   
-  const supplier = qs('#supplierName').value.trim();
-  const supplierContact = qs('#supplierContact').value.trim();
   const purchaseDate = qs('#purchaseDate').value;
   const notes = qs('#purchaseNotes').value.trim();
   
@@ -1424,14 +1410,14 @@ async function savePurchaseOrder() {
   }
   
   const purchaseData = {
-    supplier,
-    supplierContact,
+    supplier: supplierName,
+    supplierContact: supplierContact,
     purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
     notes,
     items
   };
   
-  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplier}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplierName}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
   });
@@ -1470,17 +1456,25 @@ async function savePurchaseOrder() {
   }
 }
 
+// ===== FIXED: View Purchase Details Function =====
 async function viewPurchaseDetails(purchaseId) {
   try {
-    // Use simple fetch without headers for GET requests
-    const res = await simpleFetch(`${API_BASE}/purchases/${purchaseId}`);
+    console.log(`Fetching purchase details for ID: ${purchaseId}`);
+    
+    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Failed to fetch purchase details:', errorText);
-      throw new Error('Failed to fetch purchase details');
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to fetch purchase details');
     }
     
     const purchase = await res.json();
+    console.log('Purchase details loaded:', purchase);
+    
+    // Check if DOM elements exist
+    if (!qs('#detailPurchaseId')) {
+      console.error('Purchase detail DOM elements not found');
+      return;
+    }
     
     qs('#detailPurchaseId').textContent = purchase.purchaseId || 'N/A';
     qs('#detailSupplier').textContent = purchase.supplier || 'N/A';
@@ -1498,25 +1492,31 @@ async function viewPurchaseDetails(purchaseId) {
     const itemsList = qs('#purchaseDetailsList');
     itemsList.innerHTML = '';
     
-    purchase.items.forEach((item, index) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(item.sku || 'N/A')}</td>
-        <td>${escapeHtml(item.productName || 'N/A')}</td>
-        <td>${item.quantity || 0}</td>
-        <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
-        <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
-      `;
-      itemsList.appendChild(tr);
-    });
+    if (purchase.items && Array.isArray(purchase.items)) {
+      purchase.items.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(item.sku || 'N/A')}</td>
+          <td>${escapeHtml(item.productName || 'N/A')}</td>
+          <td>${item.quantity || 0}</td>
+          <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
+          <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+        `;
+        itemsList.appendChild(tr);
+      });
+    }
     
-    qs('#printDetailsInvoiceBtn').onclick = () => printAndSavePurchaseInvoice(purchaseId);
+    // Set print button handler
+    const printBtn = qs('#printDetailsInvoiceBtn');
+    if (printBtn) {
+      printBtn.onclick = () => printAndSavePurchaseInvoice(purchaseId);
+    }
     
     qs('#purchaseDetailsModal').style.display = 'block';
     
   } catch (e) {
     console.error('View purchase details error:', e);
-    alert('❌ Failed to load purchase details: ' + e.message);
+    alert(`❌ Failed to load purchase details: ${e.message}`);
   }
 }
 
@@ -2468,8 +2468,8 @@ function bindInventoryUI(){
   
   qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
   
-  // Close buttons for detail modals
-  qs('#closeDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
+  // Close buttons for detail modals - FIXED: Corrected element IDs
+  qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
   qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
   
   qsa('.close').forEach(closeBtn => {
