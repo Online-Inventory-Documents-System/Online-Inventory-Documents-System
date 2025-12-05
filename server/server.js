@@ -2852,8 +2852,8 @@ app.post("/api/inventory/import/excel", async (req, res) => {
             name: name,
             category: category || '',
             quantity: Number(quantity) || 0,
-            unitCost: Number(unitCost) || 0,
-            unitPrice: Number(unitPrice) || 0
+            unitCost = Number(unitCost) || 0,
+            unitPrice = Number(unitPrice) || 0
           });
           importedCount++;
         }
