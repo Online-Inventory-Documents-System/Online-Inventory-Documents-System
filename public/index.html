@@ -555,7 +555,7 @@
     </div>
   </div>
 
-  <!-- New Purchase Order Modal -->
+  <!-- UPDATED: New Purchase Order Modal with Supplier Contact field -->
   <div id="newPurchaseModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -568,9 +568,20 @@
             <label for="supplierName">Supplier Name:</label>
             <input type="text" id="supplierName" placeholder="Enter supplier name">
           </div>
+          <!-- ADDED: Supplier Contact field -->
+          <div class="form-group">
+            <label for="supplierContact">Supplier Contact:</label>
+            <input type="text" id="supplierContact" placeholder="Enter supplier contact">
+          </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label for="purchaseDate">Purchase Date:</label>
             <input type="date" id="purchaseDate">
+          </div>
+          <div class="form-group">
+            <!-- Empty div for alignment -->
           </div>
         </div>
 
@@ -607,7 +618,7 @@
     </div>
   </div>
 
-  <!-- New Sales Order Modal -->
+  <!-- UPDATED: New Sales Order Modal with Customer Contact field -->
   <div id="newSalesModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -620,9 +631,20 @@
             <label for="customerName">Customer Name:</label>
             <input type="text" id="customerName" placeholder="Enter customer name">
           </div>
+          <!-- ADDED: Customer Contact field -->
+          <div class="form-group">
+            <label for="customerContact">Customer Contact:</label>
+            <input type="text" id="customerContact" placeholder="Enter customer contact">
+          </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label for="salesDate">Sales Date:</label>
             <input type="date" id="salesDate">
+          </div>
+          <div class="form-group">
+            <!-- Empty div for alignment -->
           </div>
         </div>
 
