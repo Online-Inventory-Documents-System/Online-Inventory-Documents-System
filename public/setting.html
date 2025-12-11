@@ -26,65 +26,20 @@
     <p>Logged-in User: <strong id="currentUser"></strong></p>
   </div>
 
-  <!-- Company Information Section -->
+  <!-- Company Information Section - Now just a button -->
   <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
     <h3>🏢 Company Information</h3>
     <p style="color: var(--secondary-color); margin-bottom: 20px;">
-      Update your company details that will appear on all reports and invoices.
+      Manage your company details that will appear on all reports and invoices.
     </p>
     
-    <div class="company-info-form">
-      <div class="form-group">
-        <label for="companyName">Company Name:</label>
-        <input type="text" id="companyName" placeholder="Enter company name" />
-      </div>
-      
-      <div class="form-group">
-        <label for="companyAddress">Company Address:</label>
-        <textarea id="companyAddress" placeholder="Enter company address" rows="3"></textarea>
-      </div>
-      
-      <div class="form-row">
-        <div class="form-group">
-          <label for="companyPhone">Phone Number:</label>
-          <input type="text" id="companyPhone" placeholder="Enter phone number" />
-        </div>
-        <div class="form-group">
-          <label for="companyEmail">Email Address:</label>
-          <input type="email" id="companyEmail" placeholder="Enter email address" />
-        </div>
-      </div>
-      
-      <button onclick="updateCompanyInfo()" class="primary-btn" style="margin-top: 15px;">
-        💾 Update Company Information
+    <div style="text-align: center; margin: 30px 0;">
+      <button onclick="openCompanyInfoModal()" class="primary-btn btn-large btn-icon">
+        🏢 Manage Company Information
       </button>
-    </div>
-    
-    <!-- Company Information Preview -->
-    <div class="company-info-preview">
-      <h3>Current Company Information</h3>
-      <div class="detail-row">
-        <div class="detail-group">
-          <label>Company Name:</label>
-          <span id="companyNameDisplay" class="detail-value">L&B Company</span>
-        </div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-group full-width">
-          <label>Address:</label>
-          <span id="companyAddressDisplay" class="detail-value">Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka</span>
-        </div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-group">
-          <label>Phone:</label>
-          <span id="companyPhoneDisplay" class="detail-value">01133127622</span>
-        </div>
-        <div class="detail-group">
-          <label>Email:</label>
-          <span id="companyEmailDisplay" class="detail-value">lbcompany@gmail.com</span>
-        </div>
-      </div>
+      <p style="font-size: 0.85rem; color: var(--secondary-color); margin-top: 8px;">
+        Click to view and edit company details
+      </p>
     </div>
   </div>
 
@@ -129,6 +84,80 @@
   </div>
 </section>
 
+<!-- Company Information Modal -->
+<div id="companyInfoModal" class="modal">
+  <div class="modal-content x-large-modal">
+    <div class="modal-header">
+      <h2>🏢 Company Information</h2>
+      <span class="close" id="closeCompanyInfoModal">&times;</span>
+    </div>
+    <div class="modal-body">
+      
+      <!-- Current Company Information Preview -->
+      <div class="company-info-preview" style="margin-bottom: 30px;">
+        <h3>Current Company Information</h3>
+        <div class="detail-row">
+          <div class="detail-group">
+            <label>Company Name:</label>
+            <span id="companyNameDisplay" class="detail-value">L&B Company</span>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-group full-width">
+            <label>Address:</label>
+            <span id="companyAddressDisplay" class="detail-value">Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka</span>
+          </div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-group">
+            <label>Phone:</label>
+            <span id="companyPhoneDisplay" class="detail-value">01133127622</span>
+          </div>
+          <div class="detail-group">
+            <label>Email:</label>
+            <span id="companyEmailDisplay" class="detail-value">lbcompany@gmail.com</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Edit Company Information Form -->
+      <div class="company-info-form">
+        <h3 style="margin-top: 0; margin-bottom: 20px;">✏️ Edit Company Information</h3>
+        
+        <div class="form-group">
+          <label for="companyName">Company Name:</label>
+          <input type="text" id="companyName" placeholder="Enter company name" />
+        </div>
+        
+        <div class="form-group">
+          <label for="companyAddress">Company Address:</label>
+          <textarea id="companyAddress" placeholder="Enter company address" rows="3"></textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="companyPhone">Phone Number:</label>
+            <input type="text" id="companyPhone" placeholder="Enter phone number" />
+          </div>
+          <div class="form-group">
+            <label for="companyEmail">Email Address:</label>
+            <input type="email" id="companyEmail" placeholder="Enter email address" />
+          </div>
+        </div>
+        
+        <div class="modal-actions">
+          <button onclick="closeCompanyInfoModal()" class="secondary-btn">
+            ❌ Cancel
+          </button>
+          <button onclick="updateCompanyInfo()" class="primary-btn">
+            💾 Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- JS -->
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
@@ -136,24 +165,15 @@
   // Tell script.js we are on the settings page so it can bind the password & delete account logic
   document.documentElement.dataset.page = 'setting';
 
-  // Pre-fill current user and company info
+  // Pre-fill current user
   document.addEventListener('DOMContentLoaded', async () => {
     const adminName = sessionStorage.getItem('adminName') || 'Guest';
     if (document.getElementById('adminName')) document.getElementById('adminName').textContent = adminName;
     if (document.getElementById('currentUser')) document.getElementById('currentUser').textContent = adminName;
     
-    // Load company information
+    // Load company information (will be used in modal)
     await fetchCompanyInfo();
-    
-    // Pre-fill company form
-    if (companyInfo) {
-      if (document.getElementById('companyName')) document.getElementById('companyName').value = companyInfo.name || '';
-      if (document.getElementById('companyAddress')) document.getElementById('companyAddress').value = companyInfo.address || '';
-      if (document.getElementById('companyPhone')) document.getElementById('companyPhone').value = companyInfo.phone || '';
-      if (document.getElementById('companyEmail')) document.getElementById('companyEmail').value = companyInfo.email || '';
-    }
   });
 </script>
 </body>
 </html>
-
