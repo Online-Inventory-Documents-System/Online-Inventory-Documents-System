@@ -133,6 +133,7 @@ async function updateCompanyInfo() {
     if (res.ok) {
       alert('✅ Company information updated successfully!');
       await fetchCompanyInfo();
+      closeCompanyInfoModal();
     } else {
       alert('❌ Failed to update company information.');
     }
@@ -147,6 +148,29 @@ function updateCompanyInfoDisplay() {
   if (qs('#companyAddressDisplay')) qs('#companyAddressDisplay').textContent = companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka';
   if (qs('#companyPhoneDisplay')) qs('#companyPhoneDisplay').textContent = companyInfo.phone || '01133127622';
   if (qs('#companyEmailDisplay')) qs('#companyEmailDisplay').textContent = companyInfo.email || 'lbcompany@gmail.com';
+}
+
+// =========================================
+// Company Information Modal Functions
+// =========================================
+function openCompanyInfoModal() {
+  const modal = qs('#companyInfoModal');
+  if (modal) {
+    // Pre-fill company form with current data
+    if (qs('#companyName')) qs('#companyName').value = companyInfo.name || '';
+    if (qs('#companyAddress')) qs('#companyAddress').value = companyInfo.address || '';
+    if (qs('#companyPhone')) qs('#companyPhone').value = companyInfo.phone || '';
+    if (qs('#companyEmail')) qs('#companyEmail').value = companyInfo.email || '';
+    
+    modal.style.display = 'block';
+  }
+}
+
+function closeCompanyInfoModal() {
+  const modal = qs('#companyInfoModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 // =========================================
@@ -2558,6 +2582,9 @@ function bindInventoryUI(){
   qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
   qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
   
+  // Company info modal binding
+  qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
+  
   qsa('.close').forEach(closeBtn => {
     closeBtn.addEventListener('click', function() {
       const modal = this.closest('.modal');
@@ -2577,6 +2604,7 @@ function bindInventoryUI(){
     if (e.target === qs('#previewModal')) closePreviewModal();
     if (e.target === qs('#purchaseDetailsModal')) closePurchaseDetailsModal();
     if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
+    if (e.target === qs('#companyInfoModal')) closeCompanyInfoModal();
   });
   
   bindDateRangeFilterEvents();
@@ -2686,6 +2714,8 @@ window.deleteFolder = deleteFolder;
 window.navigateToFolder = navigateToFolder;
 
 window.updateCompanyInfo = updateCompanyInfo;
+window.openCompanyInfoModal = openCompanyInfoModal;
+window.closeCompanyInfoModal = closeCompanyInfoModal;
 
 window.login = login;
 window.register = register;
