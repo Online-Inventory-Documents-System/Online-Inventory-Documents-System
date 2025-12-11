@@ -26,16 +26,37 @@
     <p>Logged-in User: <strong id="currentUser"></strong></p>
   </div>
 
-  <!-- Company Information Button -->
+  <!-- Company Information Section -->
   <div style="margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
     <h3>🏢 Company Information</h3>
     <p style="color: var(--secondary-color); margin-bottom: 20px;">
       Update your company details that will appear on all reports and invoices.
     </p>
     
-    <div class="btn-group-horizontal" style="margin-top: 15px;">
-      <button onclick="openCompanyInfoModal()" class="primary-btn">
-        🏢 Manage Company Information
+    <div class="company-info-form">
+      <div class="form-group">
+        <label for="companyName">Company Name:</label>
+        <input type="text" id="companyName" placeholder="Enter company name" />
+      </div>
+      
+      <div class="form-group">
+        <label for="companyAddress">Company Address:</label>
+        <textarea id="companyAddress" placeholder="Enter company address" rows="3"></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="companyPhone">Phone Number:</label>
+          <input type="text" id="companyPhone" placeholder="Enter phone number" />
+        </div>
+        <div class="form-group">
+          <label for="companyEmail">Email Address:</label>
+          <input type="email" id="companyEmail" placeholder="Enter email address" />
+        </div>
+      </div>
+      
+      <button onclick="updateCompanyInfo()" class="primary-btn" style="margin-top: 15px;">
+        💾 Update Company Information
       </button>
     </div>
     
@@ -108,86 +129,12 @@
   </div>
 </section>
 
-<!-- Company Information Modal -->
-<div id="companyInfoModal" class="modal">
-  <div class="modal-content" style="max-width: 600px;">
-    <div class="modal-header">
-      <h2>🏢 Company Information</h2>
-      <span class="close" onclick="closeCompanyInfoModal()">&times;</span>
-    </div>
-    <div class="modal-body">
-      <p style="color: var(--secondary-color); margin-bottom: 20px;">
-        Update your company details that will appear on all reports and invoices.
-      </p>
-      
-      <div class="company-info-form">
-        <div class="form-group">
-          <label for="modalCompanyName">Company Name:</label>
-          <input type="text" id="modalCompanyName" placeholder="Enter company name" />
-        </div>
-        
-        <div class="form-group">
-          <label for="modalCompanyAddress">Company Address:</label>
-          <textarea id="modalCompanyAddress" placeholder="Enter company address" rows="3"></textarea>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="modalCompanyPhone">Phone Number:</label>
-            <input type="text" id="modalCompanyPhone" placeholder="Enter phone number" />
-          </div>
-          <div class="form-group">
-            <label for="modalCompanyEmail">Email Address:</label>
-            <input type="email" id="modalCompanyEmail" placeholder="Enter email address" />
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button onclick="closeCompanyInfoModal()" class="secondary-btn">Cancel</button>
-      <button onclick="updateCompanyInfo()" class="primary-btn">
-        💾 Save Changes
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- JS -->
 <script src="js/setting.js" defer></script>
 <script src="js/script.js" defer></script>
 <script>
   // Tell script.js we are on the settings page so it can bind the password & delete account logic
   document.documentElement.dataset.page = 'setting';
-
-  // Company Modal Functions
-  function openCompanyInfoModal() {
-    const modal = document.getElementById('companyInfoModal');
-    if (modal) {
-      // Load current company info into modal
-      if (companyInfo) {
-        document.getElementById('modalCompanyName').value = companyInfo.name || '';
-        document.getElementById('modalCompanyAddress').value = companyInfo.address || '';
-        document.getElementById('modalCompanyPhone').value = companyInfo.phone || '';
-        document.getElementById('modalCompanyEmail').value = companyInfo.email || '';
-      }
-      modal.style.display = 'block';
-    }
-  }
-
-  function closeCompanyInfoModal() {
-    const modal = document.getElementById('companyInfoModal');
-    if (modal) {
-      modal.style.display = 'none';
-    }
-  }
-
-  // Close modal when clicking outside
-  window.addEventListener('click', (e) => {
-    const modal = document.getElementById('companyInfoModal');
-    if (e.target === modal) {
-      closeCompanyInfoModal();
-    }
-  });
 
   // Pre-fill current user and company info
   document.addEventListener('DOMContentLoaded', async () => {
@@ -197,7 +144,16 @@
     
     // Load company information
     await fetchCompanyInfo();
+    
+    // Pre-fill company form
+    if (companyInfo) {
+      if (document.getElementById('companyName')) document.getElementById('companyName').value = companyInfo.name || '';
+      if (document.getElementById('companyAddress')) document.getElementById('companyAddress').value = companyInfo.address || '';
+      if (document.getElementById('companyPhone')) document.getElementById('companyPhone').value = companyInfo.phone || '';
+      if (document.getElementById('companyEmail')) document.getElementById('companyEmail').value = companyInfo.email || '';
+    }
   });
 </script>
 </body>
 </html>
+
