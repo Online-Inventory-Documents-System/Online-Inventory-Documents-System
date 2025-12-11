@@ -114,11 +114,10 @@ async function fetchCompanyInfo() {
 }
 
 async function updateCompanyInfo() {
-  // Get values from modal
-  const name = document.getElementById('modalCompanyName')?.value?.trim();
-  const address = document.getElementById('modalCompanyAddress')?.value?.trim();
-  const phone = document.getElementById('modalCompanyPhone')?.value?.trim();
-  const email = document.getElementById('modalCompanyEmail')?.value?.trim();
+  const name = qs('#companyName')?.value?.trim();
+  const address = qs('#companyAddress')?.value?.trim();
+  const phone = qs('#companyPhone')?.value?.trim();
+  const email = qs('#companyEmail')?.value?.trim();
 
   if (!name || !address || !phone || !email) {
     alert('⚠️ Please fill in all company information fields.');
@@ -134,7 +133,6 @@ async function updateCompanyInfo() {
     if (res.ok) {
       alert('✅ Company information updated successfully!');
       await fetchCompanyInfo();
-      closeCompanyInfoModal();
     } else {
       alert('❌ Failed to update company information.');
     }
@@ -145,18 +143,10 @@ async function updateCompanyInfo() {
 }
 
 function updateCompanyInfoDisplay() {
-  if (document.getElementById('companyNameDisplay')) {
-    document.getElementById('companyNameDisplay').textContent = companyInfo.name || 'L&B Company';
-  }
-  if (document.getElementById('companyAddressDisplay')) {
-    document.getElementById('companyAddressDisplay').textContent = companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka';
-  }
-  if (document.getElementById('companyPhoneDisplay')) {
-    document.getElementById('companyPhoneDisplay').textContent = companyInfo.phone || '01133127622';
-  }
-  if (document.getElementById('companyEmailDisplay')) {
-    document.getElementById('companyEmailDisplay').textContent = companyInfo.email || 'lbcompany@gmail.com';
-  }
+  if (qs('#companyNameDisplay')) qs('#companyNameDisplay').textContent = companyInfo.name || 'L&B Company';
+  if (qs('#companyAddressDisplay')) qs('#companyAddressDisplay').textContent = companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka';
+  if (qs('#companyPhoneDisplay')) qs('#companyPhoneDisplay').textContent = companyInfo.phone || '01133127622';
+  if (qs('#companyEmailDisplay')) qs('#companyEmailDisplay').textContent = companyInfo.email || 'lbcompany@gmail.com';
 }
 
 // =========================================
@@ -2238,6 +2228,83 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
+// Statements Management
+// =========================================
+function openStatementsModal() {
+  const modal = qs('#statementsModal');
+  if (modal) {
+    modal.style.display = 'block';
+    switchTab('inventory-reports');
+  }
+}
+
+function closeStatementsModal() {
+  const modal = qs('#statementsModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function switchTab(tabName) {
+  qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
+  qs(`#tab-${tabName}`).classList.add('active');
+  
+  qsa('.tab-content').forEach(content => content.classList.remove('active'));
+  qs(`#content-${tabName}`).classList.add('active');
+  
+  loadStatements(tabName);
+}
+
+async function loadStatements(type) {
+  try {
+    const res = await apiFetch(`${API_BASE}/statements/${type}`);
+    if (res.ok) {
+      const statements = await res.json();
+      renderStatements(type, statements);
+    }
+  } catch (err) {
+    console.error('Load statements error:', err);
+  }
+}
+
+function renderStatements(type, statements) {
+  const container = qs(`#${type}List`);
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (statements.length === 0) {
+    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
+    return;
+  }
+  
+  let totalSize = 0;
+  
+  statements.forEach(doc => {
+    totalSize += doc.size || 0;
+    
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(doc.name)}</td>
+      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
+      <td>${new Date(doc.date).toLocaleString()}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
+        <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
+        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${doc.id}')">🗑️ Delete</button>
+      </td>
+    `;
+    container.appendChild(tr);
+  });
+  
+  const countElement = qs(`#${type.replace('-', '')}Count`);
+  const sizeElement = qs(`#${type.replace('-', '')}Size`);
+  
+  if (countElement) countElement.textContent = statements.length;
+  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
+}
+
+// =========================================
 // ACTIVITY LOGS AND DASHBOARD FUNCTIONS
 // =========================================
 async function fetchLogs() {
@@ -2618,8 +2685,6 @@ window.renameFolder = renameFolder;
 window.deleteFolder = deleteFolder;
 window.navigateToFolder = navigateToFolder;
 
-window.openCompanyInfoModal = openCompanyInfoModal;
-window.closeCompanyInfoModal = closeCompanyInfoModal;
 window.updateCompanyInfo = updateCompanyInfo;
 
 window.login = login;
