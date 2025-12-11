@@ -2675,3 +2675,168 @@ body[data-theme="dark"] section {
   min-width: 100px;
   max-width: 110px;
 }
+
+/* =========================================
+   Company Information Modal Specific Styles
+========================================= */
+#companyInfoModal .modal-body {
+  padding: 30px;
+}
+
+#companyInfoModal .company-info-preview {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+}
+
+#companyInfoModal .company-info-preview h3 {
+  margin-top: 0;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 10px;
+}
+
+#companyInfoModal .detail-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+#companyInfoModal .detail-row:last-child {
+  margin-bottom: 0;
+}
+
+#companyInfoModal .detail-group {
+  flex: 1;
+}
+
+#companyInfoModal .detail-group.full-width {
+  flex: 2;
+}
+
+#companyInfoModal .detail-group label {
+  font-weight: 600;
+  color: var(--primary-color);
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+}
+
+#companyInfoModal .detail-value {
+  color: var(--text-light);
+  font-size: 0.95rem;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  display: block;
+}
+
+/* Edit Form Styles */
+#companyInfoModal .company-info-form {
+  border-top: 2px solid var(--border-color);
+  padding-top: 30px;
+}
+
+#companyInfoModal .company-info-form h3 {
+  color: var(--primary-color);
+  margin-bottom: 25px;
+  font-size: 1.2rem;
+}
+
+#companyInfoModal .form-group {
+  margin-bottom: 25px;
+}
+
+#companyInfoModal .form-group label {
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+  display: block;
+}
+
+#companyInfoModal .form-group input,
+#companyInfoModal .form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+#companyInfoModal .form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+#companyInfoModal .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+#companyInfoModal .modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Dark mode for company info modal */
+.dark-mode #companyInfoModal .modal-body {
+  background: var(--card-dark);
+}
+
+.dark-mode #companyInfoModal .company-info-preview {
+  background: #343a40;
+  border-color: #495057;
+}
+
+.dark-mode #companyInfoModal .detail-value {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
+}
+
+.dark-mode #companyInfoModal .company-info-form h3 {
+  color: #80bdff;
+}
+
+.dark-mode #companyInfoModal .form-group input,
+.dark-mode #companyInfoModal .form-group textarea {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
+}
+
+.dark-mode #companyInfoModal .form-group label {
+  color: #80bdff;
+}
+
+/* Responsive design for company info modal */
+@media (max-width: 768px) {
+  #companyInfoModal .detail-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  #companyInfoModal .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  
+  #companyInfoModal .modal-actions {
+    flex-direction: column;
+  }
+  
+  #companyInfoModal .modal-actions button {
+    width: 100%;
+  }
+}
