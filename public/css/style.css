@@ -2305,6 +2305,154 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
+   Statements Section Styling
+========================================= */
+.statements-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--secondary-color);
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  color: var(--primary-color);
+}
+
+.tab-button.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.statement-filters {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.statement-filters .form-group {
+  margin-bottom: 0;
+}
+
+.statement-filters label {
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+/* Statement Summary */
+.statement-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.statement-count, .statement-size {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.statement-count span, .statement-size span {
+  color: var(--success-color);
+}
+
+.dark-mode .statement-summary {
+  background: #343a40;
+  border-color: #495057;
+}
+
+/* Enhanced Statements Tables */
+#inventoryReportsTable,
+#purchaseInvoicesTable,
+#salesInvoicesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.85em;
+}
+
+#inventoryReportsTable th, #inventoryReportsTable td,
+#purchaseInvoicesTable th, #purchaseInvoicesTable td,
+#salesInvoicesTable th, #salesInvoicesTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+#inventoryReportsTable thead th {
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#purchaseInvoicesTable thead th {
+  background-color: var(--success-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#salesInvoicesTable thead th {
+  background-color: var(--info-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+#inventoryReportsTable tbody tr:hover,
+#purchaseInvoicesTable tbody tr:hover,
+#salesInvoicesTable tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.dark-mode #inventoryReportsTable thead th {
+  background-color: #0056b3;
+}
+
+.dark-mode #purchaseInvoicesTable thead th {
+  background-color: #1e7e34;
+}
+
+.dark-mode #salesInvoicesTable thead th {
+  background-color: #138496;
+}
+
+.dark-mode #inventoryReportsTable tbody tr:hover,
+.dark-mode #purchaseInvoicesTable tbody tr:hover,
+.dark-mode #salesInvoicesTable tbody tr:hover {
+  background-color: #3f4a56;
+}
+
+/* =========================================
    Company Information Styling
 ========================================= */
 .company-info-form {
