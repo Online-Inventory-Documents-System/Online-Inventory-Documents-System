@@ -87,9 +87,21 @@ function validateRequiredFields(fields) {
   return true;
 }
 
-// Auth redirect
+// Auth redirect - FIXED: Redirect to login only if not on login page
 if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
   try { window.location.href = 'login.html'; } catch(e) {}
+}
+
+// FIXED: Redirect from index.html to login if not logged in
+if(window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+  if(!sessionStorage.getItem('isLoggedIn')) {
+    try { window.location.href = 'login.html'; } catch(e) {}
+  } else {
+    // If logged in and on index.html, redirect to inventory.html (main page)
+    if(window.location.pathname.includes('index.html')) {
+      window.location.href = 'inventory.html';
+    }
+  }
 }
 
 function logout(){
@@ -397,6 +409,9 @@ function renderInventory(items) {
   list.innerHTML = '';
   let totalValue = 0, totalRevenue = 0, totalStock = 0;
 
+  // Calculate starting number for current page
+  const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
+
   paginatedItems.forEach((it, index) => {
     const id = it.id || it._id;
     const qty = Number(it.quantity || 0);
@@ -429,21 +444,19 @@ function renderInventory(items) {
     if(qty === 0) tr.classList.add('out-of-stock-row');
     else if(qty < 10) tr.classList.add('low-stock-row');
 
-    // Calculate the actual row number (considering pagination)
-    const rowNumber = ((currentPageNumber - 1) * itemsPerPage) + index + 1;
-
+    // UPDATED: Added NO column with sequential numbering
     tr.innerHTML = `
-      <td class="no">${rowNumber}</td> <!-- ADDED: Number column -->
-      <td>${escapeHtml(it.sku||'')}</td>
-      <td>${escapeHtml(it.name||'')}</td>
-      <td>${escapeHtml(it.category||'')}</td>
-      <td>${qty}</td>
-      <td class="money">RM ${uc.toFixed(2)}</td>
-      <td class="money">RM ${up.toFixed(2)}</td>
-      <td class="money">RM ${invVal.toFixed(2)}</td>
-      <td class="money">RM ${rev.toFixed(2)}</td>
-      <td>${escapeHtml(date)}</td>
-      <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+      <td class="no-column">${startNumber + index}</td>
+      <td class="sku-column">${escapeHtml(it.sku||'')}</td>
+      <td class="name-column">${escapeHtml(it.name||'')}</td>
+      <td class="category-column">${escapeHtml(it.category||'')}</td>
+      <td class="quantity-column">${qty}</td>
+      <td class="money unit-cost">RM ${uc.toFixed(2)}</td>
+      <td class="money unit-price">RM ${up.toFixed(2)}</td>
+      <td class="money inventory-value">RM ${invVal.toFixed(2)}</td>
+      <td class="money revenue">RM ${rev.toFixed(2)}</td>
+      <td class="date-column">${escapeHtml(date)}</td>
+      <td class="status-column"><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
@@ -761,13 +774,11 @@ function renderSalesHistory() {
   if (!list) return;
   list.innerHTML = '';
   
-  sales.forEach((s, index) => {
+  sales.forEach(s => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="no">${index + 1}</td> <!-- ADDED: Number column -->
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
-      <td>${escapeHtml(s.customerContact || '')}</td> <!-- ADDED: Customer Contact -->
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(s.salesDate || 'N/A')}</td>
@@ -1088,7 +1099,7 @@ async function viewSalesDetails(salesId) {
     const detailElements = {
       'detailSalesId': 'detailSalesId',
       'detailCustomer': 'detailCustomer',
-      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer Contact
+      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer contact
       'detailSalesDate': 'detailSalesDate',
       'detailSalesTotalAmount': 'detailSalesTotalAmount',
       'detailSalesNotes': 'detailSalesNotes',
@@ -1106,8 +1117,8 @@ async function viewSalesDetails(salesId) {
           case 'detailCustomer':
             element.textContent = sale.customer || 'N/A';
             break;
-          case 'detailCustomerContact': // ADDED: Customer Contact
-            element.textContent = sale.customerContact || 'N/A';
+          case 'detailCustomerContact': // ADDED: Set customer contact
+            element.textContent = sale.customerContact || sale.customer || 'N/A';
             break;
           case 'detailSalesDate':
             element.textContent = sale.salesDate || 'N/A';
@@ -1140,7 +1151,7 @@ async function viewSalesDetails(salesId) {
         sale.items.forEach((item, index) => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td class="no">${index + 1}</td> <!-- ADDED: Number column -->
+            <td>${index + 1}</td>
             <td>${escapeHtml(item.sku || 'N/A')}</td>
             <td>${escapeHtml(item.productName || 'N/A')}</td>
             <td>${item.quantity || 0}</td>
@@ -1257,13 +1268,11 @@ function renderPurchaseHistory() {
   if (!list) return;
   list.innerHTML = '';
   
-  purchases.forEach((p, index) => {
+  purchases.forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="no">${index + 1}</td> <!-- ADDED: Number column -->
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
-      <td>${escapeHtml(p.supplierContact || '')}</td> <!-- ADDED: Supplier Contact -->
       <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
@@ -1579,7 +1588,7 @@ async function viewPurchaseDetails(purchaseId) {
     const detailElements = {
       'detailPurchaseId': 'detailPurchaseId',
       'detailSupplier': 'detailSupplier',
-      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier Contact
+      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier contact
       'detailPurchaseDate': 'detailPurchaseDate',
       'detailTotalAmount': 'detailTotalAmount',
       'detailNotes': 'detailNotes',
@@ -1597,8 +1606,8 @@ async function viewPurchaseDetails(purchaseId) {
           case 'detailSupplier':
             element.textContent = purchase.supplier || 'N/A';
             break;
-          case 'detailSupplierContact': // ADDED: Supplier Contact
-            element.textContent = purchase.supplierContact || 'N/A';
+          case 'detailSupplierContact': // ADDED: Set supplier contact
+            element.textContent = purchase.supplierContact || purchase.supplier || 'N/A';
             break;
           case 'detailPurchaseDate':
             element.textContent = purchase.purchaseDate || 'N/A';
@@ -1631,7 +1640,7 @@ async function viewPurchaseDetails(purchaseId) {
         purchase.items.forEach((item, index) => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td class="no">${index + 1}</td> <!-- ADDED: Number column -->
+            <td>${index + 1}</td>
             <td>${escapeHtml(item.sku || 'N/A')}</td>
             <td>${escapeHtml(item.productName || 'N/A')}</td>
             <td>${item.quantity || 0}</td>
