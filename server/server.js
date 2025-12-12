@@ -7,43 +7,11 @@ const xlsx = require('xlsx');
 const mongoose = require('mongoose');
 const path = require('path');
 const PDFDocument = require('pdfkit');
-const moment = require('moment-timezone'); // ADDED FOR TIMEZONE SUPPORT
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
-
-// ===== Malaysia Timezone Configuration =====
-const MALAYSIA_TIMEZONE = 'Asia/Kuala_Lumpur';
-
-// Helper functions for Malaysia timezone
-function getMalaysiaTime() {
-  return moment().tz(MALAYSIA_TIMEZONE).toDate();
-}
-
-function formatMalaysiaDate(date) {
-  return moment(date).tz(MALAYSIA_TIMEZONE).format('DD/MM/YYYY');
-}
-
-function formatMalaysiaDateTime(date) {
-  return moment(date).tz(MALAYSIA_TIMEZONE).format('DD/MM/YYYY HH:mm:ss');
-}
-
-function parseMalaysiaDate(dateString) {
-  // Parse DD/MM/YYYY format
-  const parts = dateString.split('/');
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Months are 0-indexed
-    const year = parseInt(parts[2], 10);
-    const date = new Date(year, month, day);
-    // Convert to Malaysia timezone
-    return moment(date).tz(MALAYSIA_TIMEZONE).toDate();
-  }
-  // Try to parse other formats
-  return moment(dateString).tz(MALAYSIA_TIMEZONE).toDate();
-}
 
 // ===== Middleware =====
 app.use(cors());
@@ -69,11 +37,68 @@ mongoose.connect(MONGODB_URI, {
 
 const { Schema } = mongoose;
 
+// ===== Helper functions for UTC+8 date formatting =====
+function formatDateUTC8(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  // Convert to UTC+8
+  const utc8Time = new Date(d.getTime() + (8 * 60 * 60 * 1000));
+  const day = utc8Time.getDate().toString().padStart(2, '0');
+  const month = (utc8Time.getMonth() + 1).toString().padStart(2, '0');
+  const year = utc8Time.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function formatDateTimeUTC8(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  // Convert to UTC+8
+  const utc8Time = new Date(d.getTime() + (8 * 60 * 60 * 1000));
+  const day = utc8Time.getDate().toString().padStart(2, '0');
+  const month = (utc8Time.getMonth() + 1).toString().padStart(2, '0');
+  const year = utc8Time.getFullYear();
+  
+  let hours = utc8Time.getHours();
+  const minutes = utc8Time.getMinutes().toString().padStart(2, '0');
+  const seconds = utc8Time.getSeconds().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  const strHours = hours.toString().padStart(2, '0');
+  
+  return `${day}/${month}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
+}
+
+function formatDateForDisplay(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  const utc8Time = new Date(d.getTime() + (8 * 60 * 60 * 1000));
+  return utc8Time.toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
+
+function formatTime12Hour(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  const utc8Time = new Date(d.getTime() + (8 * 60 * 60 * 1000));
+  return utc8Time.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+}
+
 // ===== Schemas =====
 const UserSchema = new Schema({
   username: { type: String, unique: true, required: true },
   password: { type: String, required: true },
-  createdAt: { type: Date, default: getMalaysiaTime } // Updated to use Malaysia time
+  createdAt: { type: Date, default: Date.now }
 });
 const User = mongoose.model("User", UserSchema);
 
@@ -82,7 +107,7 @@ const CompanySchema = new Schema({
   address: { type: String, default: "Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka" },
   phone: { type: String, default: "01133127622" },
   email: { type: String, default: "lbcompany@gmail.com" },
-  updatedAt: { type: Date, default: getMalaysiaTime } // Updated to use Malaysia time
+  updatedAt: { type: Date, default: Date.now }
 });
 const Company = mongoose.model("Company", CompanySchema);
 
@@ -93,7 +118,7 @@ const InventorySchema = new Schema({
   quantity: { type: Number, default: 0 },
   unitCost: { type: Number, default: 0 },
   unitPrice: { type: Number, default: 0 },
-  createdAt: { type: Date, default: getMalaysiaTime } // Updated to use Malaysia time
+  createdAt: { type: Date, default: Date.now }
 });
 const Inventory = mongoose.model("Inventory", InventorySchema);
 
@@ -110,11 +135,11 @@ const PurchaseSchema = new Schema({
   purchaseId: { type: String, unique: true, required: true },
   supplier: String,
   supplierContact: String,
-  purchaseDate: { type: Date, default: getMalaysiaTime }, // Updated to use Malaysia time
+  purchaseDate: { type: Date, default: Date.now },
   notes: String,
   items: [PurchaseItemSchema],
   totalAmount: { type: Number, default: 0 },
-  createdAt: { type: Date, default: getMalaysiaTime } // Updated to use Malaysia time
+  createdAt: { type: Date, default: Date.now }
 });
 const Purchase = mongoose.model("Purchase", PurchaseSchema);
 
@@ -131,11 +156,11 @@ const SalesSchema = new Schema({
   salesId: { type: String, unique: true, required: true },
   customer: String,
   customerContact: String,
-  salesDate: { type: Date, default: getMalaysiaTime }, // Updated to use Malaysia time
+  salesDate: { type: Date, default: Date.now },
   notes: String,
   items: [SalesItemSchema],
   totalAmount: { type: Number, default: 0 },
-  createdAt: { type: Date, default: getMalaysiaTime } // Updated to use Malaysia time
+  createdAt: { type: Date, default: Date.now }
 });
 const Sales = mongoose.model("Sales", SalesSchema);
 
@@ -144,7 +169,7 @@ const FolderSchema = new Schema({
   name: { type: String, required: true },
   parentFolder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
   path: { type: String, default: '' },
-  createdAt: { type: Date, default: getMalaysiaTime }, // Updated to use Malaysia time
+  createdAt: { type: Date, default: Date.now },
   createdBy: String
 });
 const Folder = mongoose.model("Folder", FolderSchema);
@@ -153,7 +178,7 @@ const Folder = mongoose.model("Folder", FolderSchema);
 const DocumentSchema = new Schema({
   name: String,
   size: Number,
-  date: { type: Date, default: getMalaysiaTime }, // Updated to use Malaysia time
+  date: { type: Date, default: Date.now },
   data: Buffer,
   contentType: String,
   folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },
@@ -167,7 +192,7 @@ const LogSchema = new Schema({
   user: String,
   action: String,
   device: String,
-  time: { type: Date, default: getMalaysiaTime } // Updated to use Malaysia time
+  time: { type: Date, default: Date.now }
 });
 const ActivityLog = mongoose.model("ActivityLog", LogSchema);
 
@@ -199,7 +224,7 @@ async function logActivity(user, action, device = 'Unknown Device') {
       user: safeUser,
       action: safeAction,
       device: device,
-      time: getMalaysiaTime() // Use Malaysia time
+      time: new Date()
     });
 
   } catch (err) {
@@ -228,12 +253,7 @@ async function getCompanyInfo() {
 
 // ===== Health Check =====
 app.get("/api/test", (req, res) => {
-  res.json({ 
-    success: true, 
-    message: "API is up", 
-    time: formatMalaysiaDateTime(new Date()),
-    timezone: MALAYSIA_TIMEZONE 
-  });
+  res.json({ success: true, message: "API is up", time: new Date().toISOString() });
 });
 
 // ============================================================================
@@ -308,7 +328,7 @@ app.put("/api/company", async (req, res) => {
       company.address = address;
       company.phone = phone;
       company.email = email;
-      company.updatedAt = getMalaysiaTime();
+      company.updatedAt = new Date();
       await company.save();
     }
 
@@ -405,7 +425,7 @@ app.get("/api/inventory", async (req, res) => {
     const normalized = items.map(i => ({
       ...i,
       id: i._id.toString(),
-      createdAt: formatMalaysiaDateTime(i.createdAt) // Format date for display
+      createdAt: formatDateUTC8(i.createdAt) // Format date to DD/MM/YYYY
     }));
     res.json(normalized);
   } catch (err) {
@@ -422,7 +442,7 @@ app.post("/api/inventory", async (req, res) => {
     res.status(201).json({
       ...item.toObject(),
       id: item._id.toString(),
-      createdAt: formatMalaysiaDateTime(item.createdAt)
+      createdAt: formatDateUTC8(item.createdAt)
     });
 
   } catch (err) {
@@ -441,7 +461,7 @@ app.put("/api/inventory/:id", async (req, res) => {
     res.json({
       ...item.toObject(),
       id: item._id.toString(),
-      createdAt: formatMalaysiaDateTime(item.createdAt)
+      createdAt: formatDateUTC8(item.createdAt)
     });
 
   } catch (err) {
@@ -481,8 +501,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     let query = {};
     
     if (startDate && endDate) {
-      const start = parseMalaysiaDate(startDate);
-      const end = parseMalaysiaDate(endDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
       query.createdAt = {
@@ -490,12 +510,12 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         $lte: end
       };
       
-      console.log(`Querying items between ${formatMalaysiaDateTime(start)} and ${formatMalaysiaDateTime(end)}`);
+      console.log(`Querying items between ${start} and ${end}`);
     } else if (startDate) {
-      const start = parseMalaysiaDate(startDate);
+      const start = new Date(startDate);
       query.createdAt = { $gte: start };
     } else if (endDate) {
-      const end = parseMalaysiaDate(endDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       query.createdAt = { $lte: end };
     }
@@ -510,15 +530,16 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     }
 
     const company = await getCompanyInfo();
-    const now = getMalaysiaTime();
-    const printDate = formatMalaysiaDateTime(now);
+    const now = new Date();
+    const printDate = formatDateTimeUTC8(now); // Use UTC+8 formatted date/time
+    
     const reportId = `INV-REP-${Date.now()}`;
     const printedBy = req.headers["x-username"] || "System";
     const dateRangeText = startDate && endDate 
-      ? `${formatMalaysiaDate(parseMalaysiaDate(startDate))} to ${formatMalaysiaDate(parseMalaysiaDate(endDate))}`
+      ? `${formatDateUTC8(startDate)} to ${formatDateUTC8(endDate)}`
       : 'All Dates';
     
-    const filename = `Inventory_Report_${formatMalaysiaDate(now).replace(/\//g, '-')}_${Date.now()}.pdf`;
+    const filename = `Inventory_Report_${now.toISOString().slice(0, 10)}_${Date.now()}.pdf`;
 
     console.log(`📊 Generating PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -562,7 +583,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         doc.text(`Report ID: ${reportId}`, 620, 78);
         doc.text(`Date Range: ${dateRangeText}`, 620, 93);
         doc.text(`Printed by: ${printedBy}`, 620, 108);
-        doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, 620, 123);
 
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
@@ -577,14 +597,13 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           { name: "Unit Price", x: 430, width: 70 },
           { name: "Inventory Value", x: 500, width: 85 },
           { name: "Potential Revenue", x: 585, width: 95 },
-          { name: "Potential Profit", x: 680, width: 100 },
-          { name: "Created Date", x: 780, width: 80 }
+          { name: "Potential Profit", x: 680, width: 100 }
         ];
         
         let y = 150;
 
         function drawTableHeader() {
-          doc.rect(columns[0].x, y, 820, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
@@ -607,9 +626,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           const inventoryValue = qty * cost;
           const potentialRevenue = qty * price;
           const potentialProfit = potentialRevenue - inventoryValue;
-          const createdDate = formatMalaysiaDate(item.createdAt);
 
-          doc.rect(columns[0].x, y, 820, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
@@ -627,7 +645,6 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
           doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
           doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
-          doc.text(createdDate, columns[9].x + 3, y + 5);
           
           y += rowHeight;
           
@@ -674,13 +691,12 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           boxY = 40;
         }
         
-        doc.rect(560, boxY, 300, 88).stroke();
+        doc.rect(560, boxY, 230, 88).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
         doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
         doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
         doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
         doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, 570, boxY + 64);
-        doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, 570, boxY + 82);
 
         doc.flushPages();
 
@@ -703,7 +719,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
-      date: getMalaysiaTime(),
+      date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
       tags: ['inventory-report', 'pdf']
@@ -735,8 +751,8 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
     let query = {};
     
     if (startDate && endDate) {
-      const start = parseMalaysiaDate(startDate);
-      const end = parseMalaysiaDate(endDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
       query.purchaseDate = {
@@ -744,10 +760,10 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         $lte: end
       };
     } else if (startDate) {
-      const start = parseMalaysiaDate(startDate);
+      const start = new Date(startDate);
       query.purchaseDate = { $gte: start };
     } else if (endDate) {
-      const end = parseMalaysiaDate(endDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       query.purchaseDate = { $lte: end };
     }
@@ -761,10 +777,10 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
     const company = await getCompanyInfo();
     const printedBy = req.headers["x-username"] || "System";
     const dateRangeText = startDate && endDate 
-      ? `${formatMalaysiaDate(parseMalaysiaDate(startDate))} to ${formatMalaysiaDate(parseMalaysiaDate(endDate))}`
+      ? `${formatDateUTC8(startDate)} to ${formatDateUTC8(endDate)}`
       : 'All Dates';
     
-    const filename = `Purchase_Report_${formatMalaysiaDate(getMalaysiaTime()).replace(/\//g, '-')}.pdf`;
+    const filename = `Purchase_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     console.log(`📊 Generating Purchase PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -793,11 +809,10 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
         doc.fontSize(12).font('Helvetica-Bold')
            .text('PURCHASE REPORT', rightX, topY, { align: 'right' });
         doc.fontSize(10).font('Helvetica')
-           .text(`Generated: ${formatMalaysiaDateTime(getMalaysiaTime())}`, rightX, topY + 20, { align: 'right' });
+           .text(`Generated: ${formatDateTimeUTC8(new Date())}`, rightX, topY + 20, { align: 'right' });
         doc.text(`By: ${printedBy}`, { align: 'right' });
         doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
         doc.text(`Total Orders: ${purchases.length}`, { align: 'right' });
-        doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, { align: 'right' });
 
         const grandTotal = purchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
         doc.font('Helvetica-Bold')
@@ -852,7 +867,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
              .text(purchase.supplier || 'N/A', colX.supplier, y, { width: 130 })
              .text(`${purchase.items.length} items`, colX.items, y, { width: 90, align: 'center' })
              .text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
-             .text(formatMalaysiaDate(purchase.purchaseDate), colX.date, y, { width: 70, align: 'center' });
+             .text(formatDateUTC8(purchase.purchaseDate), colX.date, y, { width: 70, align: 'center' });
 
           y += 18;
         });
@@ -872,7 +887,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
           doc.switchToPage(i);
           doc.fontSize(8)
              .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count} | Timezone: ${MALAYSIA_TIMEZONE}`, 36, doc.page.height - 30, { 
+             .text(`Page ${i + 1} of ${range.count}`, 36, doc.page.height - 30, { 
                align: 'center', 
                width: doc.page.width - 72 
              });
@@ -890,7 +905,7 @@ app.post("/api/purchases/report/pdf", async (req, res) => {
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
-      date: getMalaysiaTime(),
+      date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
       tags: ['purchase-report', 'pdf']
@@ -920,8 +935,8 @@ app.post("/api/sales/report/pdf", async (req, res) => {
     let query = {};
     
     if (startDate && endDate) {
-      const start = parseMalaysiaDate(startDate);
-      const end = parseMalaysiaDate(endDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
       query.salesDate = {
@@ -929,10 +944,10 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         $lte: end
       };
     } else if (startDate) {
-      const start = parseMalaysiaDate(startDate);
+      const start = new Date(startDate);
       query.salesDate = { $gte: start };
     } else if (endDate) {
-      const end = parseMalaysiaDate(endDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       query.salesDate = { $lte: end };
     }
@@ -946,10 +961,10 @@ app.post("/api/sales/report/pdf", async (req, res) => {
     const company = await getCompanyInfo();
     const printedBy = req.headers["x-username"] || "System";
     const dateRangeText = startDate && endDate 
-      ? `${formatMalaysiaDate(parseMalaysiaDate(startDate))} to ${formatMalaysiaDate(parseMalaysiaDate(endDate))}`
+      ? `${formatDateUTC8(startDate)} to ${formatDateUTC8(endDate)}`
       : 'All Dates';
     
-    const filename = `Sales_Report_${formatMalaysiaDate(getMalaysiaTime()).replace(/\//g, '-')}.pdf`;
+    const filename = `Sales_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     console.log(`📊 Generating Sales PDF report: ${filename}, Date Range: ${dateRangeText}`);
 
@@ -978,11 +993,10 @@ app.post("/api/sales/report/pdf", async (req, res) => {
         doc.fontSize(12).font('Helvetica-Bold')
            .text('SALES REPORT', rightX, topY, { align: 'right' });
         doc.fontSize(10).font('Helvetica')
-           .text(`Generated: ${formatMalaysiaDateTime(getMalaysiaTime())}`, rightX, topY + 20, { align: 'right' });
+           .text(`Generated: ${formatDateTimeUTC8(new Date())}`, rightX, topY + 20, { align: 'right' });
         doc.text(`By: ${printedBy}`, { align: 'right' });
         doc.text(`Date Range: ${dateRangeText}`, { align: 'right' });
         doc.text(`Total Orders: ${sales.length}`, { align: 'right' });
-        doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, { align: 'right' });
 
         const grandTotal = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
         doc.font('Helvetica-Bold')
@@ -1037,7 +1051,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
              .text(sale.customer || 'N/A', colX.customer, y, { width: 130 })
              .text(`${sale.items.length} items`, colX.items, y, { width: 90, align: 'center' })
              .text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, colX.amount, y, { width: 70, align: 'right' })
-             .text(formatMalaysiaDate(sale.salesDate), colX.date, y, { width: 70, align: 'center' });
+             .text(formatDateUTC8(sale.salesDate), colX.date, y, { width: 70, align: 'center' });
 
           y += 18;
         });
@@ -1057,7 +1071,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
           doc.switchToPage(i);
           doc.fontSize(8)
              .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count} | Timezone: ${MALAYSIA_TIMEZONE}`, 36, doc.page.height - 30, { 
+             .text(`Page ${i + 1} of ${range.count}`, 36, doc.page.height - 30, { 
                align: 'center', 
                width: doc.page.width - 72 
              });
@@ -1075,7 +1089,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
-      date: getMalaysiaTime(),
+      date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
       tags: ['sales-report', 'pdf']
@@ -1110,8 +1124,8 @@ app.post("/api/reports/generate-all", async (req, res) => {
     let salesQuery = {};
     
     if (startDate && endDate) {
-      const start = parseMalaysiaDate(startDate);
-      const end = parseMalaysiaDate(endDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
 
       inventoryQuery.createdAt = { $gte: start, $lte: end };
@@ -1124,9 +1138,9 @@ app.post("/api/reports/generate-all", async (req, res) => {
     let sales = await Sales.find(salesQuery).sort({ salesDate: -1 }).lean();
 
     const company = await getCompanyInfo();
-    const now = getMalaysiaTime();
+    const now = new Date();
     const dateRangeText = startDate && endDate 
-      ? `${formatMalaysiaDate(parseMalaysiaDate(startDate))} to ${formatMalaysiaDate(parseMalaysiaDate(endDate))}`
+      ? `${formatDateUTC8(startDate)} to ${formatDateUTC8(endDate)}`
       : 'All Dates';
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
@@ -1147,8 +1161,8 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.fontSize(10).font('Helvetica')
            .text(`${company.name}`, 36, 70, { align: 'center' })
            .text(`${company.address} | Phone: ${company.phone} | Email: ${company.email}`, 36, 85, { align: 'center' })
-           .text(`Date Range: ${dateRangeText} | Generated: ${formatMalaysiaDateTime(now)}`, 36, 100, { align: 'center' })
-           .text(`Generated by: ${printedBy} | Timezone: ${MALAYSIA_TIMEZONE}`, 36, 115, { align: 'center' });
+           .text(`Date Range: ${dateRangeText} | Generated: ${formatDateTimeUTC8(new Date())}`, 36, 100, { align: 'center' })
+           .text(`Generated by: ${printedBy}`, 36, 115, { align: 'center' });
 
         doc.moveDown();
 
@@ -1191,9 +1205,8 @@ app.post("/api/reports/generate-all", async (req, res) => {
         doc.text('Cost', 400, invTableTop);
         doc.text('Price', 450, invTableTop);
         doc.text('Value', 500, invTableTop);
-        doc.text('Created', 550, invTableTop);
 
-        doc.moveTo(36, invTableTop + 8).lineTo(610, invTableTop + 8).stroke();
+        doc.moveTo(36, invTableTop + 8).lineTo(560, invTableTop + 8).stroke();
 
         doc.font('Helvetica').fontSize(8);
         let invY = invTableTop + 16;
@@ -1213,7 +1226,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
           doc.text(`RM ${(item.unitCost || 0).toFixed(2)}`, 400, invY, { width: 40, align: 'right' });
           doc.text(`RM ${(item.unitPrice || 0).toFixed(2)}`, 450, invY, { width: 40, align: 'right' });
           doc.text(`RM ${invVal.toFixed(2)}`, 500, invY, { width: 50, align: 'right' });
-          doc.text(formatMalaysiaDate(item.createdAt), 550, invY, { width: 60, align: 'center' });
           
           invY += 12;
         });
@@ -1248,7 +1260,7 @@ app.post("/api/reports/generate-all", async (req, res) => {
           doc.text(purchase.supplier || 'N/A', 150, purY, { width: 140 });
           doc.text(`${purchase.items.length} items`, 300, purY, { width: 90, align: 'center' });
           doc.text(`RM ${(purchase.totalAmount || 0).toFixed(2)}`, 400, purY, { width: 70, align: 'right' });
-          doc.text(formatMalaysiaDate(purchase.purchaseDate), 480, purY, { width: 70, align: 'center' });
+          doc.text(formatDateUTC8(purchase.purchaseDate), 480, purY, { width: 70, align: 'center' });
           
           purY += 12;
         });
@@ -1283,7 +1295,7 @@ app.post("/api/reports/generate-all", async (req, res) => {
           doc.text(sale.customer || 'N/A', 150, salesY, { width: 140 });
           doc.text(`${sale.items.length} items`, 300, salesY, { width: 90, align: 'center' });
           doc.text(`RM ${(sale.totalAmount || 0).toFixed(2)}`, 400, salesY, { width: 70, align: 'right' });
-          doc.text(formatMalaysiaDate(sale.salesDate), 480, salesY, { width: 70, align: 'center' });
+          doc.text(formatDateUTC8(sale.salesDate), 480, salesY, { width: 70, align: 'center' });
           
           salesY += 12;
         });
@@ -1317,8 +1329,6 @@ app.post("/api/reports/generate-all", async (req, res) => {
           doc.fillColor('red').text(`• Status: LOSS`, 50, summaryY + 215);
         }
         doc.fillColor('black');
-        
-        doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, 36, summaryY + 245);
 
         doc.fontSize(9).font('Helvetica')
            .text(`Generated by ${company.name} Inventory System - Comprehensive Report`, 
@@ -1329,7 +1339,7 @@ app.post("/api/reports/generate-all", async (req, res) => {
           doc.switchToPage(i);
           doc.fontSize(8)
              .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count} - Comprehensive Report | Timezone: ${MALAYSIA_TIMEZONE}`, 
+             .text(`Page ${i + 1} of ${range.count} - Comprehensive Report`, 
                    36, doc.page.height - 30, { 
                      align: 'center', 
                      width: doc.page.width - 72 
@@ -1343,14 +1353,14 @@ app.post("/api/reports/generate-all", async (req, res) => {
       }
     });
 
-    const filename = `Comprehensive_Report_${formatMalaysiaDate(now).replace(/\//g, '-')}.pdf`;
+    const filename = `Comprehensive_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     console.log(`💾 Saving Comprehensive PDF to database: ${pdfBuffer.length} bytes`);
 
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
-      date: now,
+      date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
       tags: ['comprehensive-report', 'all-reports', 'pdf']
@@ -1379,8 +1389,7 @@ app.get("/api/purchases", async (req, res) => {
     const normalized = purchases.map(p => ({
       ...p,
       id: p._id.toString(),
-      purchaseDate: formatMalaysiaDateTime(p.purchaseDate), // Format for display
-      createdAt: formatMalaysiaDateTime(p.createdAt) // Format for display
+      purchaseDate: formatDateUTC8(p.purchaseDate)
     }));
     res.json(normalized);
   } catch (err) {
@@ -1397,16 +1406,15 @@ app.get("/api/purchases/:id", async (req, res) => {
       return res.status(404).json({ message: "Purchase not found" });
     }
     
-    // Format dates for display
-    const formattedPurchase = {
+    // Include both id and _id for compatibility
+    const response = {
       ...purchase,
       id: purchase._id.toString(),
       _id: purchase._id.toString(),
-      purchaseDate: formatMalaysiaDateTime(purchase.purchaseDate),
-      createdAt: formatMalaysiaDateTime(purchase.createdAt)
+      purchaseDate: formatDateUTC8(purchase.purchaseDate)
     };
     
-    res.json(formattedPurchase);
+    res.json(response);
   } catch (err) {
     console.error("purchase get error", err);
     res.status(500).json({ message: "Server error" });
@@ -1444,14 +1452,11 @@ app.post("/api/purchases", async (req, res) => {
       }
     }
 
-    // Parse purchase date to Malaysia timezone
-    const parsedPurchaseDate = purchaseDate ? parseMalaysiaDate(purchaseDate) : getMalaysiaTime();
-
     const purchase = await Purchase.create({
       purchaseId,
       supplier,
       supplierContact: supplierContact || supplier || 'N/A',
-      purchaseDate: parsedPurchaseDate,
+      purchaseDate: purchaseDate || new Date(),
       notes,
       items: purchaseItems,
       totalAmount
@@ -1463,8 +1468,7 @@ app.post("/api/purchases", async (req, res) => {
       ...purchase.toObject(),
       id: purchase._id.toString(),
       purchaseId: purchase.purchaseId,
-      purchaseDate: formatMalaysiaDateTime(purchase.purchaseDate),
-      createdAt: formatMalaysiaDateTime(purchase.createdAt)
+      purchaseDate: formatDateUTC8(purchase.purchaseDate)
     });
 
   } catch (err) {
@@ -1515,15 +1519,12 @@ app.put("/api/purchases/:id", async (req, res) => {
       }
     }
 
-    // Parse purchase date to Malaysia timezone
-    const parsedPurchaseDate = purchaseDate ? parseMalaysiaDate(purchaseDate) : existingPurchase.purchaseDate;
-
     const purchase = await Purchase.findByIdAndUpdate(
       req.params.id,
       {
         supplier,
         supplierContact: supplierContact || supplier || 'N/A',
-        purchaseDate: parsedPurchaseDate,
+        purchaseDate,
         notes,
         items: purchaseItems,
         totalAmount
@@ -1536,8 +1537,7 @@ app.put("/api/purchases/:id", async (req, res) => {
     res.json({
       ...purchase.toObject(),
       id: purchase._id.toString(),
-      purchaseDate: formatMalaysiaDateTime(purchase.purchaseDate),
-      createdAt: formatMalaysiaDateTime(purchase.createdAt)
+      purchaseDate: formatDateUTC8(purchase.purchaseDate)
     });
 
   } catch (err) {
@@ -1579,8 +1579,7 @@ app.get("/api/sales", async (req, res) => {
     const normalized = sales.map(s => ({
       ...s,
       id: s._id.toString(),
-      salesDate: formatMalaysiaDateTime(s.salesDate), // Format for display
-      createdAt: formatMalaysiaDateTime(s.createdAt) // Format for display
+      salesDate: formatDateUTC8(s.salesDate)
     }));
     res.json(normalized);
   } catch (err) {
@@ -1597,16 +1596,15 @@ app.get("/api/sales/:id", async (req, res) => {
       return res.status(404).json({ message: "Sales not found" });
     }
     
-    // Format dates for display
-    const formattedSale = {
+    // Include both id and _id for compatibility
+    const response = {
       ...sale,
       id: sale._id.toString(),
       _id: sale._id.toString(),
-      salesDate: formatMalaysiaDateTime(sale.salesDate),
-      createdAt: formatMalaysiaDateTime(sale.createdAt)
+      salesDate: formatDateUTC8(sale.salesDate)
     };
     
-    res.json(formattedSale);
+    res.json(response);
   } catch (err) {
     console.error("sales get error", err);
     res.status(500).json({ message: "Server error" });
@@ -1646,14 +1644,11 @@ app.post("/api/sales", async (req, res) => {
       }
     }
 
-    // Parse sales date to Malaysia timezone
-    const parsedSalesDate = salesDate ? parseMalaysiaDate(salesDate) : getMalaysiaTime();
-
     const sale = await Sales.create({
       salesId,
       customer,
       customerContact: customerContact || customer || 'N/A',
-      salesDate: parsedSalesDate,
+      salesDate: salesDate || new Date(),
       notes,
       items: salesItems,
       totalAmount
@@ -1665,8 +1660,7 @@ app.post("/api/sales", async (req, res) => {
       ...sale.toObject(),
       id: sale._id.toString(),
       salesId: sale.salesId,
-      salesDate: formatMalaysiaDateTime(sale.salesDate),
-      createdAt: formatMalaysiaDateTime(sale.createdAt)
+      salesDate: formatDateUTC8(sale.salesDate)
     });
 
   } catch (err) {
@@ -1719,15 +1713,12 @@ app.put("/api/sales/:id", async (req, res) => {
       }
     }
 
-    // Parse sales date to Malaysia timezone
-    const parsedSalesDate = salesDate ? parseMalaysiaDate(salesDate) : existingSale.salesDate;
-
     const sale = await Sales.findByIdAndUpdate(
       req.params.id,
       {
         customer,
         customerContact: customerContact || customer || 'N/A',
-        salesDate: parsedSalesDate,
+        salesDate,
         notes,
         items: salesItems,
         totalAmount
@@ -1740,8 +1731,7 @@ app.put("/api/sales/:id", async (req, res) => {
     res.json({
       ...sale.toObject(),
       id: sale._id.toString(),
-      salesDate: formatMalaysiaDateTime(sale.salesDate),
-      createdAt: formatMalaysiaDateTime(sale.createdAt)
+      salesDate: formatDateUTC8(sale.salesDate)
     });
 
   } catch (err) {
@@ -1799,8 +1789,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           },
           docMeta: {
             reference: purchase.purchaseId,
-            dateString: formatMalaysiaDate(purchase.purchaseDate),
-            timeString: formatMalaysiaDateTime(purchase.purchaseDate),
+            dateString: formatDateUTC8(purchase.purchaseDate),
             status: 'PURCHASE'
           },
           customer: {
@@ -1864,8 +1853,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
       },
       docMeta: {
         reference: purchase.purchaseId,
-        dateString: formatMalaysiaDate(purchase.purchaseDate),
-        timeString: formatMalaysiaDateTime(purchase.purchaseDate),
+        dateString: formatDateUTC8(purchase.purchaseDate),
         status: 'PURCHASE'
       },
       customer: {
@@ -1893,7 +1881,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
-      date: getMalaysiaTime(),
+      date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
       tags: ['purchase-invoice', 'pdf', 'statement'],
@@ -1906,8 +1894,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
     delete docObject.data;
     res.json({
       ...docObject,
-      id: docObject._id.toString(),
-      date: formatMalaysiaDateTime(docObject.date)
+      id: docObject._id.toString()
     });
 
   } catch (err) {
@@ -1941,8 +1928,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           },
           docMeta: {
             reference: sale.salesId,
-            dateString: formatMalaysiaDate(sale.salesDate),
-            timeString: formatMalaysiaDateTime(sale.salesDate),
+            dateString: formatDateUTC8(sale.salesDate),
             status: 'SALES'
           },
           customer: {
@@ -2006,8 +1992,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
       },
       docMeta: {
         reference: sale.salesId,
-        dateString: formatMalaysiaDate(sale.salesDate),
-        timeString: formatMalaysiaDateTime(sale.salesDate),
+        dateString: formatDateUTC8(sale.salesDate),
         status: 'SALES'
       },
       customer: {
@@ -2035,7 +2020,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
-      date: getMalaysiaTime(),
+      date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
       tags: ['sales-invoice', 'pdf', 'statement'],
@@ -2048,8 +2033,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
     delete docObject.data;
     res.json({
       ...docObject,
-      id: docObject._id.toString(),
-      date: formatMalaysiaDateTime(docObject.date)
+      id: docObject._id.toString()
     });
 
   } catch (err) {
@@ -2086,12 +2070,10 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
          .text(title, rightX, topY, { align: 'right' });
       doc.fontSize(10).font('Helvetica')
          .text(`No: ${docMeta.reference || ''}`, rightX, topY + 20, { align: 'right' });
-      doc.text(`Date: ${docMeta.dateString || formatMalaysiaDate(getMalaysiaTime())}`, { align: 'right' });
-      doc.text(`Time: ${docMeta.timeString || formatMalaysiaDateTime(getMalaysiaTime())}`, { align: 'right' });
+      doc.text(`Date: ${docMeta.dateString || formatDateUTC8(new Date())}`, { align: 'right' });
       doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
-      doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, { align: 'right' });
 
-      const customerY = 140;
+      const customerY = 120;
       doc.fontSize(10).font('Helvetica-Bold')
          .text(title.includes('PURCHASE') ? 'Supplier:' : 'Customer:', 36, customerY);
       doc.font('Helvetica')
@@ -2100,7 +2082,7 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         doc.text(`Contact: ${customer.contact}`, 36, doc.y);
       }
 
-      const tableTop = 180;
+      const tableTop = 170;
       const colX = { 
         item: 36, 
         sku: 260, 
@@ -2170,13 +2152,11 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
       doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
 
-      doc.text(`Timezone: ${MALAYSIA_TIMEZONE}`, 400, totalsY + 85, { width: 160, align: 'right' });
-
       if (extraNotes) {
         doc.moveDown(2);
         doc.font('Helvetica').fontSize(9)
-           .text('Notes:', 36, totalsY + 110)
-           .text(extraNotes, 36, totalsY + 125, { width: 500 });
+           .text('Notes:', 36, totalsY + 90)
+           .text(extraNotes, 36, totalsY + 105, { width: 500 });
       }
 
       doc.fontSize(9).font('Helvetica')
@@ -2188,7 +2168,7 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         doc.switchToPage(i);
         doc.fontSize(8)
            .fillColor('#666666')
-           .text(`Page ${i + 1} of ${range.count} | Timezone: ${MALAYSIA_TIMEZONE}`, 
+           .text(`Page ${i + 1} of ${range.count}`, 
                  36, doc.page.height - 30, 
                  { align: 'center', width: doc.page.width - 72 });
       }
@@ -2208,8 +2188,7 @@ app.get("/api/folders", async (req, res) => {
     const folders = await Folder.find({}).sort({ name: 1 }).lean();
     const normalized = folders.map(f => ({
       ...f,
-      id: f._id.toString(),
-      createdAt: formatMalaysiaDateTime(f.createdAt)
+      id: f._id.toString()
     }));
     res.json(normalized);
   } catch (err) {
@@ -2246,8 +2225,7 @@ app.post("/api/folders", async (req, res) => {
 
     res.status(201).json({
       ...folder.toObject(),
-      id: folder._id.toString(),
-      createdAt: formatMalaysiaDateTime(folder.createdAt)
+      id: folder._id.toString()
     });
 
   } catch (err) {
@@ -2279,8 +2257,7 @@ app.put("/api/folders/:id", async (req, res) => {
 
     res.json({
       ...folder.toObject(),
-      id: folder._id.toString(),
-      createdAt: formatMalaysiaDateTime(folder.createdAt)
+      id: folder._id.toString()
     });
 
   } catch (err) {
@@ -2375,7 +2352,7 @@ app.post("/api/documents", async (req, res) => {
         const docu = await Doc.create({
           name: fileName,
           size: fileBuffer.length,
-          date: getMalaysiaTime(),
+          date: new Date(),
           data: fileBuffer,
           contentType: contentType || "application/octet-stream",
           folder: folderId || null,
@@ -2395,7 +2372,7 @@ app.post("/api/documents", async (req, res) => {
         res.status(201).json([{ 
           ...docu.toObject(), 
           id: docu._id.toString(),
-          date: formatMalaysiaDateTime(docu.date)
+          date: formatDateTimeUTC8(docu.date) // Format date to UTC+8
         }]);
 
         console.log(`✅ Upload completed successfully: ${fileName}`);
@@ -2443,7 +2420,7 @@ app.get("/api/documents", async (req, res) => {
     const result = docs.map(d => ({ 
       ...d, 
       id: d._id.toString(),
-      date: formatMalaysiaDateTime(d.date)
+      date: formatDateTimeUTC8(d.date) // Format date to UTC+8
     }));
     res.json(result);
   } catch (err) {
@@ -2462,8 +2439,7 @@ app.get("/api/documents/:id/check", async (req, res) => {
     res.json({
       hasData: !!(docu.data && docu.data.length > 0),
       size: docu.size,
-      name: docu.name,
-      date: formatMalaysiaDateTime(docu.date)
+      name: docu.name
     });
   } catch (err) {
     console.error("Document check error:", err);
@@ -2491,7 +2467,7 @@ app.get("/api/documents/:id/verify", async (req, res) => {
       hasData: !!docu.data,
       isBuffer: Buffer.isBuffer(docu.data),
       contentType: docu.contentType,
-      date: formatMalaysiaDateTime(docu.date)
+      date: formatDateTimeUTC8(docu.date)
     });
   } catch (err) {
     console.error("Document verification error:", err);
@@ -2532,7 +2508,7 @@ app.put("/api/documents/:id/move", async (req, res) => {
     res.json({
       ...docu.toObject(),
       id: docu._id.toString(),
-      date: formatMalaysiaDateTime(docu.date)
+      date: formatDateTimeUTC8(docu.date)
     });
 
   } catch (err) {
@@ -2670,7 +2646,7 @@ app.get("/api/statements/:type", async (req, res) => {
     const result = docs.map(d => ({
       ...d,
       id: d._id.toString(),
-      date: formatMalaysiaDateTime(d.date)
+      date: formatDateTimeUTC8(d.date) // Format date to UTC+8
     }));
 
     res.json(result);
@@ -2690,7 +2666,7 @@ app.get("/api/logs", async (req, res) => {
       user: l.user,
       action: l.action,
       device: l.device || 'Unknown Device',
-      time: formatMalaysiaDateTime(l.time)
+      time: formatDateTimeUTC8(l.time) // Format to UTC+8 with 12-hour format
     })));
   } catch (err) {
     console.error(err);
@@ -2730,7 +2706,7 @@ app.get("/api/logs/login-history", async (req, res) => {
     
     res.json(loginLogs.map(log => ({
       user: log.user,
-      time: formatMalaysiaDateTime(log.time),
+      time: formatDateTimeUTC8(log.time),
       device: log.device || 'Unknown Device'
     })));
   } catch (err) {
@@ -2803,15 +2779,10 @@ app.get("/api/dashboard/stats", async (req, res) => {
         },
         recentActivity: recentLogs.map(log => ({
           ...log,
-          time: formatMalaysiaDateTime(log.time)
+          time: formatDateTimeUTC8(log.time)
         })),
-        lowStockItems: lowStockItems.slice(0, 5).map(item => ({
-          ...item,
-          createdAt: formatMalaysiaDateTime(item.createdAt)
-        }))
-      },
-      currentTime: formatMalaysiaDateTime(getMalaysiaTime()),
-      timezone: MALAYSIA_TIMEZONE
+        lowStockItems: lowStockItems.slice(0, 5)
+      }
     });
     
   } catch (err) {
@@ -2870,24 +2841,22 @@ app.get("/api/search", async (req, res) => {
       inventory: inventoryResults.map(i => ({ 
         ...i, 
         id: i._id.toString(),
-        createdAt: formatMalaysiaDateTime(i.createdAt)
+        createdAt: formatDateUTC8(i.createdAt)
       })),
       purchases: purchaseResults.map(p => ({ 
         ...p, 
         id: p._id.toString(),
-        purchaseDate: formatMalaysiaDateTime(p.purchaseDate),
-        createdAt: formatMalaysiaDateTime(p.createdAt)
+        purchaseDate: formatDateUTC8(p.purchaseDate)
       })),
       sales: salesResults.map(s => ({ 
         ...s, 
         id: s._id.toString(),
-        salesDate: formatMalaysiaDateTime(s.salesDate),
-        createdAt: formatMalaysiaDateTime(s.createdAt)
+        salesDate: formatDateUTC8(s.salesDate)
       })),
       documents: documentResults.map(d => ({ 
         ...d, 
         id: d._id.toString(),
-        date: formatMalaysiaDateTime(d.date)
+        date: formatDateTimeUTC8(d.date)
       }))
     });
     
@@ -2916,9 +2885,7 @@ app.get("/api/inventory/export/excel", async (req, res) => {
       'Inventory Value': (item.quantity || 0) * (item.unitCost || 0),
       'Potential Revenue': (item.quantity || 0) * (item.unitPrice || 0),
       'Potential Profit': ((item.quantity || 0) * (item.unitPrice || 0)) - ((item.quantity || 0) * (item.unitCost || 0)),
-      'Created Date': formatMalaysiaDate(item.createdAt),
-      'Created Time': formatMalaysiaDateTime(item.createdAt),
-      'Timezone': MALAYSIA_TIMEZONE
+      'Created Date': formatDateUTC8(item.createdAt) // Use UTC+8 date format
     }));
     
     const ws = xlsx.utils.json_to_sheet(data);
@@ -2926,7 +2893,7 @@ app.get("/api/inventory/export/excel", async (req, res) => {
     
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
     
-    const filename = `Inventory_Export_${formatMalaysiaDate(getMalaysiaTime()).replace(/\//g, '-')}.xlsx`;
+    const filename = `Inventory_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(buffer);
@@ -2995,9 +2962,7 @@ app.post("/api/inventory/import/excel", async (req, res) => {
       importedCount,
       updatedCount,
       errorCount: errors.length,
-      errors: errors.slice(0, 10),
-      timestamp: formatMalaysiaDateTime(getMalaysiaTime()),
-      timezone: MALAYSIA_TIMEZONE
+      errors: errors.slice(0, 10)
     });
     
   } catch (err) {
@@ -3023,56 +2988,21 @@ app.get("/api/system/backup", async (req, res) => {
     const logs = await ActivityLog.find({}).lean();
     
     const backupData = {
-      timestamp: formatMalaysiaDateTime(getMalaysiaTime()),
-      timezone: MALAYSIA_TIMEZONE,
+      timestamp: formatDateTimeUTC8(new Date()),
       createdBy: username,
       data: {
-        inventory: inventory.map(i => ({ 
-          ...i, 
-          id: i._id.toString(),
-          createdAt: formatMalaysiaDateTime(i.createdAt)
-        })),
-        purchases: purchases.map(p => ({ 
-          ...p, 
-          id: p._id.toString(),
-          purchaseDate: formatMalaysiaDateTime(p.purchaseDate),
-          createdAt: formatMalaysiaDateTime(p.createdAt)
-        })),
-        sales: sales.map(s => ({ 
-          ...s, 
-          id: s._id.toString(),
-          salesDate: formatMalaysiaDateTime(s.salesDate),
-          createdAt: formatMalaysiaDateTime(s.createdAt)
-        })),
-        documents: documents.map(d => ({ 
-          ...d, 
-          id: d._id.toString(),
-          date: formatMalaysiaDateTime(d.date)
-        })),
-        folders: folders.map(f => ({ 
-          ...f, 
-          id: f._id.toString(),
-          createdAt: formatMalaysiaDateTime(f.createdAt)
-        })),
-        users: users.map(u => ({ 
-          ...u, 
-          id: u._id.toString(),
-          createdAt: formatMalaysiaDateTime(u.createdAt)
-        })),
-        company: company.map(c => ({ 
-          ...c, 
-          id: c._id.toString(),
-          updatedAt: formatMalaysiaDateTime(c.updatedAt)
-        })),
-        logs: logs.map(l => ({ 
-          ...l, 
-          id: l._id.toString(),
-          time: formatMalaysiaDateTime(l.time)
-        }))
+        inventory: inventory.map(i => ({ ...i, id: i._id.toString(), createdAt: formatDateUTC8(i.createdAt) })),
+        purchases: purchases.map(p => ({ ...p, id: p._id.toString(), purchaseDate: formatDateUTC8(p.purchaseDate) })),
+        sales: sales.map(s => ({ ...s, id: s._id.toString(), salesDate: formatDateUTC8(s.salesDate) })),
+        documents: documents.map(d => ({ ...d, id: d._id.toString(), date: formatDateTimeUTC8(d.date) })),
+        folders: folders.map(f => ({ ...f, id: f._id.toString() })),
+        users: users.map(u => ({ ...u, id: u._id.toString() })),
+        company: company.map(c => ({ ...c, id: c._id.toString() })),
+        logs: logs.map(l => ({ ...l, id: l._id.toString(), time: formatDateTimeUTC8(l.time) }))
       }
     };
     
-    const filename = `System_Backup_${formatMalaysiaDate(getMalaysiaTime()).replace(/\//g, '-')}_${Date.now()}.json`;
+    const filename = `System_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/json');
@@ -3104,8 +3034,7 @@ app.get("/api/system/health", async (req, res) => {
     
     res.json({
       status: 'healthy',
-      timestamp: formatMalaysiaDateTime(getMalaysiaTime()),
-      timezone: MALAYSIA_TIMEZONE,
+      timestamp: formatDateTimeUTC8(new Date()),
       database: {
         status: dbStatus,
         collections: {
@@ -3125,7 +3054,7 @@ app.get("/api/system/health", async (req, res) => {
         recentErrors: errorLogs.length,
         details: errorLogs.slice(0, 3).map(log => ({
           ...log,
-          time: formatMalaysiaDateTime(log.time)
+          time: formatDateTimeUTC8(log.time)
         }))
       }
     });
@@ -3135,9 +3064,7 @@ app.get("/api/system/health", async (req, res) => {
     res.status(500).json({ 
       status: 'unhealthy',
       message: "Health check failed",
-      error: err.message,
-      timestamp: formatMalaysiaDateTime(getMalaysiaTime()),
-      timezone: MALAYSIA_TIMEZONE
+      error: err.message 
     });
   }
 });
