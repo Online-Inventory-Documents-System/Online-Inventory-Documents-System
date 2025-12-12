@@ -20,34 +20,30 @@
     /* Status badges styling */
     .status-badge {
       display: inline-block;
-      padding: 6px 12px;
-      border-radius: 15px;
-      font-size: 0.85rem;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      min-width: 100px;
     }
     
     .status-in-stock {
-      background-color: #d4f8e8;
-      color: #0d6e4e;
-      border: 1px solid #a3e9cb;
-      box-shadow: 0 2px 4px rgba(13, 110, 78, 0.1);
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
     }
     
     .status-low-stock {
-      background-color: #fff8e1;
-      color: #b85c00;
-      border: 1px solid #ffd54f;
-      box-shadow: 0 2px 4px rgba(184, 92, 0, 0.1);
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
     }
     
     .status-out-of-stock {
-      background-color: #ffeaea;
-      color: #c62828;
-      border: 1px solid #ff8a80;
-      box-shadow: 0 2px 4px rgba(198, 40, 40, 0.1);
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
     }
     
     /* Pagination styling */
@@ -115,20 +111,120 @@
       color: var(--text-light);
     }
     
-    /* Larger modal sizes */
-    .xx-large-modal {
-      width: 1400px;
-      max-width: 98%;
-      max-height: 95vh;
+    /* UPDATED: Improved table text styling */
+    #inventoryTable {
+      font-size: 14px;
+    }
+    
+    #inventoryTable th {
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 12px 8px;
+      background-color: var(--table-header-bg);
+    }
+    
+    #inventoryTable td {
+      padding: 12px 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    #inventoryTable tbody tr:hover {
+      background-color: var(--table-hover-bg);
+    }
+    
+    /* Column-specific styling */
+    .no-column {
+      font-weight: 600;
+      color: var(--primary-color);
+      text-align: center;
+      width: 50px;
+    }
+    
+    .sku-column {
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
+      color: #2c3e50;
+    }
+    
+    .name-column {
+      font-weight: 500;
+      color: #34495e;
+    }
+    
+    .category-column {
+      color: #7f8c8d;
+      font-style: italic;
+    }
+    
+    .quantity-column {
+      font-weight: 600;
+      text-align: center;
+      color: #2980b9;
+    }
+    
+    .money {
+      font-family: 'Courier New', monospace;
+      font-weight: 600;
+      text-align: right;
+    }
+    
+    .unit-cost {
+      color: #e74c3c;
+    }
+    
+    .unit-price {
+      color: #27ae60;
+    }
+    
+    .inventory-value {
+      color: #9b59b6;
+    }
+    
+    .revenue {
+      color: #3498db;
+    }
+    
+    .date-column {
+      color: #7f8c8d;
+      font-size: 12px;
+    }
+    
+    .status-column {
+      text-align: center;
+    }
+    
+    .out-of-stock-row {
+      background-color: rgba(231, 76, 60, 0.05) !important;
+    }
+    
+    .low-stock-row {
+      background-color: rgba(241, 196, 15, 0.05) !important;
+    }
+    
+    /* Action buttons */
+    .actions {
+      text-align: center;
+      white-space: nowrap;
+    }
+    
+    .small-btn {
+      padding: 4px 8px !important;
+      font-size: 11px !important;
+      margin: 2px !important;
+    }
+    
+    /* UPDATED: Larger modals */
+    .modal-content.xx-large-modal {
+      max-width: 95%;
+      width: 95%;
+      max-height: 90vh;
     }
     
     @media (max-width: 1200px) {
       .action-buttons-grid {
         grid-template-columns: repeat(2, 1fr) !important;
-      }
-      
-      .xx-large-modal {
-        width: 95%;
       }
     }
     
@@ -147,24 +243,15 @@
         width: 100%;
         justify-content: center;
       }
-    }
-    
-    /* Contact info in details modal */
-    .contact-info {
-      display: flex;
-      gap: 20px;
-      margin-top: 5px;
-    }
-    
-    .contact-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.9rem;
-    }
-    
-    .contact-icon {
-      color: #007bff;
+      
+      #inventoryTable {
+        font-size: 12px;
+      }
+      
+      #inventoryTable th,
+      #inventoryTable td {
+        padding: 8px 4px;
+      }
     }
   </style>
 </head>
@@ -374,19 +461,18 @@
       <table id="inventoryTable">
           <thead>
               <tr>
-                  <th class="no">NO</th> <!-- ADDED: Number column -->
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
+                  <!-- UPDATED: Added NO column -->
+                  <th class="no-column">NO</th>
+                  <th class="sku-column">SKU</th>
+                  <th class="name-column">Name</th>
+                  <th class="category-column">Category</th>
+                  <th class="quantity-column">Quantity</th>
                   <th class="money">Unit Cost</th>
                   <th class="money">Unit Price</th>
                   <th class="money">Inventory Value</th>
                   <th class="money">Potential Revenue</th>
-                  <!-- UPDATED: Removed Potential Profit column -->
-                  <th>Date</th>
-                  <!-- UPDATED: Added Status column -->
-                  <th class="status">Status</th>
+                  <th class="date-column">Date</th>
+                  <th class="status-column">Status</th>
                   <th class="actions">Actions</th>
               </tr>
           </thead>
@@ -412,22 +498,21 @@
   </section>
 
   <!-- All modals remain the same as before -->
-  <!-- Purchase History Modal -->
+  <!-- Purchase History Modal - UPDATED: Larger modal -->
   <div id="purchaseHistoryModal" class="modal">
-    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>📋 Purchase History</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
         <div class="table-container"> 
-          <table id="purchaseHistoryTable">
+          <table id="purchaseHistoryTable" style="width: 100%; font-size: 13px;">
             <thead>
               <tr>
-                <th class="no">NO</th> <!-- ADDED: Number column -->
                 <th>Purchase ID</th>
                 <th>Supplier</th>
-                <th>Supplier Contact</th> <!-- ADDED: Supplier Contact -->
+                <th>Supplier Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -441,27 +526,25 @@
     </div>
   </div>
 
-  <!-- Sales History Modal -->
+  <!-- Sales History Modal - UPDATED: Larger modal -->
   <div id="salesHistoryModal" class="modal">
-    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>📊 Sales History</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
         <div class="table-container"> 
-          <table id="salesHistoryTable">
+          <table id="salesHistoryTable" style="width: 100%; font-size: 13px;">
             <thead>
               <tr>
-                <th class="no">NO</th> <!-- ADDED: Number column -->
                 <th>Sales ID</th>
                 <th>Customer</th>
-                <th>Customer Contact</th> <!-- ADDED: Customer Contact -->
+                <th>Customer Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
-                <!-- UPDATED: Removed Actions column -->
-                <th class="actions">Download</th>
+                <th class="actions">Actions</th>
               </tr>
             </thead>
             <tbody id="salesHistoryList"></tbody>
@@ -471,9 +554,9 @@
     </div>
   </div>
 
-  <!-- Purchase Details Modal -->
+  <!-- Purchase Details Modal - UPDATED: Added contact information -->
   <div id="purchaseDetailsModal" class="modal">
-    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>📄 Purchase Order Details</h2>
         <span class="close">&times;</span>
@@ -492,7 +575,7 @@
           </div>
           <div class="detail-row">
             <div class="detail-group">
-              <label>Supplier Contact:</label> <!-- ADDED: Supplier Contact -->
+              <label>Supplier Contact:</label>
               <span id="detailSupplierContact" class="detail-value"></span>
             </div>
             <div class="detail-group">
@@ -519,10 +602,10 @@
 
         <h3>Purchase Items</h3>
         <div class="table-container">
-          <table id="purchaseDetailsTable">
+          <table id="purchaseDetailsTable" style="width: 100%;">
             <thead>
               <tr>
-                <th class="no">NO</th> <!-- ADDED: Number column -->
+                <th>NO</th>
                 <th>SKU</th>
                 <th>Product Name</th>
                 <th>Quantity</th>
@@ -536,15 +619,15 @@
 
         <div class="modal-actions">
           <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
-          <button id="closeDetailsModal" class="secondary-btn">✖️ Close</button>
+          <button id="closePurchaseDetailsModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Sales Details Modal -->
+  <!-- Sales Details Modal - UPDATED: Added contact information -->
   <div id="salesDetailsModal" class="modal">
-    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>📄 Sales Order Details</h2>
         <span class="close">&times;</span>
@@ -563,7 +646,7 @@
           </div>
           <div class="detail-row">
             <div class="detail-group">
-              <label>Customer Contact:</label> <!-- ADDED: Customer Contact -->
+              <label>Customer Contact:</label>
               <span id="detailCustomerContact" class="detail-value"></span>
             </div>
             <div class="detail-group">
@@ -590,10 +673,10 @@
 
         <h3>Sales Items</h3>
         <div class="table-container">
-          <table id="salesDetailsTable">
+          <table id="salesDetailsTable" style="width: 100%;">
             <thead>
               <tr>
-                <th class="no">NO</th> <!-- ADDED: Number column -->
+                <th>NO</th>
                 <th>SKU</th>
                 <th>Product Name</th>
                 <th>Quantity</th>
@@ -615,7 +698,7 @@
 
   <!-- UPDATED: New Purchase Order Modal with Supplier Contact field -->
   <div id="newPurchaseModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>🛒 New Purchase Order</h2>
         <span class="close">&times;</span>
@@ -678,7 +761,7 @@
 
   <!-- UPDATED: New Sales Order Modal with Customer Contact field -->
   <div id="newSalesModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>💰 New Sales Order</h2>
         <span class="close">&times;</span>
@@ -781,7 +864,7 @@
 
   <!-- Statements Modal -->
   <div id="statementsModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2>🗂️ Statements & Reports</h2>
         <span class="close">&times;</span>
@@ -871,7 +954,7 @@
 
   <!-- Document Preview Modal -->
   <div id="previewModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal">
       <div class="modal-header">
         <h2 id="previewTitle">Document Preview</h2>
         <span class="close">&times;</span>
