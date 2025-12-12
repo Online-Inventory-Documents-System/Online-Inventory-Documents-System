@@ -20,30 +20,34 @@
     /* Status badges styling */
     .status-badge {
       display: inline-block;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.8rem;
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-size: 0.85rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      min-width: 100px;
     }
     
     .status-in-stock {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
+      background-color: #d4f8e8;
+      color: #0d6e4e;
+      border: 1px solid #a3e9cb;
+      box-shadow: 0 2px 4px rgba(13, 110, 78, 0.1);
     }
     
     .status-low-stock {
-      background-color: #fff3cd;
-      color: #856404;
-      border: 1px solid #ffeaa7;
+      background-color: #fff8e1;
+      color: #b85c00;
+      border: 1px solid #ffd54f;
+      box-shadow: 0 2px 4px rgba(184, 92, 0, 0.1);
     }
     
     .status-out-of-stock {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+      background-color: #ffeaea;
+      color: #c62828;
+      border: 1px solid #ff8a80;
+      box-shadow: 0 2px 4px rgba(198, 40, 40, 0.1);
     }
     
     /* Pagination styling */
@@ -111,9 +115,20 @@
       color: var(--text-light);
     }
     
+    /* Larger modal sizes */
+    .xx-large-modal {
+      width: 1400px;
+      max-width: 98%;
+      max-height: 95vh;
+    }
+    
     @media (max-width: 1200px) {
       .action-buttons-grid {
         grid-template-columns: repeat(2, 1fr) !important;
+      }
+      
+      .xx-large-modal {
+        width: 95%;
       }
     }
     
@@ -132,6 +147,24 @@
         width: 100%;
         justify-content: center;
       }
+    }
+    
+    /* Contact info in details modal */
+    .contact-info {
+      display: flex;
+      gap: 20px;
+      margin-top: 5px;
+    }
+    
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.9rem;
+    }
+    
+    .contact-icon {
+      color: #007bff;
     }
   </style>
 </head>
@@ -341,6 +374,7 @@
       <table id="inventoryTable">
           <thead>
               <tr>
+                  <th class="no">NO</th> <!-- ADDED: Number column -->
                   <th>SKU</th>
                   <th>Name</th>
                   <th>Category</th>
@@ -380,7 +414,7 @@
   <!-- All modals remain the same as before -->
   <!-- Purchase History Modal -->
   <div id="purchaseHistoryModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
       <div class="modal-header">
         <h2>📋 Purchase History</h2>
         <span class="close">&times;</span>
@@ -390,8 +424,10 @@
           <table id="purchaseHistoryTable">
             <thead>
               <tr>
+                <th class="no">NO</th> <!-- ADDED: Number column -->
                 <th>Purchase ID</th>
                 <th>Supplier</th>
+                <th>Supplier Contact</th> <!-- ADDED: Supplier Contact -->
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -407,7 +443,7 @@
 
   <!-- Sales History Modal -->
   <div id="salesHistoryModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
       <div class="modal-header">
         <h2>📊 Sales History</h2>
         <span class="close">&times;</span>
@@ -417,8 +453,10 @@
           <table id="salesHistoryTable">
             <thead>
               <tr>
+                <th class="no">NO</th> <!-- ADDED: Number column -->
                 <th>Sales ID</th>
                 <th>Customer</th>
+                <th>Customer Contact</th> <!-- ADDED: Customer Contact -->
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -435,7 +473,7 @@
 
   <!-- Purchase Details Modal -->
   <div id="purchaseDetailsModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
       <div class="modal-header">
         <h2>📄 Purchase Order Details</h2>
         <span class="close">&times;</span>
@@ -454,12 +492,21 @@
           </div>
           <div class="detail-row">
             <div class="detail-group">
+              <label>Supplier Contact:</label> <!-- ADDED: Supplier Contact -->
+              <span id="detailSupplierContact" class="detail-value"></span>
+            </div>
+            <div class="detail-group">
               <label>Purchase Date:</label>
               <span id="detailPurchaseDate" class="detail-value"></span>
             </div>
+          </div>
+          <div class="detail-row">
             <div class="detail-group">
               <label>Total Amount:</label>
               <span id="detailTotalAmount" class="detail-value money"></span>
+            </div>
+            <div class="detail-group">
+              <!-- Empty for alignment -->
             </div>
           </div>
           <div class="detail-row" id="detailNotesRow" style="display: none;">
@@ -475,6 +522,7 @@
           <table id="purchaseDetailsTable">
             <thead>
               <tr>
+                <th class="no">NO</th> <!-- ADDED: Number column -->
                 <th>SKU</th>
                 <th>Product Name</th>
                 <th>Quantity</th>
@@ -496,7 +544,7 @@
 
   <!-- Sales Details Modal -->
   <div id="salesDetailsModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content xx-large-modal"> <!-- UPDATED: Changed to xx-large-modal -->
       <div class="modal-header">
         <h2>📄 Sales Order Details</h2>
         <span class="close">&times;</span>
@@ -515,12 +563,21 @@
           </div>
           <div class="detail-row">
             <div class="detail-group">
+              <label>Customer Contact:</label> <!-- ADDED: Customer Contact -->
+              <span id="detailCustomerContact" class="detail-value"></span>
+            </div>
+            <div class="detail-group">
               <label>Sales Date:</label>
               <span id="detailSalesDate" class="detail-value"></span>
             </div>
+          </div>
+          <div class="detail-row">
             <div class="detail-group">
               <label>Total Amount:</label>
               <span id="detailSalesTotalAmount" class="detail-value money"></span>
+            </div>
+            <div class="detail-group">
+              <!-- Empty for alignment -->
             </div>
           </div>
           <div class="detail-row" id="detailSalesNotesRow" style="display: none;">
@@ -536,6 +593,7 @@
           <table id="salesDetailsTable">
             <thead>
               <tr>
+                <th class="no">NO</th> <!-- ADDED: Number column -->
                 <th>SKU</th>
                 <th>Product Name</th>
                 <th>Quantity</th>
