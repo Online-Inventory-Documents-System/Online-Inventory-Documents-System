@@ -2540,7 +2540,7 @@ function scrollToAddProductForm() {
 }
 
 // =========================================
-// ENHANCED UI BINDING - FIXED
+// ENHANCED UI BINDING - FIXED with Company Info Modal Fix
 // =========================================
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
@@ -2582,9 +2582,10 @@ function bindInventoryUI(){
   qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
   qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
   
-  // Company info modal binding
+  // Company info modal binding - FIXED: Now properly binding the close button
   qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
   
+  // Bind all close buttons with class "close"
   qsa('.close').forEach(closeBtn => {
     closeBtn.addEventListener('click', function() {
       const modal = this.closest('.modal');
