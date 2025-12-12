@@ -31,73 +31,6 @@ let filteredInventory = [];
 // Total profit earned
 let totalProfitEarned = 0;
 
-// Date formatting utilities for Malaysia timezone
-function formatDateForDisplay(dateString) {
-  if (!dateString) return 'N/A';
-  
-  try {
-    const date = new Date(dateString);
-    
-    // Check if date is in DD/MM/YYYY format already
-    if (dateString.includes('/')) {
-      // If it's already in DD/MM/YYYY format, return as is for display
-      const parts = dateString.split(' ');
-      if (parts[0].match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-        return dateString;
-      }
-    }
-    
-    // Format to DD/MM/YYYY
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    
-    // Check if there's a time component
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    
-    // Return date and time if available
-    if (dateString.includes(':') || dateString.length > 10) {
-      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-    }
-    
-    return `${day}/${month}/${year}`;
-  } catch (e) {
-    console.error('Date formatting error:', e);
-    return dateString;
-  }
-}
-
-function formatDateForInput(dateString) {
-  if (!dateString) return '';
-  
-  try {
-    // Convert DD/MM/YYYY to YYYY-MM-DD for input fields
-    if (dateString.includes('/')) {
-      const parts = dateString.split('/');
-      if (parts.length === 3) {
-        const day = parts[0];
-        const month = parts[1];
-        const year = parts[2].split(' ')[0]; // Remove time part if exists
-        
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-    }
-    
-    // Try to parse as ISO string
-    const date = new Date(dateString);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
-    }
-    
-    return '';
-  } catch (e) {
-    console.error('Date input formatting error:', e);
-    return '';
-  }
-}
-
 // Enhanced theme persistence
 function initializeTheme() {
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -476,7 +409,8 @@ function renderInventory(items) {
     totalRevenue += rev;
     totalStock += qty;
 
-    const date = it.createdAt ? formatDateForDisplay(it.createdAt) : 'N/A';
+    // Date is already formatted as DD/MM/YYYY from server
+    const date = it.createdAt || 'N/A';
     
     let statusClass = '';
     let statusText = '';
@@ -504,7 +438,7 @@ function renderInventory(items) {
       <td class="money">RM ${up.toFixed(2)}</td>
       <td class="money">RM ${invVal.toFixed(2)}</td>
       <td class="money">RM ${rev.toFixed(2)}</td>
-      <td>${date}</td>
+      <td>${escapeHtml(date)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
@@ -540,7 +474,16 @@ function searchInventory(){
     filtered = filtered.filter(item => {
       if (!item.createdAt) return false;
       
-      const itemDate = new Date(item.createdAt);
+      // Convert DD/MM/YYYY to Date object for comparison
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('/');
+        if (parts.length !== 3) return null;
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+      };
+      
+      const itemDate = parseDate(item.createdAt);
+      if (!itemDate) return false;
       
       if (startDate && !endDate) {
         const start = new Date(startDate);
@@ -570,30 +513,8 @@ function searchInventory(){
 }
 
 // =========================================
-// DATE RANGE FILTERING FUNCTIONS - UPDATED FOR DD/MM/YYYY
+// DATE RANGE FILTERING FUNCTIONS
 // =========================================
-function parseDateFromInput(dateString) {
-  if (!dateString) return null;
-  
-  // Convert YYYY-MM-DD to Date object
-  if (dateString.includes('-')) {
-    return new Date(dateString);
-  }
-  
-  // Convert DD/MM/YYYY to Date object
-  if (dateString.includes('/')) {
-    const parts = dateString.split('/');
-    if (parts.length === 3) {
-      const day = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10) - 1; // Months are 0-indexed
-      const year = parseInt(parts[2], 10);
-      return new Date(year, month, day);
-    }
-  }
-  
-  return new Date(dateString);
-}
-
 function filterByDateRange(startDate, endDate) {
   if (!startDate && !endDate) {
     filteredInventory = [...inventory];
@@ -605,23 +526,31 @@ function filterByDateRange(startDate, endDate) {
   const filtered = inventory.filter(item => {
     if (!item.createdAt) return false;
     
-    const itemDate = parseDateFromInput(item.createdAt);
+    // Convert DD/MM/YYYY to Date object for comparison
+    const parseDate = (dateStr) => {
+      if (!dateStr) return null;
+      const parts = dateStr.split('/');
+      if (parts.length !== 3) return null;
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    };
+    
+    const itemDate = parseDate(item.createdAt);
     if (!itemDate) return false;
     
     if (startDate && !endDate) {
-      const start = parseDateFromInput(startDate);
+      const start = new Date(startDate);
       return itemDate >= start;
     }
     
     if (!startDate && endDate) {
-      const end = parseDateFromInput(endDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       return itemDate <= end;
     }
     
     if (startDate && endDate) {
-      const start = parseDateFromInput(startDate);
-      const end = parseDateFromInput(endDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     }
@@ -644,11 +573,11 @@ function updateDateRangeStatus(isActive, startDate, endDate) {
     
     let statusText = 'Filtering by: ';
     if (startDate && endDate) {
-      statusText += `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`;
+      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
     } else if (startDate) {
-      statusText += `From ${formatDateForDisplay(startDate)}`;
+      statusText += `From ${formatDateDisplay(startDate)}`;
     } else if (endDate) {
-      statusText += `Until ${formatDateForDisplay(endDate)}`;
+      statusText += `Until ${formatDateDisplay(endDate)}`;
     }
     
     statusElement.textContent = statusText;
@@ -667,6 +596,14 @@ function createDateRangeStatusElement() {
   return statusElement;
 }
 
+function formatDateDisplay(dateString) {
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 function clearDateRangeFilter() {
   if (qs('#startDate')) qs('#startDate').value = '';
   if (qs('#endDate')) qs('#endDate').value = '';
@@ -681,8 +618,8 @@ function applyDateRangeFilter() {
   const endDate = qs('#endDate')?.value;
   
   if (startDate && endDate) {
-    const start = parseDateFromInput(startDate);
-    const end = parseDateFromInput(endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     
     if (start > end) {
       alert('❌ Start date cannot be after end date.');
@@ -827,7 +764,7 @@ function renderSalesHistory() {
       <td>${escapeHtml(s.customer || '')}</td>
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
-      <td>${formatDateForDisplay(s.salesDate)}</td>
+      <td>${escapeHtml(s.salesDate || 'N/A')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
         <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
@@ -879,14 +816,7 @@ function closeNewSalesModal() {
 function resetSalesForm() {
   if (qs('#customerName')) qs('#customerName').value = '';
   if (qs('#customerContact')) qs('#customerContact').value = '';
-  // Set today's date in DD/MM/YYYY format
-  const today = new Date();
-  const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const year = today.getFullYear();
-  const todayFormatted = `${year}-${month}-${day}`;
-  
-  if (qs('#salesDate')) qs('#salesDate').value = todayFormatted;
+  if (qs('#salesDate')) qs('#salesDate').value = new Date().toISOString().split('T')[0];
   if (qs('#salesNotes')) qs('#salesNotes').value = '';
   if (qs('#productSearchSales')) qs('#productSearchSales').value = '';
   if (qs('#productResultsSales')) qs('#productResultsSales').innerHTML = '';
@@ -1170,7 +1100,7 @@ async function viewSalesDetails(salesId) {
             element.textContent = sale.customer || 'N/A';
             break;
           case 'detailSalesDate':
-            element.textContent = formatDateForDisplay(sale.salesDate);
+            element.textContent = sale.salesDate || 'N/A';
             break;
           case 'detailSalesTotalAmount':
             element.textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
@@ -1323,7 +1253,7 @@ function renderPurchaseHistory() {
       <td>${escapeHtml(p.supplier || '')}</td>
       <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
-      <td>${formatDateForDisplay(p.purchaseDate)}</td>
+      <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
         <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
@@ -1375,14 +1305,7 @@ function closeNewPurchaseModal() {
 function resetPurchaseForm() {
   if (qs('#supplierName')) qs('#supplierName').value = '';
   if (qs('#supplierContact')) qs('#supplierContact').value = '';
-  // Set today's date in DD/MM/YYYY format
-  const today = new Date();
-  const day = String(today.getDate()).padStart(2, '0');
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const year = today.getFullYear();
-  const todayFormatted = `${year}-${month}-${day}`;
-  
-  if (qs('#purchaseDate')) qs('#purchaseDate').value = todayFormatted;
+  if (qs('#purchaseDate')) qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
   if (qs('#purchaseNotes')) qs('#purchaseNotes').value = '';
   if (qs('#productSearch')) qs('#productSearch').value = '';
   if (qs('#productResults')) qs('#productResults').innerHTML = '';
@@ -1661,7 +1584,7 @@ async function viewPurchaseDetails(purchaseId) {
             element.textContent = purchase.supplier || 'N/A';
             break;
           case 'detailPurchaseDate':
-            element.textContent = formatDateForDisplay(purchase.purchaseDate);
+            element.textContent = purchase.purchaseDate || 'N/A';
             break;
           case 'detailTotalAmount':
             element.textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
@@ -1787,7 +1710,7 @@ async function printAndSavePurchaseInvoice(purchaseId) {
 }
 
 // =========================================
-// Enhanced Report Generation with Date Range - UPDATED FOR DD/MM/YYYY
+// Enhanced Report Generation with Date Range
 // =========================================
 function openReportModal() {
   const modal = qs('#reportModal');
@@ -1816,37 +1739,17 @@ function selectReportType(type) {
 
 async function generateSelectedReport() {
   const reportType = qs('#selectedReportType').value;
-  let startDate = qs('#reportStartDate').value;
-  let endDate = qs('#reportEndDate').value;
+  const startDate = qs('#reportStartDate').value;
+  const endDate = qs('#reportEndDate').value;
   
   if (!reportType) {
     alert('⚠️ Please select a report type.');
     return;
   }
   
-  // Convert from YYYY-MM-DD to DD/MM/YYYY for server
-  if (startDate) {
-    const parts = startDate.split('-');
-    if (parts.length === 3) {
-      startDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-  }
-  
-  if (endDate) {
-    const parts = endDate.split('-');
-    if (parts.length === 3) {
-      endDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-  }
-  
-  if (startDate && endDate) {
-    const start = parseDateFromInput(startDate);
-    const end = parseDateFromInput(endDate);
-    
-    if (start > end) {
-      alert('❌ Start date cannot be after end date.');
-      return;
-    }
+  if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+    alert('❌ Start date cannot be after end date.');
+    return;
   }
   
   closeReportModal();
@@ -1877,8 +1780,8 @@ async function generateInventoryReport(startDate, endDate) {
     
     let filename = 'Inventory_Report';
     if (startDate || endDate) {
-      const start = startDate ? startDate.replace(/\//g, '-') : 'All';
-      const end = endDate ? endDate.replace(/\//g, '-') : 'All';
+      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
+      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
       filename += `_${start}_to_${end}`;
     } else {
       filename += '_Full_List';
@@ -2095,7 +1998,7 @@ function renderDocuments(docs) {
     tr.innerHTML = `
       <td>${escapeHtml(d.name||'')}</td>
       <td>${sizeMB} MB</td>
-      <td>${formatDateForDisplay(d.date)}</td>
+      <td>${escapeHtml(d.date||'')}</td>
       <td>${displayType}</td>
       <td class="actions">
         <button class="primary-btn small-btn download-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}">
@@ -2222,7 +2125,7 @@ function closePreviewModal() {
 
 function searchDocuments() {
   const q = (qs('#searchDocs')?.value || '').toLowerCase().trim();
-  const filtered = documents.filter(d => (d.name||'').toLowerCase().includes(q) || (d.date? formatDateForDisplay(d.date).toLowerCase() : '').includes(q));
+  const filtered = documents.filter(d => (d.name||'').toLowerCase().includes(q) || (d.date? d.date.toLowerCase() : '').includes(q));
   renderDocuments(filtered);
 }
 
@@ -2426,7 +2329,7 @@ function renderStatements(type, statements) {
     tr.innerHTML = `
       <td>${escapeHtml(doc.name)}</td>
       <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
-      <td>${formatDateForDisplay(doc.date)}</td>
+      <td>${escapeHtml(doc.date || '')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
         <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
@@ -2471,7 +2374,7 @@ function renderLogs() {
     actionCell.textContent = log.action || "";
 
     const timeCell = document.createElement("td");
-    const timeStr = formatDateForDisplay(log.time);
+    const timeStr = log.time || "N/A";
     timeCell.textContent = timeStr;
 
     tr.appendChild(userCell);
@@ -2489,7 +2392,7 @@ function renderDashboardData(){
   if(tbody) {
     tbody.innerHTML = '';
     activityLog.slice().slice(0,5).forEach(l => {
-      const timeStr = formatDateForDisplay(l.time);
+      const timeStr = l.time || 'N/A';
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${escapeHtml(l.user||'Admin')}</td><td>${escapeHtml(l.action)}</td><td>${escapeHtml(timeStr)}</td>`;
       tbody.appendChild(tr);
