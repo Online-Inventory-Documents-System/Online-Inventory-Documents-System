@@ -486,7 +486,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    ENHANCED PDF REPORT WITH DATE RANGE
+//                    ENHANCED PDF REPORT WITH DATE RANGE - UPDATED
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -588,22 +588,25 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
+        // UPDATED: Added NO column and replaced Potential Profit with Date and Status
         const columns = [
-          { name: "SKU", x: 40, width: 70 },
-          { name: "Product Name", x: 110, width: 110 },
-          { name: "Category", x: 220, width: 80 },
-          { name: "Quantity", x: 300, width: 60 },
-          { name: "Unit Cost", x: 360, width: 70 },
-          { name: "Unit Price", x: 430, width: 70 },
-          { name: "Inventory Value", x: 500, width: 85 },
-          { name: "Potential Revenue", x: 585, width: 95 },
-          { name: "Potential Profit", x: 680, width: 100 }
+          { name: "NO", x: 40, width: 40 },
+          { name: "SKU", x: 80, width: 70 },
+          { name: "Product Name", x: 150, width: 100 },
+          { name: "Category", x: 250, width: 70 },
+          { name: "Quantity", x: 320, width: 60 },
+          { name: "Unit Cost", x: 380, width: 70 },
+          { name: "Unit Price", x: 450, width: 70 },
+          { name: "Inventory Value", x: 520, width: 85 },
+          { name: "Potential Revenue", x: 605, width: 95 },
+          { name: "Date", x: 700, width: 70 },
+          { name: "Status", x: 770, width: 70 }
         ];
         
         let y = 150;
 
         function drawTableHeader() {
-          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 800 - columns[0].x, rowHeight).stroke();
           
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
@@ -619,15 +622,22 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           y += rowHeight;
         }
 
-        function drawTableRow(item) {
+        function drawTableRow(item, index) {
           const qty = Number(item.quantity || 0);
           const cost = Number(item.unitCost || 0);
           const price = Number(item.unitPrice || 0);
           const inventoryValue = qty * cost;
           const potentialRevenue = qty * price;
-          const potentialProfit = potentialRevenue - inventoryValue;
+          
+          // Determine status
+          let status = "In Stock";
+          if (qty === 0) {
+            status = "Out of Stock";
+          } else if (qty < 10) {
+            status = "Low Stock";
+          }
 
-          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 800 - columns[0].x, rowHeight).stroke();
           
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
@@ -636,23 +646,24 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           }
           
           doc.font("Helvetica").fontSize(8);
-          doc.text(item.sku || "", columns[0].x + 3, y + 5);
-          doc.text(item.name || "", columns[1].x + 3, y + 5);
-          doc.text(item.category || "", columns[2].x + 3, y + 5);
-          doc.text(String(qty), columns[3].x + 3, y + 5);
-          doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
-          doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
-          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
-          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
-          doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
+          doc.text(String(index + 1), columns[0].x + 3, y + 5, { width: columns[0].width, align: 'center' });
+          doc.text(item.sku || "", columns[1].x + 3, y + 5);
+          doc.text(item.name || "", columns[2].x + 3, y + 5);
+          doc.text(item.category || "", columns[3].x + 3, y + 5);
+          doc.text(String(qty), columns[4].x + 3, y + 5, { width: columns[4].width, align: 'center' });
+          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5, { width: columns[5].width, align: 'right' });
+          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5, { width: columns[6].width, align: 'right' });
+          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[7].x + 3, y + 5, { width: columns[7].width, align: 'right' });
+          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[8].x + 3, y + 5, { width: columns[8].width, align: 'right' });
+          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : 'N/A', columns[9].x + 3, y + 5, { width: columns[9].width, align: 'center' });
+          doc.text(status, columns[10].x + 3, y + 5, { width: columns[10].width, align: 'center' });
           
           y += rowHeight;
           
           return {
             qty,
             inventoryValue,
-            potentialRevenue,
-            potentialProfit
+            potentialRevenue
           };
         }
 
@@ -661,23 +672,23 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let subtotalQty = 0;
         let totalValue = 0;
         let totalRevenue = 0;
-        let totalProfit = 0;
         let rowsOnPage = 0;
 
-        for (const item of items) {
-          if (rowsOnPage === 10) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          
+          if (rowsOnPage === 20) {
             doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
             y = 40;
             rowsOnPage = 0;
             drawTableHeader();
           }
 
-          const calculations = drawTableRow(item);
+          const calculations = drawTableRow(item, (currentPageNumber - 1) * 20 + i);
           
           subtotalQty += calculations.qty;
           totalValue += calculations.inventoryValue;
           totalRevenue += calculations.potentialRevenue;
-          totalProfit += calculations.potentialProfit;
           
           rowsOnPage++;
         }
@@ -696,7 +707,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
         doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
         doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
-        doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, 570, boxY + 64);
+        doc.text(`Total Items: ${items.length}`, 570, boxY + 64);
 
         doc.flushPages();
 
