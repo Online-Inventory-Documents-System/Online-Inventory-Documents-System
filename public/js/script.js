@@ -2585,8 +2585,18 @@ function bindInventoryUI(){
   // Company info modal binding - FIXED: Now properly binding the close button
   qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
   
-  // Bind all close buttons with class "close"
+  // ===== FIXED: Preview Modal Close Button Binding =====
+  // Bind the preview modal close button
+  const previewCloseBtn = qs('#previewModal .close');
+  if (previewCloseBtn) {
+    previewCloseBtn.addEventListener('click', closePreviewModal);
+  }
+  
+  // Bind all close buttons with class "close" (for backward compatibility)
   qsa('.close').forEach(closeBtn => {
+    // Skip the preview modal close button since we already bound it above
+    if (closeBtn.closest('#previewModal')) return;
+    
     closeBtn.addEventListener('click', function() {
       const modal = this.closest('.modal');
       if (modal) {
@@ -2617,6 +2627,19 @@ function bindDocumentsUI(){
   qs('#searchDocs')?.addEventListener('input', searchDocuments);
   qs('#createFolderBtn')?.addEventListener('click', createFolder);
   qs('#navigateToRoot')?.addEventListener('click', () => navigateToFolder('root'));
+  
+  // ===== FIXED: Bind preview modal close button for documents page =====
+  const previewCloseBtn = qs('#previewModal .close');
+  if (previewCloseBtn) {
+    previewCloseBtn.addEventListener('click', closePreviewModal);
+  }
+  
+  // Also bind window click to close preview modal
+  window.addEventListener('click', (e) => {
+    if (e.target === qs('#previewModal')) {
+      closePreviewModal();
+    }
+  });
 }
 
 // =========================================
