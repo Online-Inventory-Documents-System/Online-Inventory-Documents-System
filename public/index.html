@@ -111,120 +111,116 @@
       color: var(--text-light);
     }
     
-    /* UPDATED: Improved table text styling */
-    #inventoryTable {
-      font-size: 14px;
+    /* Inventory Table Improvements */
+    .table-container table {
+      font-size: 15px; /* Increased from default */
     }
     
-    #inventoryTable th {
+    .table-container th {
+      font-size: 16px;
       font-weight: 600;
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 12px 8px;
-      background-color: var(--table-header-bg);
+      padding: 16px 12px;
+      color: var(--text-light);
+      background: var(--header-bg);
     }
     
-    #inventoryTable td {
-      padding: 12px 8px;
+    .table-container td {
+      padding: 14px 12px;
+      color: var(--text-light);
+      font-size: 15px;
       border-bottom: 1px solid var(--border-color);
     }
     
-    #inventoryTable tbody tr:hover {
-      background-color: var(--table-hover-bg);
+    .table-container tr:hover td {
+      background: var(--hover-bg);
     }
     
-    /* Column-specific styling */
-    .no-column {
+    .table-container td.money {
       font-weight: 600;
-      color: var(--primary-color);
+      color: var(--money-color);
+    }
+    
+    .table-container td.money.positive {
+      color: #28a745;
+    }
+    
+    .table-container td.money.negative {
+      color: #dc3545;
+    }
+    
+    .table-container .no-column {
       text-align: center;
+      font-weight: 500;
+      color: var(--secondary-color);
       width: 50px;
     }
     
-    .sku-column {
-      font-family: 'Courier New', monospace;
-      font-weight: 500;
-      color: #2c3e50;
-    }
-    
-    .name-column {
-      font-weight: 500;
-      color: #34495e;
-    }
-    
-    .category-column {
-      color: #7f8c8d;
-      font-style: italic;
-    }
-    
-    .quantity-column {
-      font-weight: 600;
-      text-align: center;
-      color: #2980b9;
-    }
-    
-    .money {
-      font-family: 'Courier New', monospace;
-      font-weight: 600;
-      text-align: right;
-    }
-    
-    .unit-cost {
-      color: #e74c3c;
-    }
-    
-    .unit-price {
-      color: #27ae60;
-    }
-    
-    .inventory-value {
-      color: #9b59b6;
-    }
-    
-    .revenue {
-      color: #3498db;
-    }
-    
-    .date-column {
-      color: #7f8c8d;
-      font-size: 12px;
-    }
-    
-    .status-column {
+    .table-container .status {
       text-align: center;
     }
     
-    .out-of-stock-row {
-      background-color: rgba(231, 76, 60, 0.05) !important;
-    }
-    
-    .low-stock-row {
-      background-color: rgba(241, 196, 15, 0.05) !important;
-    }
-    
-    /* Action buttons */
-    .actions {
-      text-align: center;
+    .table-container .actions {
       white-space: nowrap;
     }
     
-    .small-btn {
-      padding: 4px 8px !important;
-      font-size: 11px !important;
-      margin: 2px !important;
+    .table-container .inventory-value {
+      font-weight: 600;
+      color: #17a2b8;
     }
     
-    /* UPDATED: Larger modals */
-    .modal-content.xx-large-modal {
-      max-width: 95%;
-      width: 95%;
-      max-height: 90vh;
+    .table-container .potential-revenue {
+      font-weight: 600;
+      color: #20c997;
+    }
+    
+    /* Dark mode specific table styles */
+    body.dark-mode .table-container th {
+      background: var(--header-bg);
+      color: var(--text-light);
+    }
+    
+    body.dark-mode .table-container td {
+      color: var(--text-light);
+    }
+    
+    body.dark-mode .table-container .no-column {
+      color: #adb5bd;
+    }
+    
+    /* Updated modal sizes */
+    .xx-large-modal {
+      max-width: 95% !important;
+      width: 95% !important;
+      max-height: 90vh !important;
+      height: 90vh !important;
+    }
+    
+    .modal-body {
+      max-height: calc(90vh - 120px);
+      overflow-y: auto;
+    }
+    
+    /* Contact info styling */
+    .contact-info {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 14px;
+      color: var(--secondary-color);
+    }
+    
+    .contact-info .icon {
+      font-size: 16px;
     }
     
     @media (max-width: 1200px) {
       .action-buttons-grid {
         grid-template-columns: repeat(2, 1fr) !important;
+      }
+      
+      .xx-large-modal {
+        max-width: 98% !important;
+        width: 98% !important;
       }
     }
     
@@ -244,13 +240,21 @@
         justify-content: center;
       }
       
-      #inventoryTable {
-        font-size: 12px;
+      .table-container table {
+        font-size: 14px;
       }
       
-      #inventoryTable th,
-      #inventoryTable td {
-        padding: 8px 4px;
+      .table-container th,
+      .table-container td {
+        padding: 12px 8px;
+        font-size: 14px;
+      }
+      
+      .xx-large-modal {
+        max-width: 100% !important;
+        width: 100% !important;
+        height: 95vh !important;
+        margin: 10px !important;
       }
     }
   </style>
@@ -461,18 +465,19 @@
       <table id="inventoryTable">
           <thead>
               <tr>
-                  <!-- UPDATED: Added NO column -->
-                  <th class="no-column">NO</th>
-                  <th class="sku-column">SKU</th>
-                  <th class="name-column">Name</th>
-                  <th class="category-column">Category</th>
-                  <th class="quantity-column">Quantity</th>
+                  <th class="no-column">NO</th> <!-- ADDED: Number column -->
+                  <th>SKU</th>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
                   <th class="money">Unit Cost</th>
                   <th class="money">Unit Price</th>
                   <th class="money">Inventory Value</th>
                   <th class="money">Potential Revenue</th>
-                  <th class="date-column">Date</th>
-                  <th class="status-column">Status</th>
+                  <!-- UPDATED: Removed Potential Profit column -->
+                  <th>Date</th>
+                  <!-- UPDATED: Added Status column -->
+                  <th class="status">Status</th>
                   <th class="actions">Actions</th>
               </tr>
           </thead>
@@ -507,12 +512,12 @@
       </div>
       <div class="modal-body">
         <div class="table-container"> 
-          <table id="purchaseHistoryTable" style="width: 100%; font-size: 13px;">
+          <table id="purchaseHistoryTable">
             <thead>
               <tr>
                 <th>Purchase ID</th>
                 <th>Supplier</th>
-                <th>Supplier Contact</th>
+                <th>Supplier Contact</th> <!-- ADDED: Supplier Contact -->
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -535,16 +540,17 @@
       </div>
       <div class="modal-body">
         <div class="table-container"> 
-          <table id="salesHistoryTable" style="width: 100%; font-size: 13px;">
+          <table id="salesHistoryTable">
             <thead>
               <tr>
                 <th>Sales ID</th>
                 <th>Customer</th>
-                <th>Customer Contact</th>
+                <th>Customer Contact</th> <!-- ADDED: Customer Contact -->
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
-                <th class="actions">Actions</th>
+                <!-- UPDATED: Removed Actions column -->
+                <th class="actions">Download</th>
               </tr>
             </thead>
             <tbody id="salesHistoryList"></tbody>
@@ -554,9 +560,9 @@
     </div>
   </div>
 
-  <!-- Purchase Details Modal - UPDATED: Added contact information -->
+  <!-- Purchase Details Modal - UPDATED: Added contact info -->
   <div id="purchaseDetailsModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>📄 Purchase Order Details</h2>
         <span class="close">&times;</span>
@@ -576,7 +582,7 @@
           <div class="detail-row">
             <div class="detail-group">
               <label>Supplier Contact:</label>
-              <span id="detailSupplierContact" class="detail-value"></span>
+              <span id="detailSupplierContact" class="detail-value"></span> <!-- ADDED -->
             </div>
             <div class="detail-group">
               <label>Purchase Date:</label>
@@ -602,10 +608,9 @@
 
         <h3>Purchase Items</h3>
         <div class="table-container">
-          <table id="purchaseDetailsTable" style="width: 100%;">
+          <table id="purchaseDetailsTable">
             <thead>
               <tr>
-                <th>NO</th>
                 <th>SKU</th>
                 <th>Product Name</th>
                 <th>Quantity</th>
@@ -619,15 +624,15 @@
 
         <div class="modal-actions">
           <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
-          <button id="closePurchaseDetailsModal" class="secondary-btn">✖️ Close</button>
+          <button id="closeDetailsModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Sales Details Modal - UPDATED: Added contact information -->
+  <!-- Sales Details Modal - UPDATED: Added contact info -->
   <div id="salesDetailsModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>📄 Sales Order Details</h2>
         <span class="close">&times;</span>
@@ -647,7 +652,7 @@
           <div class="detail-row">
             <div class="detail-group">
               <label>Customer Contact:</label>
-              <span id="detailCustomerContact" class="detail-value"></span>
+              <span id="detailCustomerContact" class="detail-value"></span> <!-- ADDED -->
             </div>
             <div class="detail-group">
               <label>Sales Date:</label>
@@ -673,10 +678,9 @@
 
         <h3>Sales Items</h3>
         <div class="table-container">
-          <table id="salesDetailsTable" style="width: 100%;">
+          <table id="salesDetailsTable">
             <thead>
               <tr>
-                <th>NO</th>
                 <th>SKU</th>
                 <th>Product Name</th>
                 <th>Quantity</th>
@@ -698,7 +702,7 @@
 
   <!-- UPDATED: New Purchase Order Modal with Supplier Contact field -->
   <div id="newPurchaseModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>🛒 New Purchase Order</h2>
         <span class="close">&times;</span>
@@ -761,7 +765,7 @@
 
   <!-- UPDATED: New Sales Order Modal with Customer Contact field -->
   <div id="newSalesModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>💰 New Sales Order</h2>
         <span class="close">&times;</span>
@@ -864,7 +868,7 @@
 
   <!-- Statements Modal -->
   <div id="statementsModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>🗂️ Statements & Reports</h2>
         <span class="close">&times;</span>
@@ -954,7 +958,7 @@
 
   <!-- Document Preview Modal -->
   <div id="previewModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2 id="previewTitle">Document Preview</h2>
         <span class="close">&times;</span>
