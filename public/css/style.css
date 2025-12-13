@@ -2762,7 +2762,9 @@ body[data-theme="dark"] section {
     font-size: 0.8rem;
   }
   
-  /* Reduce column widths for mobile */
+  /* REMOVED: Progressive column hiding - Keep all columns visible */
+  
+  /* Keep only minimal width adjustments for mobile */
   #inventoryTable th:nth-child(1),
   #inventoryTable td:nth-child(1) {
     min-width: 40px;
@@ -2785,14 +2787,6 @@ body[data-theme="dark"] section {
   #inventoryTable td:nth-child(5) {
     min-width: 60px;
     max-width: 70px;
-  }
-  
-  /* Hide some columns on mobile for better fit */
-  #inventoryTable th:nth-child(8), /* Inventory Value */
-  #inventoryTable td:nth-child(8),
-  #inventoryTable th:nth-child(9), /* Potential Revenue */
-  #inventoryTable td:nth-child(9) {
-    display: none;
   }
   
   .status-badge {
@@ -2862,16 +2856,7 @@ body[data-theme="dark"] section {
     font-size: 0.75em;
   }
   
-  /* Further reduce table column widths */
-  #inventoryTable th:nth-child(4), /* Category */
-  #inventoryTable td:nth-child(4) {
-    display: none;
-  }
-  
-  #inventoryTable th:nth-child(7), /* Unit Price */
-  #inventoryTable td:nth-child(7) {
-    display: none;
-  }
+  /* REMOVED: Column hiding for small mobile */
   
   .statements-tabs {
     flex-direction: column;
@@ -2895,16 +2880,7 @@ body[data-theme="dark"] section {
 
 /* Small mobile devices */
 @media (max-width: 360px) {
-  /* Hide more columns on very small screens */
-  #inventoryTable th:nth-child(6), /* Unit Cost */
-  #inventoryTable td:nth-child(6) {
-    display: none;
-  }
-  
-  #inventoryTable th:nth-child(10), /* Date */
-  #inventoryTable td:nth-child(10) {
-    display: none;
-  }
+  /* REMOVED: Column hiding for very small mobile */
   
   .pagination-btn {
     min-width: 28px;
