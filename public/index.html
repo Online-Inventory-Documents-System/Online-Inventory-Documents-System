@@ -5,259 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Inventory | Inventory System</title>
   <link rel="stylesheet" href="css/style.css" />
-  <style>
-    /* Additional CSS to fix the button layout */
-    .action-buttons-grid {
-      grid-template-columns: repeat(3, 1fr) !important;
-    }
-    
-    /* Red color for the clock */
-    .clock {
-      color: #a4f084 !important;
-      font-weight: 600;
-    }
-    
-    /* Status badges styling */
-    .status-badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .status-in-stock {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-    
-    .status-low-stock {
-      background-color: #fff3cd;
-      color: #856404;
-      border: 1px solid #ffeaa7;
-    }
-    
-    .status-out-of-stock {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-    
-    /* Pagination styling */
-    .pagination-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    .pagination-info {
-      font-size: 0.9rem;
-      color: var(--secondary-color);
-    }
-    
-    .pagination-controls {
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
-    
-    .pagination-btn {
-      padding: 6px 12px;
-      border: 1px solid var(--border-color);
-      background: var(--card-light);
-      color: var(--text-light);
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      min-width: 32px;
-      text-align: center;
-    }
-    
-    .pagination-btn:hover:not(:disabled) {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    .pagination-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .pagination-btn.active {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    .items-per-page {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.85rem;
-    }
-    
-    .items-per-page select {
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--border-color);
-      background: var(--card-light);
-      color: var(--text-light);
-    }
-    
-    /* Inventory Table Improvements */
-    .table-container table {
-      font-size: 15px; /* Increased from default */
-    }
-    
-    .table-container th {
-      font-size: 16px;
-      font-weight: 600;
-      padding: 16px 12px;
-      color: var(--text-light);
-      background: var(--header-bg);
-    }
-    
-    .table-container td {
-      padding: 14px 12px;
-      color: var(--text-light);
-      font-size: 15px;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    .table-container tr:hover td {
-      background: var(--hover-bg);
-    }
-    
-    .table-container td.money {
-      font-weight: 600;
-      color: var(--money-color);
-    }
-    
-    .table-container td.money.positive {
-      color: #28a745;
-    }
-    
-    .table-container td.money.negative {
-      color: #dc3545;
-    }
-    
-    .table-container .no-column {
-      text-align: center;
-      font-weight: 500;
-      color: var(--secondary-color);
-      width: 50px;
-    }
-    
-    .table-container .status {
-      text-align: center;
-    }
-    
-    .table-container .actions {
-      white-space: nowrap;
-    }
-    
-    .table-container .inventory-value {
-      font-weight: 600;
-      color: #17a2b8;
-    }
-    
-    .table-container .potential-revenue {
-      font-weight: 600;
-      color: #20c997;
-    }
-    
-    /* Dark mode specific table styles */
-    body.dark-mode .table-container th {
-      background: var(--header-bg);
-      color: var(--text-light);
-    }
-    
-    body.dark-mode .table-container td {
-      color: var(--text-light);
-    }
-    
-    body.dark-mode .table-container .no-column {
-      color: #adb5bd;
-    }
-    
-    /* Updated modal sizes */
-    .xx-large-modal {
-      max-width: 95% !important;
-      width: 95% !important;
-      max-height: 90vh !important;
-      height: 90vh !important;
-    }
-    
-    .modal-body {
-      max-height: calc(90vh - 120px);
-      overflow-y: auto;
-    }
-    
-    /* Contact info styling */
-    .contact-info {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 14px;
-      color: var(--secondary-color);
-    }
-    
-    .contact-info .icon {
-      font-size: 16px;
-    }
-    
-    @media (max-width: 1200px) {
-      .action-buttons-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-      
-      .xx-large-modal {
-        max-width: 98% !important;
-        width: 98% !important;
-      }
-    }
-    
-    @media (max-width: 768px) {
-      .action-buttons-grid {
-        grid-template-columns: 1fr !important;
-      }
-      
-      .pagination-container {
-        flex-direction: column;
-        gap: 10px;
-        align-items: flex-start;
-      }
-      
-      .pagination-controls {
-        width: 100%;
-        justify-content: center;
-      }
-      
-      .table-container table {
-        font-size: 14px;
-      }
-      
-      .table-container th,
-      .table-container td {
-        padding: 12px 8px;
-        font-size: 14px;
-      }
-      
-      .xx-large-modal {
-        max-width: 100% !important;
-        width: 100% !important;
-        height: 95vh !important;
-        margin: 10px !important;
-      }
-    }
-  </style>
 </head>
 <body>
   <header>
@@ -465,20 +212,19 @@
       <table id="inventoryTable">
           <thead>
               <tr>
-                  <th class="no-column">NO</th> <!-- ADDED: Number column -->
-                  <th>SKU</th>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th class="money">Unit Cost</th>
-                  <th class="money">Unit Price</th>
-                  <th class="money">Inventory Value</th>
-                  <th class="money">Potential Revenue</th>
-                  <!-- UPDATED: Removed Potential Profit column -->
-                  <th>Date</th>
-                  <!-- UPDATED: Added Status column -->
-                  <th class="status">Status</th>
-                  <th class="actions">Actions</th>
+                  <!-- UPDATED: Added NO column header -->
+                  <th class="number-header">NO</th>
+                  <th class="sku-header">SKU</th>
+                  <th class="name-header">Name</th>
+                  <th class="category-header">Category</th>
+                  <th class="quantity-header">Quantity</th>
+                  <th class="money cost-header">Unit Cost</th>
+                  <th class="money price-header">Unit Price</th>
+                  <th class="money value-header">Inventory Value</th>
+                  <th class="money revenue-header">Potential Revenue</th>
+                  <th class="date-header">Date</th>
+                  <th class="status-header">Status</th>
+                  <th class="actions-header">Actions</th>
               </tr>
           </thead>
           <tbody id="inventoryList"></tbody>
@@ -503,9 +249,9 @@
   </section>
 
   <!-- All modals remain the same as before -->
-  <!-- Purchase History Modal - UPDATED: Larger modal -->
+  <!-- Purchase History Modal -->
   <div id="purchaseHistoryModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>📋 Purchase History</h2>
         <span class="close">&times;</span>
@@ -517,7 +263,8 @@
               <tr>
                 <th>Purchase ID</th>
                 <th>Supplier</th>
-                <th>Supplier Contact</th> <!-- ADDED: Supplier Contact -->
+                <!-- UPDATED: Added Supplier Contact column -->
+                <th>Supplier Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
@@ -531,9 +278,9 @@
     </div>
   </div>
 
-  <!-- Sales History Modal - UPDATED: Larger modal -->
+  <!-- Sales History Modal -->
   <div id="salesHistoryModal" class="modal">
-    <div class="modal-content xx-large-modal">
+    <div class="modal-content x-large-modal">
       <div class="modal-header">
         <h2>📊 Sales History</h2>
         <span class="close">&times;</span>
@@ -545,12 +292,12 @@
               <tr>
                 <th>Sales ID</th>
                 <th>Customer</th>
-                <th>Customer Contact</th> <!-- ADDED: Customer Contact -->
+                <!-- UPDATED: Added Customer Contact column -->
+                <th>Customer Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
-                <!-- UPDATED: Removed Actions column -->
-                <th class="actions">Download</th>
+                <th class="actions">Actions</th>
               </tr>
             </thead>
             <tbody id="salesHistoryList"></tbody>
@@ -560,7 +307,7 @@
     </div>
   </div>
 
-  <!-- Purchase Details Modal - UPDATED: Added contact info -->
+  <!-- Purchase Details Modal -->
   <div id="purchaseDetailsModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -579,10 +326,11 @@
               <span id="detailSupplier" class="detail-value"></span>
             </div>
           </div>
+          <!-- UPDATED: Added Supplier Contact row -->
           <div class="detail-row">
             <div class="detail-group">
               <label>Supplier Contact:</label>
-              <span id="detailSupplierContact" class="detail-value"></span> <!-- ADDED -->
+              <span id="detailSupplierContact" class="detail-value"></span>
             </div>
             <div class="detail-group">
               <label>Purchase Date:</label>
@@ -624,13 +372,13 @@
 
         <div class="modal-actions">
           <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
-          <button id="closeDetailsModal" class="secondary-btn">✖️ Close</button>
+          <button id="closePurchaseDetailsModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Sales Details Modal - UPDATED: Added contact info -->
+  <!-- Sales Details Modal -->
   <div id="salesDetailsModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -649,10 +397,11 @@
               <span id="detailCustomer" class="detail-value"></span>
             </div>
           </div>
+          <!-- UPDATED: Added Customer Contact row -->
           <div class="detail-row">
             <div class="detail-group">
               <label>Customer Contact:</label>
-              <span id="detailCustomerContact" class="detail-value"></span> <!-- ADDED -->
+              <span id="detailCustomerContact" class="detail-value"></span>
             </div>
             <div class="detail-group">
               <label>Sales Date:</label>
