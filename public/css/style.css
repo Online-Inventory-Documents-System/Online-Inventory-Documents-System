@@ -945,7 +945,7 @@ input:focus, select:focus, textarea:focus {
 #inventoryTable td:nth-child(8), /* Inventory Value */
 #inventoryTable td:nth-child(9) { /* Potential Revenue */
     white-space: nowrap;
-    text-align: right;
+    text-align: center;
     font-family: 'Consolas', monospace;
     font-weight: bold;
     min-width: 110px;
