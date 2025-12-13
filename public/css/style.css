@@ -31,6 +31,7 @@ body {
   color: var(--text-light);
   transition: all 0.3s ease;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 header {
@@ -155,6 +156,8 @@ section {
   color: white !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+  white-space: nowrap;
+  min-width: 70px;
 }
 
 /* Specific header styling for better visibility */
@@ -211,6 +214,7 @@ section {
   font-size: 0.95rem;
   padding: 12px 10px;
   border-bottom: 1px solid #e9ecef;
+  word-wrap: break-word;
 }
 
 /* Number column styling */
@@ -856,7 +860,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   LARGER TABLE STYLING FOR INVENTORY
+   RESPONSIVE TABLE STYLING FOR INVENTORY
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -866,14 +870,14 @@ input:focus, select:focus, textarea:focus {
     border: 1px solid var(--border-color); 
     background: var(--card-light);
     max-width: 100%;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 #inventoryTable, #documentsTable, #salesHistoryTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    font-size: 0.95rem;
-    min-width: 1300px;
+    min-width: 1300px; /* Minimum width for horizontal scroll */
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
@@ -883,6 +887,8 @@ input:focus, select:focus, textarea:focus {
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     border-right: 1px solid #000000;
+    word-wrap: break-word;
+    max-width: 200px;
 }
 
 /* Remove border only from last column */
@@ -897,6 +903,7 @@ input:focus, select:focus, textarea:focus {
 #salesHistoryTable thead th {
     position: sticky; 
     top: 0;
+    z-index: 10;
     border-right: 1px solid rgba(255, 255, 255, 0.3);
     padding: 15px 10px;
 }
@@ -906,36 +913,39 @@ input:focus, select:focus, textarea:focus {
     border-right: none;
 }
 
-/* COMPACT COLUMN WIDTHS FOR BETTER FIT */
+/* RESPONSIVE COLUMN WIDTHS FOR BETTER FIT */
 #inventoryTable th:nth-child(1), /* NO */
 #inventoryTable td:nth-child(1) {
-    min-width: 60px;
-    max-width: 70px;
+    min-width: 50px;
+    max-width: 60px;
     text-align: center;
+    font-size: 0.9rem;
 }
 
 #inventoryTable th:nth-child(2), /* SKU */
 #inventoryTable td:nth-child(2) {
-    min-width: 100px;
-    max-width: 120px;
+    min-width: 90px;
+    max-width: 110px;
+    font-size: 0.9rem;
 }
 
 #inventoryTable th:nth-child(3), /* NAME */
 #inventoryTable td:nth-child(3) {
-    min-width: 150px;
-    max-width: 200px;
+    min-width: 120px;
+    max-width: 180px;
+    word-break: break-word;
 }
 
 #inventoryTable th:nth-child(4), /* CATEGORY */
 #inventoryTable td:nth-child(4) {
-    min-width: 100px;
-    max-width: 120px;
+    min-width: 90px;
+    max-width: 110px;
 }
 
 #inventoryTable th:nth-child(5), /* QUANTITY */
 #inventoryTable td:nth-child(5) {
-    min-width: 80px;
-    max-width: 90px;
+    min-width: 70px;
+    max-width: 80px;
     text-align: center;
 }
 
@@ -948,29 +958,33 @@ input:focus, select:focus, textarea:focus {
     text-align: center;
     font-family: 'Consolas', monospace;
     font-weight: bold;
-    min-width: 110px;
-    max-width: 130px;
+    min-width: 100px;
+    max-width: 120px;
+    font-size: 0.9rem;
 }
 
 /* Date column */
 #inventoryTable td:nth-child(10) {
     text-align: center;
-    min-width: 100px;
-    max-width: 110px;
+    min-width: 90px;
+    max-width: 100px;
+    font-size: 0.85rem;
 }
 
 /* Status column */
 #inventoryTable td:nth-child(11) {
     text-align: center;
-    min-width: 110px;
-    max-width: 120px;
+    min-width: 100px;
+    max-width: 110px;
+    font-size: 0.85rem;
 }
 
 /* Actions column */
 #inventoryTable td:nth-child(12) {
     text-align: center;
-    min-width: 120px;
-    max-width: 130px;
+    min-width: 110px;
+    max-width: 120px;
+    font-size: 0.85rem;
 }
 
 /* Documents table styling (no vertical borders) */
@@ -988,6 +1002,7 @@ input:focus, select:focus, textarea:focus {
     letter-spacing: 0.05em;
     position: sticky; 
     top: 0;
+    z-index: 10;
 }
 
 /* Table row styles */
@@ -1415,7 +1430,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 12px 25px rgba(0, 0, 0, 0.6);
 }
 
-/* Responsive design */
+/* Responsive design for cards */
 @media (max-width: 1200px) {
   .summary-cards {
     grid-template-columns: repeat(2, 1fr);
@@ -2150,7 +2165,7 @@ input:focus, select:focus, textarea:focus {
       box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
     }
 
-    /* Responsive design */
+    /* Responsive design for action buttons */
     @media (max-width: 1200px) {
       .action-buttons-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -2204,62 +2219,6 @@ input:focus, select:focus, textarea:focus {
         font-size: 0.8rem;
       }
     }
-
-.dark-mode .purchase-items-container,
-.dark-mode .sales-items-container {
-  background: #343a40;
-  border-color: #495057;
-}
-
-.dark-mode .purchase-item-row,
-.dark-mode .sales-item-row {
-  background: #495057;
-  border-color: #6c757d;
-}
-
-.dark-mode #purchaseHistoryTable thead th {
-  background-color: #1e7e34;
-}
-
-.dark-mode #salesHistoryTable thead th {
-  background-color: #138496;
-}
-
-.dark-mode #purchaseDetailsTable thead th {
-  background-color: #0056b3;
-}
-
-.dark-mode #salesDetailsTable thead th {
-  background-color: #138496;
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-  .detail-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .purchase-item-row,
-  .sales-item-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  
-  .x-large-modal {
-    width: 95%;
-    margin: 2% auto;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .form-actions button {
-    min-width: auto;
-    width: 100%;
-  }
-}
 
 /* =========================================
    Report Generation Modal Styling
@@ -2682,8 +2641,23 @@ body[data-theme="dark"] section {
 }
 
 /* =========================================
-   Mobile Responsive Improvements
+   MOBILE RESPONSIVE IMPROVEMENTS - UPDATED
 ========================================= */
+@media (max-width: 1200px) {
+  section {
+    max-width: 98%;
+    padding: 20px;
+  }
+  
+  .welcome-section h2 {
+    font-size: 1.6rem;
+  }
+  
+  .welcome-section p {
+    font-size: 1rem;
+  }
+}
+
 @media (max-width: 768px) {
   header {
     padding: 10px 15px;
@@ -2709,11 +2683,11 @@ body[data-theme="dark"] section {
   }
   
   .welcome-section h2 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
   }
   
   .welcome-section p {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
   
   .product-bar {
@@ -2737,6 +2711,15 @@ body[data-theme="dark"] section {
   }
   
   .date-input-group {
+    width: 100%;
+  }
+  
+  .date-range-container input[type="date"] {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .text-search-container input[type="text"] {
     width: 100%;
   }
   
@@ -2764,6 +2747,83 @@ body[data-theme="dark"] section {
   .summary-cards {
     grid-template-columns: 1fr;
   }
+  
+  /* Responsive table adjustments */
+  .table-container {
+    font-size: 0.85rem;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  
+  #inventoryTable th,
+  #inventoryTable td {
+    padding: 8px 6px;
+    font-size: 0.8rem;
+  }
+  
+  /* Reduce column widths for mobile */
+  #inventoryTable th:nth-child(1),
+  #inventoryTable td:nth-child(1) {
+    min-width: 40px;
+    max-width: 50px;
+  }
+  
+  #inventoryTable th:nth-child(2),
+  #inventoryTable td:nth-child(2) {
+    min-width: 70px;
+    max-width: 90px;
+  }
+  
+  #inventoryTable th:nth-child(3),
+  #inventoryTable td:nth-child(3) {
+    min-width: 100px;
+    max-width: 150px;
+  }
+  
+  #inventoryTable th:nth-child(5),
+  #inventoryTable td:nth-child(5) {
+    min-width: 60px;
+    max-width: 70px;
+  }
+  
+  /* Hide some columns on mobile for better fit */
+  #inventoryTable th:nth-child(8), /* Inventory Value */
+  #inventoryTable td:nth-child(8),
+  #inventoryTable th:nth-child(9), /* Potential Revenue */
+  #inventoryTable td:nth-child(9) {
+    display: none;
+  }
+  
+  .status-badge {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    min-width: 80px;
+  }
+  
+  .action-btn {
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    margin-left: 3px;
+  }
+  
+  .pagination-container {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .pagination-controls {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .page-numbers {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2781,7 +2841,7 @@ body[data-theme="dark"] section {
   }
   
   .welcome-section h2 {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
   }
   
   .card {
@@ -2802,12 +2862,54 @@ body[data-theme="dark"] section {
     font-size: 0.75em;
   }
   
+  /* Further reduce table column widths */
+  #inventoryTable th:nth-child(4), /* Category */
+  #inventoryTable td:nth-child(4) {
+    display: none;
+  }
+  
+  #inventoryTable th:nth-child(7), /* Unit Price */
+  #inventoryTable td:nth-child(7) {
+    display: none;
+  }
+  
   .statements-tabs {
     flex-direction: column;
   }
   
   .tab-button {
     text-align: center;
+  }
+  
+  /* Product bar adjustments for mobile */
+  .product-bar input {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+  
+  .product-bar button {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 360px) {
+  /* Hide more columns on very small screens */
+  #inventoryTable th:nth-child(6), /* Unit Cost */
+  #inventoryTable td:nth-child(6) {
+    display: none;
+  }
+  
+  #inventoryTable th:nth-child(10), /* Date */
+  #inventoryTable td:nth-child(10) {
+    display: none;
+  }
+  
+  .pagination-btn {
+    min-width: 28px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
   }
 }
 
@@ -2991,114 +3093,137 @@ body[data-theme="dark"] section {
     width: 100%;
   }
 }
-    /* Additional CSS to fix the button layout */
-    .action-buttons-grid {
-      grid-template-columns: repeat(3, 1fr) !important;
-    }
-    
-    /* Green color for the clock */
-    .clock {
-      color: #a4f084 !important;
-      font-weight: 600;
-    }
-    
-    /* Status badges styling */
-    .status-badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      min-width: 100px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Pagination styling */
-    .pagination-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    .pagination-info {
-      font-size: 0.9rem;
-      color: var(--secondary-color);
-    }
-    
-    .pagination-controls {
-      display: flex;
-      gap: 5px;
-      align-items: center;
-    }
-    
-    .pagination-btn {
-      padding: 6px 12px;
-      border: 1px solid var(--border-color);
-      background: var(--card-light);
-      color: var(--text-light);
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      min-width: 32px;
-      text-align: center;
-    }
-    
-    .pagination-btn:hover:not(:disabled) {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    .pagination-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .pagination-btn.active {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-    
-    .items-per-page {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.85rem;
-    }
-    
-    .items-per-page select {
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid var(--border-color);
-      background: var(--card-light);
-      color: var(--text-light);
-    }
-    
-    @media (max-width: 1200px) {
-      .action-buttons-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-    }
-    
-    @media (max-width: 768px) {
-      .action-buttons-grid {
-        grid-template-columns: 1fr !important;
-      }
-      
-      .pagination-container {
-        flex-direction: column;
-        gap: 10px;
-        align-items: flex-start;
-      }
-      
-      .pagination-controls {
-        width: 100%;
-        justify-content: center;
-      }
-    }
+
+/* Additional CSS to fix the button layout */
+.action-buttons-grid {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* Green color for the clock */
+.clock {
+  color: #a4f084 !important;
+  font-weight: 600;
+}
+
+/* Status badges styling */
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 100px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Pagination styling */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: var(--secondary-color);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--card-light);
+  color: var(--text-light);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-width: 32px;
+  text-align: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.items-per-page {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.85rem;
+}
+
+.items-per-page select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--card-light);
+  color: var(--text-light);
+}
+
+/* Tooltip for truncated text */
+.cell-tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.cell-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 5px;
+}
+
+@media (max-width: 1200px) {
+  .action-buttons-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .action-buttons-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .pagination-container {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .pagination-controls {
+    width: 100%;
+    justify-content: center;
+  }
+}
