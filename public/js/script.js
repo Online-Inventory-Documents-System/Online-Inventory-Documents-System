@@ -87,21 +87,9 @@ function validateRequiredFields(fields) {
   return true;
 }
 
-// Auth redirect - FIXED: Redirect to login only if not on login page
+// Auth redirect
 if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
   try { window.location.href = 'login.html'; } catch(e) {}
-}
-
-// FIXED: Redirect from index.html to login if not logged in
-if(window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
-  if(!sessionStorage.getItem('isLoggedIn')) {
-    try { window.location.href = 'login.html'; } catch(e) {}
-  } else {
-    // If logged in and on index.html, redirect to inventory.html (main page)
-    if(window.location.pathname.includes('index.html')) {
-      window.location.href = 'inventory.html';
-    }
-  }
 }
 
 function logout(){
@@ -413,6 +401,7 @@ function renderInventory(items) {
   const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
 
   paginatedItems.forEach((it, index) => {
+    const itemNumber = startNumber + index; // ADDED: Calculate item number
     const id = it.id || it._id;
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
@@ -444,19 +433,18 @@ function renderInventory(items) {
     if(qty === 0) tr.classList.add('out-of-stock-row');
     else if(qty < 10) tr.classList.add('low-stock-row');
 
-    // UPDATED: Added NO column with sequential numbering
     tr.innerHTML = `
-      <td class="no-column">${startNumber + index}</td>
-      <td class="sku-column">${escapeHtml(it.sku||'')}</td>
-      <td class="name-column">${escapeHtml(it.name||'')}</td>
-      <td class="category-column">${escapeHtml(it.category||'')}</td>
-      <td class="quantity-column">${qty}</td>
-      <td class="money unit-cost">RM ${uc.toFixed(2)}</td>
-      <td class="money unit-price">RM ${up.toFixed(2)}</td>
+      <td class="no-column">${itemNumber}</td> <!-- ADDED: Item number -->
+      <td><strong>${escapeHtml(it.sku||'')}</strong></td>
+      <td><span style="font-weight: 500;">${escapeHtml(it.name||'')}</span></td>
+      <td><span style="color: var(--secondary-color);">${escapeHtml(it.category||'')}</span></td>
+      <td style="font-weight: 600; color: ${qty === 0 ? '#dc3545' : (qty < 10 ? '#ffc107' : '#28a745')}">${qty}</td>
+      <td class="money" style="color: #17a2b8;">RM ${uc.toFixed(2)}</td>
+      <td class="money" style="color: #20c997;">RM ${up.toFixed(2)}</td>
       <td class="money inventory-value">RM ${invVal.toFixed(2)}</td>
-      <td class="money revenue">RM ${rev.toFixed(2)}</td>
-      <td class="date-column">${escapeHtml(date)}</td>
-      <td class="status-column"><span class="status-badge ${statusClass}">${statusText}</span></td>
+      <td class="money potential-revenue">RM ${rev.toFixed(2)}</td>
+      <td style="color: var(--secondary-color);">${escapeHtml(date)}</td>
+      <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
         <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
@@ -755,7 +743,7 @@ async function bindProductPage(){
 }
 
 // =========================================
-// Sales Management Functions - FIXED
+// Sales Management Functions - UPDATED with contact info
 // =========================================
 async function fetchSales() {
   try {
@@ -777,11 +765,12 @@ function renderSalesHistory() {
   sales.forEach(s => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapeHtml(s.salesId || 'N/A')}</td>
+      <td><strong>${escapeHtml(s.salesId || 'N/A')}</strong></td>
       <td>${escapeHtml(s.customer || '')}</td>
+      <td><span class="contact-info"><span class="icon">📱</span> ${escapeHtml(s.customerContact || 'Not provided')}</span></td>
       <td>${s.items ? s.items.length : 0} items</td>
-      <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
-      <td>${escapeHtml(s.salesDate || 'N/A')}</td>
+      <td class="money" style="font-weight: 600; color: #20c997;">RM ${(s.totalAmount || 0).toFixed(2)}</td>
+      <td style="color: var(--secondary-color);">${escapeHtml(s.salesDate || 'N/A')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
         <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
@@ -951,9 +940,9 @@ function loadProductSearchForSales() {
         const div = document.createElement('div');
         div.className = 'product-result-item';
         div.innerHTML = `
-          <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
+          <div class="sku"><strong>${escapeHtml(item.sku || 'N/A')}</strong></div>
           <div class="name">${escapeHtml(item.name || 'N/A')}</div>
-          <div class="stock">Stock: ${item.quantity || 0} | Price: RM ${(item.unitPrice || 0).toFixed(2)}</div>
+          <div class="stock" style="font-size: 13px; color: var(--secondary-color);">Stock: ${item.quantity || 0} | Price: RM ${(item.unitPrice || 0).toFixed(2)}</div>
         `;
         div.addEventListener('click', () => {
           addSalesProductItem(item);
@@ -1074,7 +1063,7 @@ async function saveSalesOrder() {
   }
 }
 
-// ===== FIXED: View Sales Details Function =====
+// ===== UPDATED: View Sales Details Function with contact info =====
 async function viewSalesDetails(salesId) {
   try {
     console.log(`Fetching sales details for ID: ${salesId}`);
@@ -1099,7 +1088,7 @@ async function viewSalesDetails(salesId) {
     const detailElements = {
       'detailSalesId': 'detailSalesId',
       'detailCustomer': 'detailCustomer',
-      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer contact
+      'detailCustomerContact': 'detailCustomerContact',
       'detailSalesDate': 'detailSalesDate',
       'detailSalesTotalAmount': 'detailSalesTotalAmount',
       'detailSalesNotes': 'detailSalesNotes',
@@ -1117,8 +1106,8 @@ async function viewSalesDetails(salesId) {
           case 'detailCustomer':
             element.textContent = sale.customer || 'N/A';
             break;
-          case 'detailCustomerContact': // ADDED: Set customer contact
-            element.textContent = sale.customerContact || sale.customer || 'N/A';
+          case 'detailCustomerContact':
+            element.textContent = sale.customerContact || 'Not provided';
             break;
           case 'detailSalesDate':
             element.textContent = sale.salesDate || 'N/A';
@@ -1151,12 +1140,11 @@ async function viewSalesDetails(salesId) {
         sale.items.forEach((item, index) => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${escapeHtml(item.sku || 'N/A')}</td>
+            <td><strong>${escapeHtml(item.sku || 'N/A')}</strong></td>
             <td>${escapeHtml(item.productName || 'N/A')}</td>
-            <td>${item.quantity || 0}</td>
-            <td class="money">RM ${(item.salePrice || 0).toFixed(2)}</td>
-            <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+            <td style="text-align: center; font-weight: 500;">${item.quantity || 0}</td>
+            <td class="money" style="color: #20c997;">RM ${(item.salePrice || 0).toFixed(2)}</td>
+            <td class="money" style="font-weight: 600; color: #28a745;">RM ${(item.totalAmount || 0).toFixed(2)}</td>
           `;
           itemsList.appendChild(tr);
         });
@@ -1249,7 +1237,7 @@ async function printAndSaveSalesInvoice(salesId) {
 }
 
 // =========================================
-// PURCHASE MANAGEMENT FUNCTIONS - FIXED
+// PURCHASE MANAGEMENT FUNCTIONS - UPDATED with contact info
 // =========================================
 async function fetchPurchases() {
   try {
@@ -1271,11 +1259,12 @@ function renderPurchaseHistory() {
   purchases.forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
+      <td><strong>${escapeHtml(p.purchaseId || 'N/A')}</strong></td>
       <td>${escapeHtml(p.supplier || '')}</td>
+      <td><span class="contact-info"><span class="icon">📱</span> ${escapeHtml(p.supplierContact || 'Not provided')}</span></td>
       <td>${p.items ? p.items.length : 0} items</td>
-      <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
-      <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
+      <td class="money" style="font-weight: 600; color: #17a2b8;">RM ${(p.totalAmount || 0).toFixed(2)}</td>
+      <td style="color: var(--secondary-color);">${escapeHtml(p.purchaseDate || 'N/A')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
         <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
@@ -1446,9 +1435,9 @@ function loadProductSearch() {
         const div = document.createElement('div');
         div.className = 'product-result-item';
         div.innerHTML = `
-          <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
+          <div class="sku"><strong>${escapeHtml(item.sku || 'N/A')}</strong></div>
           <div class="name">${escapeHtml(item.name || 'N/A')}</div>
-          <div class="stock">Stock: ${item.quantity || 0} | Cost: RM ${(item.unitCost || 0).toFixed(2)}</div>
+          <div class="stock" style="font-size: 13px; color: var(--secondary-color);">Stock: ${item.quantity || 0} | Cost: RM ${(item.unitCost || 0).toFixed(2)}</div>
         `;
         div.addEventListener('click', () => {
           addProductItem(item);
@@ -1563,7 +1552,7 @@ async function savePurchaseOrder() {
   }
 }
 
-// ===== FIXED: View Purchase Details Function =====
+// ===== UPDATED: View Purchase Details Function with contact info =====
 async function viewPurchaseDetails(purchaseId) {
   try {
     console.log(`Fetching purchase details for ID: ${purchaseId}`);
@@ -1588,7 +1577,7 @@ async function viewPurchaseDetails(purchaseId) {
     const detailElements = {
       'detailPurchaseId': 'detailPurchaseId',
       'detailSupplier': 'detailSupplier',
-      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier contact
+      'detailSupplierContact': 'detailSupplierContact',
       'detailPurchaseDate': 'detailPurchaseDate',
       'detailTotalAmount': 'detailTotalAmount',
       'detailNotes': 'detailNotes',
@@ -1606,8 +1595,8 @@ async function viewPurchaseDetails(purchaseId) {
           case 'detailSupplier':
             element.textContent = purchase.supplier || 'N/A';
             break;
-          case 'detailSupplierContact': // ADDED: Set supplier contact
-            element.textContent = purchase.supplierContact || purchase.supplier || 'N/A';
+          case 'detailSupplierContact':
+            element.textContent = purchase.supplierContact || 'Not provided';
             break;
           case 'detailPurchaseDate':
             element.textContent = purchase.purchaseDate || 'N/A';
@@ -1640,12 +1629,11 @@ async function viewPurchaseDetails(purchaseId) {
         purchase.items.forEach((item, index) => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${escapeHtml(item.sku || 'N/A')}</td>
+            <td><strong>${escapeHtml(item.sku || 'N/A')}</strong></td>
             <td>${escapeHtml(item.productName || 'N/A')}</td>
-            <td>${item.quantity || 0}</td>
-            <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
-            <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
+            <td style="text-align: center; font-weight: 500;">${item.quantity || 0}</td>
+            <td class="money" style="color: #17a2b8;">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
+            <td class="money" style="font-weight: 600; color: #28a745;">RM ${(item.totalAmount || 0).toFixed(2)}</td>
           `;
           itemsList.appendChild(tr);
         });
@@ -2023,10 +2011,10 @@ function renderDocuments(docs) {
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapeHtml(d.name||'')}</td>
-      <td>${sizeMB} MB</td>
-      <td>${escapeHtml(d.date||'')}</td>
-      <td>${displayType}</td>
+      <td><strong>${escapeHtml(d.name||'')}</strong></td>
+      <td style="color: var(--secondary-color);">${sizeMB} MB</td>
+      <td style="color: var(--secondary-color);">${escapeHtml(d.date||'')}</td>
+      <td><span style="background: var(--primary-light); color: var(--primary-color); padding: 2px 8px; border-radius: 4px; font-size: 13px;">${displayType}</span></td>
       <td class="actions">
         <button class="primary-btn small-btn download-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}">
           ⬇️ Download
@@ -2354,9 +2342,9 @@ function renderStatements(type, statements) {
     
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapeHtml(doc.name)}</td>
-      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
-      <td>${escapeHtml(doc.date || '')}</td>
+      <td><strong>${escapeHtml(doc.name)}</strong></td>
+      <td style="color: var(--secondary-color);">${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
+      <td style="color: var(--secondary-color);">${escapeHtml(doc.date || '')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
         <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
@@ -2421,7 +2409,7 @@ function renderDashboardData(){
     activityLog.slice().slice(0,5).forEach(l => {
       const timeStr = l.time || 'N/A';
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${escapeHtml(l.user||'Admin')}</td><td>${escapeHtml(l.action)}</td><td>${escapeHtml(timeStr)}</td>`;
+      tr.innerHTML = `<td style="font-weight: 500;">${escapeHtml(l.user||'Admin')}</td><td>${escapeHtml(l.action)}</td><td style="color: var(--secondary-color);">${escapeHtml(timeStr)}</td>`;
       tbody.appendChild(tr);
     });
   }
