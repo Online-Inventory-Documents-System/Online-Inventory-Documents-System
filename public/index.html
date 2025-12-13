@@ -213,15 +213,15 @@
           <thead>
               <tr>
                   <!-- UPDATED: Added NO column header -->
-                  <th class="number-header">NO</th>
-                  <th class="sku-header">SKU</th>
+                  <th class="number-header" data-tooltip="Number">NO</th>
+                  <th class="sku-header" data-tooltip="Stock Keeping Unit">SKU</th>
                   <th class="name-header">Name</th>
                   <th class="category-header">Category</th>
-                  <th class="quantity-header">Quantity</th>
-                  <th class="money cost-header">Unit Cost</th>
-                  <th class="money price-header">Unit Price</th>
-                  <th class="money value-header">Inventory Value</th>
-                  <th class="money revenue-header">Potential Revenue</th>
+                  <th class="quantity-header" data-tooltip="Quantity">QTY</th>
+                  <th class="money cost-header" data-tooltip="Unit Cost">Cost</th>
+                  <th class="money price-header" data-tooltip="Unit Price">Price</th>
+                  <th class="money value-header" data-tooltip="Inventory Value">Inv Value</th>
+                  <th class="money revenue-header" data-tooltip="Potential Revenue">Revenue</th>
                   <th class="date-header">Date</th>
                   <th class="status-header">Status</th>
                   <th class="actions-header">Actions</th>
@@ -755,6 +755,21 @@
       // Simple alert for now, can be enhanced with a proper tooltip library
       // alert(message);
     }
+    
+    // Add tooltip functionality for table headers
+    document.addEventListener('DOMContentLoaded', function() {
+      const tableHeaders = document.querySelectorAll('#inventoryTable th[data-tooltip]');
+      tableHeaders.forEach(header => {
+        header.addEventListener('mouseenter', function(e) {
+          if (window.innerWidth < 768) {
+            // Show tooltip on mobile if text is truncated
+            if (this.scrollWidth > this.clientWidth) {
+              alert(this.getAttribute('data-tooltip') + ': ' + this.textContent);
+            }
+          }
+        });
+      });
+    });
   </script>
 </body>
 </html>
