@@ -31,7 +31,6 @@ body {
   color: var(--text-light);
   transition: all 0.3s ease;
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 header {
@@ -51,7 +50,6 @@ header h1 {
   margin: 0;
   font-size: 1.8rem;
   text-align: center;
-  word-break: break-word;
 }
 
 nav {
@@ -97,7 +95,6 @@ nav button:hover {
   margin-top: 5px;
   color: rgba(255, 255, 255, 0.8);
   text-align: center;
-  word-break: break-word;
 }
 
 /* =========================================
@@ -111,8 +108,6 @@ section {
   border-radius: 10px;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 /* Welcome Section */
@@ -123,239 +118,99 @@ section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 15px;
   color: white;
-  word-break: break-word;
 }
 
 .welcome-section h2 {
   margin: 0 0 10px 0;
-  font-size: clamp(1.3rem, 4vw, 2rem);
+  font-size: 2rem;
   font-weight: 700;
-  line-height: 1.3;
 }
 
 .welcome-section p {
   margin: 0 0 15px 0;
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  font-size: 1.1rem;
   opacity: 0.9;
-  line-height: 1.5;
 }
 
 .welcome-section .clock {
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  font-size: 1.1rem;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.2);
   padding: 8px 15px;
   border-radius: 25px;
   display: inline-block;
   color: #a4f084 !important;
-  word-break: break-word;
 }
 
 /* =========================================
-   RESPONSIVE INVENTORY TABLE DESIGN
+   ENHANCED INVENTORY TABLE HEADERS & TEXT
 ========================================= */
-.table-container {
-  overflow-x: auto;
-  margin-top: 20px;
-  box-shadow: var(--shadow-sm);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--card-light);
-  width: 100%;
-  -webkit-overflow-scrolling: touch;
-}
-
-#inventoryTable {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0;
-  font-size: clamp(0.8rem, 1.5vw, 0.95rem);
-  min-width: 800px; /* Reduced from 1300px for better mobile */
-}
-
-#inventoryTable th, #inventoryTable td {
-  padding: 12px 8px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-  border-right: 1px solid #000000;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-}
-
-#inventoryTable th:last-child, 
-#inventoryTable td:last-child {
-  border-right: none;
-}
-
-/* ENHANCED RESPONSIVE TABLE HEADERS */
-#inventoryTable thead th {
-  font-size: clamp(0.85rem, 1.8vw, 1rem);
-  font-weight: 700;
-  padding: 14px 8px;
+#inventoryTable th {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  padding: 15px 12px !important;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  background: var(--primary-color);
-  color: white;
+  background: linear-gradient(135deg, var(--primary-color), #0056b3) !important;
+  color: white !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
-/* Responsive text for table headers with abbreviations on small screens */
-@media (max-width: 768px) {
-  #inventoryTable thead th {
-    font-size: 0.8rem;
-    padding: 10px 6px;
-  }
-  
-  /* Abbreviations for small screens */
-  .number-header::after { content: "NO"; }
-  .sku-header::after { content: "SKU"; }
-  .name-header::after { content: "NAME"; }
-  .category-header::after { content: "CAT"; }
-  .quantity-header::after { content: "QTY"; }
-  .cost-header::after { content: "COST"; }
-  .price-header::after { content: "PRICE"; }
-  .value-header::after { content: "VALUE"; }
-  .revenue-header::after { content: "REV"; }
-  .date-header::after { content: "DATE"; }
-  .status-header::after { content: "STATUS"; }
-  .actions-header::after { content: "ACT"; }
-  
-  /* Hide original text on small screens */
-  .number-header span,
-  .sku-header span,
-  .name-header span,
-  .category-header span,
-  .quantity-header span,
-  .cost-header span,
-  .price-header span,
-  .value-header span,
-  .revenue-header span,
-  .date-header span,
-  .status-header span,
-  .actions-header span {
-    display: none;
-  }
+/* Specific header styling for better visibility */
+.number-header {
+  background: linear-gradient(135deg, #6c757d, #545b62) !important;
 }
 
-@media (min-width: 769px) {
-  #inventoryTable thead th::after {
-    display: none; /* Show full text on larger screens */
-  }
-  
-  .number-header span,
-  .sku-header span,
-  .name-header span,
-  .category-header span,
-  .quantity-header span,
-  .cost-header span,
-  .price-header span,
-  .value-header span,
-  .revenue-header span,
-  .date-header span,
-  .status-header span,
-  .actions-header span {
-    display: inline;
-  }
+.sku-header {
+  background: linear-gradient(135deg, #28a745, #1e7e34) !important;
 }
 
-/* Column width optimization for mobile */
-@media (max-width: 768px) {
-  #inventoryTable {
-    font-size: 0.75rem;
-    min-width: 700px;
-  }
-  
-  #inventoryTable th, #inventoryTable td {
-    padding: 8px 4px;
-    max-width: 100px;
-  }
-  
-  #inventoryTable th:nth-child(1), /* NO */
-  #inventoryTable td:nth-child(1) {
-    min-width: 40px;
-    max-width: 50px;
-  }
-  
-  #inventoryTable th:nth-child(2), /* SKU */
-  #inventoryTable td:nth-child(2) {
-    min-width: 80px;
-    max-width: 100px;
-  }
-  
-  #inventoryTable th:nth-child(3), /* NAME */
-  #inventoryTable td:nth-child(3) {
-    min-width: 100px;
-    max-width: 120px;
-  }
-  
-  #inventoryTable th:nth-child(4), /* CATEGORY */
-  #inventoryTable td:nth-child(4) {
-    min-width: 70px;
-    max-width: 90px;
-  }
-  
-  #inventoryTable th:nth-child(5), /* QUANTITY */
-  #inventoryTable td:nth-child(5) {
-    min-width: 60px;
-    max-width: 70px;
-  }
-  
-  #inventoryTable td:nth-child(6), /* Unit Cost */
-  #inventoryTable td:nth-child(7), /* Unit Price */
-  #inventoryTable td:nth-child(8), /* Inventory Value */
-  #inventoryTable td:nth-child(9) { /* Potential Revenue */
-    min-width: 90px;
-    max-width: 100px;
-  }
-  
-  #inventoryTable td:nth-child(10) { /* Date */
-    min-width: 80px;
-    max-width: 90px;
-  }
-  
-  #inventoryTable td:nth-child(11) { /* Status */
-    min-width: 90px;
-    max-width: 100px;
-  }
-  
-  #inventoryTable td:nth-child(12) { /* Actions */
-    min-width: 100px;
-    max-width: 110px;
-  }
+.name-header {
+  background: linear-gradient(135deg, #007bff, #0056b3) !important;
 }
 
-@media (max-width: 480px) {
-  #inventoryTable {
-    font-size: 0.7rem;
-    min-width: 600px;
-  }
-  
-  #inventoryTable th, #inventoryTable td {
-    padding: 6px 3px;
-    max-width: 80px;
-  }
-  
-  .small-btn {
-    padding: 3px 6px;
-    font-size: 0.7rem;
-    margin: 2px 0;
-  }
+.category-header {
+  background: linear-gradient(135deg, #17a2b8, #138496) !important;
+}
+
+.quantity-header {
+  background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+}
+
+.cost-header {
+  background: linear-gradient(135deg, #dc3545, #bd2130) !important;
+}
+
+.price-header {
+  background: linear-gradient(135deg, #fd7e14, #e8590c) !important;
+}
+
+.value-header {
+  background: linear-gradient(135deg, #6f42c1, #5a32a3) !important;
+}
+
+.revenue-header {
+  background: linear-gradient(135deg, #20c997, #199d76) !important;
+}
+
+.date-header {
+  background: linear-gradient(135deg, #6610f2, #520dc2) !important;
+}
+
+.status-header {
+  background: linear-gradient(135deg, #20c997, #199d76) !important;
+}
+
+.actions-header {
+  background: linear-gradient(135deg, #6c757d, #545b62) !important;
 }
 
 /* Enhanced table cell styling for better readability */
 #inventoryTable td {
-  font-size: inherit;
-  padding: 10px 8px;
+  font-size: 0.95rem;
+  padding: 12px 10px;
   border-bottom: 1px solid #e9ecef;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Number column styling */
@@ -371,7 +226,7 @@ section {
   font-weight: 700;
   color: #198754;
   text-align: center;
-  font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+  font-size: 1.05rem;
 }
 
 .dark-mode .quantity-cell {
@@ -382,25 +237,25 @@ section {
 .cost-cell {
   color: #dc3545;
   font-weight: 700;
-  font-size: inherit;
+  font-size: 1rem;
 }
 
 .price-cell {
   color: #fd7e14;
   font-weight: 700;
-  font-size: inherit;
+  font-size: 1rem;
 }
 
 .value-cell {
   color: #6f42c1;
   font-weight: 700;
-  font-size: inherit;
+  font-size: 1rem;
 }
 
 .revenue-cell {
   color: #20c997;
   font-weight: 700;
-  font-size: inherit;
+  font-size: 1rem;
 }
 
 .date-cell {
@@ -435,58 +290,21 @@ section {
   color: #9775fa;
 }
 
-/* Table row hover effects */
-#inventoryTable tbody tr:hover,
-#documentsTable tbody tr:hover,
-#salesHistoryTable tbody tr:hover {
-  background-color: #f1f1f1;
-  transition: background-color 0.2s;
-}
-
-#inventoryTable tbody tr.low-stock-row {
-  background-color: #fff8e1; 
-}
-#inventoryTable tbody tr.out-of-stock-row {
-  background-color: #fce4e4; 
-}
-#inventoryTable tbody tr.low-stock-row:hover {
-  background-color: #ffebac;
-}
-#inventoryTable tbody tr.out-of-stock-row:hover {
-  background-color: #f9d8d8;
-}
-
-.dark-mode #inventoryTable tbody tr.low-stock-row {
-  background-color: #4e4e3b; 
-}
-.dark-mode #inventoryTable tbody tr.out-of-stock-row {
-  background-color: #6b3f3f; 
-}
-.dark-mode #inventoryTable tbody tr.low-stock-row:hover {
-  background-color: #5d5d43;
-}
-.dark-mode #inventoryTable tbody tr.out-of-stock-row:hover {
-  background-color: #7b4f4f;
-}
-
 /* =========================================
-   Status Badges Styling - Enhanced & Responsive
+   Status Badges Styling - Enhanced
 ========================================= */
 .status-badge {
   display: inline-block;
-  padding: clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 12px);
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: clamp(0.7rem, 1.3vw, 0.85rem);
+  font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   text-align: center;
-  min-width: clamp(80px, 10vw, 100px);
+  min-width: 100px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .status-in-stock {
@@ -532,16 +350,125 @@ section {
   border-color: #ff6b6b;
 }
 
-@media (max-width: 480px) {
-  .status-badge {
-    min-width: 70px;
-    padding: 3px 6px;
-    font-size: 0.65rem;
-  }
+/* =========================================
+   ENHANCED MODAL SIZING FOR BETTER UX
+========================================= */
+.modal-content {
+  background-color: var(--card-light);
+  margin: 2% auto;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  max-width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.large-modal {
+  width: 900px;
+}
+
+.x-large-modal {
+  width: 1200px;
+}
+
+/* Purchase/Sales History Modal Enhancements */
+#purchaseHistoryModal .modal-content,
+#salesHistoryModal .modal-content {
+  width: 1300px;
+  max-width: 95%;
+}
+
+#newPurchaseModal .modal-content,
+#newSalesModal .modal-content {
+  width: 1100px;
+  max-width: 95%;
+}
+
+/* Modal header enhancement */
+.modal-header {
+  background: linear-gradient(135deg, var(--primary-color), #0056b3);
+  color: white;
+  padding: 25px 30px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Modal body padding enhancement */
+.modal-body {
+  padding: 30px;
+}
+
+/* Form group enhancement for purchase/sales modals */
+.form-group label {
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+  display: block;
+  font-size: 1rem;
+}
+
+.form-group input,
+.form-group textarea {
+  font-size: 1.05rem;
+  padding: 14px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
+}
+
+/* Detail sections enhancement for purchase/sales details */
+.purchase-details-header,
+.sales-details-header {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  padding: 25px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  border: 2px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.detail-group label {
+  font-weight: 700;
+  color: #495057;
+  font-size: 0.95rem;
+  margin-bottom: 5px;
+}
+
+.detail-value {
+  color: var(--text-light);
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+}
+
+.dark-mode .detail-value {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
 }
 
 /* =========================================
-   Pagination Styling - Responsive
+   Pagination Styling
 ========================================= */
 .pagination-container {
   display: flex;
@@ -550,36 +477,30 @@ section {
   margin-bottom: 15px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-color);
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .pagination-info {
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-size: 0.9rem;
   color: var(--secondary-color);
-  white-space: nowrap;
 }
 
 .pagination-controls {
   display: flex;
-  gap: 3px;
+  gap: 5px;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
 }
 
 .pagination-btn {
-  padding: clamp(4px, 1vw, 6px) clamp(6px, 1.5vw, 12px);
+  padding: 6px 12px;
   border: 1px solid var(--border-color);
   background: var(--card-light);
   color: var(--text-light);
   border-radius: 4px;
   cursor: pointer;
-  font-size: clamp(0.75rem, 1.3vw, 0.85rem);
-  min-width: clamp(28px, 2vw, 32px);
+  font-size: 0.85rem;
+  min-width: 32px;
   text-align: center;
   transition: all 0.2s;
-  white-space: nowrap;
 }
 
 .pagination-btn:hover:not(:disabled) {
@@ -601,26 +522,23 @@ section {
 
 .page-numbers {
   display: flex;
-  gap: 1px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .items-per-page {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: clamp(0.75rem, 1.3vw, 0.85rem);
-  margin-left: 5px;
-  white-space: nowrap;
+  font-size: 0.85rem;
+  margin-left: 10px;
 }
 
 .items-per-page select {
-  padding: clamp(3px, 0.5vw, 4px) clamp(6px, 1vw, 8px);
+  padding: 4px 8px;
   border-radius: 4px;
   border: 1px solid var(--border-color);
   background: var(--card-light);
   color: var(--text-light);
-  font-size: clamp(0.75rem, 1.3vw, 0.85rem);
 }
 
 /* Dark mode pagination */
@@ -652,43 +570,17 @@ section {
   .pagination-container {
     flex-direction: column;
     gap: 10px;
-    align-items: stretch;
-  }
-  
-  .pagination-info {
-    text-align: center;
-    width: 100%;
+    align-items: flex-start;
   }
   
   .pagination-controls {
     width: 100%;
     justify-content: center;
   }
-  
-  .page-numbers {
-    justify-content: center;
-  }
-}
-
-@media (max-width: 480px) {
-  .pagination-btn {
-    min-width: 26px;
-    padding: 4px 6px;
-    font-size: 0.7rem;
-  }
-  
-  .items-per-page {
-    font-size: 0.7rem;
-  }
-  
-  .items-per-page select {
-    font-size: 0.7rem;
-    padding: 3px 6px;
-  }
 }
 
 /* =========================================
-   Form/Input Styling & Buttons - Responsive
+   Form/Input Styling & Buttons
 ========================================= */
 input[type="text"], 
 input[type="number"], 
@@ -699,14 +591,13 @@ input[type="email"],
 select,
 textarea {
     width: 100%;
-    padding: clamp(10px, 2vw, 12px);
+    padding: 12px;
     margin-top: 5px;
     margin-bottom: 15px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     box-sizing: border-box;
     transition: border-color 0.2s;
-    font-size: clamp(0.9rem, 1.8vw, 1rem);
 }
 input:focus, select:focus, textarea:focus {
     border-color: var(--primary-color);
@@ -716,14 +607,11 @@ input:focus, select:focus, textarea:focus {
 
 .primary-btn, .secondary-btn, .success-btn, .danger-btn, .warning-btn, .info-btn {
     border: none;
-    padding: clamp(8px, 1.5vw, 10px) clamp(12px, 2vw, 15px);
+    padding: 10px 15px;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     transition: background 0.2s, transform 0.1s;
-    font-size: clamp(0.85rem, 1.6vw, 1rem);
-    white-space: nowrap;
-    text-align: center;
 }
 .primary-btn { background: var(--primary-color); color: white; }
 .primary-btn:hover { background: #0056b3; transform: translateY(-1px); }
@@ -737,8 +625,8 @@ input:focus, select:focus, textarea:focus {
 .danger-btn { 
     background: var(--danger-color); 
     color: white; 
-    padding: clamp(6px, 1vw, 8px) clamp(8px, 1.5vw, 12px); 
-    font-size: clamp(0.75rem, 1.4vw, 0.9rem); 
+    padding: 8px 12px; 
+    font-size: 0.9rem; 
 }
 .danger-btn:hover { background: #bd2130; transform: translateY(-1px); }
 
@@ -753,30 +641,14 @@ input:focus, select:focus, textarea:focus {
     padding: 6px 10px;
 }
 
-.small-btn {
-    padding: clamp(4px, 1vw, 5px) clamp(6px, 1.5vw, 8px);
-    font-size: clamp(0.7rem, 1.3vw, 0.8rem);
-    margin: 2px;
-    white-space: nowrap;
-}
-
-@media (max-width: 480px) {
-  .small-btn {
-    padding: 3px 6px;
-    font-size: 0.65rem;
-    margin: 1px;
-  }
-}
-
 /* =========================================
    Login Page Styling
 ========================================= */
 .login-container { 
-  max-width: 90%;
-  width: 400px;
+  max-width: 400px; 
   background: var(--card-light); 
-  margin: 30px auto 100px auto; 
-  padding: clamp(20px, 5vw, 35px); 
+  margin: 0 auto 100px auto; 
+  padding: 35px; 
   border-radius: 10px; 
   box-shadow: var(--shadow-md); 
 }
@@ -787,13 +659,11 @@ input:focus, select:focus, textarea:focus {
   color: var(--primary-color); 
   font-weight: 500;
   text-decoration: underline; 
-  font-size: clamp(0.85rem, 1.6vw, 0.9rem);
 }
 #loginMessage, #registerMessage {
     margin-top: 10px;
     text-align: center;
     font-weight: 500;
-    font-size: clamp(0.85rem, 1.6vw, 1rem);
 }
 
 /* =========================================
@@ -801,24 +671,22 @@ input:focus, select:focus, textarea:focus {
 ========================================= */
 .main-title-container {
     text-align: center;
-    margin-top: clamp(30px, 8vw, 50px);
+    margin-top: 50px;
     margin-bottom: 20px;
     padding: 0 10px;
 }
 .main-title-container h1 {
-    font-size: clamp(1.8rem, 5vw, 2.5rem);
+    font-size: 2.5rem;
     color: var(--primary-color);
     font-weight: 800;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
     margin: 0;
-    word-break: break-word;
 }
 .login-container h2 {
     text-align: center;
     border-bottom: none;
     padding-bottom: 0;
     margin-bottom: 20px;
-    font-size: clamp(1.2rem, 3vw, 1.5rem);
 }
 .login-container input { width: 100%; }
 .login-container button { width: 100%; margin-top: 10px; }
@@ -829,18 +697,18 @@ input:focus, select:focus, textarea:focus {
     margin-top: 15px;
     font-size: 0.9rem;
 }
-.info { font-size: clamp(0.7rem, 1.4vw, 0.8rem); color: var(--secondary-color); text-align: center; }
+.info { font-size: 0.8rem; color: var(--secondary-color); text-align: center; }
 
 /* =========================================
    Inventory/Documents Common Controls
 ========================================= */
 .product-bar {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: clamp(8px, 1.5vw, 12px); 
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; 
     align-items: center; 
     margin-bottom: 20px; 
-    padding: clamp(10px, 2vw, 15px);
+    padding: 15px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--background-light);
@@ -848,14 +716,12 @@ input:focus, select:focus, textarea:focus {
 
 .product-bar input { 
     width: 100%; 
-    margin: 0;
-    font-size: clamp(0.85rem, 1.6vw, 0.95rem);
+    margin: 0; 
 }
 
 .product-bar button {
     grid-column: 1 / -1; 
-    padding: clamp(10px, 2vw, 12px) clamp(12px, 2vw, 15px);
-    font-size: clamp(0.9rem, 1.8vw, 1rem);
+    padding: 12px 15px;
 }
 
 @media (min-width: 768px) {
@@ -875,7 +741,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   UPDATED: Date Range Search Controls Styling - Responsive
+   UPDATED: Date Range Search Controls Styling
 ========================================= */
 .search-controls {
     display: flex;
@@ -896,7 +762,6 @@ input:focus, select:focus, textarea:focus {
     font-weight: 600;
     color: var(--primary-color);
     white-space: nowrap;
-    font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 .date-inputs {
@@ -913,7 +778,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .date-label {
-    font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+    font-size: 0.85rem;
     color: var(--secondary-color);
     font-weight: 500;
     white-space: nowrap;
@@ -921,42 +786,40 @@ input:focus, select:focus, textarea:focus {
 
 .date-range-container input[type="date"] {
     width: auto;
-    min-width: clamp(100px, 15vw, 140px);
-    padding: clamp(6px, 1vw, 8px) clamp(8px, 1.5vw, 10px);
+    min-width: 140px;
+    padding: 8px 10px;
     margin: 0;
-    font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+    font-size: 0.9rem;
 }
 
 .date-range-container .primary-btn,
 .date-range-container .secondary-btn {
-    padding: clamp(6px, 1vw, 8px) clamp(8px, 1.5vw, 12px);
-    font-size: clamp(0.75rem, 1.4vw, 0.85rem);
+    padding: 8px 12px;
+    font-size: 0.85rem;
     white-space: nowrap;
 }
 
 .text-search-container input[type="text"] {
-    width: clamp(200px, 30vw, 280px);
-    padding: clamp(8px, 1.5vw, 10px);
+    width: 280px;
+    padding: 10px;
     margin: 0;
-    font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 /* Active date range filter indicator */
 .date-range-container.active {
     background: rgba(0, 123, 255, 0.1);
-    padding: clamp(6px, 1vw, 8px) clamp(8px, 1.5vw, 12px);
+    padding: 8px 12px;
     border-radius: 6px;
     border: 1px solid var(--primary-color);
 }
 
 /* Date range status display */
 .date-range-status {
-    font-size: clamp(0.7rem, 1.3vw, 0.8rem);
+    font-size: 0.8rem;
     color: var(--success-color);
     font-weight: 500;
     margin-left: 10px;
     display: none;
-    white-space: nowrap;
 }
 
 .date-range-status.active {
@@ -992,15 +855,174 @@ input:focus, select:focus, textarea:focus {
     }
 }
 
-@media (max-width: 480px) {
-    .text-search-container input[type="text"] {
-        width: 100%;
-    }
-    
-    .date-range-container,
-    .text-search-container {
-        width: 100%;
-    }
+/* =========================================
+   LARGER TABLE STYLING FOR INVENTORY
+========================================= */
+.table-container {
+    overflow-x: auto; 
+    margin-top: 20px;
+    box-shadow: var(--shadow-sm);
+    border-radius: 8px;
+    border: 1px solid var(--border-color); 
+    background: var(--card-light);
+    max-width: 100%;
+}
+
+#inventoryTable, #documentsTable, #salesHistoryTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 0.95rem;
+    min-width: 1300px;
+}
+
+/* VERTICAL BORDERS FOR ALL CELLS */
+#inventoryTable th, #inventoryTable td,
+#salesHistoryTable th, #salesHistoryTable td {
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid #000000;
+}
+
+/* Remove border only from last column */
+#inventoryTable th:last-child, 
+#inventoryTable td:last-child,
+#salesHistoryTable th:last-child, 
+#salesHistoryTable td:last-child {
+    border-right: none;
+}
+
+#inventoryTable thead th,
+#salesHistoryTable thead th {
+    position: sticky; 
+    top: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 15px 10px;
+}
+
+#inventoryTable thead th:last-child,
+#salesHistoryTable thead th:last-child {
+    border-right: none;
+}
+
+/* COMPACT COLUMN WIDTHS FOR BETTER FIT */
+#inventoryTable th:nth-child(1), /* NO */
+#inventoryTable td:nth-child(1) {
+    min-width: 60px;
+    max-width: 70px;
+    text-align: center;
+}
+
+#inventoryTable th:nth-child(2), /* SKU */
+#inventoryTable td:nth-child(2) {
+    min-width: 100px;
+    max-width: 120px;
+}
+
+#inventoryTable th:nth-child(3), /* NAME */
+#inventoryTable td:nth-child(3) {
+    min-width: 150px;
+    max-width: 200px;
+}
+
+#inventoryTable th:nth-child(4), /* CATEGORY */
+#inventoryTable td:nth-child(4) {
+    min-width: 100px;
+    max-width: 120px;
+}
+
+#inventoryTable th:nth-child(5), /* QUANTITY */
+#inventoryTable td:nth-child(5) {
+    min-width: 80px;
+    max-width: 90px;
+    text-align: center;
+}
+
+/* CURRENCY COLUMNS */
+#inventoryTable td:nth-child(6), /* Unit Cost */
+#inventoryTable td:nth-child(7), /* Unit Price */
+#inventoryTable td:nth-child(8), /* Inventory Value */
+#inventoryTable td:nth-child(9) { /* Potential Revenue */
+    white-space: nowrap;
+    text-align: right;
+    font-family: 'Consolas', monospace;
+    font-weight: bold;
+    min-width: 110px;
+    max-width: 130px;
+}
+
+/* Date column */
+#inventoryTable td:nth-child(10) {
+    text-align: center;
+    min-width: 100px;
+    max-width: 110px;
+}
+
+/* Status column */
+#inventoryTable td:nth-child(11) {
+    text-align: center;
+    min-width: 110px;
+    max-width: 120px;
+}
+
+/* Actions column */
+#inventoryTable td:nth-child(12) {
+    text-align: center;
+    min-width: 120px;
+    max-width: 130px;
+}
+
+/* Documents table styling (no vertical borders) */
+#documentsTable th, #documentsTable td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#documentsTable thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: sticky; 
+    top: 0;
+}
+
+/* Table row styles */
+#inventoryTable tbody tr:hover,
+#documentsTable tbody tr:hover,
+#salesHistoryTable tbody tr:hover {
+    background-color: #f1f1f1;
+    transition: background-color 0.2s;
+}
+
+#inventoryTable tbody tr.low-stock-row {
+    background-color: #fff8e1; 
+}
+#inventoryTable tbody tr.out-of-stock-row {
+    background-color: #fce4e4; 
+}
+#inventoryTable tbody tr.low-stock-row:hover {
+    background-color: #ffebac;
+}
+#inventoryTable tbody tr.out-of-stock-row:hover {
+    background-color: #f9d8d8;
+}
+
+.money {
+    text-align: right;
+    font-family: 'Consolas', monospace; 
+    font-weight: bold;
+}
+.actions {
+    text-align: center;
+    min-width: 150px;
+}
+.small-btn {
+    padding: 5px 8px;
+    font-size: 0.8em;
 }
 
 /* =========================================
@@ -1017,7 +1039,7 @@ input:focus, select:focus, textarea:focus {
     }
 }
 .dashboard-info {
-    font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+    font-size: 1.1rem;
 }
 .dashboard-info ul {
     list-style: none;
@@ -1038,17 +1060,16 @@ input:focus, select:focus, textarea:focus {
     gap: 20px;
 }
 .quick-access-btn {
-    padding: clamp(20px, 4vw, 30px);
+    padding: 30px;
     text-align: center;
     border-radius: 8px;
-    font-size: clamp(1rem, 2vw, 1.2rem);
+    font-size: 1.2rem;
     font-weight: 700;
     box-shadow: var(--shadow-md);
     text-decoration: none;
     color: white;
     cursor: pointer;
     transition: transform 0.2s;
-    word-break: break-word;
 }
 .quick-access-btn:hover {
     transform: translateY(-3px);
@@ -1064,11 +1085,10 @@ input:focus, select:focus, textarea:focus {
     border-radius: 8px;
     box-shadow: var(--shadow-sm);
 }
-.clock { font-size: clamp(1rem, 2vw, 1.2rem); font-weight: 600; margin-bottom: 15px; color: var(--primary-color); }
+.clock { font-size: 1.2rem; font-weight: 600; margin-bottom: 15px; color: var(--primary-color); }
 #recentActivities th, #recentActivities td {
     padding: 8px;
     border-bottom: 1px solid var(--border-color);
-    font-size: clamp(0.8rem, 1.5vw, 0.9rem);
 }
 
 /* =========================================
@@ -1136,6 +1156,19 @@ input:focus, select:focus, textarea:focus {
     border-right-color: rgba(255, 255, 255, 0.3);
 }
 
+.dark-mode #inventoryTable tbody tr.low-stock-row {
+    background-color: #4e4e3b; 
+}
+.dark-mode #inventoryTable tbody tr.out-of-stock-row {
+    background-color: #6b3f3f; 
+}
+.dark-mode #inventoryTable tbody tr.low-stock-row:hover {
+    background-color: #5d5d43;
+}
+.dark-mode #inventoryTable tbody tr.out-of-stock-row:hover {
+    background-color: #7b4f4f;
+}
+
 .dark-mode #logList li {
   background: #343a40;
   border-left-color: var(--primary-color);
@@ -1177,15 +1210,13 @@ input:focus, select:focus, textarea:focus {
 #activityLog {
   max-width: 1200px;
   margin: 30px auto;
-  width: 100%;
 }
 
 #activityLog h2 {
   text-align: center;
   margin-bottom: 20px;
-  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-size: 1.8rem;
   color: var(--primary-color);
-  word-break: break-word;
 }
 
 .activity-table-container {
@@ -1196,12 +1227,11 @@ input:focus, select:focus, textarea:focus {
   background: var(--card-light);
   box-shadow: var(--shadow-sm);
   padding: 0;
-  -webkit-overflow-scrolling: touch;
 }
 
 #activityTable {
   width: 100%;
-  min-width: 600px;
+  min-width: 750px;
   border-collapse: collapse;
 }
 
@@ -1213,13 +1243,12 @@ input:focus, select:focus, textarea:focus {
   text-align: left;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 #activityTable td {
   padding: 12px 15px;
   border-bottom: 1px solid var(--border-color);
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-size: 0.95rem;
 }
 
 #activityTable tbody tr:hover {
@@ -1246,24 +1275,12 @@ input:focus, select:focus, textarea:focus {
   background: #3d3d3d;
 }
 
-@media (max-width: 768px) {
-  #activityTable {
-    min-width: 500px;
-  }
-  
-  #activityTable thead th,
-  #activityTable td {
-    padding: 8px 10px;
-  }
-}
-
 /* =========================================
    ADDITIONAL SPACING OPTIMIZATIONS
 ========================================= */
 #inventory h2 {
     margin-bottom: 15px;
-    font-size: clamp(1.2rem, 2.5vw, 1.5rem);
-    word-break: break-word;
+    font-size: 1.5rem;
 }
 
 .controls {
@@ -1282,12 +1299,12 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   MODERN SUMMARY CARDS - Responsive
+   MODERN SUMMARY CARDS
 ========================================= */
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: clamp(15px, 3vw, 20px);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
   margin-bottom: 30px;
 }
 
@@ -1295,16 +1312,15 @@ input:focus, select:focus, textarea:focus {
   position: relative;
   background: linear-gradient(135deg, var(--primary-color), #0056b3);
   border-radius: 16px;
-  padding: clamp(15px, 3vw, 25px);
+  padding: 25px;
   color: white;
   box-shadow: var(--shadow-md);
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
-  min-height: clamp(100px, 20vw, 140px);
+  min-height: 140px;
   display: flex;
   align-items: center;
-  word-break: break-word;
 }
 
 .card:hover {
@@ -1317,8 +1333,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .card-icon {
-  font-size: clamp(2rem, 5vw, 3rem);
-  margin-right: clamp(10px, 2vw, 20px);
+  font-size: 3rem;
+  margin-right: 20px;
   transition: all 0.3s ease;
   flex-shrink: 0;
 }
@@ -1330,7 +1346,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .card-title {
-  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+  font-size: 0.9rem;
   opacity: 0.9;
   margin-bottom: 8px;
   font-weight: 500;
@@ -1339,7 +1355,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .card-value {
-  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-size: 1.8rem;
   font-weight: 700;
   transition: all 0.3s ease;
 }
@@ -1357,8 +1373,8 @@ input:focus, select:focus, textarea:focus {
   position: absolute;
   bottom: -10px;
   right: -10px;
-  width: clamp(80px, 15vw, 120px);
-  height: clamp(80px, 15vw, 120px);
+  width: 120px;
+  height: 120px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   transition: all 0.5s ease;
@@ -1411,6 +1427,20 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr;
     gap: 15px;
   }
+  
+  .card {
+    padding: 20px;
+    min-height: 120px;
+  }
+  
+  .card-icon {
+    font-size: 2.5rem;
+    margin-right: 15px;
+  }
+  
+  .card-value {
+    font-size: 1.5rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1437,7 +1467,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Purchase & Sales Management Styles - Responsive
+   Purchase & Sales Management Styles
 ========================================= */
 .section-header {
   display: flex;
@@ -1450,8 +1480,6 @@ input:focus, select:focus, textarea:focus {
 
 .section-header h2 {
   margin: 0;
-  font-size: clamp(1.2rem, 2.5vw, 1.5rem);
-  word-break: break-word;
 }
 
 /* Action Buttons Container */
@@ -1464,7 +1492,6 @@ input:focus, select:focus, textarea:focus {
 .action-buttons .btn-group {
   display: flex;
   gap: 5px;
-  flex-wrap: wrap;
 }
 
 /* Purchase/Sales Modal Styles */
@@ -1477,94 +1504,18 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   height: 100%;
   background-color: rgba(0,0,0,0.5);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.modal-content {
-  background-color: var(--card-light);
-  margin: 2% auto;
-  padding: 0;
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-  max-width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
-  width: 90%;
-}
-
-.large-modal {
-  width: 90%;
-  max-width: 900px;
-}
-
-.x-large-modal {
-  width: 95%;
-  max-width: 1200px;
-}
-
-/* Modal header enhancement */
-.modal-header {
-  background: linear-gradient(135deg, var(--primary-color), #0056b3);
-  color: white;
-  padding: clamp(15px, 3vw, 25px) clamp(20px, 4vw, 30px);
-  border-radius: 12px 12px 0 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: white;
-  font-size: clamp(1.3rem, 3vw, 1.8rem);
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  word-break: break-word;
 }
 
 .close {
   color: white;
-  font-size: clamp(24px, 5vw, 28px);
+  float: right;
+  font-size: 28px;
   font-weight: bold;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
 .close:hover {
   color: #ffeb3b;
-}
-
-/* Modal body padding enhancement */
-.modal-body {
-  padding: clamp(15px, 3vw, 30px);
-}
-
-/* Form group enhancement for purchase/sales modals */
-.form-group label {
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 8px;
-  display: block;
-  font-size: clamp(0.9rem, 1.8vw, 1rem);
-  word-break: break-word;
-}
-
-.form-group input,
-.form-group textarea {
-  font-size: clamp(0.9rem, 1.8vw, 1.05rem);
-  padding: clamp(10px, 2vw, 14px);
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  width: 100%;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
 }
 
 .search-product-section,
@@ -1599,7 +1550,6 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   transition: background-color 0.2s;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 .product-result-item:hover {
@@ -1621,7 +1571,7 @@ input:focus, select:focus, textarea:focus {
 
 .product-result-item .stock {
   color: var(--secondary-color);
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-size: 0.9rem;
 }
 
 /* Purchase/Sales Items Container */
@@ -1639,7 +1589,7 @@ input:focus, select:focus, textarea:focus {
 .purchase-item-row,
 .sales-item-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -1663,7 +1613,6 @@ input:focus, select:focus, textarea:focus {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 0.9rem;
-  white-space: nowrap;
 }
 
 .remove-item-btn:hover {
@@ -1680,10 +1629,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .total-amount-display {
-  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-size: 1.2rem;
   color: var(--success-color);
   text-align: right;
-  word-break: break-word;
 }
 
 .form-group {
@@ -1692,8 +1640,26 @@ input:focus, select:focus, textarea:focus {
 
 .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
 }
 
 .form-group textarea {
@@ -1708,7 +1674,6 @@ input:focus, select:focus, textarea:focus {
   margin-top: 25px;
   padding-top: 20px;
   border-top: 1px solid var(--border-color);
-  flex-wrap: wrap;
 }
 
 /* Purchase/Sales History Table */
@@ -1716,7 +1681,6 @@ input:focus, select:focus, textarea:focus {
 #salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
 }
 
 #purchaseHistoryTable th, #purchaseHistoryTable td,
@@ -1724,7 +1688,6 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
 }
 
 #purchaseHistoryTable thead th {
@@ -1733,7 +1696,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 #salesHistoryTable thead th {
@@ -1742,7 +1704,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 #purchaseHistoryTable tbody tr:hover,
@@ -1840,35 +1801,24 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 1fr;
     gap: 10px;
   }
-  
-  .x-large-modal {
-    width: 95%;
-  }
-  
-  #purchaseHistoryTable,
-  #salesHistoryTable {
-    min-width: 600px;
-  }
 }
 
 /* =========================================
-   Purchase/Sales Details Modal Styling - Responsive
+   Purchase/Sales Details Modal Styling
 ========================================= */
 .purchase-details-header,
 .sales-details-header {
   background: #f8f9fa;
-  padding: clamp(15px, 3vw, 20px);
+  padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
 }
 
 .detail-row {
   display: flex;
-  gap: clamp(10px, 2vw, 20px);
+  gap: 20px;
   margin-bottom: 15px;
-  flex-wrap: wrap;
 }
 
 .detail-row:last-child {
@@ -1877,7 +1827,6 @@ input:focus, select:focus, textarea:focus {
 
 .detail-group {
   flex: 1;
-  min-width: 200px;
 }
 
 .detail-group.full-width {
@@ -1885,29 +1834,76 @@ input:focus, select:focus, textarea:focus {
 }
 
 .detail-group label {
-  font-weight: 700;
-  color: #495057;
-  font-size: clamp(0.8rem, 1.5vw, 0.95rem);
-  margin-bottom: 5px;
+  font-weight: 600;
+  color: var(--primary-color);
   display: block;
-  word-break: break-word;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
 }
 
 .detail-value {
   color: var(--text-light);
-  font-size: clamp(0.9rem, 1.8vw, 1.1rem);
-  font-weight: 600;
-  padding: 8px 12px;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #dee2e6;
-  word-break: break-word;
+  font-size: 0.95rem;
 }
 
 .dark-mode .detail-value {
-  background: #495057;
   color: var(--text-dark);
-  border-color: #6c757d;
+}
+
+/* Purchase/Sales History Table Styling */
+#purchaseHistoryTable,
+#salesHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.95rem;
+  min-width: 1100px;
+}
+
+#purchaseHistoryTable th, #purchaseHistoryTable td,
+#salesHistoryTable th, #salesHistoryTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid #000000;
+}
+
+#purchaseHistoryTable th:last-child, 
+#purchaseHistoryTable td:last-child,
+#salesHistoryTable th:last-child, 
+#salesHistoryTable td:last-child {
+  border-right: none;
+}
+
+#purchaseHistoryTable thead th {
+  background-color: var(--success-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky; 
+  top: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.95rem;
+  padding: 15px 15px;
+}
+
+#salesHistoryTable thead th {
+  background-color: var(--info-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky; 
+  top: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.95rem;
+  padding: 15px 15px;
+}
+
+#purchaseHistoryTable thead th:last-child,
+#salesHistoryTable thead th:last-child {
+  border-right: none;
 }
 
 /* Purchase/Sales Details Table */
@@ -1916,8 +1912,7 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   border-collapse: collapse;
   margin: 0;
-  font-size: clamp(0.8rem, 1.5vw, 0.95rem);
-  min-width: 600px;
+  font-size: 0.95rem;
 }
 
 #purchaseDetailsTable th, #purchaseDetailsTable td,
@@ -1925,7 +1920,14 @@ input:focus, select:focus, textarea:focus {
   padding: 10px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  word-break: break-word;
+  border-right: 1px solid #000000;
+}
+
+#purchaseDetailsTable th:last-child, 
+#purchaseDetailsTable td:last-child,
+#salesDetailsTable th:last-child, 
+#salesDetailsTable td:last-child {
+  border-right: none;
 }
 
 #purchaseDetailsTable thead th {
@@ -1934,7 +1936,9 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.95rem;
+  padding: 12px 12px;
 }
 
 #salesDetailsTable thead th {
@@ -1943,7 +1947,9 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.95rem;
+  padding: 12px 12px;
 }
 
 /* Purchase/Sales Edit Page Styling */
@@ -1951,7 +1957,6 @@ input:focus, select:focus, textarea:focus {
 .sales-edit-container {
   max-width: 1200px;
   margin: 0 auto;
-  width: 100%;
 }
 
 .form-actions {
@@ -1968,18 +1973,11 @@ input:focus, select:focus, textarea:focus {
   min-width: 150px;
 }
 
-@media (max-width: 768px) {
-  .form-actions button {
-    min-width: 100%;
-  }
-}
-
 /* Loading and error states */
 #loadingMessage, #errorMessage {
   text-align: center;
   padding: 40px;
-  font-size: clamp(0.9rem, 1.8vw, 1.1rem);
-  word-break: break-word;
+  font-size: 1.1rem;
 }
 
 #loadingMessage {
@@ -2000,15 +1998,246 @@ input:focus, select:focus, textarea:focus {
   border-color: #495057;
 }
 
+/* =========================================
+       ENHANCED BUTTON LAYOUT STYLING
+    ========================================= */
+    .action-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin: 25px 0;
+    }
+
+    .action-card {
+      position: relative;
+      background: linear-gradient(135deg, var(--primary-color), #0056b3);
+      border-radius: 16px;
+      padding: 25px;
+      color: white;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: left;
+      border: none;
+      width: 100%;
+    }
+
+    .action-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .action-card:active {
+      transform: translateY(-2px) scale(1.01);
+      transition: all 0.1s ease;
+    }
+
+    .action-icon {
+      font-size: 2.8rem;
+      margin-right: 20px;
+      transition: all 0.4s ease;
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+    }
+
+    .action-card:hover .action-icon {
+      transform: scale(1.2) rotate(5deg);
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    }
+
+    .action-content {
+      flex: 1;
+      position: relative;
+      z-index: 2;
+    }
+
+    .action-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .action-subtitle {
+      font-size: 0.85rem;
+      opacity: 0.9;
+      font-weight: 500;
+    }
+
+    .action-wave {
+      position: absolute;
+      bottom: -15px;
+      right: -15px;
+      width: 100px;
+      height: 100px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      transition: all 0.5s ease;
+    }
+
+    .action-card:hover .action-wave {
+      transform: scale(1.8);
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Individual button colors */
+    .action-card.purchase-history {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+    }
+
+    .action-card.new-purchase {
+      background: linear-gradient(135deg, #2ecc71, #27ae60);
+    }
+
+    .action-card.sales-history {
+      background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    }
+
+    .action-card.new-sales {
+      background: linear-gradient(135deg, #e67e22, #d35400);
+    }
+
+    .action-card.generate-reports {
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+    }
+
+    /* UPDATED: Changed from view-statements to add-new-product */
+    .action-card.add-new-product {
+      background: linear-gradient(135deg, #34495e, #2c3e50);
+    }
+
+    /* Ripple effect animation */
+    .action-card::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .action-card:active::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    /* Pulse animation for important actions */
+    .action-card.new-purchase,
+    .action-card.new-sales {
+      animation: subtle-pulse 3s infinite;
+    }
+
+    @keyframes subtle-pulse {
+      0%, 100% { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
+      50% { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25); }
+    }
+
+    /* Dark mode adjustments */
+    .dark-mode .action-card {
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .dark-mode .action-card:hover {
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Responsive design */
+    @media (max-width: 1200px) {
+      .action-buttons-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .action-buttons-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .action-card {
+        padding: 20px;
+        min-height: 110px;
+      }
+      
+      .action-icon {
+        font-size: 2.5rem;
+        margin-right: 15px;
+      }
+      
+      .action-title {
+        font-size: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .action-buttons-grid {
+        gap: 12px;
+      }
+      
+      .action-card {
+        padding: 18px;
+        min-height: 100px;
+        flex-direction: column;
+        text-align: center;
+      }
+      
+      .action-icon {
+        margin-right: 0;
+        margin-bottom: 10px;
+        font-size: 2.2rem;
+      }
+      
+      .action-title {
+        font-size: 0.95rem;
+      }
+      
+      .action-subtitle {
+        font-size: 0.8rem;
+      }
+    }
+
+.dark-mode .purchase-items-container,
+.dark-mode .sales-items-container {
+  background: #343a40;
+  border-color: #495057;
+}
+
+.dark-mode .purchase-item-row,
+.dark-mode .sales-item-row {
+  background: #495057;
+  border-color: #6c757d;
+}
+
+.dark-mode #purchaseHistoryTable thead th {
+  background-color: #1e7e34;
+}
+
+.dark-mode #salesHistoryTable thead th {
+  background-color: #138496;
+}
+
+.dark-mode #purchaseDetailsTable thead th {
+  background-color: #0056b3;
+}
+
+.dark-mode #salesDetailsTable thead th {
+  background-color: #138496;
+}
+
 /* Responsive improvements */
 @media (max-width: 768px) {
   .detail-row {
     flex-direction: column;
     gap: 10px;
-  }
-  
-  .detail-group {
-    min-width: 100%;
   }
   
   .purchase-item-row,
@@ -2030,219 +2259,14 @@ input:focus, select:focus, textarea:focus {
     min-width: auto;
     width: 100%;
   }
-  
-  #purchaseDetailsTable,
-  #salesDetailsTable {
-    min-width: 500px;
-  }
-}
-
-@media (max-width: 480px) {
-  #purchaseDetailsTable,
-  #salesDetailsTable {
-    min-width: 400px;
-  }
 }
 
 /* =========================================
-   ENHANCED BUTTON LAYOUT STYLING - Responsive
-========================================= */
-.action-buttons-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: clamp(15px, 3vw, 20px);
-  margin: 25px 0;
-}
-
-.action-card {
-  position: relative;
-  background: linear-gradient(135deg, var(--primary-color), #0056b3);
-  border-radius: 16px;
-  padding: clamp(15px, 3vw, 25px);
-  color: white;
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  min-height: clamp(90px, 18vw, 120px);
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  text-align: left;
-  border: none;
-  width: 100%;
-  word-break: break-word;
-}
-
-.action-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
-}
-
-.action-card:active {
-  transform: translateY(-2px) scale(1.01);
-  transition: all 0.1s ease;
-}
-
-.action-icon {
-  font-size: clamp(2rem, 5vw, 2.8rem);
-  margin-right: clamp(10px, 2vw, 20px);
-  transition: all 0.4s ease;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.action-card:hover .action-icon {
-  transform: scale(1.2) rotate(5deg);
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-}
-
-.action-content {
-  flex: 1;
-  position: relative;
-  z-index: 2;
-}
-
-.action-title {
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-  font-weight: 700;
-  margin-bottom: 5px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.action-subtitle {
-  font-size: clamp(0.75rem, 1.5vw, 0.85rem);
-  opacity: 0.9;
-  font-weight: 500;
-}
-
-.action-wave {
-  position: absolute;
-  bottom: -15px;
-  right: -15px;
-  width: clamp(70px, 14vw, 100px);
-  height: clamp(70px, 14vw, 100px);
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  transition: all 0.5s ease;
-}
-
-.action-card:hover .action-wave {
-  transform: scale(1.8);
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* Individual button colors */
-.action-card.purchase-history {
-  background: linear-gradient(135deg, #3498db, #2980b9);
-}
-
-.action-card.new-purchase {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
-}
-
-.action-card.sales-history {
-  background: linear-gradient(135deg, #9b59b6, #8e44ad);
-}
-
-.action-card.new-sales {
-  background: linear-gradient(135deg, #e67e22, #d35400);
-}
-
-.action-card.generate-reports {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-}
-
-.action-card.add-new-product {
-  background: linear-gradient(135deg, #34495e, #2c3e50);
-}
-
-/* Ripple effect animation */
-.action-card::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.action-card:active::before {
-  width: 300px;
-  height: 300px;
-}
-
-/* Pulse animation for important actions */
-.action-card.new-purchase,
-.action-card.new-sales {
-  animation: subtle-pulse 3s infinite;
-}
-
-@keyframes subtle-pulse {
-  0%, 100% { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); }
-  50% { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25); }
-}
-
-/* Dark mode adjustments */
-.dark-mode .action-card {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-}
-
-.dark-mode .action-card:hover {
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
-}
-
-/* Responsive design */
-@media (max-width: 1200px) {
-  .action-buttons-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .action-buttons-grid {
-    grid-template-columns: 1fr;
-    gap: 15px;
-  }
-}
-
-@media (max-width: 480px) {
-  .action-buttons-grid {
-    gap: 12px;
-  }
-  
-  .action-card {
-    padding: 18px;
-    min-height: 100px;
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .action-icon {
-    margin-right: 0;
-    margin-bottom: 10px;
-    font-size: 2.2rem;
-  }
-  
-  .action-title {
-    font-size: 0.95rem;
-  }
-  
-  .action-subtitle {
-    font-size: 0.8rem;
-  }
-}
-
-/* =========================================
-   Report Generation Modal Styling - Responsive
+   Report Generation Modal Styling
 ========================================= */
 .report-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   margin: 20px 0;
 }
@@ -2251,11 +2275,10 @@ input:focus, select:focus, textarea:focus {
   background: #f8f9fa;
   border: 2px solid #e9ecef;
   border-radius: 8px;
-  padding: clamp(15px, 3vw, 20px);
+  padding: 20px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  word-break: break-word;
 }
 
 .report-option:hover {
@@ -2270,20 +2293,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 .report-option .icon {
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: 2rem;
   margin-bottom: 10px;
 }
 
 .report-option h3 {
   margin: 0 0 10px 0;
   color: var(--primary-color);
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
 }
 
 .report-option p {
   margin: 0;
   color: var(--secondary-color);
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-size: 0.9rem;
 }
 
 .dark-mode .report-option {
@@ -2301,7 +2323,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Folder Management Styling - Responsive
+   Folder Management Styling
 ========================================= */
 .folder-management {
   margin-bottom: 20px;
@@ -2323,7 +2345,6 @@ input:focus, select:focus, textarea:focus {
   background: #f8f9fa;
   border-radius: 6px;
   flex-wrap: wrap;
-  word-break: break-word;
 }
 
 .breadcrumb-item {
@@ -2332,8 +2353,6 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
   color: var(--primary-color);
   cursor: pointer;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
-  white-space: nowrap;
 }
 
 .breadcrumb-item:not(:last-child)::after {
@@ -2349,7 +2368,7 @@ input:focus, select:focus, textarea:focus {
 
 .folder-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 15px;
   margin-bottom: 20px;
 }
@@ -2362,7 +2381,6 @@ input:focus, select:focus, textarea:focus {
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
-  word-break: break-word;
 }
 
 .folder-item:hover {
@@ -2372,7 +2390,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .folder-icon {
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: 2rem;
   margin-bottom: 10px;
   color: var(--warning-color);
 }
@@ -2380,11 +2398,11 @@ input:focus, select:focus, textarea:focus {
 .folder-name {
   font-weight: 600;
   margin-bottom: 5px;
-  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  word-break: break-word;
 }
 
 .folder-info {
-  font-size: clamp(0.7rem, 1.4vw, 0.8rem);
+  font-size: 0.8rem;
   color: var(--secondary-color);
 }
 
@@ -2413,25 +2431,12 @@ input:focus, select:focus, textarea:focus {
   border-color: #80bdff;
 }
 
-@media (max-width: 768px) {
-  .folder-list {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  .folder-list {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* =========================================
-   Document Preview Styling - Responsive
+   Document Preview Styling
 ========================================= */
 .preview-container {
   width: 100%;
-  height: clamp(300px, 60vw, 600px);
+  height: 600px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
@@ -2448,11 +2453,10 @@ input:focus, select:focus, textarea:focus {
   gap: 10px;
   margin-top: 15px;
   justify-content: center;
-  flex-wrap: wrap;
 }
 
 /* =========================================
-   Statements Section Styling - Responsive
+   Statements Section Styling
 ========================================= */
 .statements-tabs {
   display: flex;
@@ -2460,12 +2464,10 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 20px;
   border-bottom: 1px solid var(--border-color);
   flex-wrap: wrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .tab-button {
-  padding: clamp(8px, 1.5vw, 10px) clamp(15px, 3vw, 20px);
+  padding: 10px 20px;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
@@ -2473,8 +2475,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 500;
   color: var(--secondary-color);
   transition: all 0.3s ease;
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
-  white-space: nowrap;
 }
 
 .tab-button:hover {
@@ -2507,7 +2507,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .statement-filters label {
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-size: 0.9rem;
   margin-bottom: 5px;
 }
 
@@ -2521,15 +2521,11 @@ input:focus, select:focus, textarea:focus {
   background: #f8f9fa;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .statement-count, .statement-size {
   font-weight: 600;
   color: var(--primary-color);
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
-  white-space: nowrap;
 }
 
 .statement-count span, .statement-size span {
@@ -2548,8 +2544,7 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   border-collapse: collapse;
   margin: 0;
-  font-size: clamp(0.8rem, 1.5vw, 0.95rem);
-  min-width: 600px;
+  font-size: 0.95rem;
 }
 
 #inventoryReportsTable th, #inventoryReportsTable td,
@@ -2558,7 +2553,6 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  word-break: break-word;
 }
 
 #inventoryReportsTable thead th {
@@ -2567,7 +2561,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 #purchaseInvoicesTable thead th {
@@ -2576,7 +2569,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 #salesInvoicesTable thead th {
@@ -2585,7 +2577,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
 }
 
 #inventoryReportsTable tbody tr:hover,
@@ -2612,27 +2603,12 @@ input:focus, select:focus, textarea:focus {
   background-color: #3f4a56;
 }
 
-@media (max-width: 768px) {
-  .statement-summary {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  #inventoryReportsTable,
-  #purchaseInvoicesTable,
-  #salesInvoicesTable {
-    min-width: 500px;
-  }
-}
-
 /* =========================================
-   Company Information Styling - Responsive
+   Company Information Styling
 ========================================= */
 .company-info-form {
   max-width: 600px;
   margin: 0 auto;
-  width: 100%;
 }
 
 .company-info-preview {
@@ -2641,13 +2617,11 @@ input:focus, select:focus, textarea:focus {
   border-radius: 8px;
   padding: 20px;
   margin-top: 20px;
-  word-break: break-word;
 }
 
 .company-info-preview h3 {
   margin-top: 0;
   color: var(--primary-color);
-  font-size: clamp(1rem, 2vw, 1.2rem);
 }
 
 .dark-mode .company-info-preview {
@@ -2656,7 +2630,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Enhanced Button Groups - Responsive
+   Enhanced Button Groups
 ========================================= */
 .btn-group-vertical {
   display: flex;
@@ -2671,9 +2645,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .btn-large {
-  padding: clamp(12px, 2vw, 15px) clamp(20px, 3vw, 25px);
-  font-size: clamp(0.95rem, 2vw, 1.1rem);
-  min-width: clamp(150px, 25vw, 200px);
+  padding: 15px 25px;
+  font-size: 1.1rem;
+  min-width: 200px;
 }
 
 .btn-icon {
@@ -2681,12 +2655,6 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   gap: 8px;
   justify-content: center;
-}
-
-@media (max-width: 768px) {
-  .btn-large {
-    min-width: 100%;
-  }
 }
 
 /* =========================================
@@ -2722,7 +2690,7 @@ body[data-theme="dark"] section {
   }
   
   header h1 {
-    font-size: clamp(1.2rem, 4vw, 1.4rem);
+    font-size: 1.4rem;
   }
   
   nav {
@@ -2731,13 +2699,13 @@ body[data-theme="dark"] section {
   
   nav a, nav button {
     padding: 6px 8px;
-    font-size: clamp(0.75rem, 1.4vw, 0.9rem);
+    font-size: 0.9rem;
   }
   
   section {
     margin: 10px auto;
     max-width: 98%;
-    padding: clamp(10px, 2vw, 15px);
+    padding: 15px;
   }
   
   .welcome-section h2 {
@@ -2796,11 +2764,6 @@ body[data-theme="dark"] section {
   .summary-cards {
     grid-template-columns: 1fr;
   }
-  
-  .table-container {
-    margin: 10px -10px;
-    width: calc(100% + 20px);
-  }
 }
 
 @media (max-width: 480px) {
@@ -2845,11 +2808,6 @@ body[data-theme="dark"] section {
   
   .tab-button {
     text-align: center;
-    width: 100%;
-  }
-  
-  #adminInfo {
-    font-size: 0.8rem;
   }
 }
 
@@ -2865,45 +2823,38 @@ body[data-theme="dark"] section {
 /* Status column styling */
 .status {
   text-align: center;
-  min-width: clamp(80px, 10vw, 100px);
-  max-width: clamp(90px, 12vw, 110px);
-}
-
-/* Money class for currency columns */
-.money {
-  text-align: right;
-  font-family: 'Consolas', monospace; 
-  font-weight: bold;
-}
-
-/* Actions column styling */
-.actions {
-  text-align: center;
-  min-width: clamp(100px, 15vw, 150px);
+  min-width: 100px;
+  max-width: 110px;
 }
 
 /* =========================================
-   Company Information Modal Specific Styles - Responsive
+   Company Information Modal Specific Styles
 ========================================= */
 #companyInfoModal .modal-body {
-  padding: clamp(20px, 4vw, 30px);
+  padding: 30px;
 }
 
 #companyInfoModal .company-info-preview {
-  padding: clamp(15px, 3vw, 25px);
-  margin-bottom: clamp(20px, 4vw, 30px);
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
 }
 
 #companyInfoModal .company-info-preview h3 {
-  margin-bottom: clamp(15px, 3vw, 20px);
+  margin-top: 0;
+  color: var(--primary-color);
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  border-bottom: 2px solid var(--primary-color);
   padding-bottom: 10px;
 }
 
 #companyInfoModal .detail-row {
   display: flex;
-  gap: clamp(10px, 2vw, 20px);
+  gap: 20px;
   margin-bottom: 15px;
-  flex-wrap: wrap;
 }
 
 #companyInfoModal .detail-row:last-child {
@@ -2912,7 +2863,6 @@ body[data-theme="dark"] section {
 
 #companyInfoModal .detail-group {
   flex: 1;
-  min-width: 200px;
 }
 
 #companyInfoModal .detail-group.full-width {
@@ -2920,53 +2870,74 @@ body[data-theme="dark"] section {
 }
 
 #companyInfoModal .detail-group label {
-  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-weight: 600;
+  color: var(--primary-color);
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
 }
 
 #companyInfoModal .detail-value {
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
-  padding: clamp(6px, 1vw, 8px) clamp(8px, 1.5vw, 12px);
+  color: var(--text-light);
+  font-size: 0.95rem;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  display: block;
 }
 
 /* Edit Form Styles */
 #companyInfoModal .company-info-form {
-  padding-top: clamp(20px, 4vw, 30px);
+  border-top: 2px solid var(--border-color);
+  padding-top: 30px;
 }
 
 #companyInfoModal .company-info-form h3 {
-  margin-bottom: clamp(20px, 4vw, 25px);
-  font-size: clamp(1rem, 2vw, 1.2rem);
+  color: var(--primary-color);
+  margin-bottom: 25px;
+  font-size: 1.2rem;
 }
 
 #companyInfoModal .form-group {
-  margin-bottom: clamp(15px, 3vw, 25px);
+  margin-bottom: 25px;
 }
 
 #companyInfoModal .form-group label {
+  font-weight: 600;
+  color: var(--primary-color);
   margin-bottom: 8px;
-  font-size: clamp(0.85rem, 1.6vw, 0.95rem);
+  display: block;
 }
 
 #companyInfoModal .form-group input,
 #companyInfoModal .form-group textarea {
-  padding: clamp(10px, 2vw, 12px);
-  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
 }
 
 #companyInfoModal .form-group textarea {
-  min-height: clamp(80px, 15vw, 100px);
+  resize: vertical;
+  min-height: 100px;
 }
 
 #companyInfoModal .form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: clamp(10px, 2vw, 20px);
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
 #companyInfoModal .modal-actions {
-  margin-top: clamp(20px, 4vw, 30px);
-  padding-top: clamp(15px, 3vw, 25px);
-  gap: clamp(10px, 2vw, 15px);
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+  padding-top: 25px;
+  border-top: 1px solid var(--border-color);
 }
 
 /* Dark mode for company info modal */
@@ -2976,10 +2947,12 @@ body[data-theme="dark"] section {
 
 .dark-mode #companyInfoModal .company-info-preview {
   background: #343a40;
+  border-color: #495057;
 }
 
 .dark-mode #companyInfoModal .detail-value {
   background: #495057;
+  color: var(--text-dark);
   border-color: #6c757d;
 }
 
@@ -2990,6 +2963,7 @@ body[data-theme="dark"] section {
 .dark-mode #companyInfoModal .form-group input,
 .dark-mode #companyInfoModal .form-group textarea {
   background: #495057;
+  color: var(--text-dark);
   border-color: #6c757d;
 }
 
@@ -3016,161 +2990,115 @@ body[data-theme="dark"] section {
   #companyInfoModal .modal-actions button {
     width: 100%;
   }
-  
-  #companyInfoModal .detail-group {
-    min-width: 100%;
-  }
 }
-
-/* Additional CSS for button layout */
-.action-buttons-grid {
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-}
-
-/* Green color for the clock */
-.clock {
-  color: #a4f084 !important;
-  font-weight: 600;
-}
-
-/* Additional responsive fixes for very small screens */
-@media (max-width: 360px) {
-  #inventoryTable {
-    font-size: 0.65rem;
-    min-width: 550px;
-  }
-  
-  .status-badge {
-    font-size: 0.6rem;
-    padding: 2px 4px;
-    min-width: 60px;
-  }
-  
-  .pagination-btn {
-    padding: 3px 5px;
-    min-width: 24px;
-    font-size: 0.65rem;
-  }
-  
-  .small-btn {
-    padding: 2px 4px;
-    font-size: 0.6rem;
-  }
-}
-
-/* Touch-friendly improvements for mobile */
-@media (hover: none) and (pointer: coarse) {
-  .action-card:hover {
-    transform: none;
-  }
-  
-  .card:hover {
-    transform: none;
-  }
-  
-  .status-badge:hover {
-    transform: none;
-  }
-  
-  .pagination-btn:hover:not(:disabled),
-  .primary-btn:hover,
-  .secondary-btn:hover,
-  .success-btn:hover,
-  .danger-btn:hover,
-  .warning-btn:hover,
-  .info-btn:hover {
-    transform: none;
-  }
-  
-  /* Increase touch target sizes */
-  .pagination-btn,
-  .small-btn,
-  nav a,
-  nav button {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  input[type="text"], 
-  input[type="number"], 
-  input[type="password"],
-  input[type="file"],
-  input[type="date"],
-  input[type="email"],
-  select,
-  textarea {
-    min-height: 44px;
-  }
-}
-
-/* Prevent text selection on interactive elements */
-.action-card,
-.card,
-.pagination-btn,
-.small-btn,
-nav a,
-nav button {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-}
-
-/* Smooth scrolling for the whole page */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Focus styles for accessibility */
-:focus {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-:focus:not(:focus-visible) {
-  outline: none;
-}
-
-:focus-visible {
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --primary-color: #004085;
-    --secondary-color: #383d41;
-    --success-color: #155724;
-    --danger-color: #721c24;
-    --warning-color: #856404;
-    --info-color: #0c5460;
-  }
-  
-  .card,
-  .action-card,
-  #inventoryTable thead th {
-    background: var(--primary-color);
-  }
-  
-  .status-badge {
-    border-width: 3px;
-  }
-}
-
-/* Reduced motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-  
-  .card:hover .card-value,
-  .action-card.new-purchase,
-  .action-card.new-sales {
-    animation: none;
-  }
-}
+    /* Additional CSS to fix the button layout */
+    .action-buttons-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    /* Green color for the clock */
+    .clock {
+      color: #a4f084 !important;
+      font-weight: 600;
+    }
+    
+    /* Status badges styling */
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      min-width: 100px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Pagination styling */
+    .pagination-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .pagination-info {
+      font-size: 0.9rem;
+      color: var(--secondary-color);
+    }
+    
+    .pagination-controls {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    
+    .pagination-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      background: var(--card-light);
+      color: var(--text-light);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      min-width: 32px;
+      text-align: center;
+    }
+    
+    .pagination-btn:hover:not(:disabled) {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .pagination-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination-btn.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .items-per-page {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.85rem;
+    }
+    
+    .items-per-page select {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--card-light);
+      color: var(--text-light);
+    }
+    
+    @media (max-width: 1200px) {
+      .action-buttons-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .action-buttons-grid {
+        grid-template-columns: 1fr !important;
+      }
+      
+      .pagination-container {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      
+      .pagination-controls {
+        width: 100%;
+        justify-content: center;
+      }
+    }
