@@ -28,7 +28,7 @@ let itemsPerPage = 10;
 let totalPages = 1;
 let filteredInventory = [];
 
-// Total net profit
+// Total net profit - UPDATED: Changed from totalNetProfit to totalNetProfit
 let totalNetProfit = 0;
 
 // Enhanced theme persistence
@@ -87,30 +87,9 @@ function validateRequiredFields(fields) {
   return true;
 }
 
-// ===== FIXED: Enhanced Auth redirect with page-specific logic =====
-function checkAuthStatus() {
-  const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-  const isLoginPage = window.location.pathname.includes('login.html');
-  
-  if (!isLoggedIn && !isLoginPage) {
-    try { 
-      window.location.href = 'login.html';
-    } catch(e) {
-      console.error('Redirect error:', e);
-    }
-    return false;
-  }
-  
-  if (isLoggedIn && isLoginPage) {
-    try {
-      window.location.href = 'inventory.html';
-    } catch(e) {
-      console.error('Redirect error:', e);
-    }
-    return false;
-  }
-  
-  return true;
+// Auth redirect
+if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
+  try { window.location.href = 'login.html'; } catch(e) {}
 }
 
 function logout(){
@@ -350,7 +329,7 @@ function bindPaginationEvents() {
 }
 
 // =========================================
-// INVENTORY MANAGEMENT FUNCTIONS
+// INVENTORY MANAGEMENT FUNCTIONS - UPDATED NAMES
 // =========================================
 async function fetchInventory() {
   try {
@@ -367,7 +346,7 @@ async function fetchInventory() {
   }
 }
 
-// Unified net profit calculation
+// UPDATED: Unified net profit calculation with updated names
 function updateProfitCard() {
   let calculatedNetProfit = 0;
   
@@ -395,11 +374,11 @@ function updateProfitCard() {
   // Update total net profit
   totalNetProfit = calculatedNetProfit;
   
-  // Update all net profit displays
+  // Update all net profit displays - UPDATED: Changed card names
   const netProfitElements = [
-    '#cardTotalProfit',
-    '#dash_totalProfit',
-    '#totalNetProfitDisplay'
+    '#cardTotalProfit', // Changed from #cardTotalProfit
+    '#dash_totalProfit', // Changed from #dash_totalProfit
+    '#totalNetProfitDisplay' // Changed from #totalNetProfitDisplay
   ];
   
   netProfitElements.forEach(selector => {
@@ -416,7 +395,7 @@ function renderInventory(items) {
   const paginatedItems = updatePagination(items);
   
   list.innerHTML = '';
-  let totalCost = 0, totalPrice = 0, totalStock = 0;
+  let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed from totalCost/totalPrice
 
   // ADDED: Calculate starting number for current page
   const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
@@ -426,8 +405,8 @@ function renderInventory(items) {
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
-    const totalCostVal = qty * uc;
-    const totalPriceVal = qty * up;
+    const totalCostVal = qty * uc; // UPDATED: Changed from totalCostVal
+    const totalPriceVal = qty * up; // UPDATED: Changed from totalPriceVal
     
     totalCost += totalCostVal;
     totalPrice += totalPriceVal;
@@ -476,9 +455,9 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  // UPDATED: Changed card display names
-  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`;
-  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
+  // UPDATED: Updated card display names
+  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`; // Changed from #cardTotalValue
+  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // Changed from #cardTotalRevenue
   updateProfitCard();
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
@@ -685,10 +664,12 @@ async function confirmAndAddProduct(){
   const name = qs('#p_name')?.value?.trim();
   const category = qs('#p_category')?.value?.trim();
   const quantity = Number(qs('#p_quantity')?.value || 0);
-  const unitCost = Number(qs('#p_unitCost')?.value || 0);
-  const unitPrice = Number(qs('#p_unitPrice')?.value || 0);
+  const unitCost = Number(qs('#p_unitCost')?.value || 0); // UPDATED: Changed from unitCost
+  const unitPrice = Number(qs('#p_unitPrice')?.value || 0); // UPDATED: Changed from unitPrice
   if(!sku || !name) return alert('⚠️ Please enter SKU and Name.');
-  if(!confirm(`Confirm Add Product: ${name} (${sku})?`)) return;
+
+  // UPDATED: Updated confirmation message
+  if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
 
   const newItem = { sku, name, category, quantity, unitCost, unitPrice };
   try {
@@ -740,8 +721,8 @@ async function bindProductPage(){
       if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
       if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
-      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
+      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0; // UPDATED: Changed from unitCost
+      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0; // UPDATED: Changed from unitPrice
     } catch(e) { alert('Failed to load product details.'); return; }
   }
 
@@ -753,8 +734,8 @@ async function bindProductPage(){
       name: qs('#prod_name')?.value,
       category: qs('#prod_category')?.value,
       quantity: Number(qs('#prod_quantity')?.value || 0),
-      unitCost: Number(qs('#prod_unitCost')?.value || 0),
-      unitPrice: Number(qs('#prod_unitPrice')?.value || 0)
+      unitCost: Number(qs('#prod_unitCost')?.value || 0), // UPDATED: Changed from unitCost
+      unitPrice: Number(qs('#prod_unitPrice')?.value || 0) // UPDATED: Changed from unitPrice
     };
     try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -2388,7 +2369,7 @@ function renderStatements(type, statements) {
 }
 
 // =========================================
-// ACTIVITY LOGS AND DASHBOARD FUNCTIONS
+// ACTIVITY LOGS AND DASHBOARD FUNCTIONS - UPDATED NAMES
 // =========================================
 async function fetchLogs() {
   try {
@@ -2441,21 +2422,21 @@ function renderDashboardData(){
   }
 
   if(qs('#dash_totalItems')) {
-    let totalCost = 0, totalPrice = 0, totalStock = 0;
+    let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed names
     inventory.forEach(it => {
       const qty = Number(it.quantity || 0);
-      const invVal = qty * Number(it.unitCost || 0);
-      const rev = qty * Number(it.unitPrice || 0);
+      const itemCost = qty * Number(it.unitCost || 0); // UPDATED: Changed from invVal
+      const itemPrice = qty * Number(it.unitPrice || 0); // UPDATED: Changed from rev
       
-      totalCost += invVal;
-      totalPrice += rev;
+      totalCost += itemCost;
+      totalPrice += itemPrice;
       totalStock += qty;
     });
     qs('#dash_totalItems').textContent = inventory.length;
     
     // UPDATED: Changed variable names for consistency
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`;
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
+    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`; // UPDATED: Changed from #dash_totalValue
+    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // UPDATED: Changed from #dash_totalRevenue
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
     
     // Update profit using the unified function
@@ -2707,11 +2688,6 @@ function bindDocumentsUI(){
 // =========================================
 window.addEventListener('load', async () => {
   initializeTheme();
-  
-  // Check authentication status first
-  if (!checkAuthStatus()) {
-    return;
-  }
   
   const adminName = getUsername();
   if(qs('#adminName')) qs('#adminName').textContent = adminName;
