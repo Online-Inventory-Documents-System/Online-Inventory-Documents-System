@@ -87,32 +87,10 @@ function validateRequiredFields(fields) {
   return true;
 }
 
-// =========================================
-// FIXED: Redirect to login page when not logged in
-// =========================================
-document.addEventListener('DOMContentLoaded', function() {
-  // Check if user is logged in
-  const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-  const currentPath = window.location.pathname;
-  
-  // If not logged in and not on login page, redirect to login
-  if (!isLoggedIn && !currentPath.includes('login.html')) {
-    window.location.href = 'login.html';
-    return;
-  }
-  
-  // If logged in and on login page, redirect to inventory page
-  if (isLoggedIn && currentPath.includes('login.html')) {
-    window.location.href = 'inventory.html';
-    return;
-  }
-  
-  // If on root page and logged in, redirect to inventory
-  if (isLoggedIn && (currentPath === '/' || currentPath === '/index.html' || currentPath === '')) {
-    window.location.href = 'inventory.html';
-    return;
-  }
-});
+// Auth redirect
+if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
+  try { window.location.href = 'login.html'; } catch(e) {}
+}
 
 function logout(){
   sessionStorage.removeItem('isLoggedIn');
