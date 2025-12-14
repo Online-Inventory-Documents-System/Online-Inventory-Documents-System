@@ -28,8 +28,8 @@ let itemsPerPage = 10;
 let totalPages = 1;
 let filteredInventory = [];
 
-// Total profit earned
-let totalProfitEarned = 0;
+// Total net profit
+let totalNetProfit = 0;
 
 // Enhanced theme persistence
 function initializeTheme() {
@@ -346,11 +346,11 @@ async function fetchInventory() {
   }
 }
 
-// Unified profit calculation
+// Unified net profit calculation
 function updateProfitCard() {
-  let calculatedProfit = 0;
+  let calculatedNetProfit = 0;
   
-  // Calculate profit from sales
+  // Calculate net profit from sales
   if (sales && sales.length > 0) {
     sales.forEach(sale => {
       if (sale.items && Array.isArray(sale.items)) {
@@ -360,30 +360,30 @@ function updateProfitCard() {
             const unitCost = inventoryItem.unitCost || 0;
             const salePrice = item.salePrice || 0;
             const quantity = item.quantity || 0;
-            calculatedProfit += (salePrice - unitCost) * quantity;
+            calculatedNetProfit += (salePrice - unitCost) * quantity;
           }
         });
       }
-      // Also add direct profit if available from API
-      if (sale.totalProfit) {
-        calculatedProfit += sale.totalProfit;
+      // Also add direct net profit if available from API
+      if (sale.totalNetProfit) {
+        calculatedNetProfit += sale.totalNetProfit;
       }
     });
   }
   
-  // Update total profit
-  totalProfitEarned = calculatedProfit;
+  // Update total net profit
+  totalNetProfit = calculatedNetProfit;
   
-  // Update all profit displays
-  const profitElements = [
+  // Update all net profit displays
+  const netProfitElements = [
     '#cardTotalProfit',
     '#dash_totalProfit',
-    '#totalProfitDisplay'
+    '#totalNetProfitDisplay'
   ];
   
-  profitElements.forEach(selector => {
+  netProfitElements.forEach(selector => {
     if (qs(selector)) {
-      qs(selector).textContent = `RM ${totalProfitEarned.toFixed(2)}`;
+      qs(selector).textContent = `RM ${totalNetProfit.toFixed(2)}`;
     }
   });
 }
@@ -395,7 +395,7 @@ function renderInventory(items) {
   const paginatedItems = updatePagination(items);
   
   list.innerHTML = '';
-  let totalValue = 0, totalRevenue = 0, totalStock = 0;
+  let totalCost = 0, totalPrice = 0, totalStock = 0;
 
   // ADDED: Calculate starting number for current page
   const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
@@ -405,11 +405,11 @@ function renderInventory(items) {
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
-    const invVal = qty * uc;
-    const rev = qty * up;
+    const totalCostVal = qty * uc;
+    const totalPriceVal = qty * up;
     
-    totalValue += invVal;
-    totalRevenue += rev;
+    totalCost += totalCostVal;
+    totalPrice += totalPriceVal;
     totalStock += qty;
 
     // Date is already formatted as DD/MM/YYYY from server
@@ -441,8 +441,10 @@ function renderInventory(items) {
       <td class="quantity-cell">${qty}</td>
       <td class="money cost-cell">RM ${uc.toFixed(2)}</td>
       <td class="money price-cell">RM ${up.toFixed(2)}</td>
-      <td class="money value-cell">RM ${invVal.toFixed(2)}</td>
-      <td class="money revenue-cell">RM ${rev.toFixed(2)}</td>
+      <!-- UPDATED: Changed Inventory Value to Total Cost -->
+      <td class="money value-cell">RM ${totalCostVal.toFixed(2)}</td>
+      <!-- UPDATED: Changed Revenue to Total Price -->
+      <td class="money revenue-cell">RM ${totalPriceVal.toFixed(2)}</td>
       <td class="date-cell">${escapeHtml(date)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
@@ -453,8 +455,9 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalValue.toFixed(2)}`;
-  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+  // UPDATED: Changed card display names
+  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`;
+  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
   updateProfitCard();
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
@@ -2417,20 +2420,21 @@ function renderDashboardData(){
   }
 
   if(qs('#dash_totalItems')) {
-    let totalValue = 0, totalRevenue = 0, totalStock = 0;
+    let totalCost = 0, totalPrice = 0, totalStock = 0;
     inventory.forEach(it => {
       const qty = Number(it.quantity || 0);
       const invVal = qty * Number(it.unitCost || 0);
       const rev = qty * Number(it.unitPrice || 0);
       
-      totalValue += invVal;
-      totalRevenue += rev;
+      totalCost += invVal;
+      totalPrice += rev;
       totalStock += qty;
     });
     qs('#dash_totalItems').textContent = inventory.length;
     
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalValue.toFixed(2)}`;
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalRevenue.toFixed(2)}`;
+    // UPDATED: Changed variable names for consistency
+    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`;
+    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
     
     // Update profit using the unified function
