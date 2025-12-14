@@ -41,29 +41,29 @@
         </div>
       </div>
       
-      <div class="card card-total-value" onclick="showCardTooltip('Total value of all inventory items at cost price')">
+      <div class="card card-total-value" onclick="showCardTooltip('Total cost of all inventory items at purchase price')">
         <div class="card-icon">💰</div>
         <div class="card-content">
-          <div class="card-title">Total Inventory Value</div>
+          <div class="card-title">Total Inventory Cost</div>
           <div class="card-value" id="cardTotalValue">RM 0.00</div>
           <div class="card-wave"></div>
         </div>
       </div>
       
-      <div class="card card-total-revenue" onclick="showCardTooltip('Potential revenue if all items are sold at current prices')">
+      <div class="card card-total-revenue" onclick="showCardTooltip('Total retail value if all items are sold at current prices')">
         <div class="card-icon">📈</div>
         <div class="card-content">
-          <div class="card-title">Total Potential Revenue</div>
+          <div class="card-title">Total Retail Value</div>
           <div class="card-value" id="cardTotalRevenue">RM 0.00</div>
           <div class="card-wave"></div>
         </div>
       </div>
       
-      <!-- UPDATED: Changed from Potential Profit to Profit Earned -->
-      <div class="card card-total-profit" onclick="showCardTooltip('Total profit earned from completed sales')">
+      <!-- UPDATED: Changed from Total Profit Earned to Total Net Profit -->
+      <div class="card card-total-profit" onclick="showCardTooltip('Total net profit earned from completed sales')">
         <div class="card-icon">💸</div>
         <div class="card-content">
-          <div class="card-title">Total Profit Earned</div>
+          <div class="card-title">Total Net Profit</div>
           <div class="card-value" id="cardTotalProfit">RM 0.00</div>
           <div class="card-wave"></div>
         </div>
@@ -220,8 +220,10 @@
                   <th class="quantity-header" data-tooltip="Quantity">QTY</th>
                   <th class="money cost-header" data-tooltip="Unit Cost">Unit Cost</th>
                   <th class="money price-header" data-tooltip="Unit Price">Unit Price</th>
-                  <th class="money value-header" data-tooltip="Inventory Value">Inv Value</th>
-                  <th class="money revenue-header" data-tooltip="Potential Revenue">Revenue</th>
+                  <!-- UPDATED: Changed INV VALUE to TOTAL COST -->
+                  <th class="money value-header" data-tooltip="Total Cost">TOTAL COST</th>
+                  <!-- UPDATED: Changed REVENUE to TOTAL PRICE -->
+                  <th class="money revenue-header" data-tooltip="Total Price">TOTAL PRICE</th>
                   <th class="date-header">Date</th>
                   <th class="status-header">Status</th>
                   <th class="actions-header">Actions</th>
@@ -773,5 +775,3 @@
   </script>
 </body>
 </html>
-
-
