@@ -486,7 +486,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    ENHANCED PDF REPORT WITH DATE RANGE
+//                    ENHANCED PDF REPORT WITH DATE RANGE - UPDATED LAYOUT
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -588,25 +588,25 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         const rowHeight = 18;
         
-        // UPDATED: Changed column names and added NO column
+        // UPDATED: New column layout with NO, Date, Status
         const columns = [
-          { name: "NO", x: 40, width: 40 },
-          { name: "SKU", x: 80, width: 70 },
-          { name: "Product Name", x: 150, width: 110 },
-          { name: "Category", x: 260, width: 80 },
-          { name: "Quantity", x: 340, width: 60 },
-          { name: "Unit Cost", x: 400, width: 70 },
-          { name: "Unit Price", x: 470, width: 70 },
-          { name: "Total Cost", x: 540, width: 80 }, // Changed from Inventory Value
-          { name: "Total Price", x: 620, width: 80 }, // Changed from Potential Revenue
-          { name: "Date", x: 700, width: 70 },
-          { name: "Status", x: 770, width: 70 }
+          { name: "NO", x: 40, width: 30 },
+          { name: "SKU", x: 70, width: 70 },
+          { name: "Product Name", x: 140, width: 100 },
+          { name: "Category", x: 240, width: 70 },
+          { name: "Quantity", x: 310, width: 50 },
+          { name: "Unit Cost", x: 360, width: 60 },
+          { name: "Unit Price", x: 420, width: 60 },
+          { name: "Total Cost", x: 480, width: 70 }, // Changed from "Inventory Value"
+          { name: "Total Price", x: 550, width: 70 }, // Changed from "Potential Revenue"
+          { name: "Date", x: 620, width: 60 },
+          { name: "Status", x: 680, width: 80 }
         ];
         
         let y = 150;
 
         function drawTableHeader() {
-          doc.rect(columns[0].x, y, 800 - columns[0].x, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
@@ -630,16 +630,16 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           const totalPrice = qty * price; // Changed from potentialRevenue
           
           // Determine status
-          let statusText = '';
+          let status = '';
           if (qty === 0) {
-            statusText = 'Out of Stock';
+            status = 'Out of Stock';
           } else if (qty < 10) {
-            statusText = 'Low Stock';
+            status = 'Low Stock';
           } else {
-            statusText = 'In Stock';
+            status = 'In Stock';
           }
 
-          doc.rect(columns[0].x, y, 800 - columns[0].x, rowHeight).stroke();
+          doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
@@ -648,17 +648,17 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           }
           
           doc.font("Helvetica").fontSize(8);
-          doc.text(String(index + 1), columns[0].x + 10, y + 5, { width: 30, align: 'center' });
-          doc.text(item.sku || "", columns[1].x + 3, y + 5, { width: columns[1].width - 6 });
-          doc.text(item.name || "", columns[2].x + 3, y + 5, { width: columns[2].width - 6 });
-          doc.text(item.category || "", columns[3].x + 3, y + 5, { width: columns[3].width - 6, align: 'center' });
-          doc.text(String(qty), columns[4].x + 3, y + 5, { width: columns[4].width - 6, align: 'center' });
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5, { width: columns[5].width - 6, align: 'right' });
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5, { width: columns[6].width - 6, align: 'right' });
-          doc.text(`RM ${totalCost.toFixed(2)}`, columns[7].x + 3, y + 5, { width: columns[7].width - 6, align: 'right' });
-          doc.text(`RM ${totalPrice.toFixed(2)}`, columns[8].x + 3, y + 5, { width: columns[8].width - 6, align: 'right' });
-          doc.text(formatDateUTC8(item.createdAt), columns[9].x + 3, y + 5, { width: columns[9].width - 6, align: 'center' });
-          doc.text(statusText, columns[10].x + 3, y + 5, { width: columns[10].width - 6, align: 'center' });
+          doc.text(String(index + 1), columns[0].x + 3, y + 5); // NO column
+          doc.text(item.sku || "", columns[1].x + 3, y + 5);
+          doc.text(item.name || "", columns[2].x + 3, y + 5);
+          doc.text(item.category || "", columns[3].x + 3, y + 5);
+          doc.text(String(qty), columns[4].x + 3, y + 5);
+          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5);
+          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5);
+          doc.text(`RM ${totalCost.toFixed(2)}`, columns[7].x + 3, y + 5); // Changed from inventoryValue
+          doc.text(`RM ${totalPrice.toFixed(2)}`, columns[8].x + 3, y + 5); // Changed from potentialRevenue
+          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[9].x + 3, y + 5); // Date column
+          doc.text(status, columns[10].x + 3, y + 5); // Status column
           
           y += rowHeight;
           
@@ -672,8 +672,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         drawTableHeader();
         
         let subtotalQty = 0;
-        let totalCost = 0; // Changed from totalValue
-        let totalPrice = 0; // Changed from totalRevenue
+        let grandTotalCost = 0; // Changed from totalValue
+        let grandTotalPrice = 0; // Changed from totalRevenue
         let rowsOnPage = 0;
 
         for (let i = 0; i < items.length; i++) {
@@ -687,8 +687,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           const calculations = drawTableRow(items[i], i);
           
           subtotalQty += calculations.qty;
-          totalCost += calculations.totalCost;
-          totalPrice += calculations.totalPrice;
+          grandTotalCost += calculations.totalCost;
+          grandTotalPrice += calculations.totalPrice;
           
           rowsOnPage++;
         }
@@ -702,12 +702,13 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           boxY = 40;
         }
         
-        doc.rect(560, boxY, 230, 88).stroke();
+        // UPDATED: New summary format
+        doc.rect(560, boxY, 230, 72).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
         doc.text(`Total Products: ${items.length}`, 570, boxY + 10);
-        doc.text(`Quantity: ${subtotalQty} units`, 570, boxY + 28);
-        doc.text(`Total Inventory Cost: RM ${totalCost.toFixed(2)}`, 570, boxY + 46);
-        doc.text(`Total Retail Price: RM ${totalPrice.toFixed(2)}`, 570, boxY + 64);
+        doc.text(`Total Quantity: ${subtotalQty} units`, 570, boxY + 25);
+        doc.text(`Total Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 40); // Changed from "Total Inventory Value"
+        doc.text(`Total Retail Price: RM ${grandTotalPrice.toFixed(2)}`, 570, boxY + 55); // Changed from "Total Potential Revenue"
 
         doc.flushPages();
 
@@ -1121,7 +1122,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    GENERATE ALL REPORTS
+//                    GENERATE ALL REPORTS - UPDATED NAMES
 // ============================================================================
 app.post("/api/reports/generate-all", async (req, res) => {
   try {
@@ -1188,18 +1189,15 @@ app.post("/api/reports/generate-all", async (req, res) => {
         
         const purchaseTotal = purchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
         const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-        const inventoryCost = inventoryItems.reduce((sum, item) => {
+        const totalCost = inventoryItems.reduce((sum, item) => {
           return sum + ((item.quantity || 0) * (item.unitCost || 0));
         }, 0);
-        const inventoryPrice = inventoryItems.reduce((sum, item) => {
-          return sum + ((item.quantity || 0) * (item.unitPrice || 0));
-        }, 0);
         
-        doc.text(`• Total Inventory Cost: RM ${inventoryCost.toFixed(2)}`);
-        doc.text(`• Total Inventory Price: RM ${inventoryPrice.toFixed(2)}`);
+        // UPDATED: Changed names
         doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`);
         doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`);
-        doc.text(`• Total Net Profit: RM ${(salesTotal - purchaseTotal).toFixed(2)}`);
+        doc.text(`• Total Inventory Cost: RM ${totalCost.toFixed(2)}`); // Changed from "Total Inventory Value"
+        doc.text(`• Total Net Profit: RM ${(salesTotal - purchaseTotal).toFixed(2)}`); // Changed from "Gross Profit/Loss"
 
         doc.moveDown();
         doc.moveTo(36, doc.y).lineTo(560, doc.y).stroke();
@@ -1213,17 +1211,15 @@ app.post("/api/reports/generate-all", async (req, res) => {
         
         const invTableTop = 90;
         doc.font('Helvetica-Bold').fontSize(9);
-        doc.text('NO', 36, invTableTop);
-        doc.text('SKU', 60, invTableTop);
-        doc.text('Product', 120, invTableTop);
+        doc.text('SKU', 36, invTableTop);
+        doc.text('Product', 100, invTableTop);
         doc.text('Category', 250, invTableTop);
         doc.text('Qty', 350, invTableTop);
         doc.text('Cost', 400, invTableTop);
         doc.text('Price', 450, invTableTop);
-        doc.text('Total Cost', 500, invTableTop);
-        doc.text('Total Price', 570, invTableTop);
+        doc.text('Total Cost', 500, invTableTop); // Changed from "Value"
 
-        doc.moveTo(36, invTableTop + 8).lineTo(600, invTableTop + 8).stroke();
+        doc.moveTo(36, invTableTop + 8).lineTo(560, invTableTop + 8).stroke();
 
         doc.font('Helvetica').fontSize(8);
         let invY = invTableTop + 16;
@@ -1235,17 +1231,14 @@ app.post("/api/reports/generate-all", async (req, res) => {
           }
 
           const totalCost = (item.quantity || 0) * (item.unitCost || 0);
-          const totalPrice = (item.quantity || 0) * (item.unitPrice || 0);
           
-          doc.text(String(index + 1), 36, invY, { width: 20, align: 'center' });
-          doc.text(item.sku || 'N/A', 60, invY, { width: 55 });
-          doc.text(item.name || 'N/A', 120, invY, { width: 120 });
+          doc.text(item.sku || 'N/A', 36, invY, { width: 60 });
+          doc.text(item.name || 'N/A', 100, invY, { width: 140 });
           doc.text(item.category || 'N/A', 250, invY, { width: 90 });
           doc.text(String(item.quantity || 0), 350, invY, { width: 40, align: 'right' });
           doc.text(`RM ${(item.unitCost || 0).toFixed(2)}`, 400, invY, { width: 40, align: 'right' });
           doc.text(`RM ${(item.unitPrice || 0).toFixed(2)}`, 450, invY, { width: 40, align: 'right' });
-          doc.text(`RM ${totalCost.toFixed(2)}`, 500, invY, { width: 60, align: 'right' });
-          doc.text(`RM ${totalPrice.toFixed(2)}`, 570, invY, { width: 60, align: 'right' });
+          doc.text(`RM ${totalCost.toFixed(2)}`, 500, invY, { width: 50, align: 'right' }); // Changed from "Value"
           
           invY += 12;
         });
@@ -1330,24 +1323,23 @@ app.post("/api/reports/generate-all", async (req, res) => {
         const summaryY = 90;
         doc.text(`Inventory Summary:`, 36, summaryY);
         doc.text(`• Total Items: ${inventoryItems.length}`, 50, summaryY + 20);
-        doc.text(`• Total Inventory Cost: RM ${inventoryCost.toFixed(2)}`, 50, summaryY + 35);
-        doc.text(`• Total Inventory Price: RM ${inventoryPrice.toFixed(2)}`, 50, summaryY + 50);
+        doc.text(`• Total Inventory Cost: RM ${totalCost.toFixed(2)}`, 50, summaryY + 35); // Changed from "Total Inventory Value"
         
-        doc.text(`Purchase Summary:`, 36, summaryY + 75);
-        doc.text(`• Total Purchase Orders: ${purchases.length}`, 50, summaryY + 95);
-        doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`, 50, summaryY + 110);
+        doc.text(`Purchase Summary:`, 36, summaryY + 60);
+        doc.text(`• Total Purchase Orders: ${purchases.length}`, 50, summaryY + 80);
+        doc.text(`• Total Purchase Amount: RM ${purchaseTotal.toFixed(2)}`, 50, summaryY + 95);
         
-        doc.text(`Sales Summary:`, 36, summaryY + 135);
-        doc.text(`• Total Sales Orders: ${sales.length}`, 50, summaryY + 155);
-        doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`, 50, summaryY + 170);
+        doc.text(`Sales Summary:`, 36, summaryY + 120);
+        doc.text(`• Total Sales Orders: ${sales.length}`, 50, summaryY + 140);
+        doc.text(`• Total Sales Amount: RM ${salesTotal.toFixed(2)}`, 50, summaryY + 155);
         
-        doc.text(`Financial Summary:`, 36, summaryY + 195);
-        doc.text(`• Total Net Profit: RM ${(salesTotal - purchaseTotal).toFixed(2)}`, 50, summaryY + 215);
+        doc.text(`Financial Summary:`, 36, summaryY + 180);
+        doc.text(`• Total Net Profit: RM ${(salesTotal - purchaseTotal).toFixed(2)}`, 50, summaryY + 200); // Changed from "Gross Profit/Loss"
         
         if (salesTotal > purchaseTotal) {
-          doc.fillColor('green').text(`• Status: PROFITABLE`, 50, summaryY + 230);
+          doc.fillColor('green').text(`• Status: PROFITABLE`, 50, summaryY + 215);
         } else {
-          doc.fillColor('red').text(`• Status: LOSS`, 50, summaryY + 230);
+          doc.fillColor('red').text(`• Status: LOSS`, 50, summaryY + 215);
         }
         doc.fillColor('black');
 
@@ -1786,7 +1778,7 @@ app.delete("/api/sales/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE PURCHASE INVOICE PDF - UPDATED WITH NO COLUMN
+//                    UPDATED: SINGLE PURCHASE INVOICE PDF WITH NO COLUMN
 // ============================================================================
 app.get("/api/purchases/invoice/:id", async (req, res) => {
   try {
@@ -1818,7 +1810,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
             contact: purchase.supplierContact || purchase.supplier || 'N/A'
           },
           items: purchase.items.map((item, index) => ({
-            no: index + 1,
+            no: index + 1, // Add sequential number
             name: item.productName || 'N/A',
             sku: item.sku || 'N/A',
             qty: item.quantity || 0,
@@ -1833,7 +1825,7 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           extraNotes: purchase.notes || ''
         };
 
-        const buffer = await generateEnhancedInvoicePDFBuffer(invoiceData);
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
       } catch (error) {
@@ -1883,7 +1875,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
         contact: purchase.supplierContact || purchase.supplier || 'N/A'
       },
       items: purchase.items.map((item, index) => ({
-        no: index + 1,
+        no: index + 1, // Add sequential number
         name: item.productName || 'N/A',
         sku: item.sku || 'N/A',
         qty: item.quantity || 0,
@@ -1898,7 +1890,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
       extraNotes: purchase.notes || ''
     };
 
-    const pdfBuffer = await generateEnhancedInvoicePDFBuffer(invoiceData);
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
 
     const filename = `Invoice_${purchase.purchaseId}.pdf`;
     const savedDoc = await Doc.create({
@@ -1927,7 +1919,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    SINGLE SALES INVOICE PDF - UPDATED WITH NO COLUMN
+//                    UPDATED: SINGLE SALES INVOICE PDF WITH NO COLUMN
 // ============================================================================
 app.get("/api/sales/invoice/:id", async (req, res) => {
   try {
@@ -1959,7 +1951,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
             contact: sale.customerContact || sale.customer || 'N/A'
           },
           items: sale.items.map((item, index) => ({
-            no: index + 1,
+            no: index + 1, // Add sequential number
             name: item.productName || 'N/A',
             sku: item.sku || 'N/A',
             qty: item.quantity || 0,
@@ -1974,7 +1966,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           extraNotes: sale.notes || ''
         };
 
-        const buffer = await generateEnhancedInvoicePDFBuffer(invoiceData);
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
         resolve(buffer);
 
       } catch (error) {
@@ -2024,7 +2016,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
         contact: sale.customerContact || sale.customer || 'N/A'
       },
       items: sale.items.map((item, index) => ({
-        no: index + 1,
+        no: index + 1, // Add sequential number
         name: item.productName || 'N/A',
         sku: item.sku || 'N/A',
         qty: item.quantity || 0,
@@ -2039,7 +2031,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
       extraNotes: sale.notes || ''
     };
 
-    const pdfBuffer = await generateEnhancedInvoicePDFBuffer(invoiceData);
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
 
     const filename = `Invoice_${sale.salesId}.pdf`;
     const savedDoc = await Doc.create({
@@ -2067,187 +2059,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
   }
 });
 
-// ===== UPDATED: Enhanced PDF invoice with NO column and pagination =====
-function generateEnhancedInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({ 
-        size: 'A4', 
-        margin: 36,
-        bufferPages: true 
-      });
-      
-      const bufs = [];
-      doc.on('data', (d) => bufs.push(d));
-      doc.on('end', () => resolve(Buffer.concat(bufs)));
-
-      const ITEMS_PER_PAGE = 20;
-      const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
-      let currentPage = 1;
-
-      const drawHeader = (pageNum) => {
-        const topY = 36;
-        
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text(companyInfo.name || 'L&B COMPANY', 36, topY);
-        doc.fontSize(10).font('Helvetica')
-           .text(companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', 36, topY + 18, { continued: false });
-        doc.text(`Phone: ${companyInfo.phone || '01133127622'}`);
-        doc.text(`Email: ${companyInfo.email || 'lbcompany@gmail.com'}`);
-
-        const rightX = 360;
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text(title, rightX, topY, { align: 'right' });
-        doc.fontSize(10).font('Helvetica')
-           .text(`No: ${docMeta.reference || ''}`, rightX, topY + 20, { align: 'right' });
-        doc.text(`Date: ${docMeta.dateString || formatDateUTC8(new Date())}`, { align: 'right' });
-        doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
-        doc.text(`Page: ${pageNum} of ${totalPages}`, { align: 'right' });
-
-        const customerY = 120;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text(title.includes('PURCHASE') ? 'Supplier:' : 'Customer:', 36, customerY);
-        doc.font('Helvetica')
-           .text(customer.name || 'N/A', 36, customerY + 15);
-        if (customer.contact) {
-          doc.text(`Contact: ${customer.contact}`, 36, doc.y);
-        }
-      };
-
-      const drawTableHeader = (startY) => {
-        const tableTop = startY || 170;
-        const colX = { 
-          no: 36, 
-          item: 60, 
-          sku: 260, 
-          qty: 360, 
-          price: 420, 
-          total: 500 
-        };
-        
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('NO', colX.no, tableTop, { width: 20, align: 'center' });
-        doc.text('Product Name', colX.item, tableTop, { width: 190 });
-        doc.text('SKU', colX.sku, tableTop, { width: 90, align: 'center' });
-        doc.text('Qty', colX.qty, tableTop, { width: 50, align: 'center' });
-        doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
-        doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
-
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
-        
-        return { tableTop, colX };
-      };
-
-      const drawItems = (startIndex, endIndex, startY) => {
-        const { colX } = drawTableHeader(startY);
-        let y = startY + 24;
-        
-        doc.font('Helvetica').fontSize(9);
-        
-        for (let i = startIndex; i < endIndex && i < items.length; i++) {
-          const item = items[i];
-          
-          if (y > 700) {
-            doc.addPage();
-            currentPage++;
-            drawHeader(currentPage);
-            const { colX: newColX, tableTop: newTableTop } = drawTableHeader(60);
-            y = newTableTop + 24;
-            colX.no = newColX.no;
-            colX.item = newColX.item;
-            colX.sku = newColX.sku;
-            colX.qty = newColX.qty;
-            colX.price = newColX.price;
-            colX.total = newColX.total;
-          }
-
-          if (i % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
-          }
-
-          doc.fillColor('#000000')
-             .text(String(item.no || i + 1), colX.no, y, { width: 20, align: 'center' })
-             .text(item.name || 'N/A', colX.item, y, { width: 190 })
-             .text(item.sku || 'N/A', colX.sku, y, { width: 90, align: 'center' })
-             .text(String(item.qty || 0), colX.qty, y, { width: 50, align: 'center' })
-             .text(`RM ${Number(item.price || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
-             .text(`RM ${Number(item.total || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
-          
-          y += 18;
-        }
-        
-        return y;
-      };
-
-      // Draw first page
-      drawHeader(currentPage);
-      
-      // Draw first set of items
-      let endY = drawItems(0, Math.min(ITEMS_PER_PAGE, items.length), 170);
-      
-      // Draw remaining items on new pages if needed
-      for (let page = 1; page < totalPages; page++) {
-        const startIndex = page * ITEMS_PER_PAGE;
-        const endIndex = Math.min((page + 1) * ITEMS_PER_PAGE, items.length);
-        
-        doc.addPage();
-        currentPage++;
-        drawHeader(currentPage);
-        endY = drawItems(startIndex, endIndex, 60);
-      }
-
-      // Draw totals on the last page
-      doc.switchToPage(totalPages - 1);
-      
-      const totalsY = Math.max(endY + 10, 650);
-      doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
-      
-      const subtotal = totals.subtotal || items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
-      const tax = totals.tax || 0;
-      const grand = totals.grandTotal || subtotal + tax;
-      
-      doc.font('Helvetica-Bold').fontSize(10);
-      doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
-      doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
-      
-      doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
-      doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
-      
-      doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
-      doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
-      doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
-
-      if (extraNotes) {
-        doc.moveDown(2);
-        doc.font('Helvetica').fontSize(9)
-           .text('Notes:', 36, totalsY + 90)
-           .text(extraNotes, 36, totalsY + 105, { width: 500 });
-      }
-
-      doc.fontSize(9).font('Helvetica')
-         .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
-               36, 760, { align: 'center', width: 520 });
-
-      const range = doc.bufferedPageRange();
-      for (let i = 0; i < range.count; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(8)
-           .fillColor('#666666')
-           .text(`Page ${i + 1} of ${range.count}`, 
-                 36, doc.page.height - 30, 
-                 { align: 'center', width: doc.page.width - 72 });
-      }
-
-      doc.end();
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
-
-// ===== Original PDF generator for backward compatibility =====
+// ===== UPDATED: generate PDF buffer using PDFKit with NO column and page limits =====
 function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
   return new Promise((resolve, reject) => {
     try {
@@ -2288,8 +2100,10 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       }
 
       const tableTop = 170;
+      // UPDATED: Added NO column
       const colX = { 
-        item: 36, 
+        no: 36,      // NO column
+        item: 60,    // Product Name (moved right for NO column)
         sku: 260, 
         qty: 360, 
         price: 420, 
@@ -2297,6 +2111,7 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       };
       
       doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('NO', colX.no, tableTop);
       doc.text('Product Name', colX.item, tableTop);
       doc.text('SKU', colX.sku, tableTop);
       doc.text('Qty', colX.qty, tableTop);
@@ -2307,12 +2122,37 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
 
       doc.font('Helvetica').fontSize(9);
       let y = tableTop + 24;
+      let currentPage = 1;
+      let itemsProcessed = 0;
+      const itemsPerPage = 20; // Limit to 20 items per page
       
       items.forEach((item, index) => {
+        // Check if we need a new page
+        if (itemsProcessed >= itemsPerPage) {
+          doc.addPage();
+          currentPage++;
+          itemsProcessed = 0;
+          y = 60;
+          
+          // Redraw table header on new page
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('NO', colX.no, y);
+          doc.text('Product Name', colX.item, y);
+          doc.text('SKU', colX.sku, y);
+          doc.text('Qty', colX.qty, y);
+          doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
+          doc.text('Total', colX.total, y, { width: 70, align: 'right' });
+          doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+          y += 24;
+          doc.font('Helvetica').fontSize(9);
+        }
+
         if (y > 700) {
           doc.addPage();
+          currentPage++;
           y = 60;
           doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('NO', colX.no, y);
           doc.text('Product Name', colX.item, y);
           doc.text('SKU', colX.sku, y);
           doc.text('Qty', colX.qty, y);
@@ -2330,15 +2170,31 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
         }
 
         doc.fillColor('#000000')
-           .text(item.name || 'N/A', colX.item, y, { width: 220 })
+           .text(String(item.no || (index + 1)), colX.no, y, { width: 20, align: 'center' }) // NO column
+           .text(item.name || 'N/A', colX.item, y, { width: 200 })
            .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
            .text(String(item.qty || 0), colX.qty, y, { width: 50, align: 'center' })
            .text(`RM ${Number(item.price || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
            .text(`RM ${Number(item.total || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
         
         y += 18;
+        itemsProcessed++;
       });
 
+      // Add page footer for all pages
+      const range = doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#666666')
+           .text(`Page ${i + 1} of ${range.count}`, 
+                 36, doc.page.height - 30, 
+                 { align: 'center', width: doc.page.width - 72 });
+      }
+
+      // Calculate totals on last page
+      doc.switchToPage(range.count - 1);
+      
       const totalsY = Math.max(y + 10, 650);
       doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
       
@@ -2367,16 +2223,6 @@ function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta
       doc.fontSize(9).font('Helvetica')
          .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
                36, 760, { align: 'center', width: 520 });
-
-      const range = doc.bufferedPageRange();
-      for (let i = 0; i < range.count; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(8)
-           .fillColor('#666666')
-           .text(`Page ${i + 1} of ${range.count}`, 
-                 36, doc.page.height - 30, 
-                 { align: 'center', width: doc.page.width - 72 });
-      }
 
       doc.end();
     } catch (err) {
@@ -2921,7 +2767,7 @@ app.get("/api/logs/login-history", async (req, res) => {
 });
 
 // ============================================================================
-//                          GET ALL DATA FOR DASHBOARD
+//                          GET ALL DATA FOR DASHBOARD - UPDATED NAMES
 // ============================================================================
 app.get("/api/dashboard/stats", async (req, res) => {
   try {
@@ -2931,21 +2777,21 @@ app.get("/api/dashboard/stats", async (req, res) => {
     const documentCount = await Doc.countDocuments({});
     
     const inventoryItems = await Inventory.find({}).lean();
-    let inventoryCost = 0;
-    let inventoryPrice = 0;
-    let totalNetProfit = 0;
+    let totalCost = 0; // Changed from inventoryValue
+    let totalPrice = 0; // Changed from inventoryRevenue
+    let totalNetProfit = 0; // Changed from inventoryProfit
     let totalStock = 0;
     
     inventoryItems.forEach(item => {
       const qty = Number(item.quantity || 0);
       const cost = Number(item.unitCost || 0);
       const price = Number(item.unitPrice || 0);
-      const itemCost = qty * cost;
-      const itemPrice = qty * price;
-      const itemNetProfit = itemPrice - itemCost;
+      const itemCost = qty * cost; // Changed from itemValue
+      const itemPrice = qty * price; // Changed from itemRevenue
+      const itemNetProfit = itemPrice - itemCost; // Changed from itemProfit
       
-      inventoryCost += itemCost;
-      inventoryPrice += itemPrice;
+      totalCost += itemCost;
+      totalPrice += itemPrice;
       totalNetProfit += itemNetProfit;
       totalStock += qty;
     });
@@ -2965,9 +2811,9 @@ app.get("/api/dashboard/stats", async (req, res) => {
       stats: {
         inventory: {
           count: inventoryCount,
-          cost: inventoryCost,
-          price: inventoryPrice,
-          netProfit: totalNetProfit,
+          cost: totalCost, // Changed from "value"
+          price: totalPrice, // Changed from "revenue"
+          netProfit: totalNetProfit, // Changed from "profit"
           stock: totalStock,
           lowStock: lowStockItems.length
         },
@@ -3072,7 +2918,7 @@ app.get("/api/search", async (req, res) => {
 });
 
 // ============================================================================
-//                          IMPORT/EXPORT FUNCTIONS
+//                          IMPORT/EXPORT FUNCTIONS - UPDATED NAMES
 // ============================================================================
 app.get("/api/inventory/export/excel", async (req, res) => {
   try {
@@ -3081,16 +2927,17 @@ app.get("/api/inventory/export/excel", async (req, res) => {
     const wb = xlsx.utils.book_new();
     
     const data = items.map((item, index) => ({
-      NO: index + 1,
+      NO: index + 1, // Added NO column
       SKU: item.sku || '',
       'Product Name': item.name || '',
       Category: item.category || '',
       Quantity: item.quantity || 0,
       'Unit Cost': item.unitCost || 0,
       'Unit Price': item.unitPrice || 0,
-      'Total Cost': (item.quantity || 0) * (item.unitCost || 0),
-      'Total Price': (item.quantity || 0) * (item.unitPrice || 0),
-      'Created Date': formatDateUTC8(item.createdAt) // Use UTC+8 date format
+      'Total Cost': (item.quantity || 0) * (item.unitCost || 0), // Changed from "Inventory Value"
+      'Total Price': (item.quantity || 0) * (item.unitPrice || 0), // Changed from "Potential Revenue"
+      'Date': formatDateUTC8(item.createdAt),
+      'Status': item.quantity === 0 ? 'Out of Stock' : item.quantity < 10 ? 'Low Stock' : 'In Stock'
     }));
     
     const ws = xlsx.utils.json_to_sheet(data);
@@ -3275,45 +3122,15 @@ app.get("/api/system/health", async (req, res) => {
 });
 
 // ============================================================================
-// ===== FIXED: Updated to serve login.html as default =====
+//                              SERVE FRONTEND
 // ============================================================================
 app.use(express.static(path.join(__dirname, "../public")));
 
-// Serve login.html as default page for root
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/login.html"));
-});
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/"))
+    return res.status(404).json({ message: "API route not found" });
 
-// Serve index.html only for specific routes that require login
-app.get("/inventory.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/inventory.html"));
-});
-
-app.get("/documents.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/documents.html"));
-});
-
-app.get("/setting.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/setting.html"));
-});
-
-app.get("/product.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/product.html"));
-});
-
-// Catch-all for other HTML files
-app.get("*.html", (req, res) => {
-  const filePath = path.join(__dirname, "../public", req.path);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).send("Page not found");
-  }
-});
-
-// API route not found handler
-app.get("/api/*", (req, res) => {
-  res.status(404).json({ message: "API route not found" });
+  res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 // ============================================================================
