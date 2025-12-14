@@ -87,9 +87,30 @@ function validateRequiredFields(fields) {
   return true;
 }
 
-// Auth redirect
-if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
-  try { window.location.href = 'login.html'; } catch(e) {}
+// ===== FIXED: Enhanced Auth redirect with page-specific logic =====
+function checkAuthStatus() {
+  const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+  const isLoginPage = window.location.pathname.includes('login.html');
+  
+  if (!isLoggedIn && !isLoginPage) {
+    try { 
+      window.location.href = 'login.html';
+    } catch(e) {
+      console.error('Redirect error:', e);
+    }
+    return false;
+  }
+  
+  if (isLoggedIn && isLoginPage) {
+    try {
+      window.location.href = 'inventory.html';
+    } catch(e) {
+      console.error('Redirect error:', e);
+    }
+    return false;
+  }
+  
+  return true;
 }
 
 function logout(){
@@ -2686,6 +2707,11 @@ function bindDocumentsUI(){
 // =========================================
 window.addEventListener('load', async () => {
   initializeTheme();
+  
+  // Check authentication status first
+  if (!checkAuthStatus()) {
+    return;
+  }
   
   const adminName = getUsername();
   if(qs('#adminName')) qs('#adminName').textContent = adminName;
