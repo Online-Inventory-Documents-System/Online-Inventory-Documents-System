@@ -486,7 +486,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    UPDATED PDF REPORT WITH DATE RANGE
+//                    ENHANCED PDF REPORT WITH DATE RANGE
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -589,17 +589,15 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const rowHeight = 18;
         
         const columns = [
-          { name: "NO", x: 40, width: 30 },
-          { name: "SKU", x: 70, width: 70 },
-          { name: "Product Name", x: 140, width: 110 },
-          { name: "Category", x: 250, width: 70 },
-          { name: "Quantity", x: 320, width: 50 },
-          { name: "Unit Cost", x: 370, width: 60 },
-          { name: "Unit Price", x: 430, width: 60 },
-          { name: "Total Cost", x: 490, width: 65 }, // UPDATED: Changed from Inventory Value
-          { name: "Total Price", x: 555, width: 65 }, // UPDATED: Changed from Potential Revenue
-          { name: "Date", x: 620, width: 70 }, // ADDED: Date column
-          { name: "Status", x: 690, width: 90 } // ADDED: Status column
+          { name: "SKU", x: 40, width: 70 },
+          { name: "Product Name", x: 110, width: 110 },
+          { name: "Category", x: 220, width: 80 },
+          { name: "Quantity", x: 300, width: 60 },
+          { name: "Unit Cost", x: 360, width: 70 },
+          { name: "Unit Price", x: 430, width: 70 },
+          { name: "Inventory Value", x: 500, width: 85 },
+          { name: "Potential Revenue", x: 585, width: 95 },
+          { name: "Potential Profit", x: 680, width: 100 }
         ];
         
         let y = 150;
@@ -621,23 +619,13 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           y += rowHeight;
         }
 
-        function drawTableRow(item, index) {
+        function drawTableRow(item) {
           const qty = Number(item.quantity || 0);
           const cost = Number(item.unitCost || 0);
           const price = Number(item.unitPrice || 0);
-          const totalCost = qty * cost; // UPDATED: Changed from inventoryValue
-          const totalPrice = qty * price; // UPDATED: Changed from potentialRevenue
-          const date = item.createdAt ? formatDateUTC8(item.createdAt) : 'N/A';
-          
-          // Determine status
-          let status = '';
-          if (qty === 0) {
-            status = 'Out of Stock';
-          } else if (qty < 10) {
-            status = 'Low Stock';
-          } else {
-            status = 'In Stock';
-          }
+          const inventoryValue = qty * cost;
+          const potentialRevenue = qty * price;
+          const potentialProfit = potentialRevenue - inventoryValue;
 
           doc.rect(columns[0].x, y, 740, rowHeight).stroke();
           
@@ -648,48 +636,48 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           }
           
           doc.font("Helvetica").fontSize(8);
-          doc.text(String(index + 1), columns[0].x + 10, y + 5, { align: 'center' });
-          doc.text(item.sku || "", columns[1].x + 3, y + 5);
-          doc.text(item.name || "", columns[2].x + 3, y + 5);
-          doc.text(item.category || "", columns[3].x + 3, y + 5);
-          doc.text(String(qty), columns[4].x + 10, y + 5, { align: 'right' });
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5);
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5);
-          doc.text(`RM ${totalCost.toFixed(2)}`, columns[7].x + 3, y + 5); // UPDATED
-          doc.text(`RM ${totalPrice.toFixed(2)}`, columns[8].x + 3, y + 5); // UPDATED
-          doc.text(date, columns[9].x + 3, y + 5);
-          doc.text(status, columns[10].x + 3, y + 5);
+          doc.text(item.sku || "", columns[0].x + 3, y + 5);
+          doc.text(item.name || "", columns[1].x + 3, y + 5);
+          doc.text(item.category || "", columns[2].x + 3, y + 5);
+          doc.text(String(qty), columns[3].x + 3, y + 5);
+          doc.text(`RM ${cost.toFixed(2)}`, columns[4].x + 3, y + 5);
+          doc.text(`RM ${price.toFixed(2)}`, columns[5].x + 3, y + 5);
+          doc.text(`RM ${inventoryValue.toFixed(2)}`, columns[6].x + 3, y + 5);
+          doc.text(`RM ${potentialRevenue.toFixed(2)}`, columns[7].x + 3, y + 5);
+          doc.text(`RM ${potentialProfit.toFixed(2)}`, columns[8].x + 3, y + 5);
           
           y += rowHeight;
           
           return {
             qty,
-            totalCost, // UPDATED
-            totalPrice // UPDATED
+            inventoryValue,
+            potentialRevenue,
+            potentialProfit
           };
         }
 
         drawTableHeader();
         
         let subtotalQty = 0;
-        let totalCost = 0; // UPDATED
-        let totalPrice = 0; // UPDATED
+        let totalValue = 0;
+        let totalRevenue = 0;
+        let totalProfit = 0;
         let rowsOnPage = 0;
 
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          if (rowsOnPage === 20) {
+        for (const item of items) {
+          if (rowsOnPage === 10) {
             doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
             y = 40;
             rowsOnPage = 0;
             drawTableHeader();
           }
 
-          const calculations = drawTableRow(item, i);
+          const calculations = drawTableRow(item);
           
           subtotalQty += calculations.qty;
-          totalCost += calculations.totalCost; // UPDATED
-          totalPrice += calculations.totalPrice; // UPDATED
+          totalValue += calculations.inventoryValue;
+          totalRevenue += calculations.potentialRevenue;
+          totalProfit += calculations.potentialProfit;
           
           rowsOnPage++;
         }
@@ -703,24 +691,12 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           boxY = 40;
         }
         
-        // UPDATED: New summary format
-        doc.rect(560, boxY, 230, 110).stroke();
+        doc.rect(560, boxY, 230, 88).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
-        doc.text("Subtotal:", 570, boxY + 10);
-        doc.font("Helvetica").fontSize(9);
-        doc.text(`Total Products: ${items.length}`, 570, boxY + 30);
-        doc.text(`Quantity: ${subtotalQty} units`, 570, boxY + 45);
-        doc.text(`Total Inventory Cost: RM ${totalCost.toFixed(2)}`, 570, boxY + 60);
-        doc.text(`Total Retail Price: RM ${totalPrice.toFixed(2)}`, 570, boxY + 75);
-        
-        // Calculate profit
-        const profit = totalPrice - totalCost;
-        if (profit > 0) {
-          doc.fillColor('green').text(`Potential Profit: RM ${profit.toFixed(2)}`, 570, boxY + 90);
-        } else {
-          doc.fillColor('red').text(`Potential Loss: RM ${Math.abs(profit).toFixed(2)}`, 570, boxY + 90);
-        }
-        doc.fillColor('black');
+        doc.text(`Subtotal (Quantity): ${subtotalQty} units`, 570, boxY + 10);
+        doc.text(`Total Inventory Value: RM ${totalValue.toFixed(2)}`, 570, boxY + 28);
+        doc.text(`Total Potential Revenue: RM ${totalRevenue.toFixed(2)}`, 570, boxY + 46);
+        doc.text(`Total Potential Profit: RM ${totalProfit.toFixed(2)}`, 570, boxY + 64);
 
         doc.flushPages();
 
@@ -1789,7 +1765,7 @@ app.delete("/api/sales/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    UPDATED SINGLE PURCHASE INVOICE PDF
+//                    SINGLE PURCHASE INVOICE PDF
 // ============================================================================
 app.get("/api/purchases/invoice/:id", async (req, res) => {
   try {
@@ -1803,156 +1779,43 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        const doc = new PDFDocument({ 
-          size: 'A4', 
-          margin: 36,
-          bufferPages: true
-        });
-        
-        const bufs = [];
-        doc.on('data', (d) => bufs.push(d));
-        doc.on('end', () => resolve(Buffer.concat(bufs)));
-
-        const topY = 36;
-        
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text(company.name, 36, topY);
-        doc.fontSize(10).font('Helvetica')
-           .text(company.address, 36, topY + 18, { continued: false });
-        doc.text(`Phone: ${company.phone}`);
-        doc.text(`Email: ${company.email}`);
-
-        const rightX = 360;
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text('PURCHASE INVOICE', rightX, topY, { align: 'right' });
-        doc.fontSize(10).font('Helvetica')
-           .text(`Invoice No: ${purchase.purchaseId}`, rightX, topY + 20, { align: 'right' });
-        doc.text(`Date: ${formatDateUTC8(purchase.purchaseDate)}`, { align: 'right' });
-        doc.text(`Status: PAID`, { align: 'right' });
-
-        const customerY = 120;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Supplier Information:', 36, customerY);
-        doc.font('Helvetica')
-           .text(purchase.supplier || 'Supplier', 36, customerY + 15);
-        if (purchase.supplierContact) {
-          doc.text(`Contact: ${purchase.supplierContact}`, 36, doc.y);
-        }
-
-        // Add company information
-        const companyY = customerY + 60;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Bill To:', 36, companyY);
-        doc.font('Helvetica')
-           .text(company.name, 36, companyY + 15);
-        doc.text(company.address, 36, doc.y);
-        doc.text(`Phone: ${company.phone}`, 36, doc.y);
-        doc.text(`Email: ${company.email}`, 36, doc.y);
-
-        const tableTop = 240;
-        const colX = { 
-          no: 36, 
-          item: 70, 
-          sku: 260, 
-          qty: 360, 
-          price: 420, 
-          total: 500 
+        const invoiceData = {
+          title: 'PURCHASE INVOICE',
+          companyInfo: {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email
+          },
+          docMeta: {
+            reference: purchase.purchaseId,
+            dateString: formatDateUTC8(purchase.purchaseDate),
+            status: 'PURCHASE'
+          },
+          customer: {
+            name: purchase.supplier || 'Supplier',
+            contact: purchase.supplierContact || purchase.supplier || 'N/A'
+          },
+          items: purchase.items.map(item => ({
+            name: item.productName || 'N/A',
+            sku: item.sku || 'N/A',
+            qty: item.quantity || 0,
+            price: item.purchasePrice || 0,
+            total: item.totalAmount || 0
+          })),
+          totals: {
+            subtotal: purchase.totalAmount || 0,
+            tax: 0,
+            grandTotal: purchase.totalAmount || 0
+          },
+          extraNotes: purchase.notes || ''
         };
-        
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('NO', colX.no, tableTop);
-        doc.text('Product Name', colX.item, tableTop);
-        doc.text('SKU', colX.sku, tableTop);
-        doc.text('Qty', colX.qty, tableTop);
-        doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
-        doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
 
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
+        resolve(buffer);
 
-        doc.font('Helvetica').fontSize(9);
-        let y = tableTop + 24;
-        let pageNumber = 1;
-        let itemsPerPage = 20;
-        
-        for (let i = 0; i < purchase.items.length; i++) {
-          const item = purchase.items[i];
-          
-          if (y > 700) {
-            doc.addPage();
-            y = 60;
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('NO', colX.no, y);
-            doc.text('Product Name', colX.item, y);
-            doc.text('SKU', colX.sku, y);
-            doc.text('Qty', colX.qty, y);
-            doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
-            doc.text('Total', colX.total, y, { width: 70, align: 'right' });
-            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
-            y += 24;
-            doc.font('Helvetica').fontSize(9);
-            pageNumber++;
-          }
-
-          if (i % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
-          }
-
-          doc.fillColor('#000000')
-             .text(String(i + 1), colX.no + 10, y, { align: 'center' })
-             .text(item.productName || 'N/A', colX.item, y, { width: 180 })
-             .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
-             .text(String(item.quantity || 0), colX.qty, y, { width: 50, align: 'center' })
-             .text(`RM ${Number(item.purchasePrice || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
-             .text(`RM ${Number(item.totalAmount || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
-          
-          y += 18;
-        }
-
-        const totalsY = Math.max(y + 10, 650);
-        doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
-        
-        const subtotal = purchase.totalAmount || 0;
-        const tax = 0;
-        const grand = subtotal + tax;
-        
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
-        
-        doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
-        
-        doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
-        doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
-
-        if (purchase.notes) {
-          doc.moveDown(2);
-          doc.font('Helvetica').fontSize(9)
-             .text('Notes:', 36, totalsY + 90)
-             .text(purchase.notes, 36, totalsY + 105, { width: 500 });
-        }
-
-        // Add footer with page numbers
-        const range = doc.bufferedPageRange();
-        for (let i = 0; i < range.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).font('Helvetica')
-             .text(`Thank you for your business. Generated by ${company.name} Inventory System`, 
-                   36, doc.page.height - 50, { align: 'center', width: 520 });
-          
-          doc.fontSize(8)
-             .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count}`, 
-                   36, doc.page.height - 30, 
-                   { align: 'center', width: doc.page.width - 72 });
-        }
-
-        doc.end();
-      } catch (err) {
-        reject(err);
+      } catch (error) {
+        reject(error);
       }
     });
 
@@ -1980,159 +1843,39 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
     const company = await getCompanyInfo();
     const username = req.headers["x-username"] || "System";
 
-    const pdfBuffer = await new Promise(async (resolve, reject) => {
-      try {
-        const doc = new PDFDocument({ 
-          size: 'A4', 
-          margin: 36,
-          bufferPages: true
-        });
-        
-        const bufs = [];
-        doc.on('data', (d) => bufs.push(d));
-        doc.on('end', () => resolve(Buffer.concat(bufs)));
+    const invoiceData = {
+      title: 'PURCHASE INVOICE',
+      companyInfo: {
+        name: company.name,
+        address: company.address,
+        phone: company.phone,
+        email: company.email
+      },
+      docMeta: {
+        reference: purchase.purchaseId,
+        dateString: formatDateUTC8(purchase.purchaseDate),
+        status: 'PURCHASE'
+      },
+      customer: {
+        name: purchase.supplier || 'Supplier',
+        contact: purchase.supplierContact || purchase.supplier || 'N/A'
+      },
+      items: purchase.items.map(item => ({
+        name: item.productName || 'N/A',
+        sku: item.sku || 'N/A',
+        qty: item.quantity || 0,
+        price: item.purchasePrice || 0,
+        total: item.totalAmount || 0
+      })),
+      totals: {
+        subtotal: purchase.totalAmount || 0,
+        tax: 0,
+        grandTotal: purchase.totalAmount || 0
+      },
+      extraNotes: purchase.notes || ''
+    };
 
-        const topY = 36;
-        
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text(company.name, 36, topY);
-        doc.fontSize(10).font('Helvetica')
-           .text(company.address, 36, topY + 18, { continued: false });
-        doc.text(`Phone: ${company.phone}`);
-        doc.text(`Email: ${company.email}`);
-
-        const rightX = 360;
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text('PURCHASE INVOICE', rightX, topY, { align: 'right' });
-        doc.fontSize(10).font('Helvetica')
-           .text(`Invoice No: ${purchase.purchaseId}`, rightX, topY + 20, { align: 'right' });
-        doc.text(`Date: ${formatDateUTC8(purchase.purchaseDate)}`, { align: 'right' });
-        doc.text(`Status: PAID`, { align: 'right' });
-
-        const customerY = 120;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Supplier Information:', 36, customerY);
-        doc.font('Helvetica')
-           .text(purchase.supplier || 'Supplier', 36, customerY + 15);
-        if (purchase.supplierContact) {
-          doc.text(`Contact: ${purchase.supplierContact}`, 36, doc.y);
-        }
-
-        // Add company information
-        const companyY = customerY + 60;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Bill To:', 36, companyY);
-        doc.font('Helvetica')
-           .text(company.name, 36, companyY + 15);
-        doc.text(company.address, 36, doc.y);
-        doc.text(`Phone: ${company.phone}`, 36, doc.y);
-        doc.text(`Email: ${company.email}`, 36, doc.y);
-
-        const tableTop = 240;
-        const colX = { 
-          no: 36, 
-          item: 70, 
-          sku: 260, 
-          qty: 360, 
-          price: 420, 
-          total: 500 
-        };
-        
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('NO', colX.no, tableTop);
-        doc.text('Product Name', colX.item, tableTop);
-        doc.text('SKU', colX.sku, tableTop);
-        doc.text('Qty', colX.qty, tableTop);
-        doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
-        doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
-
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
-
-        doc.font('Helvetica').fontSize(9);
-        let y = tableTop + 24;
-        let pageNumber = 1;
-        
-        for (let i = 0; i < purchase.items.length; i++) {
-          const item = purchase.items[i];
-          
-          if (y > 700) {
-            doc.addPage();
-            y = 60;
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('NO', colX.no, y);
-            doc.text('Product Name', colX.item, y);
-            doc.text('SKU', colX.sku, y);
-            doc.text('Qty', colX.qty, y);
-            doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
-            doc.text('Total', colX.total, y, { width: 70, align: 'right' });
-            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
-            y += 24;
-            doc.font('Helvetica').fontSize(9);
-            pageNumber++;
-          }
-
-          if (i % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
-          }
-
-          doc.fillColor('#000000')
-             .text(String(i + 1), colX.no + 10, y, { align: 'center' })
-             .text(item.productName || 'N/A', colX.item, y, { width: 180 })
-             .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
-             .text(String(item.quantity || 0), colX.qty, y, { width: 50, align: 'center' })
-             .text(`RM ${Number(item.purchasePrice || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
-             .text(`RM ${Number(item.totalAmount || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
-          
-          y += 18;
-        }
-
-        const totalsY = Math.max(y + 10, 650);
-        doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
-        
-        const subtotal = purchase.totalAmount || 0;
-        const tax = 0;
-        const grand = subtotal + tax;
-        
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
-        
-        doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
-        
-        doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
-        doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
-
-        if (purchase.notes) {
-          doc.moveDown(2);
-          doc.font('Helvetica').fontSize(9)
-             .text('Notes:', 36, totalsY + 90)
-             .text(purchase.notes, 36, totalsY + 105, { width: 500 });
-        }
-
-        // Add footer with page numbers
-        const range = doc.bufferedPageRange();
-        for (let i = 0; i < range.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).font('Helvetica')
-             .text(`Thank you for your business. Generated by ${company.name} Inventory System`, 
-                   36, doc.page.height - 50, { align: 'center', width: 520 });
-          
-          doc.fontSize(8)
-             .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count}`, 
-                   36, doc.page.height - 30, 
-                   { align: 'center', width: doc.page.width - 72 });
-        }
-
-        doc.end();
-      } catch (err) {
-        reject(err);
-      }
-    });
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
 
     const filename = `Invoice_${purchase.purchaseId}.pdf`;
     const savedDoc = await Doc.create({
@@ -2161,7 +1904,7 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    UPDATED SINGLE SALES INVOICE PDF
+//                    SINGLE SALES INVOICE PDF
 // ============================================================================
 app.get("/api/sales/invoice/:id", async (req, res) => {
   try {
@@ -2175,155 +1918,43 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
 
     const pdfBuffer = await new Promise(async (resolve, reject) => {
       try {
-        const doc = new PDFDocument({ 
-          size: 'A4', 
-          margin: 36,
-          bufferPages: true
-        });
-        
-        const bufs = [];
-        doc.on('data', (d) => bufs.push(d));
-        doc.on('end', () => resolve(Buffer.concat(bufs)));
-
-        const topY = 36;
-        
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text(company.name, 36, topY);
-        doc.fontSize(10).font('Helvetica')
-           .text(company.address, 36, topY + 18, { continued: false });
-        doc.text(`Phone: ${company.phone}`);
-        doc.text(`Email: ${company.email}`);
-
-        const rightX = 360;
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text('SALES INVOICE', rightX, topY, { align: 'right' });
-        doc.fontSize(10).font('Helvetica')
-           .text(`Invoice No: ${sale.salesId}`, rightX, topY + 20, { align: 'right' });
-        doc.text(`Date: ${formatDateUTC8(sale.salesDate)}`, { align: 'right' });
-        doc.text(`Status: PAID`, { align: 'right' });
-
-        const customerY = 120;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Customer Information:', 36, customerY);
-        doc.font('Helvetica')
-           .text(sale.customer || 'Customer', 36, customerY + 15);
-        if (sale.customerContact) {
-          doc.text(`Contact: ${sale.customerContact}`, 36, doc.y);
-        }
-
-        // Add company information
-        const companyY = customerY + 60;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Bill From:', 36, companyY);
-        doc.font('Helvetica')
-           .text(company.name, 36, companyY + 15);
-        doc.text(company.address, 36, doc.y);
-        doc.text(`Phone: ${company.phone}`, 36, doc.y);
-        doc.text(`Email: ${company.email}`, 36, doc.y);
-
-        const tableTop = 240;
-        const colX = { 
-          no: 36, 
-          item: 70, 
-          sku: 260, 
-          qty: 360, 
-          price: 420, 
-          total: 500 
+        const invoiceData = {
+          title: 'SALES INVOICE',
+          companyInfo: {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email
+          },
+          docMeta: {
+            reference: sale.salesId,
+            dateString: formatDateUTC8(sale.salesDate),
+            status: 'SALES'
+          },
+          customer: {
+            name: sale.customer || 'Customer',
+            contact: sale.customerContact || sale.customer || 'N/A'
+          },
+          items: sale.items.map(item => ({
+            name: item.productName || 'N/A',
+            sku: item.sku || 'N/A',
+            qty: item.quantity || 0,
+            price: item.salePrice || 0,
+            total: item.totalAmount || 0
+          })),
+          totals: {
+            subtotal: sale.totalAmount || 0,
+            tax: 0,
+            grandTotal: sale.totalAmount || 0
+          },
+          extraNotes: sale.notes || ''
         };
-        
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('NO', colX.no, tableTop);
-        doc.text('Product Name', colX.item, tableTop);
-        doc.text('SKU', colX.sku, tableTop);
-        doc.text('Qty', colX.qty, tableTop);
-        doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
-        doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
 
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+        const buffer = await generateInvoicePDFBuffer(invoiceData);
+        resolve(buffer);
 
-        doc.font('Helvetica').fontSize(9);
-        let y = tableTop + 24;
-        let pageNumber = 1;
-        
-        for (let i = 0; i < sale.items.length; i++) {
-          const item = sale.items[i];
-          
-          if (y > 700) {
-            doc.addPage();
-            y = 60;
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('NO', colX.no, y);
-            doc.text('Product Name', colX.item, y);
-            doc.text('SKU', colX.sku, y);
-            doc.text('Qty', colX.qty, y);
-            doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
-            doc.text('Total', colX.total, y, { width: 70, align: 'right' });
-            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
-            y += 24;
-            doc.font('Helvetica').fontSize(9);
-            pageNumber++;
-          }
-
-          if (i % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
-          }
-
-          doc.fillColor('#000000')
-             .text(String(i + 1), colX.no + 10, y, { align: 'center' })
-             .text(item.productName || 'N/A', colX.item, y, { width: 180 })
-             .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
-             .text(String(item.quantity || 0), colX.qty, y, { width: 50, align: 'center' })
-             .text(`RM ${Number(item.salePrice || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
-             .text(`RM ${Number(item.totalAmount || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
-          
-          y += 18;
-        }
-
-        const totalsY = Math.max(y + 10, 650);
-        doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
-        
-        const subtotal = sale.totalAmount || 0;
-        const tax = 0;
-        const grand = subtotal + tax;
-        
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
-        
-        doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
-        
-        doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
-        doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
-
-        if (sale.notes) {
-          doc.moveDown(2);
-          doc.font('Helvetica').fontSize(9)
-             .text('Notes:', 36, totalsY + 90)
-             .text(sale.notes, 36, totalsY + 105, { width: 500 });
-        }
-
-        // Add footer with page numbers
-        const range = doc.bufferedPageRange();
-        for (let i = 0; i < range.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).font('Helvetica')
-             .text(`Thank you for your business. Generated by ${company.name} Inventory System`, 
-                   36, doc.page.height - 50, { align: 'center', width: 520 });
-          
-          doc.fontSize(8)
-             .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count}`, 
-                   36, doc.page.height - 30, 
-                   { align: 'center', width: doc.page.width - 72 });
-        }
-
-        doc.end();
-      } catch (err) {
-        reject(err);
+      } catch (error) {
+        reject(error);
       }
     });
 
@@ -2351,159 +1982,39 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
     const company = await getCompanyInfo();
     const username = req.headers["x-username"] || "System";
 
-    const pdfBuffer = await new Promise(async (resolve, reject) => {
-      try {
-        const doc = new PDFDocument({ 
-          size: 'A4', 
-          margin: 36,
-          bufferPages: true
-        });
-        
-        const bufs = [];
-        doc.on('data', (d) => bufs.push(d));
-        doc.on('end', () => resolve(Buffer.concat(bufs)));
+    const invoiceData = {
+      title: 'SALES INVOICE',
+      companyInfo: {
+        name: company.name,
+        address: company.address,
+        phone: company.phone,
+        email: company.email
+      },
+      docMeta: {
+        reference: sale.salesId,
+        dateString: formatDateUTC8(sale.salesDate),
+        status: 'SALES'
+      },
+      customer: {
+        name: sale.customer || 'Customer',
+        contact: sale.customerContact || sale.customer || 'N/A'
+      },
+      items: sale.items.map(item => ({
+        name: item.productName || 'N/A',
+        sku: item.sku || 'N/A',
+        qty: item.quantity || 0,
+        price: item.salePrice || 0,
+        total: item.totalAmount || 0
+      })),
+      totals: {
+        subtotal: sale.totalAmount || 0,
+        tax: 0,
+        grandTotal: sale.totalAmount || 0
+      },
+      extraNotes: sale.notes || ''
+    };
 
-        const topY = 36;
-        
-        doc.fontSize(14).font('Helvetica-Bold')
-           .text(company.name, 36, topY);
-        doc.fontSize(10).font('Helvetica')
-           .text(company.address, 36, topY + 18, { continued: false });
-        doc.text(`Phone: ${company.phone}`);
-        doc.text(`Email: ${company.email}`);
-
-        const rightX = 360;
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text('SALES INVOICE', rightX, topY, { align: 'right' });
-        doc.fontSize(10).font('Helvetica')
-           .text(`Invoice No: ${sale.salesId}`, rightX, topY + 20, { align: 'right' });
-        doc.text(`Date: ${formatDateUTC8(sale.salesDate)}`, { align: 'right' });
-        doc.text(`Status: PAID`, { align: 'right' });
-
-        const customerY = 120;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Customer Information:', 36, customerY);
-        doc.font('Helvetica')
-           .text(sale.customer || 'Customer', 36, customerY + 15);
-        if (sale.customerContact) {
-          doc.text(`Contact: ${sale.customerContact}`, 36, doc.y);
-        }
-
-        // Add company information
-        const companyY = customerY + 60;
-        doc.fontSize(10).font('Helvetica-Bold')
-           .text('Bill From:', 36, companyY);
-        doc.font('Helvetica')
-           .text(company.name, 36, companyY + 15);
-        doc.text(company.address, 36, doc.y);
-        doc.text(`Phone: ${company.phone}`, 36, doc.y);
-        doc.text(`Email: ${company.email}`, 36, doc.y);
-
-        const tableTop = 240;
-        const colX = { 
-          no: 36, 
-          item: 70, 
-          sku: 260, 
-          qty: 360, 
-          price: 420, 
-          total: 500 
-        };
-        
-        doc.fontSize(10).font('Helvetica-Bold');
-        doc.text('NO', colX.no, tableTop);
-        doc.text('Product Name', colX.item, tableTop);
-        doc.text('SKU', colX.sku, tableTop);
-        doc.text('Qty', colX.qty, tableTop);
-        doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
-        doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
-
-        doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
-
-        doc.font('Helvetica').fontSize(9);
-        let y = tableTop + 24;
-        let pageNumber = 1;
-        
-        for (let i = 0; i < sale.items.length; i++) {
-          const item = sale.items[i];
-          
-          if (y > 700) {
-            doc.addPage();
-            y = 60;
-            doc.fontSize(10).font('Helvetica-Bold');
-            doc.text('NO', colX.no, y);
-            doc.text('Product Name', colX.item, y);
-            doc.text('SKU', colX.sku, y);
-            doc.text('Qty', colX.qty, y);
-            doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
-            doc.text('Total', colX.total, y, { width: 70, align: 'right' });
-            doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
-            y += 24;
-            doc.font('Helvetica').fontSize(9);
-            pageNumber++;
-          }
-
-          if (i % 2 === 0) {
-            doc.rect(36, y - 4, 524, 18)
-               .fillColor('#f8f9fa')
-               .fill();
-          }
-
-          doc.fillColor('#000000')
-             .text(String(i + 1), colX.no + 10, y, { align: 'center' })
-             .text(item.productName || 'N/A', colX.item, y, { width: 180 })
-             .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
-             .text(String(item.quantity || 0), colX.qty, y, { width: 50, align: 'center' })
-             .text(`RM ${Number(item.salePrice || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
-             .text(`RM ${Number(item.totalAmount || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
-          
-          y += 18;
-        }
-
-        const totalsY = Math.max(y + 10, 650);
-        doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
-        
-        const subtotal = sale.totalAmount || 0;
-        const tax = 0;
-        const grand = subtotal + tax;
-        
-        doc.font('Helvetica-Bold').fontSize(10);
-        doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
-        
-        doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
-        
-        doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
-        doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
-        doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
-
-        if (sale.notes) {
-          doc.moveDown(2);
-          doc.font('Helvetica').fontSize(9)
-             .text('Notes:', 36, totalsY + 90)
-             .text(sale.notes, 36, totalsY + 105, { width: 500 });
-        }
-
-        // Add footer with page numbers
-        const range = doc.bufferedPageRange();
-        for (let i = 0; i < range.count; i++) {
-          doc.switchToPage(i);
-          doc.fontSize(9).font('Helvetica')
-             .text(`Thank you for your business. Generated by ${company.name} Inventory System`, 
-                   36, doc.page.height - 50, { align: 'center', width: 520 });
-          
-          doc.fontSize(8)
-             .fillColor('#666666')
-             .text(`Page ${i + 1} of ${range.count}`, 
-                   36, doc.page.height - 30, 
-                   { align: 'center', width: doc.page.width - 72 });
-        }
-
-        doc.end();
-      } catch (err) {
-        reject(err);
-      }
-    });
+    const pdfBuffer = await generateInvoicePDFBuffer(invoiceData);
 
     const filename = `Invoice_${sale.salesId}.pdf`;
     const savedDoc = await Doc.create({
@@ -2530,6 +2041,144 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
     res.status(500).json({ message: "Failed to save sales invoice: " + err.message });
   }
 });
+
+// ===== Helper: generate PDF buffer using PDFKit =====
+function generateInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 36,
+        bufferPages: true 
+      });
+      
+      const bufs = [];
+      doc.on('data', (d) => bufs.push(d));
+      doc.on('end', () => resolve(Buffer.concat(bufs)));
+
+      const topY = 36;
+      
+      doc.fontSize(14).font('Helvetica-Bold')
+         .text(companyInfo.name || 'L&B COMPANY', 36, topY);
+      doc.fontSize(10).font('Helvetica')
+         .text(companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka', 36, topY + 18, { continued: false });
+      doc.text(`Phone: ${companyInfo.phone || '01133127622'}`);
+      doc.text(`Email: ${companyInfo.email || 'lbcompany@gmail.com'}`);
+
+      const rightX = 360;
+      doc.fontSize(12).font('Helvetica-Bold')
+         .text(title, rightX, topY, { align: 'right' });
+      doc.fontSize(10).font('Helvetica')
+         .text(`No: ${docMeta.reference || ''}`, rightX, topY + 20, { align: 'right' });
+      doc.text(`Date: ${docMeta.dateString || formatDateUTC8(new Date())}`, { align: 'right' });
+      doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
+
+      const customerY = 120;
+      doc.fontSize(10).font('Helvetica-Bold')
+         .text(title.includes('PURCHASE') ? 'Supplier:' : 'Customer:', 36, customerY);
+      doc.font('Helvetica')
+         .text(customer.name || 'N/A', 36, customerY + 15);
+      if (customer.contact) {
+        doc.text(`Contact: ${customer.contact}`, 36, doc.y);
+      }
+
+      const tableTop = 170;
+      const colX = { 
+        item: 36, 
+        sku: 260, 
+        qty: 360, 
+        price: 420, 
+        total: 500 
+      };
+      
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Product Name', colX.item, tableTop);
+      doc.text('SKU', colX.sku, tableTop);
+      doc.text('Qty', colX.qty, tableTop);
+      doc.text('Unit Price', colX.price, tableTop, { width: 70, align: 'right' });
+      doc.text('Total', colX.total, tableTop, { width: 70, align: 'right' });
+
+      doc.moveTo(36, tableTop + 16).lineTo(560, tableTop + 16).stroke();
+
+      doc.font('Helvetica').fontSize(9);
+      let y = tableTop + 24;
+      
+      items.forEach((item, index) => {
+        if (y > 700) {
+          doc.addPage();
+          y = 60;
+          doc.fontSize(10).font('Helvetica-Bold');
+          doc.text('Product Name', colX.item, y);
+          doc.text('SKU', colX.sku, y);
+          doc.text('Qty', colX.qty, y);
+          doc.text('Unit Price', colX.price, y, { width: 70, align: 'right' });
+          doc.text('Total', colX.total, y, { width: 70, align: 'right' });
+          doc.moveTo(36, y + 16).lineTo(560, y + 16).stroke();
+          y += 24;
+          doc.font('Helvetica').fontSize(9);
+        }
+
+        if (index % 2 === 0) {
+          doc.rect(36, y - 4, 524, 18)
+             .fillColor('#f8f9fa')
+             .fill();
+        }
+
+        doc.fillColor('#000000')
+           .text(item.name || 'N/A', colX.item, y, { width: 220 })
+           .text(item.sku || 'N/A', colX.sku, y, { width: 90 })
+           .text(String(item.qty || 0), colX.qty, y, { width: 50, align: 'center' })
+           .text(`RM ${Number(item.price || 0).toFixed(2)}`, colX.price, y, { width: 70, align: 'right' })
+           .text(`RM ${Number(item.total || 0).toFixed(2)}`, colX.total, y, { width: 70, align: 'right' });
+        
+        y += 18;
+      });
+
+      const totalsY = Math.max(y + 10, 650);
+      doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
+      
+      const subtotal = totals.subtotal || items.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+      const tax = totals.tax || 0;
+      const grand = totals.grandTotal || subtotal + tax;
+      
+      doc.font('Helvetica-Bold').fontSize(10);
+      doc.text('Subtotal', 400, totalsY + 12, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(subtotal).toFixed(2)}`, 500, totalsY + 12, { width: 70, align: 'right' });
+      
+      doc.text('Tax (0%)', 400, totalsY + 30, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(tax).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
+      
+      doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
+      doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
+      doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
+
+      if (extraNotes) {
+        doc.moveDown(2);
+        doc.font('Helvetica').fontSize(9)
+           .text('Notes:', 36, totalsY + 90)
+           .text(extraNotes, 36, totalsY + 105, { width: 500 });
+      }
+
+      doc.fontSize(9).font('Helvetica')
+         .text(`Thank you for your business. Generated by ${companyInfo.name} Inventory System`, 
+               36, 760, { align: 'center', width: 520 });
+
+      const range = doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        doc.switchToPage(i);
+        doc.fontSize(8)
+           .fillColor('#666666')
+           .text(`Page ${i + 1} of ${range.count}`, 
+                 36, doc.page.height - 30, 
+                 { align: 'center', width: doc.page.width - 72 });
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 // ============================================================================
 //                    FOLDER MANAGEMENT
@@ -3233,9 +2882,10 @@ app.get("/api/inventory/export/excel", async (req, res) => {
       Quantity: item.quantity || 0,
       'Unit Cost': item.unitCost || 0,
       'Unit Price': item.unitPrice || 0,
-      'Total Cost': (item.quantity || 0) * (item.unitCost || 0), // UPDATED
-      'Total Price': (item.quantity || 0) * (item.unitPrice || 0), // UPDATED
-      'Date': formatDateUTC8(item.createdAt) // Use UTC+8 date format
+      'Inventory Value': (item.quantity || 0) * (item.unitCost || 0),
+      'Potential Revenue': (item.quantity || 0) * (item.unitPrice || 0),
+      'Potential Profit': ((item.quantity || 0) * (item.unitPrice || 0)) - ((item.quantity || 0) * (item.unitCost || 0)),
+      'Created Date': formatDateUTC8(item.createdAt) // Use UTC+8 date format
     }));
     
     const ws = xlsx.utils.json_to_sheet(data);
@@ -3420,20 +3070,14 @@ app.get("/api/system/health", async (req, res) => {
 });
 
 // ============================================================================
-//                              SERVE FRONTEND - FIXED
+//                              SERVE FRONTEND
 // ============================================================================
 app.use(express.static(path.join(__dirname, "../public")));
-
-// Serve login.html as the default page
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/login.html"));
-});
 
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api/"))
     return res.status(404).json({ message: "API route not found" });
 
-  // Check if file exists, otherwise serve index.html for SPA routing
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
