@@ -590,16 +590,9 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         // Company info with line wrapping
         doc.fontSize(18).font("Helvetica-Bold").text(company.name, 50, 50);
         doc.fontSize(10).font("Helvetica");
-        
-        const addressLines = doc.textOfHeight(company.address, 200);
-        let addressY = 75;
-        addressLines.forEach(line => {
-          doc.text(line, 50, addressY);
-          addressY += 12;
-        });
-        
-        doc.text(`Phone: ${company.phone}`, 50, addressY + 5);
-        doc.text(`Email: ${company.email}`, 50, addressY + 20);
+        doc.text(company.address, 50, 75);
+        doc.text(`Phone: ${company.phone}`, 50, 90);
+        doc.text(`Email: ${company.email}`, 50, 105);
 
         // Report info section
         doc.font("Helvetica-Bold").fontSize(16)
@@ -997,20 +990,14 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
         // Header with border
         doc.rect(40, 40, 520, 100).stroke();
         
-        // Company info with line wrapping
+        // Company info
         doc.fontSize(16).font('Helvetica-Bold')
            .text(company.name, 50, 50);
         
-        doc.fontSize(10).font('Helvetica');
-        const addressLines = doc.textOfHeight(company.address, 300);
-        let addressY = 75;
-        addressLines.forEach(line => {
-          doc.text(line, 50, addressY);
-          addressY += 12;
-        });
-        
-        doc.text(`Phone: ${company.phone}`, 50, addressY + 5);
-        doc.text(`Email: ${company.email}`, 50, addressY + 20);
+        doc.fontSize(10).font('Helvetica')
+           .text(company.address, 50, 75)
+           .text(`Phone: ${company.phone}`, 50, 90)
+           .text(`Email: ${company.email}`, 50, 105);
 
         // Invoice info
         doc.fontSize(18).font('Helvetica-Bold')
@@ -1055,15 +1042,11 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
 
         doc.font('Helvetica').fontSize(10);
         let y = tableTop + 30;
-        let itemCount = 0;
         
-        purchase.items.forEach((item, index) => {
-          itemCount++;
-          if (y > 600) {
-            // For single page, we'll wrap text if needed
-            if (itemCount > 15) break;
-          }
-
+        // Limit to 15 items for single page
+        const itemsToShow = purchase.items.slice(0, 15);
+        
+        itemsToShow.forEach((item, index) => {
           doc.text(String(index + 1), colX.no, y, { width: 20, align: 'center' });
           doc.text(item.productName || 'N/A', colX.item, y, { width: 120 });
           doc.text(item.sku || 'N/A', colX.sku, y, { width: 110 });
@@ -1097,13 +1080,8 @@ app.get("/api/purchases/invoice/:id", async (req, res) => {
           doc.fontSize(11).font('Helvetica-Bold')
              .text('NOTES:', 50, notesY + 10);
           
-          const notesLines = doc.textOfHeight(purchase.notes, 500);
-          let noteY = notesY + 30;
-          notesLines.slice(0, 3).forEach(line => {
-            doc.font('Helvetica').fontSize(10)
-               .text(line, 50, noteY);
-            noteY += 12;
-          });
+          doc.font('Helvetica').fontSize(10)
+             .text(purchase.notes, 50, notesY + 30, { width: 500 });
         }
 
         // Footer
@@ -1159,20 +1137,14 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
         // Header with border
         doc.rect(40, 40, 520, 100).stroke();
         
-        // Company info with line wrapping
+        // Company info
         doc.fontSize(16).font('Helvetica-Bold')
            .text(company.name, 50, 50);
         
-        doc.fontSize(10).font('Helvetica');
-        const addressLines = doc.textOfHeight(company.address, 300);
-        let addressY = 75;
-        addressLines.forEach(line => {
-          doc.text(line, 50, addressY);
-          addressY += 12;
-        });
-        
-        doc.text(`Phone: ${company.phone}`, 50, addressY + 5);
-        doc.text(`Email: ${company.email}`, 50, addressY + 20);
+        doc.fontSize(10).font('Helvetica')
+           .text(company.address, 50, 75)
+           .text(`Phone: ${company.phone}`, 50, 90)
+           .text(`Email: ${company.email}`, 50, 105);
 
         // Invoice info
         doc.fontSize(18).font('Helvetica-Bold')
@@ -1217,14 +1189,11 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
 
         doc.font('Helvetica').fontSize(10);
         let y = tableTop + 30;
-        let itemCount = 0;
         
-        sale.items.forEach((item, index) => {
-          itemCount++;
-          if (y > 600) {
-            if (itemCount > 15) break;
-          }
-
+        // Limit to 15 items for single page
+        const itemsToShow = sale.items.slice(0, 15);
+        
+        itemsToShow.forEach((item, index) => {
           doc.text(String(index + 1), colX.no, y, { width: 20, align: 'center' });
           doc.text(item.productName || 'N/A', colX.item, y, { width: 120 });
           doc.text(item.sku || 'N/A', colX.sku, y, { width: 110 });
@@ -1258,13 +1227,8 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           doc.fontSize(11).font('Helvetica-Bold')
              .text('NOTES:', 50, notesY + 10);
           
-          const notesLines = doc.textOfHeight(sale.notes, 500);
-          let noteY = notesY + 30;
-          notesLines.slice(0, 3).forEach(line => {
-            doc.font('Helvetica').fontSize(10)
-               .text(line, 50, noteY);
-            noteY += 12;
-          });
+          doc.font('Helvetica').fontSize(10)
+             .text(sale.notes, 50, notesY + 30, { width: 500 });
         }
 
         // Footer
@@ -1322,20 +1286,14 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
         // Header with border
         doc.rect(40, 40, 520, 100).stroke();
         
-        // Company info with line wrapping
+        // Company info
         doc.fontSize(16).font('Helvetica-Bold')
            .text(company.name, 50, 50);
         
-        doc.fontSize(10).font('Helvetica');
-        const addressLines = doc.textOfHeight(company.address, 300);
-        let addressY = 75;
-        addressLines.forEach(line => {
-          doc.text(line, 50, addressY);
-          addressY += 12;
-        });
-        
-        doc.text(`Phone: ${company.phone}`, 50, addressY + 5);
-        doc.text(`Email: ${company.email}`, 50, addressY + 20);
+        doc.fontSize(10).font('Helvetica')
+           .text(company.address, 50, 75)
+           .text(`Phone: ${company.phone}`, 50, 90)
+           .text(`Email: ${company.email}`, 50, 105);
 
         // Invoice info
         doc.fontSize(18).font('Helvetica-Bold')
@@ -1380,14 +1338,11 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
 
         doc.font('Helvetica').fontSize(10);
         let y = tableTop + 30;
-        let itemCount = 0;
         
-        purchase.items.forEach((item, index) => {
-          itemCount++;
-          if (y > 600) {
-            if (itemCount > 15) break;
-          }
-
+        // Limit to 15 items for single page
+        const itemsToShow = purchase.items.slice(0, 15);
+        
+        itemsToShow.forEach((item, index) => {
           doc.text(String(index + 1), colX.no, y, { width: 20, align: 'center' });
           doc.text(item.productName || 'N/A', colX.item, y, { width: 120 });
           doc.text(item.sku || 'N/A', colX.sku, y, { width: 110 });
@@ -1421,13 +1376,8 @@ app.post("/api/purchases/save-invoice/:id", async (req, res) => {
           doc.fontSize(11).font('Helvetica-Bold')
              .text('NOTES:', 50, notesY + 10);
           
-          const notesLines = doc.textOfHeight(purchase.notes, 500);
-          let noteY = notesY + 30;
-          notesLines.slice(0, 3).forEach(line => {
-            doc.font('Helvetica').fontSize(10)
-               .text(line, 50, noteY);
-            noteY += 12;
-          });
+          doc.font('Helvetica').fontSize(10)
+             .text(purchase.notes, 50, notesY + 30, { width: 500 });
         }
 
         // Footer
@@ -1499,20 +1449,14 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
         // Header with border
         doc.rect(40, 40, 520, 100).stroke();
         
-        // Company info with line wrapping
+        // Company info
         doc.fontSize(16).font('Helvetica-Bold')
            .text(company.name, 50, 50);
         
-        doc.fontSize(10).font('Helvetica');
-        const addressLines = doc.textOfHeight(company.address, 300);
-        let addressY = 75;
-        addressLines.forEach(line => {
-          doc.text(line, 50, addressY);
-          addressY += 12;
-        });
-        
-        doc.text(`Phone: ${company.phone}`, 50, addressY + 5);
-        doc.text(`Email: ${company.email}`, 50, addressY + 20);
+        doc.fontSize(10).font('Helvetica')
+           .text(company.address, 50, 75)
+           .text(`Phone: ${company.phone}`, 50, 90)
+           .text(`Email: ${company.email}`, 50, 105);
 
         // Invoice info
         doc.fontSize(18).font('Helvetica-Bold')
@@ -1557,14 +1501,11 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
 
         doc.font('Helvetica').fontSize(10);
         let y = tableTop + 30;
-        let itemCount = 0;
         
-        sale.items.forEach((item, index) => {
-          itemCount++;
-          if (y > 600) {
-            if (itemCount > 15) break;
-          }
-
+        // Limit to 15 items for single page
+        const itemsToShow = sale.items.slice(0, 15);
+        
+        itemsToShow.forEach((item, index) => {
           doc.text(String(index + 1), colX.no, y, { width: 20, align: 'center' });
           doc.text(item.productName || 'N/A', colX.item, y, { width: 120 });
           doc.text(item.sku || 'N/A', colX.sku, y, { width: 110 });
@@ -1598,13 +1539,8 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
           doc.fontSize(11).font('Helvetica-Bold')
              .text('NOTES:', 50, notesY + 10);
           
-          const notesLines = doc.textOfHeight(sale.notes, 500);
-          let noteY = notesY + 30;
-          notesLines.slice(0, 3).forEach(line => {
-            doc.font('Helvetica').fontSize(10)
-               .text(line, 50, noteY);
-            noteY += 12;
-          });
+          doc.font('Helvetica').fontSize(10)
+             .text(sale.notes, 50, notesY + 30, { width: 500 });
         }
 
         // Footer
@@ -1718,7 +1654,7 @@ app.post("/api/documents", async (req, res) => {
         const fileBuffer = Buffer.concat(chunks);
         const contentType = req.headers['content-type']; 
         const fileName = req.headers['x-file-name'];     
-        const username = req.headers["x-username"];
+ const username = req.headers["x-username"];
         const folderId = req.headers['x-folder-id'];
 
         console.log(`📄 Upload details:`, {
