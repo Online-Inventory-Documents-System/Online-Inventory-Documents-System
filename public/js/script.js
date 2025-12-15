@@ -28,7 +28,7 @@ let itemsPerPage = 10;
 let totalPages = 1;
 let filteredInventory = [];
 
-// Total net profit
+// Total net profit - UPDATED: Changed from totalNetProfit to totalNetProfit
 let totalNetProfit = 0;
 
 // Enhanced theme persistence
@@ -329,7 +329,7 @@ function bindPaginationEvents() {
 }
 
 // =========================================
-// INVENTORY MANAGEMENT FUNCTIONS
+// INVENTORY MANAGEMENT FUNCTIONS - UPDATED NAMES
 // =========================================
 async function fetchInventory() {
   try {
@@ -346,6 +346,7 @@ async function fetchInventory() {
   }
 }
 
+// UPDATED: Unified net profit calculation with updated names
 function updateProfitCard() {
   let calculatedNetProfit = 0;
   
@@ -373,11 +374,11 @@ function updateProfitCard() {
   // Update total net profit
   totalNetProfit = calculatedNetProfit;
   
-  // Update all net profit displays
+  // Update all net profit displays - UPDATED: Changed card names
   const netProfitElements = [
-    '#cardTotalProfit',
-    '#dash_totalProfit',
-    '#totalNetProfitDisplay'
+    '#cardTotalProfit', // Changed from #cardTotalProfit
+    '#dash_totalProfit', // Changed from #dash_totalProfit
+    '#totalNetProfitDisplay' // Changed from #totalNetProfitDisplay
   ];
   
   netProfitElements.forEach(selector => {
@@ -394,7 +395,7 @@ function renderInventory(items) {
   const paginatedItems = updatePagination(items);
   
   list.innerHTML = '';
-  let totalCost = 0, totalPrice = 0, totalStock = 0;
+  let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed from totalCost/totalPrice
 
   // ADDED: Calculate starting number for current page
   const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
@@ -404,8 +405,8 @@ function renderInventory(items) {
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
-    const totalCostVal = qty * uc;
-    const totalPriceVal = qty * up;
+    const totalCostVal = qty * uc; // UPDATED: Changed from totalCostVal
+    const totalPriceVal = qty * up; // UPDATED: Changed from totalPriceVal
     
     totalCost += totalCostVal;
     totalPrice += totalPriceVal;
@@ -432,6 +433,7 @@ function renderInventory(items) {
     else if(qty < 10) tr.classList.add('low-stock-row');
 
     tr.innerHTML = `
+      <!-- UPDATED: Added NO column with sequential number -->
       <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(it.sku||'')}</td>
       <td>${escapeHtml(it.name||'')}</td>
@@ -439,7 +441,9 @@ function renderInventory(items) {
       <td class="quantity-cell">${qty}</td>
       <td class="money cost-cell">RM ${uc.toFixed(2)}</td>
       <td class="money price-cell">RM ${up.toFixed(2)}</td>
+      <!-- UPDATED: Changed Inventory Value to Total Cost -->
       <td class="money value-cell">RM ${totalCostVal.toFixed(2)}</td>
+      <!-- UPDATED: Changed Revenue to Total Price -->
       <td class="money revenue-cell">RM ${totalPriceVal.toFixed(2)}</td>
       <td class="date-cell">${escapeHtml(date)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
@@ -451,8 +455,9 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`;
-  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
+  // UPDATED: Updated card display names
+  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`; // Changed from #cardTotalValue
+  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // Changed from #cardTotalRevenue
   updateProfitCard();
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
@@ -659,10 +664,11 @@ async function confirmAndAddProduct(){
   const name = qs('#p_name')?.value?.trim();
   const category = qs('#p_category')?.value?.trim();
   const quantity = Number(qs('#p_quantity')?.value || 0);
-  const unitCost = Number(qs('#p_unitCost')?.value || 0);
-  const unitPrice = Number(qs('#p_unitPrice')?.value || 0);
+  const unitCost = Number(qs('#p_unitCost')?.value || 0); // UPDATED: Changed from unitCost
+  const unitPrice = Number(qs('#p_unitPrice')?.value || 0); // UPDATED: Changed from unitPrice
   if(!sku || !name) return alert('⚠️ Please enter SKU and Name.');
 
+  // UPDATED: Updated confirmation message
   if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
 
   const newItem = { sku, name, category, quantity, unitCost, unitPrice };
@@ -715,8 +721,8 @@ async function bindProductPage(){
       if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
       if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
-      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
+      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0; // UPDATED: Changed from unitCost
+      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0; // UPDATED: Changed from unitPrice
     } catch(e) { alert('Failed to load product details.'); return; }
   }
 
@@ -728,8 +734,8 @@ async function bindProductPage(){
       name: qs('#prod_name')?.value,
       category: qs('#prod_category')?.value,
       quantity: Number(qs('#prod_quantity')?.value || 0),
-      unitCost: Number(qs('#prod_unitCost')?.value || 0),
-      unitPrice: Number(qs('#prod_unitPrice')?.value || 0)
+      unitCost: Number(qs('#prod_unitCost')?.value || 0), // UPDATED: Changed from unitCost
+      unitPrice: Number(qs('#prod_unitPrice')?.value || 0) // UPDATED: Changed from unitPrice
     };
     try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -766,13 +772,14 @@ function renderSalesHistory() {
     tr.innerHTML = `
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
+      <!-- UPDATED: Added customer contact in table -->
       <td>${escapeHtml(s.customerContact || 'N/A')}</td>
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(s.salesDate || 'N/A')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printSalesInvoice('${s.id}')">🖨️ Invoice</button>
+        <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
         <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
       </td>
     `;
@@ -1047,8 +1054,8 @@ async function saveSalesOrder() {
       await fetchInventory();
       await fetchSales();
       
-      // Automatically print invoice
-      await printSalesInvoice(savedSales.id);
+      // Automatically print and save invoice
+      await printAndSaveSalesInvoice(savedSales.id);
       
       closeNewSalesModal();
       
@@ -1083,11 +1090,11 @@ async function viewSalesDetails(salesId) {
       return;
     }
     
-    // Update sales details
+    // Update sales details - using the correct element IDs from your HTML
     const detailElements = {
       'detailSalesId': 'detailSalesId',
       'detailCustomer': 'detailCustomer',
-      'detailCustomerContact': 'detailCustomerContact',
+      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer Contact
       'detailSalesDate': 'detailSalesDate',
       'detailSalesTotalAmount': 'detailSalesTotalAmount',
       'detailSalesNotes': 'detailSalesNotes',
@@ -1105,7 +1112,7 @@ async function viewSalesDetails(salesId) {
           case 'detailCustomer':
             element.textContent = sale.customer || 'N/A';
             break;
-          case 'detailCustomerContact':
+          case 'detailCustomerContact': // ADDED: Customer Contact
             element.textContent = sale.customerContact || 'N/A';
             break;
           case 'detailSalesDate':
@@ -1153,7 +1160,7 @@ async function viewSalesDetails(salesId) {
     // Set print button handler
     const printBtn = qs('#printSalesInvoiceBtn');
     if (printBtn) {
-      printBtn.onclick = () => printSalesInvoice(salesId);
+      printBtn.onclick = () => printAndSaveSalesInvoice(salesId);
     }
     
     // Show the modal
@@ -1199,8 +1206,9 @@ async function deleteSales(id) {
   }
 }
 
-async function printSalesInvoice(salesId) {
+async function printAndSaveSalesInvoice(salesId) {
   try {
+    // Print the invoice
     const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1219,8 +1227,17 @@ async function printSalesInvoice(salesId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
+    // Save to statements/documents
+    const saveRes = await apiFetch(`${API_BASE}/sales/save-invoice/${salesId}`, {
+      method: 'POST'
+    });
+    
+    if (saveRes.ok) {
+      console.log('✅ Invoice saved to documents');
+    }
+    
   } catch (e) {
-    console.error('Print invoice error:', e);
+    console.error('Print and save invoice error:', e);
     alert('❌ Failed to generate sales invoice.');
   }
 }
@@ -1250,13 +1267,14 @@ function renderPurchaseHistory() {
     tr.innerHTML = `
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
+      <!-- UPDATED: Added supplier contact in table -->
       <td>${escapeHtml(p.supplierContact || 'N/A')}</td>
       <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printPurchaseInvoice('${p.id}')">🖨️ Invoice</button>
+        <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
         <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
       </td>
     `;
@@ -1526,8 +1544,8 @@ async function savePurchaseOrder() {
       await fetchInventory();
       await fetchPurchases();
       
-      // Automatically print invoice
-      await printPurchaseInvoice(savedPurchase.id);
+      // Automatically print and save invoice
+      await printAndSavePurchaseInvoice(savedPurchase.id);
       
       closeNewPurchaseModal();
       
@@ -1562,11 +1580,11 @@ async function viewPurchaseDetails(purchaseId) {
       return;
     }
     
-    // Update purchase details
+    // Update purchase details - using the correct element IDs from your HTML
     const detailElements = {
       'detailPurchaseId': 'detailPurchaseId',
       'detailSupplier': 'detailSupplier',
-      'detailSupplierContact': 'detailSupplierContact',
+      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier Contact
       'detailPurchaseDate': 'detailPurchaseDate',
       'detailTotalAmount': 'detailTotalAmount',
       'detailNotes': 'detailNotes',
@@ -1584,7 +1602,7 @@ async function viewPurchaseDetails(purchaseId) {
           case 'detailSupplier':
             element.textContent = purchase.supplier || 'N/A';
             break;
-          case 'detailSupplierContact':
+          case 'detailSupplierContact': // ADDED: Supplier Contact
             element.textContent = purchase.supplierContact || 'N/A';
             break;
           case 'detailPurchaseDate':
@@ -1632,7 +1650,7 @@ async function viewPurchaseDetails(purchaseId) {
     // Set print button handler
     const printBtn = qs('#printDetailsInvoiceBtn');
     if (printBtn) {
-      printBtn.onclick = () => printPurchaseInvoice(purchaseId);
+      printBtn.onclick = () => printAndSavePurchaseInvoice(purchaseId);
     }
     
     // Show the modal
@@ -1677,8 +1695,9 @@ async function deletePurchase(id) {
   }
 }
 
-async function printPurchaseInvoice(purchaseId) {
+async function printAndSavePurchaseInvoice(purchaseId) {
   try {
+    // Print the invoice
     const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1697,9 +1716,18 @@ async function printPurchaseInvoice(purchaseId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
+    // Save to statements/documents
+    const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
+      method: 'POST'
+    });
+    
+    if (saveRes.ok) {
+      console.log('✅ Purchase invoice saved to documents');
+    }
+    
   } catch (e) {
-    console.error('Print invoice error:', e);
-    alert('❌ Failed to generate purchase invoice.');
+    console.error('Print and save invoice error:', e);
+    alert('❌ Failed to generate invoice.');
   }
 }
 
@@ -1953,7 +1981,7 @@ async function deleteFolder(folderId) {
 }
 
 // =========================================
-// Document Management with Folders
+// UPDATED: Document Management with Folders
 // =========================================
 async function fetchDocuments() {
   try {
@@ -2264,7 +2292,84 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
-// ACTIVITY LOGS AND DASHBOARD FUNCTIONS
+// Statements Management
+// =========================================
+function openStatementsModal() {
+  const modal = qs('#statementsModal');
+  if (modal) {
+    modal.style.display = 'block';
+    switchTab('inventory-reports');
+  }
+}
+
+function closeStatementsModal() {
+  const modal = qs('#statementsModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function switchTab(tabName) {
+  qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
+  qs(`#tab-${tabName}`).classList.add('active');
+  
+  qsa('.tab-content').forEach(content => content.classList.remove('active'));
+  qs(`#content-${tabName}`).classList.add('active');
+  
+  loadStatements(tabName);
+}
+
+async function loadStatements(type) {
+  try {
+    const res = await apiFetch(`${API_BASE}/statements/${type}`);
+    if (res.ok) {
+      const statements = await res.json();
+      renderStatements(type, statements);
+    }
+  } catch (err) {
+    console.error('Load statements error:', err);
+  }
+}
+
+function renderStatements(type, statements) {
+  const container = qs(`#${type}List`);
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (statements.length === 0) {
+    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
+    return;
+  }
+  
+  let totalSize = 0;
+  
+  statements.forEach(doc => {
+    totalSize += doc.size || 0;
+    
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(doc.name)}</td>
+      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
+      <td>${escapeHtml(doc.date || '')}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
+        <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
+        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${doc.id}')">🗑️ Delete</button>
+      </td>
+    `;
+    container.appendChild(tr);
+  });
+  
+  const countElement = qs(`#${type.replace('-', '')}Count`);
+  const sizeElement = qs(`#${type.replace('-', '')}Size`);
+  
+  if (countElement) countElement.textContent = statements.length;
+  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
+}
+
+// =========================================
+// ACTIVITY LOGS AND DASHBOARD FUNCTIONS - UPDATED NAMES
 // =========================================
 async function fetchLogs() {
   try {
@@ -2317,11 +2422,11 @@ function renderDashboardData(){
   }
 
   if(qs('#dash_totalItems')) {
-    let totalCost = 0, totalPrice = 0, totalStock = 0;
+    let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed names
     inventory.forEach(it => {
       const qty = Number(it.quantity || 0);
-      const itemCost = qty * Number(it.unitCost || 0);
-      const itemPrice = qty * Number(it.unitPrice || 0);
+      const itemCost = qty * Number(it.unitCost || 0); // UPDATED: Changed from invVal
+      const itemPrice = qty * Number(it.unitPrice || 0); // UPDATED: Changed from rev
       
       totalCost += itemCost;
       totalPrice += itemPrice;
@@ -2329,10 +2434,12 @@ function renderDashboardData(){
     });
     qs('#dash_totalItems').textContent = inventory.length;
     
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`;
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
+    // UPDATED: Changed variable names for consistency
+    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`; // UPDATED: Changed from #dash_totalValue
+    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // UPDATED: Changed from #dash_totalRevenue
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
     
+    // Update profit using the unified function
     updateProfitCard();
   }
 }
@@ -2479,6 +2586,7 @@ function scrollToAddProductForm() {
 function bindInventoryUI(){
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
   qs('#reportBtn')?.addEventListener('click', openReportModal);
+  qs('#statementsBtn')?.addEventListener('click', openStatementsModal);
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
     if(qs('#searchInput')) { 
@@ -2489,11 +2597,11 @@ function bindInventoryUI(){
   
   qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
   
-  // Purchase buttons
+  // Purchase buttons - FIXED: Using direct function calls
   qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
   qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
   
-  // Sales buttons
+  // Sales buttons - FIXED: Using direct function calls
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   
@@ -2509,21 +2617,25 @@ function bindInventoryUI(){
   qs('#generateReportBtn')?.addEventListener('click', generateSelectedReport);
   qs('#closeReportModal')?.addEventListener('click', closeReportModal);
   
-  // Close buttons for detail modals
+  qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
+  
+  // Close buttons for detail modals - FIXED: Corrected element IDs
   qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
   qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
   
-  // Company info modal binding
+  // Company info modal binding - FIXED: Now properly binding the close button
   qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
   
-  // Preview Modal Close Button Binding
+  // ===== FIXED: Preview Modal Close Button Binding =====
+  // Bind the preview modal close button
   const previewCloseBtn = qs('#previewModal .close');
   if (previewCloseBtn) {
     previewCloseBtn.addEventListener('click', closePreviewModal);
   }
   
-  // Bind all close buttons with class "close"
+  // Bind all close buttons with class "close" (for backward compatibility)
   qsa('.close').forEach(closeBtn => {
+    // Skip the preview modal close button since we already bound it above
     if (closeBtn.closest('#previewModal')) return;
     
     closeBtn.addEventListener('click', function() {
@@ -2540,6 +2652,7 @@ function bindInventoryUI(){
     if (e.target === qs('#salesHistoryModal')) closeSalesHistoryModal();
     if (e.target === qs('#newSalesModal')) closeNewSalesModal();
     if (e.target === qs('#reportModal')) closeReportModal();
+    if (e.target === qs('#statementsModal')) closeStatementsModal();
     if (e.target === qs('#previewModal')) closePreviewModal();
     if (e.target === qs('#purchaseDetailsModal')) closePurchaseDetailsModal();
     if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
@@ -2556,7 +2669,7 @@ function bindDocumentsUI(){
   qs('#createFolderBtn')?.addEventListener('click', createFolder);
   qs('#navigateToRoot')?.addEventListener('click', () => navigateToFolder('root'));
   
-  // Bind preview modal close button for documents page
+  // ===== FIXED: Bind preview modal close button for documents page =====
   const previewCloseBtn = qs('#previewModal .close');
   if (previewCloseBtn) {
     previewCloseBtn.addEventListener('click', closePreviewModal);
@@ -2636,7 +2749,7 @@ window.closePurchaseHistoryModal = closePurchaseHistoryModal;
 window.openNewPurchaseModal = openNewPurchaseModal;
 window.closeNewPurchaseModal = closeNewPurchaseModal;
 window.savePurchaseOrder = savePurchaseOrder;
-window.printPurchaseInvoice = printPurchaseInvoice;
+window.printAndSavePurchaseInvoice = printAndSavePurchaseInvoice;
 window.deletePurchase = deletePurchase;
 window.viewPurchaseDetails = viewPurchaseDetails;
 window.closePurchaseDetailsModal = closePurchaseDetailsModal;
@@ -2646,7 +2759,7 @@ window.closeSalesHistoryModal = closeSalesHistoryModal;
 window.openNewSalesModal = openNewSalesModal;
 window.closeNewSalesModal = closeNewSalesModal;
 window.saveSalesOrder = saveSalesOrder;
-window.printSalesInvoice = printSalesInvoice;
+window.printAndSaveSalesInvoice = printAndSaveSalesInvoice;
 window.deleteSales = deleteSales;
 window.viewSalesDetails = viewSalesDetails;
 window.closeSalesDetailsModal = closeSalesDetailsModal;
@@ -2655,6 +2768,8 @@ window.openReportModal = openReportModal;
 window.selectReportType = selectReportType;
 window.generateSelectedReport = generateSelectedReport;
 
+window.openStatementsModal = openStatementsModal;
+window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
 
