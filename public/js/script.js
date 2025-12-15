@@ -2317,83 +2317,6 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
-// Statements Management
-// =========================================
-function openStatementsModal() {
-  const modal = qs('#statementsModal');
-  if (modal) {
-    modal.style.display = 'block';
-    switchTab('inventory-reports');
-  }
-}
-
-function closeStatementsModal() {
-  const modal = qs('#statementsModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
-
-function switchTab(tabName) {
-  qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
-  qs(`#tab-${tabName}`).classList.add('active');
-  
-  qsa('.tab-content').forEach(content => content.classList.remove('active'));
-  qs(`#content-${tabName}`).classList.add('active');
-  
-  loadStatements(tabName);
-}
-
-async function loadStatements(type) {
-  try {
-    const res = await apiFetch(`${API_BASE}/statements/${type}`);
-    if (res.ok) {
-      const statements = await res.json();
-      renderStatements(type, statements);
-    }
-  } catch (err) {
-    console.error('Load statements error:', err);
-  }
-}
-
-function renderStatements(type, statements) {
-  const container = qs(`#${type}List`);
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  if (statements.length === 0) {
-    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
-    return;
-  }
-  
-  let totalSize = 0;
-  
-  statements.forEach(doc => {
-    totalSize += doc.size || 0;
-    
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(doc.name)}</td>
-      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
-      <td>${escapeHtml(doc.date || '')}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
-        <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
-        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${doc.id}')">🗑️ Delete</button>
-      </td>
-    `;
-    container.appendChild(tr);
-  });
-  
-  const countElement = qs(`#${type.replace('-', '')}Count`);
-  const sizeElement = qs(`#${type.replace('-', '')}Size`);
-  
-  if (countElement) countElement.textContent = statements.length;
-  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
-}
-
-// =========================================
 // ACTIVITY LOGS AND DASHBOARD FUNCTIONS - UPDATED NAMES
 // =========================================
 async function fetchLogs() {
@@ -2793,7 +2716,7 @@ window.openReportModal = openReportModal;
 window.selectReportType = selectReportType;
 window.generateSelectedReport = generateSelectedReport;
 
-window.openStatementsModal = openStatementsModal;
+
 window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
