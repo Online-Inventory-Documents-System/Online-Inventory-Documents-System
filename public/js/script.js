@@ -494,19 +494,19 @@ function searchInventory(){
       if (!itemDate) return false;
       
       if (startDate && !endDate) {
-        const start = new Date(startDate);
+        const start = parseDateFromInput(startDate);
         return itemDate >= start;
       }
       
       if (!startDate && endDate) {
-        const end = new Date(endDate);
+        const end = parseDateFromInput(endDate);
         end.setHours(23, 59, 59, 999);
         return itemDate <= end;
       }
       
       if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = parseDateFromInput(startDate);
+        const end = parseDateFromInput(endDate);
         end.setHours(23, 59, 59, 999);
         return itemDate >= start && itemDate <= end;
       }
@@ -521,8 +521,31 @@ function searchInventory(){
 }
 
 // =========================================
-// DATE RANGE FILTERING FUNCTIONS
+// DATE RANGE FILTERING FUNCTIONS - FIXED: Input parsing for DD/MM/YYYY
 // =========================================
+function parseDateFromInput(dateStr) {
+  // Convert DD/MM/YYYY from input to Date object
+  if (!dateStr) return null;
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return new Date(dateStr); // Fallback to default parsing
+  
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // Months are 0-indexed
+  const year = parseInt(parts[2], 10);
+  
+  return new Date(year, month, day);
+}
+
+function formatDateForInput(date) {
+  // Format date as DD/MM/YYYY for input fields
+  if (!date) return '';
+  const d = new Date(date);
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 function filterByDateRange(startDate, endDate) {
   if (!startDate && !endDate) {
     filteredInventory = [...inventory];
@@ -546,19 +569,19 @@ function filterByDateRange(startDate, endDate) {
     if (!itemDate) return false;
     
     if (startDate && !endDate) {
-      const start = new Date(startDate);
+      const start = parseDateFromInput(startDate);
       return itemDate >= start;
     }
     
     if (!startDate && endDate) {
-      const end = new Date(endDate);
+      const end = parseDateFromInput(endDate);
       end.setHours(23, 59, 59, 999);
       return itemDate <= end;
     }
     
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const start = parseDateFromInput(startDate);
+      const end = parseDateFromInput(endDate);
       end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     }
@@ -605,11 +628,8 @@ function createDateRangeStatusElement() {
 }
 
 function formatDateDisplay(dateString) {
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  // Input is already in DD/MM/YYYY format from the date picker
+  return dateString; // Return as-is since we're using DD/MM/YYYY
 }
 
 function clearDateRangeFilter() {
@@ -626,8 +646,8 @@ function applyDateRangeFilter() {
   const endDate = qs('#endDate')?.value;
   
   if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseDateFromInput(startDate);
+    const end = parseDateFromInput(endDate);
     
     if (start > end) {
       alert('❌ Start date cannot be after end date.');
@@ -1769,9 +1789,14 @@ async function generateSelectedReport() {
     return;
   }
   
-  if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-    alert('❌ Start date cannot be after end date.');
-    return;
+  if (startDate && endDate) {
+    const start = parseDateFromInput(startDate);
+    const end = parseDateFromInput(endDate);
+    
+    if (start > end) {
+      alert('❌ Start date cannot be after end date.');
+      return;
+    }
   }
   
   closeReportModal();
@@ -1802,9 +1827,9 @@ async function generateInventoryReport(startDate, endDate) {
     
     let filename = 'Inventory_Report';
     if (startDate || endDate) {
-      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
-      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
-      filename += `_${start}_to_${end}`;
+      const start = startDate || 'All';
+      const end = endDate || 'All';
+      filename += `_${start.replace(/\//g, '-')}_to_${end.replace(/\//g, '-')}`;
     } else {
       filename += '_Full_List';
     }
