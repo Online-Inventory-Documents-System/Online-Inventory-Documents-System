@@ -3117,6 +3117,7 @@ app.get("/api/inventory/export/excel", async (req, res) => {
   }
 });
 
+// ===== FIXED: Excel Import Function - Fixed the syntax error =====
 app.post("/api/inventory/import/excel", async (req, res) => {
   try {
     const { data } = req.body;
@@ -3155,8 +3156,8 @@ app.post("/api/inventory/import/excel", async (req, res) => {
             name: name,
             category: category || '',
             quantity: Number(quantity) || 0,
-            unitCost = Number(unitCost) || 0,
-            unitPrice = Number(unitPrice) || 0
+            unitCost: Number(unitCost) || 0, // FIXED: Changed from "unitCost = Number(unitCost) || 0" to "unitCost: Number(unitCost) || 0"
+            unitPrice: Number(unitPrice) || 0  // FIXED: Changed from "unitPrice = Number(unitPrice) || 0" to "unitPrice: Number(unitPrice) || 0"
           });
           importedCount++;
         }
