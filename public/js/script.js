@@ -31,17 +31,6 @@ let filteredInventory = [];
 // Total net profit - UPDATED: Changed from totalNetProfit to totalNetProfit
 let totalNetProfit = 0;
 
-// Date format helper
-function formatDateForInput(dateString) {
-  if (!dateString) return '';
-  // Convert DD/MM/YYYY to YYYY-MM-DD for input fields
-  const parts = dateString.split('/');
-  if (parts.length === 3) {
-    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-  }
-  return dateString;
-}
-
 // Enhanced theme persistence
 function initializeTheme() {
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -387,9 +376,9 @@ function updateProfitCard() {
   
   // Update all net profit displays - UPDATED: Changed card names
   const netProfitElements = [
-    '#cardTotalProfit',
-    '#dash_totalProfit',
-    '#totalNetProfitDisplay'
+    '#cardTotalProfit', // Changed from #cardTotalProfit
+    '#dash_totalProfit', // Changed from #dash_totalProfit
+    '#totalNetProfitDisplay' // Changed from #totalNetProfitDisplay
   ];
   
   netProfitElements.forEach(selector => {
@@ -406,7 +395,7 @@ function renderInventory(items) {
   const paginatedItems = updatePagination(items);
   
   list.innerHTML = '';
-  let totalCost = 0, totalPrice = 0, totalStock = 0;
+  let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed from totalCost/totalPrice
 
   // ADDED: Calculate starting number for current page
   const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
@@ -416,8 +405,8 @@ function renderInventory(items) {
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
-    const totalCostVal = qty * uc;
-    const totalPriceVal = qty * up;
+    const totalCostVal = qty * uc; // UPDATED: Changed from totalCostVal
+    const totalPriceVal = qty * up; // UPDATED: Changed from totalPriceVal
     
     totalCost += totalCostVal;
     totalPrice += totalPriceVal;
@@ -444,6 +433,7 @@ function renderInventory(items) {
     else if(qty < 10) tr.classList.add('low-stock-row');
 
     tr.innerHTML = `
+      <!-- UPDATED: Added NO column with sequential number -->
       <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(it.sku||'')}</td>
       <td>${escapeHtml(it.name||'')}</td>
@@ -451,7 +441,9 @@ function renderInventory(items) {
       <td class="quantity-cell">${qty}</td>
       <td class="money cost-cell">RM ${uc.toFixed(2)}</td>
       <td class="money price-cell">RM ${up.toFixed(2)}</td>
+      <!-- UPDATED: Changed Inventory Value to Total Cost -->
       <td class="money value-cell">RM ${totalCostVal.toFixed(2)}</td>
+      <!-- UPDATED: Changed Revenue to Total Price -->
       <td class="money revenue-cell">RM ${totalPriceVal.toFixed(2)}</td>
       <td class="date-cell">${escapeHtml(date)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
@@ -463,8 +455,9 @@ function renderInventory(items) {
     list.appendChild(tr);
   });
 
-  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`;
-  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
+  // UPDATED: Updated card display names
+  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`; // Changed from #cardTotalValue
+  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // Changed from #cardTotalRevenue
   updateProfitCard();
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
@@ -489,6 +482,7 @@ function searchInventory(){
     filtered = filtered.filter(item => {
       if (!item.createdAt) return false;
       
+      // Convert DD/MM/YYYY to Date object for comparison
       const parseDate = (dateStr) => {
         if (!dateStr) return null;
         const parts = dateStr.split('/');
@@ -540,6 +534,7 @@ function filterByDateRange(startDate, endDate) {
   const filtered = inventory.filter(item => {
     if (!item.createdAt) return false;
     
+    // Convert DD/MM/YYYY to Date object for comparison
     const parseDate = (dateStr) => {
       if (!dateStr) return null;
       const parts = dateStr.split('/');
@@ -586,13 +581,11 @@ function updateDateRangeStatus(isActive, startDate, endDate) {
     
     let statusText = 'Filtering by: ';
     if (startDate && endDate) {
-      const formattedStart = formatDateForDisplay(startDate);
-      const formattedEnd = formatDateForDisplay(endDate);
-      statusText += `${formattedStart} to ${formattedEnd}`;
+      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
     } else if (startDate) {
-      statusText += `From ${formatDateForDisplay(startDate)}`;
+      statusText += `From ${formatDateDisplay(startDate)}`;
     } else if (endDate) {
-      statusText += `Until ${formatDateForDisplay(endDate)}`;
+      statusText += `Until ${formatDateDisplay(endDate)}`;
     }
     
     statusElement.textContent = statusText;
@@ -612,16 +605,11 @@ function createDateRangeStatusElement() {
 }
 
 function formatDateDisplay(dateString) {
-  if (!dateString) return '';
-  // Convert YYYY-MM-DD to DD/MM/YYYY
-  if (dateString.includes('-')) {
-    const parts = dateString.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-  }
-  // If already in DD/MM/YYYY format, return as is
-  return dateString;
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function clearDateRangeFilter() {
@@ -666,29 +654,6 @@ function bindDateRangeFilterEvents() {
       applyDateRangeFilter();
     }
   });
-  
-  // Format date inputs to show DD/MM/YYYY placeholder
-  qsa('input[type="date"]').forEach(input => {
-    input.addEventListener('focus', function() {
-      this.type = 'text';
-      this.placeholder = 'DD/MM/YYYY';
-    });
-    
-    input.addEventListener('blur', function() {
-      if (!this.value) {
-        this.type = 'date';
-        this.placeholder = '';
-      }
-    });
-    
-    // Format existing values if any
-    if (input.value) {
-      const formatted = formatDateForInput(input.value);
-      if (formatted) {
-        input.value = formatted;
-      }
-    }
-  });
 }
 
 // =========================================
@@ -699,10 +664,11 @@ async function confirmAndAddProduct(){
   const name = qs('#p_name')?.value?.trim();
   const category = qs('#p_category')?.value?.trim();
   const quantity = Number(qs('#p_quantity')?.value || 0);
-  const unitCost = Number(qs('#p_unitCost')?.value || 0);
-  const unitPrice = Number(qs('#p_unitPrice')?.value || 0);
+  const unitCost = Number(qs('#p_unitCost')?.value || 0); // UPDATED: Changed from unitCost
+  const unitPrice = Number(qs('#p_unitPrice')?.value || 0); // UPDATED: Changed from unitPrice
   if(!sku || !name) return alert('⚠️ Please enter SKU and Name.');
 
+  // UPDATED: Updated confirmation message
   if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
 
   const newItem = { sku, name, category, quantity, unitCost, unitPrice };
@@ -755,8 +721,8 @@ async function bindProductPage(){
       if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
       if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
-      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
+      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0; // UPDATED: Changed from unitCost
+      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0; // UPDATED: Changed from unitPrice
     } catch(e) { alert('Failed to load product details.'); return; }
   }
 
@@ -768,8 +734,8 @@ async function bindProductPage(){
       name: qs('#prod_name')?.value,
       category: qs('#prod_category')?.value,
       quantity: Number(qs('#prod_quantity')?.value || 0),
-      unitCost: Number(qs('#prod_unitCost')?.value || 0),
-      unitPrice: Number(qs('#prod_unitPrice')?.value || 0)
+      unitCost: Number(qs('#prod_unitCost')?.value || 0), // UPDATED: Changed from unitCost
+      unitPrice: Number(qs('#prod_unitPrice')?.value || 0) // UPDATED: Changed from unitPrice
     };
     try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -806,6 +772,7 @@ function renderSalesHistory() {
     tr.innerHTML = `
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
+      <!-- UPDATED: Added customer contact in table -->
       <td>${escapeHtml(s.customerContact || 'N/A')}</td>
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
@@ -995,6 +962,7 @@ function loadProductSearchForSales() {
 }
 
 async function saveSalesOrder() {
+  // Validate required fields
   const customerName = qs('#customerName')?.value?.trim();
   const customerContact = qs('#customerContact')?.value?.trim();
   
@@ -1082,9 +1050,11 @@ async function saveSalesOrder() {
       const savedSales = await res.json();
       alert('✅ Sales order saved successfully!');
       
+      // Refresh data
       await fetchInventory();
       await fetchSales();
       
+      // Automatically print and save invoice
       await printAndSaveSalesInvoice(savedSales.id);
       
       closeNewSalesModal();
@@ -1099,6 +1069,7 @@ async function saveSalesOrder() {
   }
 }
 
+// ===== FIXED: View Sales Details Function =====
 async function viewSalesDetails(salesId) {
   try {
     console.log(`Fetching sales details for ID: ${salesId}`);
@@ -1112,22 +1083,25 @@ async function viewSalesDetails(salesId) {
     const sale = await res.json();
     console.log('Sales details loaded:', sale);
     
+    // Check if modal exists
     if (!qs('#salesDetailsModal')) {
       console.error('Sales details modal not found');
       alert('Sales details modal is not available. Please refresh the page.');
       return;
     }
     
+    // Update sales details - using the correct element IDs from your HTML
     const detailElements = {
       'detailSalesId': 'detailSalesId',
       'detailCustomer': 'detailCustomer',
-      'detailCustomerContact': 'detailCustomerContact',
+      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer Contact
       'detailSalesDate': 'detailSalesDate',
       'detailSalesTotalAmount': 'detailSalesTotalAmount',
       'detailSalesNotes': 'detailSalesNotes',
       'detailSalesNotesRow': 'detailSalesNotesRow'
     };
     
+    // Update each element if it exists
     Object.entries(detailElements).forEach(([key, elementId]) => {
       const element = qs(`#${elementId}`);
       if (element) {
@@ -1138,7 +1112,7 @@ async function viewSalesDetails(salesId) {
           case 'detailCustomer':
             element.textContent = sale.customer || 'N/A';
             break;
-          case 'detailCustomerContact':
+          case 'detailCustomerContact': // ADDED: Customer Contact
             element.textContent = sale.customerContact || 'N/A';
             break;
           case 'detailSalesDate':
@@ -1163,6 +1137,7 @@ async function viewSalesDetails(salesId) {
       }
     });
     
+    // Update sales items list
     const itemsList = qs('#salesDetailsList');
     if (itemsList) {
       itemsList.innerHTML = '';
@@ -1182,11 +1157,13 @@ async function viewSalesDetails(salesId) {
       }
     }
     
+    // Set print button handler
     const printBtn = qs('#printSalesInvoiceBtn');
     if (printBtn) {
       printBtn.onclick = () => printAndSaveSalesInvoice(salesId);
     }
     
+    // Show the modal
     const modal = qs('#salesDetailsModal');
     if (modal) {
       modal.style.display = 'block';
@@ -1231,6 +1208,7 @@ async function deleteSales(id) {
 
 async function printAndSaveSalesInvoice(salesId) {
   try {
+    // Print the invoice
     const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1249,6 +1227,7 @@ async function printAndSaveSalesInvoice(salesId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
+    // Save to statements/documents
     const saveRes = await apiFetch(`${API_BASE}/sales/save-invoice/${salesId}`, {
       method: 'POST'
     });
@@ -1288,6 +1267,7 @@ function renderPurchaseHistory() {
     tr.innerHTML = `
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
+      <!-- UPDATED: Added supplier contact in table -->
       <td>${escapeHtml(p.supplierContact || 'N/A')}</td>
       <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
@@ -1478,6 +1458,7 @@ function loadProductSearch() {
 }
 
 async function savePurchaseOrder() {
+  // Validate required fields
   const supplierName = qs('#supplierName')?.value?.trim();
   const supplierContact = qs('#supplierContact')?.value?.trim();
   
@@ -1559,9 +1540,11 @@ async function savePurchaseOrder() {
       const savedPurchase = await res.json();
       alert('✅ Purchase order saved successfully!');
       
+      // Refresh data
       await fetchInventory();
       await fetchPurchases();
       
+      // Automatically print and save invoice
       await printAndSavePurchaseInvoice(savedPurchase.id);
       
       closeNewPurchaseModal();
@@ -1576,6 +1559,7 @@ async function savePurchaseOrder() {
   }
 }
 
+// ===== FIXED: View Purchase Details Function =====
 async function viewPurchaseDetails(purchaseId) {
   try {
     console.log(`Fetching purchase details for ID: ${purchaseId}`);
@@ -1589,22 +1573,25 @@ async function viewPurchaseDetails(purchaseId) {
     const purchase = await res.json();
     console.log('Purchase details loaded:', purchase);
     
+    // Check if modal exists
     if (!qs('#purchaseDetailsModal')) {
       console.error('Purchase details modal not found');
       alert('Purchase details modal is not available. Please refresh the page.');
       return;
     }
     
+    // Update purchase details - using the correct element IDs from your HTML
     const detailElements = {
       'detailPurchaseId': 'detailPurchaseId',
       'detailSupplier': 'detailSupplier',
-      'detailSupplierContact': 'detailSupplierContact',
+      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier Contact
       'detailPurchaseDate': 'detailPurchaseDate',
       'detailTotalAmount': 'detailTotalAmount',
       'detailNotes': 'detailNotes',
       'detailNotesRow': 'detailNotesRow'
     };
     
+    // Update each element if it exists
     Object.entries(detailElements).forEach(([key, elementId]) => {
       const element = qs(`#${elementId}`);
       if (element) {
@@ -1615,7 +1602,7 @@ async function viewPurchaseDetails(purchaseId) {
           case 'detailSupplier':
             element.textContent = purchase.supplier || 'N/A';
             break;
-          case 'detailSupplierContact':
+          case 'detailSupplierContact': // ADDED: Supplier Contact
             element.textContent = purchase.supplierContact || 'N/A';
             break;
           case 'detailPurchaseDate':
@@ -1640,6 +1627,7 @@ async function viewPurchaseDetails(purchaseId) {
       }
     });
     
+    // Update purchase items list
     const itemsList = qs('#purchaseDetailsList');
     if (itemsList) {
       itemsList.innerHTML = '';
@@ -1659,11 +1647,13 @@ async function viewPurchaseDetails(purchaseId) {
       }
     }
     
+    // Set print button handler
     const printBtn = qs('#printDetailsInvoiceBtn');
     if (printBtn) {
       printBtn.onclick = () => printAndSavePurchaseInvoice(purchaseId);
     }
     
+    // Show the modal
     const modal = qs('#purchaseDetailsModal');
     if (modal) {
       modal.style.display = 'block';
@@ -1707,6 +1697,7 @@ async function deletePurchase(id) {
 
 async function printAndSavePurchaseInvoice(purchaseId) {
   try {
+    // Print the invoice
     const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1725,6 +1716,7 @@ async function printAndSavePurchaseInvoice(purchaseId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
+    // Save to statements/documents
     const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
       method: 'POST'
     });
@@ -2430,11 +2422,11 @@ function renderDashboardData(){
   }
 
   if(qs('#dash_totalItems')) {
-    let totalCost = 0, totalPrice = 0, totalStock = 0;
+    let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed names
     inventory.forEach(it => {
       const qty = Number(it.quantity || 0);
-      const itemCost = qty * Number(it.unitCost || 0);
-      const itemPrice = qty * Number(it.unitPrice || 0);
+      const itemCost = qty * Number(it.unitCost || 0); // UPDATED: Changed from invVal
+      const itemPrice = qty * Number(it.unitPrice || 0); // UPDATED: Changed from rev
       
       totalCost += itemCost;
       totalPrice += itemPrice;
@@ -2442,10 +2434,12 @@ function renderDashboardData(){
     });
     qs('#dash_totalItems').textContent = inventory.length;
     
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`;
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`;
+    // UPDATED: Changed variable names for consistency
+    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`; // UPDATED: Changed from #dash_totalValue
+    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // UPDATED: Changed from #dash_totalRevenue
     if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
     
+    // Update profit using the unified function
     updateProfitCard();
   }
 }
@@ -2603,12 +2597,15 @@ function bindInventoryUI(){
   
   qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
   
+  // Purchase buttons - FIXED: Using direct function calls
   qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
   qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
   
+  // Sales buttons - FIXED: Using direct function calls
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   
+  // Other modal bindings
   qs('#addProductItem')?.addEventListener('click', () => addProductItem());
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
@@ -2622,17 +2619,23 @@ function bindInventoryUI(){
   
   qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
   
+  // Close buttons for detail modals - FIXED: Corrected element IDs
   qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
   qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
   
+  // Company info modal binding - FIXED: Now properly binding the close button
   qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
   
+  // ===== FIXED: Preview Modal Close Button Binding =====
+  // Bind the preview modal close button
   const previewCloseBtn = qs('#previewModal .close');
   if (previewCloseBtn) {
     previewCloseBtn.addEventListener('click', closePreviewModal);
   }
   
+  // Bind all close buttons with class "close" (for backward compatibility)
   qsa('.close').forEach(closeBtn => {
+    // Skip the preview modal close button since we already bound it above
     if (closeBtn.closest('#previewModal')) return;
     
     closeBtn.addEventListener('click', function() {
@@ -2666,11 +2669,13 @@ function bindDocumentsUI(){
   qs('#createFolderBtn')?.addEventListener('click', createFolder);
   qs('#navigateToRoot')?.addEventListener('click', () => navigateToFolder('root'));
   
+  // ===== FIXED: Bind preview modal close button for documents page =====
   const previewCloseBtn = qs('#previewModal .close');
   if (previewCloseBtn) {
     previewCloseBtn.addEventListener('click', closePreviewModal);
   }
   
+  // Also bind window click to close preview modal
   window.addEventListener('click', (e) => {
     if (e.target === qs('#previewModal')) {
       closePreviewModal();
@@ -2688,8 +2693,10 @@ window.addEventListener('load', async () => {
   if(qs('#adminName')) qs('#adminName').textContent = adminName;
 
   try {
+    // Fetch all data in parallel for better performance
     await fetchAllData();
     
+    // Bind UI based on current page
     if(currentPage.includes('inventory') || currentPage === '' || currentPage === 'index.html') { 
       bindInventoryUI(); 
     }
