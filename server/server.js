@@ -2825,47 +2825,6 @@ app.delete("/api/cleanup-documents", async (req, res) => {
 });
 
 // ============================================================================
-//                    STATEMENTS - GET REPORTS BY TYPE
-// ============================================================================
-app.get("/api/statements/:type", async (req, res) => {
-  try {
-    const { type } = req.params;
-    
-    let query = { tags: { $in: [] } };
-    
-    switch (type) {
-      case 'inventory-reports':
-        query.tags.$in = ['inventory-report', 'pdf'];
-        break;
-      case 'purchase-invoices':
-        query.tags.$in = ['purchase-invoice', 'purchase-report', 'pdf', 'statement'];
-        break;
-      case 'sales-invoices':
-        query.tags.$in = ['sales-invoice', 'sales-report', 'pdf', 'statement'];
-        break;
-      case 'all-reports':
-        query.tags.$in = ['inventory-report', 'purchase-report', 'sales-report', 'comprehensive-report', 'purchase-invoice', 'sales-invoice', 'pdf', 'statement'];
-        break;
-      default:
-        return res.status(400).json({ message: "Invalid statement type" });
-    }
-
-    const docs = await Doc.find(query).select('-data').sort({ date: -1 }).lean();
-
-    const result = docs.map(d => ({
-      ...d,
-      id: d._id.toString(),
-      date: formatDateTimeUTC8(d.date) // Format date to UTC+8
-    }));
-
-    res.json(result);
-  } catch (err) {
-    console.error("Statements get error:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// ============================================================================
 //                               ACTIVITY LOGS
 // ============================================================================
 app.get("/api/logs", async (req, res) => {
