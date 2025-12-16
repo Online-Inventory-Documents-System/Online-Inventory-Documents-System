@@ -745,27 +745,43 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   UPDATED: Date Range Search Controls Styling
+   UPDATED: Date Range Search Controls Styling - LEFT SIDE
 ========================================= */
-.search-controls {
+.search-controls-dual {
     display: flex;
-    flex-direction: column;
-    gap: 15px;
+    justify-content: space-between;
+    align-items: flex-start;
     width: 100%;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
-.date-range-container,
-.text-search-container {
+/* Left side: Date Range Search */
+.left-search {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Right side: Text Search */
+.right-search {
+    flex: 1;
+    min-width: 300px;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.date-range-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
 }
 
 .date-range-container label {
     font-weight: 600;
     color: var(--primary-color);
     white-space: nowrap;
+    font-size: 0.95rem;
 }
 
 .date-inputs {
@@ -801,12 +817,30 @@ input:focus, select:focus, textarea:focus {
     padding: 8px 12px;
     font-size: 0.85rem;
     white-space: nowrap;
+    height: 36px;
+}
+
+.text-search-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
 }
 
 .text-search-container input[type="text"] {
     width: 280px;
-    padding: 10px;
+    padding: 8px 12px;
     margin: 0;
+    font-size: 0.9rem;
+    height: 36px;
+}
+
+.text-search-container .secondary-btn {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    height: 36px;
 }
 
 /* Active date range filter indicator */
@@ -831,23 +865,38 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Responsive adjustments for search controls */
-@media (min-width: 768px) {
-    .search-controls {
-        flex-direction: row;
-        justify-content: flex-end;
-        align-items: center;
-    }
-    
-    .date-range-container,
-    .text-search-container {
-        flex: 0 0 auto;
+@media (min-width: 1200px) {
+    .search-controls-dual {
+        flex-wrap: nowrap;
     }
 }
 
 @media (max-width: 992px) {
+    .search-controls-dual {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .left-search, .right-search {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .text-search-container {
+        justify-content: flex-start;
+    }
+    
+    .text-search-container input[type="text"] {
+        width: 100%;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
     .date-inputs {
         flex-direction: column;
         align-items: flex-start;
+        gap: 8px;
     }
     
     .date-input-group {
@@ -855,7 +904,28 @@ input:focus, select:focus, textarea:focus {
     }
     
     .date-range-container input[type="date"] {
-        min-width: 120px;
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .date-range-container .primary-btn,
+    .date-range-container .secondary-btn {
+        width: auto;
+    }
+    
+    .text-search-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .text-search-container input[type="text"] {
+        width: 100%;
+        max-width: none;
+    }
+    
+    .text-search-container .secondary-btn {
+        width: auto;
     }
 }
 
@@ -2695,14 +2765,14 @@ body[data-theme="dark"] section {
     gap: 8px;
   }
   
-  .search-controls {
+  .search-controls-dual {
+    flex-direction: column;
     gap: 10px;
   }
   
-  .date-range-container,
-  .text-search-container {
-    flex-direction: column;
-    align-items: stretch;
+  .left-search, .right-search {
+    width: 100%;
+    min-width: auto;
   }
   
   .date-inputs {
@@ -2717,6 +2787,10 @@ body[data-theme="dark"] section {
   .date-range-container input[type="date"] {
     width: 100%;
     min-width: auto;
+  }
+  
+  .text-search-container {
+    justify-content: flex-start;
   }
   
   .text-search-container input[type="text"] {
