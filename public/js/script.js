@@ -9,7 +9,7 @@ const API_BASE = window.location.hostname.includes('localhost')
 const qs = (s) => document.querySelector(s);
 const qsa = (s) => Array.from(document.querySelectorAll(s));
 const showMsg = (el, text, color = 'red') => { if (!el) return; el.textContent = text; el.style.color = color; };
-const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : '';
+const escapeHtml = (s) => s ? String(s).replace(/[&<>\"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"\'":'&#39;' }[c])) : '';
 const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 
 let inventory = [];
@@ -31,2723 +31,1683 @@ let filteredInventory = [];
 // Total net profit - UPDATED: Changed from totalNetProfit to totalNetProfit
 let totalNetProfit = 0;
 
-// Enhanced theme persistence
-function initializeTheme() {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.body.classList.toggle('dark-mode', savedTheme === 'dark');
-  document.body.setAttribute('data-theme', savedTheme);
-}
+// State management for user authentication
+let isAuthenticated = false;
 
-function toggleTheme(){ 
-  const isDark = document.body.classList.toggle('dark-mode');
-  const theme = isDark ? 'dark' : 'light';
-  document.body.setAttribute('data-theme', theme);
-  localStorage.setItem('theme', theme);
-}
+// Function to check login status
+const checkLoginStatus = () => {
+    const token = sessionStorage.getItem('authToken');
+    const adminName = sessionStorage.getItem('adminName');
+    isAuthenticated = !!token;
 
-// Enhanced API fetch with error handling
-async function apiFetch(url, options = {}) {
-  const user = getUsername();
-  options.headers = {
-    'Content-Type': 'application/json',
-    'X-Username': user,
-    ...options.headers,
-  };
+    const authArea = qs('#authArea');
+    const userDisplay = qs('#userDisplay');
 
-  try {
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || `HTTP ${response.status}`);
+    if (isAuthenticated && authArea && userDisplay) {
+        authArea.innerHTML = `<button class="btn btn-outline-light" onclick="logout()">Logout</button>`;
+        userDisplay.textContent = `Logged in as: ${adminName || 'Admin'}`;
+    } else if (authArea) {
+        authArea.innerHTML = `<button class="btn btn-primary" onclick="openLoginModal()">Login</button>`;
+        userDisplay.textContent = `Logged in as: Guest`;
     }
-    
-    return response;
-  } catch (error) {
-    console.error('API fetch error:', error);
-    throw error;
-  }
-}
 
-// Data validation helper
-function validateRequiredFields(fields) {
-  const errors = [];
-  
-  fields.forEach(({ name, value, label }) => {
-    if (!value || value.trim() === '') {
-      errors.push(`${label} is required`);
+    // Redirect logic for non-login pages
+    if (!isAuthenticated && currentPage !== 'login.html') {
+        window.location.href = 'login.html';
+    } else if (isAuthenticated && currentPage === 'login.html') {
+        // Redirect logged-in users away from the login page
+        window.location.href = 'index.html';
     }
-  });
-  
-  if (errors.length > 0) {
-    alert(`⚠️ Please fix the following:\n\n${errors.join('\n')}`);
-    return false;
-  }
-  
-  return true;
-}
 
-// Auth redirect
-if(!sessionStorage.getItem('isLoggedIn') && !window.location.pathname.includes('login.html')) {
-  try { window.location.href = 'login.html'; } catch(e) {}
-}
-
-function logout(){
-  sessionStorage.removeItem('isLoggedIn');
-  sessionStorage.removeItem('adminName');
-  window.location.href = 'login.html';
-}
-
-// =========================================
-// Company Information Management
-// =========================================
-async function fetchCompanyInfo() {
-  try {
-    const res = await apiFetch(`${API_BASE}/company`);
-    if (res.ok) {
-      companyInfo = await res.json();
-      updateCompanyInfoDisplay();
+    // Call fetchInitialData only if authenticated and not on login page
+    if (isAuthenticated && currentPage !== 'login.html') {
+        fetchInitialData();
     }
-  } catch (err) {
-    console.error('Fetch company info error:', err);
-  }
-}
+};
 
-async function updateCompanyInfo() {
-  const name = qs('#companyName')?.value?.trim();
-  const address = qs('#companyAddress')?.value?.trim();
-  const phone = qs('#companyPhone')?.value?.trim();
-  const email = qs('#companyEmail')?.value?.trim();
+// Call checkLoginStatus on script load
+checkLoginStatus();
 
-  if (!name || !address || !phone || !email) {
-    alert('⚠️ Please fill in all company information fields.');
-    return;
-  }
 
-  try {
-    const res = await apiFetch(`${API_BASE}/company`, {
-      method: 'PUT',
-      body: JSON.stringify({ name, address, phone, email })
-    });
+// --- API Functions ---
 
-    if (res.ok) {
-      alert('✅ Company information updated successfully!');
-      await fetchCompanyInfo();
-      closeCompanyInfoModal();
-    } else {
-      alert('❌ Failed to update company information.');
+const fetchData = async (endpoint, options = {}) => {
+    const token = sessionStorage.getItem('authToken');
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
-  } catch (err) {
-    console.error('Update company info error:', err);
-    alert('❌ Server error while updating company information.');
-  }
-}
 
-function updateCompanyInfoDisplay() {
-  if (qs('#companyNameDisplay')) qs('#companyNameDisplay').textContent = companyInfo.name || 'L&B Company';
-  if (qs('#companyAddressDisplay')) qs('#companyAddressDisplay').textContent = companyInfo.address || 'Jalan Mawar 8, Taman Bukit Beruang Permai, Melaka';
-  if (qs('#companyPhoneDisplay')) qs('#companyPhoneDisplay').textContent = companyInfo.phone || '01133127622';
-  if (qs('#companyEmailDisplay')) qs('#companyEmailDisplay').textContent = companyInfo.email || 'lbcompany@gmail.com';
-}
+    try {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            headers: headers,
+        });
 
-// =========================================
-// Company Information Modal Functions
-// =========================================
-function openCompanyInfoModal() {
-  const modal = qs('#companyInfoModal');
-  if (modal) {
-    // Pre-fill company form with current data
-    if (qs('#companyName')) qs('#companyName').value = companyInfo.name || '';
-    if (qs('#companyAddress')) qs('#companyAddress').value = companyInfo.address || '';
-    if (qs('#companyPhone')) qs('#companyPhone').value = companyInfo.phone || '';
-    if (qs('#companyEmail')) qs('#companyEmail').value = companyInfo.email || '';
-    
-    modal.style.display = 'block';
-  }
-}
+        if (response.status === 401) {
+            // Token expired or invalid
+            console.warn('Authentication failed. Redirecting to login.');
+            logout();
+            return null; // Stop further processing
+        }
 
-function closeCompanyInfoModal() {
-  const modal = qs('#companyInfoModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+        }
 
-// =========================================
-// Unified Data Fetching
-// =========================================
-async function fetchAllData() {
-  try {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            return response.json();
+        } else {
+            // Handle non-JSON responses (like text or blob)
+            return response;
+        }
+
+    } catch (error) {
+        console.error("Fetch error:", error);
+        showMsg(qs('#messageArea'), `API Error: ${error.message}`, 'red');
+        return null;
+    }
+};
+
+const fetchInitialData = async () => {
     await Promise.all([
-      fetchInventory(),
-      fetchSales(),
-      fetchPurchases(),
-      fetchLogs(),
-      fetchCompanyInfo()
+        fetchInventory(),
+        fetchActivityLog(),
+        fetchDocuments(),
+        fetchPurchases(),
+        fetchSales(),
+        fetchFolders(),
+        fetchCompanyInfo()
     ]);
-    
-    // Update profit after all data is loaded
-    updateProfitCard();
-  } catch (error) {
-    console.error('Error fetching all data:', error);
-  }
-}
+};
 
-// =========================================
-// PAGINATION FUNCTIONS
-// =========================================
-function updatePagination(items) {
-  const totalItems = items.length;
-  totalPages = Math.ceil(totalItems / itemsPerPage);
-  
-  if (currentPageNumber > totalPages) {
-    currentPageNumber = totalPages || 1;
-  }
-  
-  if (qs('#currentPage')) qs('#currentPage').textContent = currentPageNumber;
-  if (qs('#totalPages')) qs('#totalPages').textContent = totalPages;
-  if (qs('#totalItems')) qs('#totalItems').textContent = totalItems;
-  
-  const start = ((currentPageNumber - 1) * itemsPerPage) + 1;
-  const end = Math.min(currentPageNumber * itemsPerPage, totalItems);
-  
-  if (qs('#currentPageStart')) qs('#currentPageStart').textContent = start;
-  if (qs('#currentPageEnd')) qs('#currentPageEnd').textContent = end;
-  
-  updatePageNumberButtons();
-  updatePaginationButtonStates();
-  
-  return items.slice(start - 1, end);
-}
+// --- Authentication ---
 
-function updatePageNumberButtons() {
-  const pageNumbersContainer = qs('#pageNumbers');
-  const pageNumbersFooter = qs('#pageNumbersFooter');
-  
-  if (!pageNumbersContainer && !pageNumbersFooter) return;
-  
-  const containers = [pageNumbersContainer, pageNumbersFooter].filter(Boolean);
-  
-  containers.forEach(container => {
-    container.innerHTML = '';
-    
-    addPageButton(container, 1);
-    
-    if (currentPageNumber > 3) {
-      const ellipsis = document.createElement('span');
-      ellipsis.textContent = '...';
-      ellipsis.style.padding = '6px';
-      container.appendChild(ellipsis);
+window.openLoginModal = () => {
+    const loginModal = new bootstrap.Modal(qs('#loginModal'));
+    loginModal.show();
+    showMsg(qs('#loginMessage'), '', 'black');
+};
+
+window.closeLoginModal = () => {
+    const loginModal = bootstrap.Modal.getInstance(qs('#loginModal'));
+    if (loginModal) loginModal.hide();
+};
+
+window.login = async () => {
+    const username = qs('#username').value.trim();
+    const password = qs('#password').value.trim();
+    const messageEl = qs('#loginMessage');
+
+    if (!username || !password) {
+        showMsg(messageEl, 'Please enter both username and password.', 'red');
+        return;
     }
-    
-    const startPage = Math.max(2, currentPageNumber - 1);
-    const endPage = Math.min(totalPages - 1, currentPageNumber + 1);
-    
+
+    const data = await fetchData('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password })
+    });
+
+    if (data && data.token && data.adminName) {
+        sessionStorage.setItem('authToken', data.token);
+        sessionStorage.setItem('adminName', data.adminName);
+        isAuthenticated = true;
+        closeLoginModal();
+        // Redirect to index.html if login was successful
+        if (currentPage === 'login.html') {
+            window.location.href = 'index.html';
+        } else {
+            // If already on index, just refresh data and UI
+            checkLoginStatus();
+            fetchInitialData();
+        }
+    } else {
+        const msg = data && data.message ? data.message : 'Invalid credentials or connection error.';
+        showMsg(messageEl, msg, 'red');
+    }
+};
+
+window.logout = () => {
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('adminName');
+    isAuthenticated = false;
+    // Clear local data if needed
+    inventory = [];
+    activityLog = [];
+    documents = [];
+    purchases = [];
+    sales = [];
+    folders = [];
+    currentFolder = 'root';
+
+    checkLoginStatus();
+    // Redirect to login page
+    window.location.href = 'login.html';
+};
+
+
+// --- Inventory Management ---
+
+const fetchInventory = async (page = 1, limit = 10, search = '', sortField = 'productName', sortOrder = 'asc') => {
+    if (!isAuthenticated) return;
+    currentPageNumber = page;
+    itemsPerPage = limit;
+
+    const endpoint = `/inventory?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}&sortField=${sortField}&sortOrder=${sortOrder}`;
+    const data = await fetchData(endpoint);
+
+    if (data && data.inventory) {
+        inventory = data.inventory;
+        totalPages = data.totalPages;
+        renderInventoryTable();
+        renderPagination();
+    }
+};
+
+window.openNewProductModal = () => {
+    qs('#newProductName').value = '';
+    qs('#newProductDescription').value = '';
+    qs('#newProductQuantity').value = '';
+    qs('#newProductUnitCost').value = '';
+    qs('#newProductUnitPrice').value = '';
+    qs('#newProductMessage').textContent = '';
+    qs('#newProductModalLabel').textContent = 'Add New Product';
+    qs('#saveNewProductBtn').onclick = saveNewProduct;
+
+    const modal = new bootstrap.Modal(qs('#newProductModal'));
+    modal.show();
+};
+
+window.closeNewProductModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#newProductModal'));
+    if (modal) modal.hide();
+};
+
+window.saveNewProduct = async () => {
+    const productName = qs('#newProductName').value.trim();
+    const productDescription = qs('#newProductDescription').value.trim();
+    const quantity = Number(qs('#newProductQuantity').value) || 0;
+    const unitCost = Number(qs('#newProductUnitCost').value) || 0;
+    const unitPrice = Number(qs('#newProductUnitPrice').value) || 0;
+    const messageEl = qs('#newProductMessage');
+
+    if (!productName || quantity < 0 || unitCost < 0 || unitPrice < 0) {
+        showMsg(messageEl, 'Please enter a valid product name and non-negative values for quantities/costs/prices.', 'red');
+        return;
+    }
+
+    const newProduct = { productName, productDescription, quantity, unitCost, unitPrice };
+
+    const data = await fetchData('/inventory', {
+        method: 'POST',
+        body: JSON.stringify(newProduct)
+    });
+
+    if (data && data.product) {
+        showMsg(messageEl, 'Product added successfully!', 'green');
+        closeNewProductModal();
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value);
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to add product.';
+        showMsg(messageEl, msg, 'red');
+    }
+};
+
+window.openEditProductModal = (id) => {
+    const product = inventory.find(p => p.id === id);
+    if (!product) return;
+
+    qs('#editProductId').value = product.id;
+    qs('#editProductName').value = product.productName;
+    qs('#editProductDescription').value = product.productDescription;
+    qs('#editProductQuantity').value = product.quantity;
+    qs('#editProductUnitCost').value = product.unitCost;
+    qs('#editProductUnitPrice').value = product.unitPrice;
+    qs('#editProductMessage').textContent = '';
+
+    const modal = new bootstrap.Modal(qs('#editProductModal'));
+    modal.show();
+};
+
+window.closeEditProductModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#editProductModal'));
+    if (modal) modal.hide();
+};
+
+window.saveEditProduct = async () => {
+    const id = qs('#editProductId').value;
+    const productName = qs('#editProductName').value.trim();
+    const productDescription = qs('#editProductDescription').value.trim();
+    const quantity = Number(qs('#editProductQuantity').value) || 0;
+    const unitCost = Number(qs('#editProductUnitCost').value) || 0;
+    const unitPrice = Number(qs('#editProductUnitPrice').value) || 0;
+    const messageEl = qs('#editProductMessage');
+
+    if (!productName || quantity < 0 || unitCost < 0 || unitPrice < 0) {
+        showMsg(messageEl, 'Please enter a valid product name and non-negative values.', 'red');
+        return;
+    }
+
+    const updatedProduct = { productName, productDescription, quantity, unitCost, unitPrice };
+
+    const data = await fetchData(`/inventory/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updatedProduct)
+    });
+
+    if (data && data.product) {
+        showMsg(messageEl, 'Product updated successfully!', 'green');
+        closeEditProductModal();
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value);
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to update product.';
+        showMsg(messageEl, msg, 'red');
+    }
+};
+
+window.deleteProduct = async (id) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    const data = await fetchData(`/inventory/${id}`, {
+        method: 'DELETE'
+    });
+
+    if (data && data.success) {
+        showMsg(qs('#messageArea'), 'Product deleted successfully!', 'green');
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value);
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to delete product.';
+        showMsg(qs('#messageArea'), msg, 'red');
+    }
+};
+
+window.renderInventoryTable = () => {
+    const tableBody = qs('#inventoryTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    inventory.forEach(product => {
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td>${escapeHtml(product.productName)}</td>
+            <td>${escapeHtml(product.productDescription)}</td>
+            <td>${product.quantity}</td>
+            <td>$${product.unitCost.toFixed(2)}</td>
+            <td>$${product.unitPrice.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="openEditProductModal('${product.id}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteProduct('${product.id}')">Delete</button>
+            </td>
+        `;
+    });
+
+    // Update stats
+    updateInventoryStats();
+};
+
+const updateInventoryStats = () => {
+    const totalValue = inventory.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+    const potentialRevenue = inventory.reduce((sum, p) => sum + (p.quantity * p.unitPrice), 0);
+
+    const totalValueEl = qs('#totalInventoryValue');
+    const potentialRevenueEl = qs('#potentialRevenue');
+
+    if (totalValueEl) totalValueEl.textContent = `$${totalValue.toFixed(2)}`;
+    if (potentialRevenueEl) potentialRevenueEl.textContent = `$${potentialRevenue.toFixed(2)}`;
+};
+
+
+// --- Pagination ---
+
+window.searchInventory = () => {
+    const search = qs('#inventorySearch').value.trim();
+    fetchInventory(1, itemsPerPage, search);
+};
+
+window.changeItemsPerPage = () => {
+    const newLimit = Number(qs('#itemsPerPage').value);
+    itemsPerPage = newLimit;
+    fetchInventory(1, itemsPerPage, qs('#inventorySearch').value);
+};
+
+window.sortInventory = (field) => {
+    const currentSortField = qs('#inventoryTable th.active-sort')?.dataset.sort;
+    let currentSortOrder = qs('#inventoryTable th.active-sort')?.dataset.order || 'asc';
+    let newSortOrder = 'asc';
+
+    // Clear previous sort classes
+    qsa('#inventoryTable th').forEach(th => {
+        th.classList.remove('active-sort', 'asc', 'desc');
+    });
+
+    if (currentSortField === field) {
+        newSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+    }
+
+    // Add new sort classes
+    const th = qs(`th[data-sort="${field}"]`);
+    if (th) {
+        th.classList.add('active-sort', newSortOrder);
+        th.dataset.order = newSortOrder;
+    }
+
+    fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value, field, newSortOrder);
+};
+
+window.renderPagination = () => {
+    const paginationEl = qs('#inventoryPagination');
+    if (!paginationEl) return;
+    paginationEl.innerHTML = '';
+
+    // Prev button
+    paginationEl.innerHTML += `
+        <li class="page-item ${currentPageNumber === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPageNumber - 1})">Previous</a>
+        </li>
+    `;
+
+    // Page buttons
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPageNumber - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
     for (let i = startPage; i <= endPage; i++) {
-      if (i > 1 && i < totalPages) {
-        addPageButton(container, i);
-      }
+        paginationEl.innerHTML += `
+            <li class="page-item ${i === currentPageNumber ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>
+        `;
     }
-    
-    if (currentPageNumber < totalPages - 2) {
-      const ellipsis = document.createElement('span');
-      ellipsis.textContent = '...';
-      ellipsis.style.padding = '6px';
-      container.appendChild(ellipsis);
-    }
-    
-    if (totalPages > 1) {
-      addPageButton(container, totalPages);
-    }
-  });
-}
 
-function addPageButton(container, pageNumber) {
-  const button = document.createElement('button');
-  button.className = `pagination-btn ${pageNumber === currentPageNumber ? 'active' : ''}`;
-  button.textContent = pageNumber;
-  button.onclick = () => goToPage(pageNumber);
-  container.appendChild(button);
-}
+    if (endPage < totalPages) {
+         if (endPage < totalPages - 1) {
+            paginationEl.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+         }
+         if (endPage < totalPages) {
+             paginationEl.innerHTML += `
+                <li class="page-item">
+                    <a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a>
+                </li>
+            `;
+         }
+    }
 
-function updatePaginationButtonStates() {
-  const buttons = {
-    first: ['firstPageBtn', 'firstPageBtnFooter'],
-    prev: ['prevPageBtn', 'prevPageBtnFooter'],
-    next: ['nextPageBtn', 'nextPageBtnFooter'],
-    last: ['lastPageBtn', 'lastPageBtnFooter']
-  };
-  
-  Object.entries(buttons).forEach(([type, ids]) => {
-    ids.forEach(id => {
-      const btn = qs(`#${id}`);
-      if (btn) {
-        switch(type) {
-          case 'first':
-          case 'prev':
-            btn.disabled = currentPageNumber === 1;
-            break;
-          case 'next':
-          case 'last':
-            btn.disabled = currentPageNumber === totalPages;
-            break;
-        }
-      }
+
+    // Next button
+    paginationEl.innerHTML += `
+        <li class="page-item ${currentPageNumber === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPageNumber + 1})">Next</a>
+        </li>
+    `;
+
+    // Page info
+    const pageInfoEl = qs('#pageInfo');
+    if (pageInfoEl) {
+        pageInfoEl.textContent = `Page ${currentPageNumber} of ${totalPages} (Showing ${inventory.length} items)`;
+    }
+};
+
+window.changePage = (page) => {
+    if (page < 1 || page > totalPages || page === currentPageNumber) return;
+
+    const search = qs('#inventorySearch').value.trim();
+    const sortField = qs('#inventoryTable th.active-sort')?.dataset.sort || 'productName';
+    const sortOrder = qs('#inventoryTable th.active-sort')?.dataset.order || 'asc';
+
+    fetchInventory(page, itemsPerPage, search, sortField, sortOrder);
+};
+
+
+// --- Activity Log ---
+
+const fetchActivityLog = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchData('/log');
+
+    if (data && data.log) {
+        activityLog = data.log;
+        renderActivityLog();
+    }
+};
+
+const renderActivityLog = () => {
+    const logBody = qs('#activityLogBody');
+    if (!logBody) return;
+    logBody.innerHTML = '';
+
+    activityLog.slice(0, 50).forEach(log => { // Limit to 50 for performance
+        const row = logBody.insertRow();
+        const date = new Date(log.timestamp).toLocaleString();
+        row.innerHTML = `
+            <td>${date}</td>
+            <td>${escapeHtml(log.action)}</td>
+            <td>${escapeHtml(log.user || 'System')}</td>
+        `;
     });
-  });
-}
+};
 
-function goToPage(page) {
-  if (page < 1 || page > totalPages || page === currentPageNumber) return;
-  currentPageNumber = page;
-  renderInventory(filteredInventory);
-}
+window.openActivityLogModal = () => {
+    // Re-render the full log in the modal if needed
+    // Currently, the log is rendered on the main page.
+    const modal = new bootstrap.Modal(qs('#activityLogModal'));
+    modal.show();
+};
 
-function changeItemsPerPage() {
-  const select = qs('#itemsPerPageSelect');
-  if (select) {
-    itemsPerPage = parseInt(select.value);
-    currentPageNumber = 1;
-    renderInventory(filteredInventory);
-  }
-}
+window.closeActivityLogModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#activityLogModal'));
+    if (modal) modal.hide();
+};
 
-function bindPaginationEvents() {
-  qs('#firstPageBtn')?.addEventListener('click', () => goToPage(1));
-  qs('#firstPageBtnFooter')?.addEventListener('click', () => goToPage(1));
-  
-  qs('#prevPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
-  qs('#prevPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
-  
-  qs('#nextPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
-  qs('#nextPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
-  
-  qs('#lastPageBtn')?.addEventListener('click', () => goToPage(totalPages));
-  qs('#lastPageBtnFooter')?.addEventListener('click', () => goToPage(totalPages));
-  
-  qs('#itemsPerPageSelect')?.addEventListener('change', changeItemsPerPage);
-}
 
-// =========================================
-// INVENTORY MANAGEMENT FUNCTIONS - UPDATED NAMES
-// =========================================
-async function fetchInventory() {
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory`);
-    if(!res.ok) throw new Error('Failed to fetch inventory');
-    const data = await res.json();
-    inventory = data.map(i => ({ ...i, id: i.id || i._id }));
+// --- Documents Management (Folders/Files) ---
+
+const fetchFolders = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchData('/documents/folders');
+    if (data && data.folders) {
+        folders = data.folders;
+        renderFolderStructure();
+        fetchDocuments(); // Fetch documents once folders are loaded
+    }
+};
+
+const fetchDocuments = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchData(`/documents/files?folder=${currentFolder}`);
+
+    if (data && data.documents) {
+        documents = data.documents;
+        renderDocumentsList();
+    }
+};
+
+window.createFolder = async () => {
+    const folderName = prompt('Enter new folder name:');
+    if (!folderName || folderName.trim() === '') return;
+
+    const data = await fetchData('/documents/folders', {
+        method: 'POST',
+        body: JSON.stringify({ folderName: folderName.trim(), parentFolder: currentFolder })
+    });
+
+    if (data && data.folder) {
+        showMsg(qs('#documentsMessageArea'), 'Folder created successfully!', 'green');
+        fetchFolders();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to create folder.';
+        showMsg(qs('#documentsMessageArea'), msg, 'red');
+    }
+};
+
+window.renameFolder = async (folderId) => {
+    const folder = folders.find(f => f.id === folderId);
+    if (!folder) return;
+
+    const newName = prompt(`Rename folder "${folder.folderName}":`, folder.folderName);
+    if (!newName || newName.trim() === '' || newName.trim() === folder.folderName) return;
+
+    const data = await fetchData(`/documents/folders/${folderId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ folderName: newName.trim() })
+    });
+
+    if (data && data.folder) {
+        showMsg(qs('#documentsMessageArea'), 'Folder renamed successfully!', 'green');
+        fetchFolders();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to rename folder.';
+        showMsg(qs('#documentsMessageArea'), msg, 'red');
+    }
+};
+
+window.deleteFolder = async (folderId) => {
+    if (!confirm('Are you sure you want to delete this folder and all its contents?')) return;
+
+    const data = await fetchData(`/documents/folders/${folderId}`, {
+        method: 'DELETE'
+    });
+
+    if (data && data.success) {
+        showMsg(qs('#documentsMessageArea'), 'Folder deleted successfully!', 'green');
+        fetchFolders();
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to delete folder.';
+        showMsg(qs('#documentsMessageArea'), msg, 'red');
+    }
+};
+
+window.navigateToFolder = (folderId = 'root') => {
+    currentFolder = folderId;
+    renderFolderStructure();
+    fetchDocuments();
+};
+
+const renderFolderStructure = () => {
+    const breadcrumbEl = qs('#documentsBreadcrumb');
+    const folderListEl = qs('#folderList');
+    if (!breadcrumbEl || !folderListEl) return;
+
+    // Build breadcrumb
+    let breadcrumbHtml = `<li class="breadcrumb-item"><a href="#" onclick="navigateToFolder('root')">Root</a></li>`;
+    let current = folders.find(f => f.id === currentFolder);
+    let path = [];
+
+    // Simple implementation for immediate children of root
+    if (currentFolder !== 'root' && current) {
+         breadcrumbHtml += `<li class="breadcrumb-item active">${escapeHtml(current.folderName)}</li>`;
+    }
+
+    breadcrumbEl.innerHTML = breadcrumbHtml;
+
+    // Render folders
+    folderListEl.innerHTML = '';
+    const currentFolderId = currentFolder; // Capture currentFolder for filtering
     
-    filteredInventory = [...inventory];
-    renderInventory(filteredInventory);
-    renderDashboardData();
-  } catch(err) { 
-    console.error('Fetch inventory error:', err); 
-  }
-}
+    // Add "Up" button if not in root
+    if (currentFolderId !== 'root') {
+        const parentFolderId = folders.find(f => f.id === currentFolderId)?.parentFolder || 'root';
+         folderListEl.innerHTML += `
+             <div class="col-6 col-md-4 col-lg-3 mb-3">
+                 <div class="card h-100 folder-card text-center" onclick="navigateToFolder('${parentFolderId}')" style="cursor: pointer;">
+                     <div class="card-body">
+                         <i class="fas fa-level-up-alt fa-3x text-secondary"></i>
+                         <h5 class="card-title mt-2">.. (Up)</h5>
+                     </div>
+                 </div>
+             </div>
+         `;
+    }
 
-// UPDATED: Unified net profit calculation with updated names
-function updateProfitCard() {
-  let calculatedNetProfit = 0;
-  
-  // Calculate net profit from sales
-  if (sales && sales.length > 0) {
+    folders.filter(f => f.parentFolder === currentFolderId).forEach(folder => {
+        folderListEl.innerHTML += `
+            <div class="col-6 col-md-4 col-lg-3 mb-3">
+                <div class="card h-100 folder-card">
+                    <div class="card-body" onclick="navigateToFolder('${folder.id}')" style="cursor: pointer;">
+                        <i class="fas fa-folder fa-3x text-warning"></i>
+                        <h5 class="card-title mt-2">${escapeHtml(folder.folderName)}</h5>
+                    </div>
+                    <div class="card-footer text-center">
+                        <button class="btn btn-sm btn-outline-info" onclick="renameFolder('${folder.id}')">Rename</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteFolder('${folder.id}')">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+};
+
+window.uploadDocument = async () => {
+    const fileInput = qs('#documentFile');
+    const messageEl = qs('#documentsMessageArea');
+    
+    if (fileInput.files.length === 0) {
+        showMsg(messageEl, 'Please select a file to upload.', 'red');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('folderId', currentFolder);
+
+    // Manually handle fetch for file upload since it's multipart/form-data
+    const token = sessionStorage.getItem('authToken');
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    showMsg(messageEl, 'Uploading file, please wait...', 'blue');
+
+    try {
+        const response = await fetch(`${API_BASE}/documents/upload`, {
+            method: 'POST',
+            body: formData, // FormData handles the content-type header
+            headers: headers
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        if (data && data.document) {
+            showMsg(messageEl, `File "${data.document.fileName}" uploaded successfully!`, 'green');
+            fileInput.value = ''; // Clear input
+            fetchDocuments();
+            fetchActivityLog();
+        } else {
+             showMsg(messageEl, 'File upload failed.', 'red');
+        }
+
+    } catch (error) {
+        console.error("Upload error:", error);
+        showMsg(messageEl, `Upload Error: ${error.message}`, 'red');
+    }
+};
+
+window.downloadDocument = (docId) => {
+    const token = sessionStorage.getItem('authToken');
+    if (!token) {
+        alert('You must be logged in to download files.');
+        return;
+    }
+    window.open(`${API_BASE}/documents/download/${docId}?token=${token}`, '_blank');
+};
+
+window.deleteDocument = async (docId, fileName) => {
+    if (!confirm(`Are you sure you want to delete the document "${fileName}"?`)) return;
+    
+    const data = await fetchData(`/documents/files/${docId}`, {
+        method: 'DELETE'
+    });
+
+    if (data && data.success) {
+        showMsg(qs('#documentsMessageArea'), 'Document deleted successfully!', 'green');
+        fetchDocuments();
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to delete document.';
+        showMsg(qs('#documentsMessageArea'), msg, 'red');
+    }
+};
+
+const renderDocumentsList = () => {
+    const documentListEl = qs('#documentList');
+    if (!documentListEl) return;
+    documentListEl.innerHTML = '';
+
+    // Render files
+    documents.forEach(doc => {
+        const fileIcon = getFileIcon(doc.mimeType);
+        documentListEl.innerHTML += `
+            <div class="col-6 col-md-4 col-lg-3 mb-3">
+                <div class="card h-100 document-card">
+                    <div class="card-body text-center">
+                        <i class="${fileIcon} fa-3x text-info"></i>
+                        <h6 class="card-title mt-2">${escapeHtml(doc.fileName)}</h6>
+                        <small class="text-muted">${(doc.fileSize / 1024 / 1024).toFixed(2)} MB</small>
+                    </div>
+                    <div class="card-footer text-center">
+                        <button class="btn btn-sm btn-outline-success" onclick="downloadDocument('${doc.id}')">Download</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument('${doc.id}', '${escapeHtml(doc.fileName)}')">Delete</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+};
+
+const getFileIcon = (mimeType) => {
+    if (mimeType.includes('pdf')) return 'far fa-file-pdf';
+    if (mimeType.includes('image')) return 'far fa-file-image';
+    if (mimeType.includes('text') || mimeType.includes('javascript')) return 'far fa-file-alt';
+    if (mimeType.includes('wordprocessingml')) return 'far fa-file-word';
+    if (mimeType.includes('spreadsheetml')) return 'far fa-file-excel';
+    if (mimeType.includes('presentationml')) return 'far fa-file-powerpoint';
+    if (mimeType.includes('zip') || mimeType.includes('rar')) return 'far fa-file-archive';
+    return 'far fa-file';
+};
+
+window.openDocumentsModal = () => {
+    // This is handled by main document UI on index.html
+    // If it were a dedicated modal, this would show it.
+};
+
+
+// --- Purchase Order Management ---
+
+const fetchPurchases = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchData('/purchases');
+    if (data && data.purchases) {
+        purchases = data.purchases;
+        renderPurchaseHistory();
+    }
+};
+
+window.openPurchaseHistoryModal = () => {
+    const modal = new bootstrap.Modal(qs('#purchaseHistoryModal'));
+    modal.show();
+};
+
+window.closePurchaseHistoryModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#purchaseHistoryModal'));
+    if (modal) modal.hide();
+};
+
+const renderPurchaseHistory = () => {
+    const tableBody = qs('#purchaseHistoryTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    purchases.forEach(purchase => {
+        const row = tableBody.insertRow();
+        const total = purchase.products.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+        row.innerHTML = `
+            <td>${purchase.purchaseId}</td>
+            <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+            <td>${escapeHtml(purchase.supplierName)}</td>
+            <td>${purchase.products.length}</td>
+            <td>$${total.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="viewPurchaseDetails('${purchase.purchaseId}')">View</button>
+                <button class="btn btn-sm btn-secondary" onclick="printAndSavePurchaseInvoice('${purchase.purchaseId}')">Print/Save</button>
+                <button class="btn btn-sm btn-danger" onclick="deletePurchase('${purchase.purchaseId}')">Delete</button>
+            </td>
+        `;
+    });
+};
+
+window.openNewPurchaseModal = () => {
+    qs('#newPurchaseModalLabel').textContent = 'Create New Purchase Order';
+    qs('#purchaseSupplierName').value = '';
+    qs('#purchaseDate').value = new Date().toISOString().substring(0, 10);
+    qs('#purchaseTotalAmount').textContent = '$0.00';
+    qs('#purchaseProductList').innerHTML = '';
+    qs('#purchaseMessage').textContent = '';
+    addPurchaseProductRow(); // Start with one row
+
+    const modal = new bootstrap.Modal(qs('#newPurchaseModal'));
+    modal.show();
+};
+
+window.closeNewPurchaseModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#newPurchaseModal'));
+    if (modal) modal.hide();
+};
+
+window.addPurchaseProductRow = () => {
+    const listEl = qs('#purchaseProductList');
+    const newIndex = listEl.children.length + 1;
+    
+    const row = document.createElement('div');
+    row.className = 'row g-3 mb-3 purchase-product-row';
+    row.id = `purchaseRow_${newIndex}`;
+    row.innerHTML = `
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="productName_${newIndex}" placeholder="Product Name">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="productDescription_${newIndex}" placeholder="Description (Optional)">
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control purchase-calc" id="quantity_${newIndex}" placeholder="Qty" value="1" min="1" oninput="calculatePurchaseTotal()">
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control purchase-calc" id="unitCost_${newIndex}" placeholder="Unit Cost" value="0.00" min="0" step="0.01" oninput="calculatePurchaseTotal()">
+        </div>
+        <div class="col-md-1 d-flex align-items-center">
+            <span class="product-subtotal" id="subtotal_${newIndex}">$0.00</span>
+        </div>
+        <div class="col-md-1 d-flex align-items-center">
+            <button class="btn btn-sm btn-danger" onclick="removePurchaseProductRow(${newIndex})"><i class="fas fa-trash"></i></button>
+        </div>
+    `;
+    listEl.appendChild(row);
+    calculatePurchaseTotal();
+};
+
+window.removePurchaseProductRow = (index) => {
+    const row = qs(`#purchaseRow_${index}`);
+    if (row) {
+        row.remove();
+        calculatePurchaseTotal();
+    }
+};
+
+window.calculatePurchaseTotal = () => {
+    let total = 0;
+    qsa('.purchase-product-row').forEach((row, i) => {
+        const index = i + 1; // Assuming indices are sequential
+        const quantity = Number(qs(`#quantity_${index}`).value) || 0;
+        const unitCost = Number(qs(`#unitCost_${index}`).value) || 0;
+        const subtotal = quantity * unitCost;
+        
+        const subtotalEl = qs(`#subtotal_${index}`);
+        if (subtotalEl) {
+            subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+        }
+        total += subtotal;
+    });
+
+    qs('#purchaseTotalAmount').textContent = `$${total.toFixed(2)}`;
+};
+
+window.savePurchaseOrder = async () => {
+    const supplierName = qs('#purchaseSupplierName').value.trim();
+    const purchaseDate = qs('#purchaseDate').value;
+    const messageEl = qs('#purchaseMessage');
+    const productRows = qsa('.purchase-product-row');
+
+    if (!supplierName || !purchaseDate || productRows.length === 0) {
+        showMsg(messageEl, 'Please fill in supplier name, date, and at least one product.', 'red');
+        return;
+    }
+
+    const products = [];
+    let isValid = true;
+    productRows.forEach((row, i) => {
+        const index = i + 1;
+        const productName = qs(`#productName_${index}`).value.trim();
+        const quantity = Number(qs(`#quantity_${index}`).value) || 0;
+        const unitCost = Number(qs(`#unitCost_${index}`).value) || 0;
+
+        if (!productName || quantity <= 0 || unitCost < 0) {
+            isValid = false;
+        }
+
+        const productDetails = {
+            productName: productName,
+            productDescription: qs(`#productDescription_${index}`).value.trim(),
+            quantity: quantity,
+            unitCost: unitCost, // **FIXED SYNTAX ERROR HERE**
+            totalCost: quantity * unitCost
+        };
+        products.push(productDetails);
+    });
+
+    if (!isValid) {
+        showMsg(messageEl, 'Please ensure all product fields have valid data (Name, Qty > 0, Cost >= 0).', 'red');
+        return;
+    }
+
+    const purchaseOrder = {
+        supplierName,
+        purchaseDate,
+        products
+    };
+
+    const data = await fetchData('/purchases', {
+        method: 'POST',
+        body: JSON.stringify(purchaseOrder)
+    });
+
+    if (data && data.purchase) {
+        showMsg(messageEl, `Purchase Order ${data.purchase.purchaseId} saved and inventory updated!`, 'green');
+        closeNewPurchaseModal();
+        fetchPurchases();
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value); // Refresh inventory
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to save purchase order.';
+        showMsg(messageEl, msg, 'red');
+    }
+};
+
+window.printAndSavePurchaseInvoice = (purchaseId) => {
+    // Simple print function, modern systems would generate a PDF on the server.
+    const purchase = purchases.find(p => p.purchaseId === purchaseId);
+    if (!purchase) {
+        alert('Purchase order not found.');
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Purchase Invoice - ${purchase.purchaseId}</title>`);
+    printWindow.document.write('<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">');
+    printWindow.document.write('</head><body>');
+    
+    printWindow.document.write('<div class="container mt-5">');
+    printWindow.document.write(`<h1>Purchase Invoice #${purchase.purchaseId}</h1>`);
+    printWindow.document.write(`<p><strong>Supplier:</strong> ${escapeHtml(purchase.supplierName)}</p>`);
+    printWindow.document.write(`<p><strong>Date:</strong> ${new Date(purchase.purchaseDate).toLocaleDateString()}</p>`);
+    
+    let totalAmount = 0;
+    printWindow.document.write('<table class="table table-bordered">');
+    printWindow.document.write('<thead><tr><th>Product Name</th><th>Description</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead>');
+    printWindow.document.write('<tbody>');
+    purchase.products.forEach(p => {
+        const subtotal = p.quantity * p.unitCost;
+        totalAmount += subtotal;
+        printWindow.document.write(`
+            <tr>
+                <td>${escapeHtml(p.productName)}</td>
+                <td>${escapeHtml(p.productDescription)}</td>
+                <td>${p.quantity}</td>
+                <td>$${p.unitCost.toFixed(2)}</td>
+                <td>$${subtotal.toFixed(2)}</td>
+            </tr>
+        `);
+    });
+    printWindow.document.write('</tbody>');
+    printWindow.document.write(`<tfoot><tr><td colspan="4" class="text-right"><strong>Total Amount:</strong></td><td><strong>$${totalAmount.toFixed(2)}</strong></td></tr></tfoot>`);
+    printWindow.document.write('</table>');
+    
+    printWindow.document.write('</div>');
+    printWindow.document.write('<script>window.onload = function() { window.print(); };</script>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+};
+
+window.deletePurchase = async (purchaseId) => {
+    if (!confirm(`Are you sure you want to delete Purchase Order ${purchaseId}? This will reverse the inventory changes.`)) return;
+
+    const data = await fetchData(`/purchases/${purchaseId}`, {
+        method: 'DELETE'
+    });
+
+    if (data && data.success) {
+        showMsg(qs('#messageArea'), `Purchase Order ${purchaseId} deleted and inventory reversed successfully!`, 'green');
+        fetchPurchases();
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value); // Refresh inventory
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to delete purchase order.';
+        showMsg(qs('#messageArea'), msg, 'red');
+    }
+};
+
+window.viewPurchaseDetails = (purchaseId) => {
+    const purchase = purchases.find(p => p.purchaseId === purchaseId);
+    if (!purchase) return;
+
+    qs('#purchaseDetailsId').textContent = purchase.purchaseId;
+    qs('#purchaseDetailsSupplier').textContent = escapeHtml(purchase.supplierName);
+    qs('#purchaseDetailsDate').textContent = new Date(purchase.purchaseDate).toLocaleDateString();
+
+    const detailBody = qs('#purchaseDetailsTableBody');
+    detailBody.innerHTML = '';
+    let grandTotal = 0;
+
+    purchase.products.forEach(p => {
+        const total = p.quantity * p.unitCost;
+        grandTotal += total;
+        const row = detailBody.insertRow();
+        row.innerHTML = `
+            <td>${escapeHtml(p.productName)}</td>
+            <td>${escapeHtml(p.productDescription)}</td>
+            <td>${p.quantity}</td>
+            <td>$${p.unitCost.toFixed(2)}</td>
+            <td>$${total.toFixed(2)}</td>
+        `;
+    });
+
+    qs('#purchaseDetailsGrandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+
+    const modal = new bootstrap.Modal(qs('#purchaseDetailsModal'));
+    modal.show();
+};
+
+window.closePurchaseDetailsModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#purchaseDetailsModal'));
+    if (modal) modal.hide();
+};
+
+
+// --- Sales Order Management ---
+
+const fetchSales = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchData('/sales');
+    if (data && data.sales) {
+        sales = data.sales;
+        renderSalesHistory();
+    }
+};
+
+window.openSalesHistoryModal = () => {
+    const modal = new bootstrap.Modal(qs('#salesHistoryModal'));
+    modal.show();
+};
+
+window.closeSalesHistoryModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#salesHistoryModal'));
+    if (modal) modal.hide();
+};
+
+const renderSalesHistory = () => {
+    const tableBody = qs('#salesHistoryTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    let netProfit = 0;
+
     sales.forEach(sale => {
-      if (sale.items && Array.isArray(sale.items)) {
-        sale.items.forEach(item => {
-          const inventoryItem = inventory.find(i => i.sku === item.sku);
-          if (inventoryItem) {
-            const unitCost = inventoryItem.unitCost || 0;
-            const salePrice = item.salePrice || 0;
-            const quantity = item.quantity || 0;
-            calculatedNetProfit += (salePrice - unitCost) * quantity;
-          }
-        });
-      }
-      // Also add direct net profit if available from API
-      if (sale.totalNetProfit) {
-        calculatedNetProfit += sale.totalNetProfit;
-      }
-    });
-  }
-  
-  // Update total net profit
-  totalNetProfit = calculatedNetProfit;
-  
-  // Update all net profit displays - UPDATED: Changed card names
-  const netProfitElements = [
-    '#cardTotalProfit', // Changed from #cardTotalProfit
-    '#dash_totalProfit', // Changed from #dash_totalProfit
-    '#totalNetProfitDisplay' // Changed from #totalNetProfitDisplay
-  ];
-  
-  netProfitElements.forEach(selector => {
-    if (qs(selector)) {
-      qs(selector).textContent = `RM ${totalNetProfit.toFixed(2)}`;
-    }
-  });
-}
+        const totalRevenue = sale.products.reduce((sum, p) => sum + (p.quantity * p.unitPrice), 0);
+        const totalCost = sale.products.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+        const profit = totalRevenue - totalCost;
+        netProfit += profit;
 
-function renderInventory(items) {
-  const list = qs('#inventoryList');
-  if(!list) return;
-  
-  const paginatedItems = updatePagination(items);
-  
-  list.innerHTML = '';
-  let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed from totalCost/totalPrice
-
-  // ADDED: Calculate starting number for current page
-  const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
-
-  paginatedItems.forEach((it, index) => {
-    const id = it.id || it._id;
-    const qty = Number(it.quantity || 0);
-    const uc = Number(it.unitCost || 0);
-    const up = Number(it.unitPrice || 0);
-    const totalCostVal = qty * uc; // UPDATED: Changed from totalCostVal
-    const totalPriceVal = qty * up; // UPDATED: Changed from totalPriceVal
-    
-    totalCost += totalCostVal;
-    totalPrice += totalPriceVal;
-    totalStock += qty;
-
-    // Date is already formatted as DD/MM/YYYY from server
-    const date = it.createdAt || 'N/A';
-    
-    let statusClass = '';
-    let statusText = '';
-    if (qty === 0) {
-      statusClass = 'status-out-of-stock';
-      statusText = 'Out of Stock';
-    } else if (qty < 10) {
-      statusClass = 'status-low-stock';
-      statusText = 'Low Stock';
-    } else {
-      statusClass = 'status-in-stock';
-      statusText = 'In Stock';
-    }
-
-    const tr = document.createElement('tr');
-    if(qty === 0) tr.classList.add('out-of-stock-row');
-    else if(qty < 10) tr.classList.add('low-stock-row');
-
-    tr.innerHTML = `
-      <!-- UPDATED: Added NO column with sequential number -->
-      <td class="number-cell">${startNumber + index}</td>
-      <td>${escapeHtml(it.sku||'')}</td>
-      <td>${escapeHtml(it.name||'')}</td>
-      <td>${escapeHtml(it.category||'')}</td>
-      <td class="quantity-cell">${qty}</td>
-      <td class="money cost-cell">RM ${uc.toFixed(2)}</td>
-      <td class="money price-cell">RM ${up.toFixed(2)}</td>
-      <!-- UPDATED: Changed Inventory Value to Total Cost -->
-      <td class="money value-cell">RM ${totalCostVal.toFixed(2)}</td>
-      <!-- UPDATED: Changed Revenue to Total Price -->
-      <td class="money revenue-cell">RM ${totalPriceVal.toFixed(2)}</td>
-      <td class="date-cell">${escapeHtml(date)}</td>
-      <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
-        <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-
-  // UPDATED: Updated card display names
-  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`; // Changed from #cardTotalValue
-  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // Changed from #cardTotalRevenue
-  updateProfitCard();
-  if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
-  if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
-}
-
-function searchInventory(){
-  const textQuery = (qs('#searchInput')?.value || '').toLowerCase().trim();
-  const startDate = qs('#startDate')?.value || '';
-  const endDate = qs('#endDate')?.value || '';
-  
-  let filtered = inventory;
-  
-  if (textQuery) {
-    filtered = filtered.filter(item => 
-      (item.sku||'').toLowerCase().includes(textQuery) || 
-      (item.name||'').toLowerCase().includes(textQuery) || 
-      (item.category||'').toLowerCase().includes(textQuery)
-    );
-  }
-  
-  if (startDate || endDate) {
-    filtered = filtered.filter(item => {
-      if (!item.createdAt) return false;
-      
-      // Convert DD/MM/YYYY to Date object for comparison
-      const parseDate = (dateStr) => {
-        if (!dateStr) return null;
-        const parts = dateStr.split('/');
-        if (parts.length !== 3) return null;
-        return new Date(parts[2], parts[1] - 1, parts[0]);
-      };
-      
-      const itemDate = parseDate(item.createdAt);
-      if (!itemDate) return false;
-      
-      if (startDate && !endDate) {
-        const start = new Date(startDate);
-        return itemDate >= start;
-      }
-      
-      if (!startDate && endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return itemDate <= end;
-      }
-      
-      if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        return itemDate >= start && itemDate <= end;
-      }
-      
-      return true;
-    });
-  }
-  
-  filteredInventory = filtered;
-  currentPageNumber = 1;
-  renderInventory(filtered);
-}
-
-// =========================================
-// DATE RANGE FILTERING FUNCTIONS
-// =========================================
-function filterByDateRange(startDate, endDate) {
-  if (!startDate && !endDate) {
-    filteredInventory = [...inventory];
-    renderInventory(filteredInventory);
-    updateDateRangeStatus(false);
-    return;
-  }
-
-  const filtered = inventory.filter(item => {
-    if (!item.createdAt) return false;
-    
-    // Convert DD/MM/YYYY to Date object for comparison
-    const parseDate = (dateStr) => {
-      if (!dateStr) return null;
-      const parts = dateStr.split('/');
-      if (parts.length !== 3) return null;
-      return new Date(parts[2], parts[1] - 1, parts[0]);
-    };
-    
-    const itemDate = parseDate(item.createdAt);
-    if (!itemDate) return false;
-    
-    if (startDate && !endDate) {
-      const start = new Date(startDate);
-      return itemDate >= start;
-    }
-    
-    if (!startDate && endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      return itemDate <= end;
-    }
-    
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      return itemDate >= start && itemDate <= end;
-    }
-    
-    return true;
-  });
-  
-  filteredInventory = filtered;
-  currentPageNumber = 1;
-  renderInventory(filtered);
-  updateDateRangeStatus(true, startDate, endDate);
-}
-
-function updateDateRangeStatus(isActive, startDate, endDate) {
-  const dateRangeContainer = qs('.date-range-container');
-  const statusElement = qs('.date-range-status') || createDateRangeStatusElement();
-  
-  if (isActive) {
-    dateRangeContainer.classList.add('active');
-    
-    let statusText = 'Filtering by: ';
-    if (startDate && endDate) {
-      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
-    } else if (startDate) {
-      statusText += `From ${formatDateDisplay(startDate)}`;
-    } else if (endDate) {
-      statusText += `Until ${formatDateDisplay(endDate)}`;
-    }
-    
-    statusElement.textContent = statusText;
-    statusElement.classList.add('active');
-  } else {
-    dateRangeContainer.classList.remove('active');
-    statusElement.classList.remove('active');
-    statusElement.textContent = '';
-  }
-}
-
-function createDateRangeStatusElement() {
-  const statusElement = document.createElement('span');
-  statusElement.className = 'date-range-status';
-  qs('.date-range-container').appendChild(statusElement);
-  return statusElement;
-}
-
-function formatDateDisplay(dateString) {
-  const date = new Date(dateString);
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
-function clearDateRangeFilter() {
-  if (qs('#startDate')) qs('#startDate').value = '';
-  if (qs('#endDate')) qs('#endDate').value = '';
-  filteredInventory = [...inventory];
-  currentPageNumber = 1;
-  renderInventory(filteredInventory);
-  updateDateRangeStatus(false);
-}
-
-function applyDateRangeFilter() {
-  const startDate = qs('#startDate')?.value;
-  const endDate = qs('#endDate')?.value;
-  
-  if (startDate && endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (start > end) {
-      alert('❌ Start date cannot be after end date.');
-      return;
-    }
-  }
-  
-  filterByDateRange(startDate, endDate);
-}
-
-function bindDateRangeFilterEvents() {
-  qs('#applyDateRangeBtn')?.addEventListener('click', applyDateRangeFilter);
-  
-  qs('#clearDateRangeBtn')?.addEventListener('click', clearDateRangeFilter);
-  
-  qs('#startDate')?.addEventListener('change', function() {
-    if (qs('#endDate')?.value) {
-      applyDateRangeFilter();
-    }
-  });
-  
-  qs('#endDate')?.addEventListener('change', function() {
-    if (qs('#startDate')?.value) {
-      applyDateRangeFilter();
-    }
-  });
-}
-
-// =========================================
-// INVENTORY CRUD OPERATIONS
-// =========================================
-async function confirmAndAddProduct(){
-  const sku = qs('#p_sku')?.value?.trim();
-  const name = qs('#p_name')?.value?.trim();
-  const category = qs('#p_category')?.value?.trim();
-  const quantity = Number(qs('#p_quantity')?.value || 0);
-  const unitCost = Number(qs('#p_unitCost')?.value || 0); // UPDATED: Changed from unitCost
-  const unitPrice = Number(qs('#p_unitPrice')?.value || 0); // UPDATED: Changed from unitPrice
-  if(!sku || !name) return alert('⚠️ Please enter SKU and Name.');
-
-  // UPDATED: Updated confirmation message
-  if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
-
-  const newItem = { sku, name, category, quantity, unitCost, unitPrice };
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory`, { method: 'POST', body: JSON.stringify(newItem) });
-    if(res.ok) {
-      ['#p_sku','#p_name','#p_category','#p_quantity','#p_unitCost','#p_unitPrice'].forEach(id => { if(qs(id)) qs(id).value = ''; });
-      await fetchInventory();
-      if(currentPage.includes('inventory')) await fetchLogs();
-      alert('✅ Product added successfully.');
-    } else {
-      alert('❌ Failed to add product.');
-    }
-  } catch(e) { console.error(e); alert('❌ Server connection error while adding product.'); }
-}
-
-async function confirmAndDeleteItem(id){
-  const it = inventory.find(x => String(x.id) === String(id));
-  if(!it) return;
-  if(!confirm(`Confirm Delete: "${it.name}"?`)) return;
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory/${id}`, { method: 'DELETE' });
-    if(res.status === 204) {
-      await fetchInventory();
-      alert('🗑️ Item deleted!');
-    } else {
-      alert('❌ Failed to delete item.');
-    }
-  } catch(e) { console.error(e); alert('❌ Server connection error while deleting product.'); }
-}
-
-function openEditPageForItem(id){ 
-  window.location.href = `product.html?id=${encodeURIComponent(id)}`; 
-}
-
-// =========================================
-// PRODUCT EDIT PAGE FUNCTIONS
-// =========================================
-async function bindProductPage(){
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get('id');
-  if(id) {
-    try {
-      const res = await apiFetch(`${API_BASE}/inventory`);
-      const items = await res.json();
-      const it = items.find(x => String(x.id) === String(id));
-      if(!it) { alert('Item not found'); return; }
-      if(qs('#prod_id')) qs('#prod_id').value = it.id || it._id;
-      if(qs('#prod_sku')) qs('#prod_sku').value = it.sku || '';
-      if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
-      if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
-      if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0; // UPDATED: Changed from unitCost
-      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0; // UPDATED: Changed from unitPrice
-    } catch(e) { alert('Failed to load product details.'); return; }
-  }
-
-  qs('#saveProductBtn')?.addEventListener('click', async ()=> {
-    if(!confirm('Confirm: Save Changes?')) return;
-    const idVal = qs('#prod_id')?.value;
-    const body = {
-      sku: qs('#prod_sku')?.value,
-      name: qs('#prod_name')?.value,
-      category: qs('#prod_category')?.value,
-      quantity: Number(qs('#prod_quantity')?.value || 0),
-      unitCost: Number(qs('#prod_unitCost')?.value || 0), // UPDATED: Changed from unitCost
-      unitPrice: Number(qs('#prod_unitPrice')?.value || 0) // UPDATED: Changed from unitPrice
-    };
-    try {
-      const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
-      if(res.ok) { alert('✅ Item updated'); window.location.href = 'inventory.html'; }
-      else { const err = await res.json(); alert('❌ Failed to update item: ' + (err.message || 'Unknown')); }
-    } catch(e) { console.error(e); alert('❌ Server connection error during update.'); }
-  });
-
-  qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
-}
-
-// =========================================
-// Sales Management Functions - FIXED
-// =========================================
-async function fetchSales() {
-  try {
-    const res = await apiFetch(`${API_BASE}/sales`);
-    if (!res.ok) throw new Error('Failed to fetch sales');
-    const data = await res.json();
-    sales = data.map(s => ({ ...s, id: s.id || s._id }));
-    renderSalesHistory();
-  } catch(err) {
-    console.error('Fetch sales error:', err);
-  }
-}
-
-function renderSalesHistory() {
-  const list = qs('#salesHistoryList');
-  if (!list) return;
-  list.innerHTML = '';
-  
-  sales.forEach(s => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(s.salesId || 'N/A')}</td>
-      <td>${escapeHtml(s.customer || '')}</td>
-      <!-- UPDATED: Added customer contact in table -->
-      <td>${escapeHtml(s.customerContact || 'N/A')}</td>
-      <td>${s.items ? s.items.length : 0} items</td>
-      <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
-      <td>${escapeHtml(s.salesDate || 'N/A')}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-}
-
-function openSalesHistoryModal() {
-  const modal = qs('#salesHistoryModal');
-  if (modal) {
-    modal.style.display = 'block';
-    fetchSales();
-  }
-}
-
-function closeSalesHistoryModal() {
-  const modal = qs('#salesHistoryModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
-
-function openNewSalesModal() {
-  const modal = qs('#newSalesModal');
-  if (modal) {
-    resetSalesForm();
-    const salesItems = qs('#salesItems');
-    if (salesItems) salesItems.innerHTML = '';
-    loadProductSearchForSales();
-    modal.style.display = 'block';
-    updateSalesTotalAmount();
-  } else {
-    console.error('New sales modal not found');
-    alert('Sales modal not found. Please check if the HTML is loaded correctly.');
-  }
-}
-
-function closeNewSalesModal() {
-  const modal = qs('#newSalesModal');
-  if (modal) {
-    modal.style.display = 'none';
-    resetSalesForm();
-  }
-}
-
-function resetSalesForm() {
-  if (qs('#customerName')) qs('#customerName').value = '';
-  if (qs('#customerContact')) qs('#customerContact').value = '';
-  if (qs('#salesDate')) qs('#salesDate').value = new Date().toISOString().split('T')[0];
-  if (qs('#salesNotes')) qs('#salesNotes').value = '';
-  if (qs('#productSearchSales')) qs('#productSearchSales').value = '';
-  if (qs('#productResultsSales')) qs('#productResultsSales').innerHTML = '';
-  if (qs('#salesItems')) qs('#salesItems').innerHTML = '';
-  if (qs('#totalSalesAmount')) qs('#totalSalesAmount').textContent = '0.00';
-}
-
-function addSalesProductItem(product = null) {
-  const container = qs('#salesItems');
-  if (!container) {
-    console.error('Sales items container not found');
-    return;
-  }
-  
-  const itemId = `sales-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-  
-  const itemRow = document.createElement('div');
-  itemRow.className = 'sales-item-row';
-  itemRow.id = itemId;
-  
-  const availableStock = product ? (product.quantity || 0) : 0;
-  
-  itemRow.innerHTML = `
-    <div class="form-group">
-      <label>SKU</label>
-      <input type="text" class="product-sku" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
-    </div>
-    <div class="form-group">
-      <label>Product Name</label>
-      <input type="text" class="product-name" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
-    </div>
-    <div class="form-group">
-      <label>Quantity (Stock: ${availableStock})</label>
-      <input type="number" class="product-quantity" placeholder="Qty" min="1" max="${availableStock}" value="${product ? '1' : '1'}">
-    </div>
-    <div class="form-group">
-      <label>Sale Price (RM)</label>
-      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitPrice || '0.00') : '0.00'}">
-    </div>
-    <div class="form-group">
-      <label>Total (RM)</label>
-      <input type="text" class="product-total" placeholder="Total" readonly value="0.00">
-    </div>
-    <button class="danger-btn remove-item-btn" type="button" title="Remove Item">🗑️</button>
-  `;
-  
-  container.appendChild(itemRow);
-  
-  const quantityInput = itemRow.querySelector('.product-quantity');
-  const priceInput = itemRow.querySelector('.product-price');
-  const totalInput = itemRow.querySelector('.product-total');
-  
-  const calculateTotal = () => {
-    const qty = Number(quantityInput.value) || 0;
-    const price = Number(priceInput.value) || 0;
-    if (totalInput) {
-      totalInput.value = (qty * price).toFixed(2);
-    }
-    updateSalesTotalAmount();
-  };
-  
-  if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
-  if (priceInput) priceInput.addEventListener('input', calculateTotal);
-  
-  const removeBtn = itemRow.querySelector('.remove-item-btn');
-  if (removeBtn) {
-    removeBtn.addEventListener('click', () => {
-      itemRow.remove();
-      updateSalesTotalAmount();
-    });
-  }
-  
-  calculateTotal();
-}
-
-function updateSalesTotalAmount() {
-  let total = 0;
-  const itemRows = qsa('#salesItems .sales-item-row');
-  
-  itemRows.forEach(row => {
-    const totalInput = row.querySelector('.product-total');
-    if (totalInput) {
-      const itemTotal = Number(totalInput.value) || 0;
-      total += itemTotal;
-    }
-  });
-  
-  if (qs('#totalSalesAmount')) {
-    qs('#totalSalesAmount').textContent = total.toFixed(2);
-  }
-}
-
-function loadProductSearchForSales() {
-  const searchInput = qs('#productSearchSales');
-  const resultsContainer = qs('#productResultsSales');
-  
-  if (searchInput && resultsContainer) {
-    searchInput.addEventListener('input', function() {
-      const query = this.value.toLowerCase().trim();
-      resultsContainer.innerHTML = '';
-      
-      if (query.length < 2) return;
-      
-      const filtered = inventory.filter(item => 
-        (item.sku && item.sku.toLowerCase().includes(query)) ||
-        (item.name && item.name.toLowerCase().includes(query))
-      );
-      
-      if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="product-result-item">No products found</div>';
-        return;
-      }
-      
-      filtered.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'product-result-item';
-        div.innerHTML = `
-          <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
-          <div class="name">${escapeHtml(item.name || 'N/A')}</div>
-          <div class="stock">Stock: ${item.quantity || 0} | Price: RM ${(item.unitPrice || 0).toFixed(2)}</div>
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td>${sale.salesId}</td>
+            <td>${new Date(sale.salesDate).toLocaleDateString()}</td>
+            <td>${escapeHtml(sale.customerName)}</td>
+            <td>${sale.products.length}</td>
+            <td>$${totalRevenue.toFixed(2)}</td>
+            <td>$${profit.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="viewSalesDetails('${sale.salesId}')">View</button>
+                <button class="btn btn-sm btn-secondary" onclick="printAndSaveSalesInvoice('${sale.salesId}')">Print/Save</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteSales('${sale.salesId}')">Delete</button>
+            </td>
         `;
-        div.addEventListener('click', () => {
-          addSalesProductItem(item);
-          searchInput.value = '';
-          resultsContainer.innerHTML = '';
-        });
-        resultsContainer.appendChild(div);
-      });
     });
-  }
-}
 
-async function saveSalesOrder() {
-  // Validate required fields
-  const customerName = qs('#customerName')?.value?.trim();
-  const customerContact = qs('#customerContact')?.value?.trim();
-  
-  if (!customerName || !customerContact) {
-    alert('⚠️ Please enter customer name and contact information.');
-    return;
-  }
-  
-  const salesDate = qs('#salesDate').value;
-  const notes = qs('#salesNotes').value.trim();
-  
-  const items = [];
-  const itemRows = qsa('.sales-item-row');
-  
-  if (itemRows.length === 0) {
-    alert('⚠️ Please add at least one product item.');
-    return;
-  }
-  
-  for (const row of itemRows) {
-    const skuInput = row.querySelector('.product-sku');
-    const nameInput = row.querySelector('.product-name');
-    const quantityInput = row.querySelector('.product-quantity');
-    const priceInput = row.querySelector('.product-price');
-    
-    const sku = skuInput ? skuInput.value.trim() : '';
-    const productName = nameInput ? nameInput.value.trim() : '';
-    const quantity = quantityInput ? Number(quantityInput.value) : 0;
-    const salePrice = priceInput ? Number(priceInput.value) : 0;
-    
-    if (!sku || !productName || !quantity || !salePrice) {
-      alert('⚠️ Please fill in all fields for each product item.');
-      return;
-    }
-    
-    if (quantity <= 0) {
-      alert('⚠️ Please enter a valid quantity greater than 0.');
-      return;
-    }
-    
-    if (salePrice <= 0) {
-      alert('⚠️ Please enter a valid sale price greater than 0.');
-      return;
-    }
-    
-    const inventoryItem = inventory.find(item => item.sku === sku);
-    if (inventoryItem && inventoryItem.quantity < quantity) {
-      alert(`❌ Insufficient stock for ${productName}. Available: ${inventoryItem.quantity}, Requested: ${quantity}`);
-      return;
-    }
-    
-    items.push({
-      sku,
-      productName,
-      quantity,
-      salePrice
-    });
-  }
-  
-  const salesData = {
-    customer: customerName,
-    customerContact: customerContact,
-    salesDate: salesDate || new Date().toISOString().split('T')[0],
-    notes,
-    items
-  };
-  
-  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customerName}\nContact: ${customerContact}\nItems: ${items.length}\n\nItems:\n`;
-  items.forEach((item, index) => {
-    confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
-  });
-  confirmMessage += `\nTotal Amount: RM ${salesData.items.reduce((sum, item) => sum + (item.quantity * item.salePrice), 0).toFixed(2)}`;
-  
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/sales`, {
-      method: 'POST',
-      body: JSON.stringify(salesData)
-    });
-    
-    if (res.ok) {
-      const savedSales = await res.json();
-      alert('✅ Sales order saved successfully!');
-      
-      // Refresh data
-      await fetchInventory();
-      await fetchSales();
-      
-      // Automatically print and save invoice
-      await printAndSaveSalesInvoice(savedSales.id);
-      
-      closeNewSalesModal();
-      
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to save sales order: ${error.message}`);
-    }
-  } catch (e) {
-    console.error('Save sales order error:', e);
-    alert('❌ Server connection error while saving sales order.');
-  }
-}
+    totalNetProfit = netProfit;
+    const profitEl = qs('#totalNetProfit');
+    if (profitEl) profitEl.textContent = `$${totalNetProfit.toFixed(2)}`;
+};
 
-// ===== FIXED: View Sales Details Function =====
-async function viewSalesDetails(salesId) {
-  try {
-    console.log(`Fetching sales details for ID: ${salesId}`);
-    
-    const res = await apiFetch(`${API_BASE}/sales/${salesId}`);
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Failed to fetch sales details');
-    }
-    
-    const sale = await res.json();
-    console.log('Sales details loaded:', sale);
-    
-    // Check if modal exists
-    if (!qs('#salesDetailsModal')) {
-      console.error('Sales details modal not found');
-      alert('Sales details modal is not available. Please refresh the page.');
-      return;
-    }
-    
-    // Update sales details - using the correct element IDs from your HTML
-    const detailElements = {
-      'detailSalesId': 'detailSalesId',
-      'detailCustomer': 'detailCustomer',
-      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer Contact
-      'detailSalesDate': 'detailSalesDate',
-      'detailSalesTotalAmount': 'detailSalesTotalAmount',
-      'detailSalesNotes': 'detailSalesNotes',
-      'detailSalesNotesRow': 'detailSalesNotesRow'
-    };
-    
-    // Update each element if it exists
-    Object.entries(detailElements).forEach(([key, elementId]) => {
-      const element = qs(`#${elementId}`);
-      if (element) {
-        switch(key) {
-          case 'detailSalesId':
-            element.textContent = sale.salesId || 'N/A';
-            break;
-          case 'detailCustomer':
-            element.textContent = sale.customer || 'N/A';
-            break;
-          case 'detailCustomerContact': // ADDED: Customer Contact
-            element.textContent = sale.customerContact || 'N/A';
-            break;
-          case 'detailSalesDate':
-            element.textContent = sale.salesDate || 'N/A';
-            break;
-          case 'detailSalesTotalAmount':
-            element.textContent = `RM ${(sale.totalAmount || 0).toFixed(2)}`;
-            break;
-          case 'detailSalesNotes':
-            if (sale.notes && sale.notes.trim()) {
-              element.textContent = sale.notes;
-              const notesRow = qs('#detailSalesNotesRow');
-              if (notesRow) notesRow.style.display = 'flex';
-            } else {
-              const notesRow = qs('#detailSalesNotesRow');
-              if (notesRow) notesRow.style.display = 'none';
-            }
-            break;
-        }
-      } else {
-        console.warn(`Element #${elementId} not found`);
-      }
-    });
-    
-    // Update sales items list
-    const itemsList = qs('#salesDetailsList');
-    if (itemsList) {
-      itemsList.innerHTML = '';
-      
-      if (sale.items && Array.isArray(sale.items)) {
-        sale.items.forEach((item, index) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${escapeHtml(item.sku || 'N/A')}</td>
-            <td>${escapeHtml(item.productName || 'N/A')}</td>
-            <td>${item.quantity || 0}</td>
-            <td class="money">RM ${(item.salePrice || 0).toFixed(2)}</td>
-            <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
-          `;
-          itemsList.appendChild(tr);
-        });
-      }
-    }
-    
-    // Set print button handler
-    const printBtn = qs('#printSalesInvoiceBtn');
-    if (printBtn) {
-      printBtn.onclick = () => printAndSaveSalesInvoice(salesId);
-    }
-    
-    // Show the modal
-    const modal = qs('#salesDetailsModal');
-    if (modal) {
-      modal.style.display = 'block';
-    } else {
-      console.error('Sales details modal element not found');
-    }
-    
-  } catch (e) {
-    console.error('View sales details error:', e);
-    alert(`❌ Failed to load sales details: ${e.message}`);
-  }
-}
+window.openNewSalesModal = () => {
+    qs('#newSalesModalLabel').textContent = 'Create New Sales Order';
+    qs('#salesCustomerName').value = '';
+    qs('#salesDate').value = new Date().toISOString().substring(0, 10);
+    qs('#salesTotalAmount').textContent = '$0.00';
+    qs('#salesProductList').innerHTML = '';
+    qs('#salesMessage').textContent = '';
+    addSalesProductRow(); // Start with one row
 
-function closeSalesDetailsModal() {
-  const modal = qs('#salesDetailsModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
+    const modal = new bootstrap.Modal(qs('#newSalesModal'));
+    modal.show();
+};
 
-async function deleteSales(id) {
-  const sale = sales.find(s => String(s.id) === String(id));
-  if (!sale) return;
-  
-  if (!confirm(`Confirm Delete Sales Order:\n${sale.salesId} for ${sale.customer}?\n\nThis will remove ${sale.items.length} items and revert inventory quantities.`)) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/sales/${id}`, { method: 'DELETE' });
-    if (res.status === 204) {
-      await fetchSales();
-      await fetchInventory();
-      updateProfitCard();
-      alert('🗑️ Sales order deleted!');
-    } else {
-      alert('❌ Failed to delete sales order.');
-    }
-  } catch (e) {
-    console.error(e);
-    alert('❌ Server connection error while deleting sales order.');
-  }
-}
+window.closeNewSalesModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#newSalesModal'));
+    if (modal) modal.hide();
+};
 
-async function printAndSaveSalesInvoice(salesId) {
-  try {
-    // Print the invoice
-    const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
-    if (!res.ok) throw new Error('Failed to generate invoice');
+window.addSalesProductRow = () => {
+    const listEl = qs('#salesProductList');
+    const newIndex = listEl.children.length + 1;
     
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    
-    const sale = sales.find(s => String(s.id) === String(salesId));
-    const filename = sale ? `Invoice_${sale.salesId}.pdf` : `Invoice_${salesId}.pdf`;
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    
-    // Save to statements/documents
-    const saveRes = await apiFetch(`${API_BASE}/sales/save-invoice/${salesId}`, {
-      method: 'POST'
-    });
-    
-    if (saveRes.ok) {
-      console.log('✅ Invoice saved to documents');
-    }
-    
-  } catch (e) {
-    console.error('Print and save invoice error:', e);
-    alert('❌ Failed to generate sales invoice.');
-  }
-}
-
-// =========================================
-// PURCHASE MANAGEMENT FUNCTIONS - FIXED
-// =========================================
-async function fetchPurchases() {
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases`);
-    if (!res.ok) throw new Error('Failed to fetch purchases');
-    const data = await res.json();
-    purchases = data.map(p => ({ ...p, id: p.id || p._id }));
-    renderPurchaseHistory();
-  } catch(err) {
-    console.error('Fetch purchases error:', err);
-  }
-}
-
-function renderPurchaseHistory() {
-  const list = qs('#purchaseHistoryList');
-  if (!list) return;
-  list.innerHTML = '';
-  
-  purchases.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
-      <td>${escapeHtml(p.supplier || '')}</td>
-      <!-- UPDATED: Added supplier contact in table -->
-      <td>${escapeHtml(p.supplierContact || 'N/A')}</td>
-      <td>${p.items ? p.items.length : 0} items</td>
-      <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
-      <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
-      </td>
+    const row = document.createElement('div');
+    row.className = 'row g-3 mb-3 sales-product-row';
+    row.id = `salesRow_${newIndex}`;
+    row.innerHTML = `
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="salesProductName_${newIndex}" placeholder="Product Name">
+        </div>
+        <div class="col-md-3">
+            <input type="text" class="form-control" id="salesProductDescription_${newIndex}" placeholder="Description (Optional)">
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control sales-calc" id="salesQuantity_${newIndex}" placeholder="Qty" value="1" min="1" oninput="calculateSalesTotal()">
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control sales-calc" id="salesUnitPrice_${newIndex}" placeholder="Unit Price" value="0.00" min="0" step="0.01" oninput="calculateSalesTotal()">
+        </div>
+        <div class="col-md-1 d-flex align-items-center">
+            <span class="product-subtotal" id="salesSubtotal_${newIndex}">$0.00</span>
+        </div>
+        <div class="col-md-1 d-flex align-items-center">
+            <button class="btn btn-sm btn-danger" onclick="removeSalesProductRow(${newIndex})"><i class="fas fa-trash"></i></button>
+        </div>
     `;
-    list.appendChild(tr);
-  });
-}
+    listEl.appendChild(row);
+    calculateSalesTotal();
+};
 
-function openPurchaseHistoryModal() {
-  const modal = qs('#purchaseHistoryModal');
-  if (modal) {
-    modal.style.display = 'block';
-    fetchPurchases();
-  }
-}
-
-function closePurchaseHistoryModal() {
-  const modal = qs('#purchaseHistoryModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
-
-function openNewPurchaseModal() {
-  const modal = qs('#newPurchaseModal');
-  if (modal) {
-    resetPurchaseForm();
-    const purchaseItems = qs('#purchaseItems');
-    if (purchaseItems) purchaseItems.innerHTML = '';
-    loadProductSearch();
-    modal.style.display = 'block';
-    updateTotalAmount();
-  } else {
-    console.error('New purchase modal not found');
-    alert('Purchase modal not found. Please check if the HTML is loaded correctly.');
-  }
-}
-
-function closeNewPurchaseModal() {
-  const modal = qs('#newPurchaseModal');
-  if (modal) {
-    modal.style.display = 'none';
-    resetPurchaseForm();
-  }
-}
-
-function resetPurchaseForm() {
-  if (qs('#supplierName')) qs('#supplierName').value = '';
-  if (qs('#supplierContact')) qs('#supplierContact').value = '';
-  if (qs('#purchaseDate')) qs('#purchaseDate').value = new Date().toISOString().split('T')[0];
-  if (qs('#purchaseNotes')) qs('#purchaseNotes').value = '';
-  if (qs('#productSearch')) qs('#productSearch').value = '';
-  if (qs('#productResults')) qs('#productResults').innerHTML = '';
-  if (qs('#purchaseItems')) qs('#purchaseItems').innerHTML = '';
-  
-  if (qs('#totalPurchaseAmount')) {
-    qs('#totalPurchaseAmount').textContent = '0.00';
-  }
-}
-
-function addProductItem(product = null) {
-  const container = qs('#purchaseItems');
-  if (!container) {
-    console.error('Purchase items container not found');
-    return;
-  }
-  
-  const itemId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-  
-  const itemRow = document.createElement('div');
-  itemRow.className = 'purchase-item-row';
-  itemRow.id = itemId;
-  
-  itemRow.innerHTML = `
-    <div class="form-group">
-      <label>SKU</label>
-      <input type="text" class="product-sku" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
-    </div>
-    <div class="form-group">
-      <label>Product Name</label>
-      <input type="text" class="product-name" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
-    </div>
-    <div class="form-group">
-      <label>Quantity</label>
-      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? '1' : '1'}">
-    </div>
-    <div class="form-group">
-      <label>Unit Price (RM)</label>
-      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitCost || '0.00') : '0.00'}">
-    </div>
-    <div class="form-group">
-      <label>Total (RM)</label>
-      <input type="text" class="product-total" placeholder="Total" readonly value="0.00">
-    </div>
-    <button class="danger-btn remove-item-btn" type="button" title="Remove Item">🗑️</button>
-  `;
-  
-  container.appendChild(itemRow);
-  
-  const quantityInput = itemRow.querySelector('.product-quantity');
-  const priceInput = itemRow.querySelector('.product-price');
-  const totalInput = itemRow.querySelector('.product-total');
-  
-  const calculateTotal = () => {
-    const qty = Number(quantityInput.value) || 0;
-    const price = Number(priceInput.value) || 0;
-    if (totalInput) {
-      totalInput.value = (qty * price).toFixed(2);
+window.removeSalesProductRow = (index) => {
+    const row = qs(`#salesRow_${index}`);
+    if (row) {
+        row.remove();
+        calculateSalesTotal();
     }
-    updateTotalAmount();
-  };
-  
-  if (quantityInput) quantityInput.addEventListener('input', calculateTotal);
-  if (priceInput) priceInput.addEventListener('input', calculateTotal);
-  
-  const removeBtn = itemRow.querySelector('.remove-item-btn');
-  if (removeBtn) {
-    removeBtn.addEventListener('click', () => {
-      itemRow.remove();
-      updateTotalAmount();
-    });
-  }
-  
-  calculateTotal();
-}
+};
 
-function updateTotalAmount() {
-  let newTotal = 0;
-  
-  const newItemRows = qsa('#purchaseItems .purchase-item-row');
-  newItemRows.forEach(row => {
-    const totalInput = row.querySelector('.product-total');
-    if (totalInput) {
-      const itemTotal = Number(totalInput.value) || 0;
-      newTotal += itemTotal;
-    }
-  });
-  
-  if (qs('#totalPurchaseAmount')) {
-    qs('#totalPurchaseAmount').textContent = newTotal.toFixed(2);
-  }
-}
-
-function loadProductSearch() {
-  const searchInput = qs('#productSearch');
-  const resultsContainer = qs('#productResults');
-  
-  if (searchInput && resultsContainer) {
-    searchInput.addEventListener('input', function() {
-      const query = this.value.toLowerCase().trim();
-      resultsContainer.innerHTML = '';
-      
-      if (query.length < 2) return;
-      
-      const filtered = inventory.filter(item => 
-        (item.sku && item.sku.toLowerCase().includes(query)) ||
-        (item.name && item.name.toLowerCase().includes(query))
-      );
-      
-      if (filtered.length === 0) {
-        resultsContainer.innerHTML = '<div class="product-result-item">No products found</div>';
-        return;
-      }
-      
-      filtered.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'product-result-item';
-        div.innerHTML = `
-          <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
-          <div class="name">${escapeHtml(item.name || 'N/A')}</div>
-          <div class="stock">Stock: ${item.quantity || 0} | Cost: RM ${(item.unitCost || 0).toFixed(2)}</div>
-        `;
-        div.addEventListener('click', () => {
-          addProductItem(item);
-          searchInput.value = '';
-          resultsContainer.innerHTML = '';
-        });
-        resultsContainer.appendChild(div);
-      });
-    });
-  }
-}
-
-async function savePurchaseOrder() {
-  // Validate required fields
-  const supplierName = qs('#supplierName')?.value?.trim();
-  const supplierContact = qs('#supplierContact')?.value?.trim();
-  
-  if (!supplierName || !supplierContact) {
-    alert('⚠️ Please enter supplier name and contact information.');
-    return;
-  }
-  
-  const purchaseDate = qs('#purchaseDate').value;
-  const notes = qs('#purchaseNotes').value.trim();
-  
-  const items = [];
-  const itemRows = qsa('.purchase-item-row');
-  
-  if (itemRows.length === 0) {
-    alert('⚠️ Please add at least one product item.');
-    return;
-  }
-  
-  for (const row of itemRows) {
-    const skuInput = row.querySelector('.product-sku');
-    const nameInput = row.querySelector('.product-name');
-    const quantityInput = row.querySelector('.product-quantity');
-    const priceInput = row.querySelector('.product-price');
-    
-    const sku = skuInput ? skuInput.value.trim() : '';
-    const productName = nameInput ? nameInput.value.trim() : '';
-    const quantity = quantityInput ? Number(quantityInput.value) : 0;
-    const purchasePrice = priceInput ? Number(priceInput.value) : 0;
-    
-    if (!sku || !productName || !quantity || !purchasePrice) {
-      alert('⚠️ Please fill in all fields for each product item.');
-      return;
-    }
-    
-    if (quantity <= 0) {
-      alert('⚠️ Please enter a valid quantity greater than 0.');
-      return;
-    }
-    
-    if (purchasePrice <= 0) {
-      alert('⚠️ Please enter a valid purchase price greater than 0.');
-      return;
-    }
-    
-    items.push({
-      sku,
-      productName,
-      quantity,
-      purchasePrice
-    });
-  }
-  
-  const purchaseData = {
-    supplier: supplierName,
-    supplierContact: supplierContact,
-    purchaseDate: purchaseDate || new Date().toISOString().split('T')[0],
-    notes,
-    items
-  };
-  
-  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplierName}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
-  items.forEach((item, index) => {
-    confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
-  });
-  confirmMessage += `\nTotal Amount: RM ${purchaseData.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0).toFixed(2)}`;
-  
-  if (!confirm(confirmMessage)) {
-    return;
-  }
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases`, {
-      method: 'POST',
-      body: JSON.stringify(purchaseData)
-    });
-    
-    if (res.ok) {
-      const savedPurchase = await res.json();
-      alert('✅ Purchase order saved successfully!');
-      
-      // Refresh data
-      await fetchInventory();
-      await fetchPurchases();
-      
-      // Automatically print and save invoice
-      await printAndSavePurchaseInvoice(savedPurchase.id);
-      
-      closeNewPurchaseModal();
-      
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to save purchase order: ${error.message}`);
-    }
-  } catch (e) {
-    console.error('Save purchase order error:', e);
-    alert('❌ Server connection error while saving purchase order.');
-  }
-}
-
-// ===== FIXED: View Purchase Details Function =====
-async function viewPurchaseDetails(purchaseId) {
-  try {
-    console.log(`Fetching purchase details for ID: ${purchaseId}`);
-    
-    const res = await apiFetch(`${API_BASE}/purchases/${purchaseId}`);
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Failed to fetch purchase details');
-    }
-    
-    const purchase = await res.json();
-    console.log('Purchase details loaded:', purchase);
-    
-    // Check if modal exists
-    if (!qs('#purchaseDetailsModal')) {
-      console.error('Purchase details modal not found');
-      alert('Purchase details modal is not available. Please refresh the page.');
-      return;
-    }
-    
-    // Update purchase details - using the correct element IDs from your HTML
-    const detailElements = {
-      'detailPurchaseId': 'detailPurchaseId',
-      'detailSupplier': 'detailSupplier',
-      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier Contact
-      'detailPurchaseDate': 'detailPurchaseDate',
-      'detailTotalAmount': 'detailTotalAmount',
-      'detailNotes': 'detailNotes',
-      'detailNotesRow': 'detailNotesRow'
-    };
-    
-    // Update each element if it exists
-    Object.entries(detailElements).forEach(([key, elementId]) => {
-      const element = qs(`#${elementId}`);
-      if (element) {
-        switch(key) {
-          case 'detailPurchaseId':
-            element.textContent = purchase.purchaseId || 'N/A';
-            break;
-          case 'detailSupplier':
-            element.textContent = purchase.supplier || 'N/A';
-            break;
-          case 'detailSupplierContact': // ADDED: Supplier Contact
-            element.textContent = purchase.supplierContact || 'N/A';
-            break;
-          case 'detailPurchaseDate':
-            element.textContent = purchase.purchaseDate || 'N/A';
-            break;
-          case 'detailTotalAmount':
-            element.textContent = `RM ${(purchase.totalAmount || 0).toFixed(2)}`;
-            break;
-          case 'detailNotes':
-            if (purchase.notes && purchase.notes.trim()) {
-              element.textContent = purchase.notes;
-              const notesRow = qs('#detailNotesRow');
-              if (notesRow) notesRow.style.display = 'flex';
-            } else {
-              const notesRow = qs('#detailNotesRow');
-              if (notesRow) notesRow.style.display = 'none';
-            }
-            break;
+window.calculateSalesTotal = () => {
+    let total = 0;
+    qsa('.sales-product-row').forEach((row, i) => {
+        const index = i + 1; // Assuming indices are sequential
+        const quantity = Number(qs(`#salesQuantity_${index}`).value) || 0;
+        const unitPrice = Number(qs(`#salesUnitPrice_${index}`).value) || 0;
+        const subtotal = quantity * unitPrice;
+        
+        const subtotalEl = qs(`#salesSubtotal_${index}`);
+        if (subtotalEl) {
+            subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
         }
-      } else {
-        console.warn(`Element #${elementId} not found`);
-      }
+        total += subtotal;
     });
-    
-    // Update purchase items list
-    const itemsList = qs('#purchaseDetailsList');
-    if (itemsList) {
-      itemsList.innerHTML = '';
-      
-      if (purchase.items && Array.isArray(purchase.items)) {
-        purchase.items.forEach((item, index) => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${escapeHtml(item.sku || 'N/A')}</td>
-            <td>${escapeHtml(item.productName || 'N/A')}</td>
-            <td>${item.quantity || 0}</td>
-            <td class="money">RM ${(item.purchasePrice || 0).toFixed(2)}</td>
-            <td class="money">RM ${(item.totalAmount || 0).toFixed(2)}</td>
-          `;
-          itemsList.appendChild(tr);
-        });
-      }
-    }
-    
-    // Set print button handler
-    const printBtn = qs('#printDetailsInvoiceBtn');
-    if (printBtn) {
-      printBtn.onclick = () => printAndSavePurchaseInvoice(purchaseId);
-    }
-    
-    // Show the modal
-    const modal = qs('#purchaseDetailsModal');
-    if (modal) {
-      modal.style.display = 'block';
-    } else {
-      console.error('Purchase details modal element not found');
-    }
-    
-  } catch (e) {
-    console.error('View purchase details error:', e);
-    alert(`❌ Failed to load purchase details: ${e.message}`);
-  }
-}
 
-function closePurchaseDetailsModal() {
-  const modal = qs('#purchaseDetailsModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
+    qs('#salesTotalAmount').textContent = `$${total.toFixed(2)}`;
+};
 
-async function deletePurchase(id) {
-  const purchase = purchases.find(p => String(p.id) === String(id));
-  if (!purchase) return;
-  
-  if (!confirm(`Confirm Delete Purchase Order:\n${purchase.purchaseId} from ${purchase.supplier}?\n\nThis will remove ${purchase.items.length} items and revert inventory quantities.`)) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
-    if (res.status === 204) {
-      await fetchPurchases();
-      await fetchInventory();
-      alert('🗑️ Purchase order deleted!');
-    } else {
-      alert('❌ Failed to delete purchase order.');
+window.saveSalesOrder = async () => {
+    const customerName = qs('#salesCustomerName').value.trim();
+    const salesDate = qs('#salesDate').value;
+    const messageEl = qs('#salesMessage');
+    const productRows = qsa('.sales-product-row');
+
+    if (!customerName || !salesDate || productRows.length === 0) {
+        showMsg(messageEl, 'Please fill in customer name, date, and at least one product.', 'red');
+        return;
     }
-  } catch (e) {
-    console.error(e);
-    alert('❌ Server connection error while deleting purchase order.');
-  }
-}
 
-async function printAndSavePurchaseInvoice(purchaseId) {
-  try {
-    // Print the invoice
-    const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
-    if (!res.ok) throw new Error('Failed to generate invoice');
-    
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    
-    const purchase = purchases.find(p => String(p.id) === String(purchaseId));
-    const filename = purchase ? `Invoice_${purchase.purchaseId}.pdf` : `Invoice_${purchaseId}.pdf`;
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    
-    // Save to statements/documents
-    const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
-      method: 'POST'
+    const products = [];
+    let isValid = true;
+    productRows.forEach((row, i) => {
+        const index = i + 1;
+        const productName = qs(`#salesProductName_${index}`).value.trim();
+        const quantity = Number(qs(`#salesQuantity_${index}`).value) || 0;
+        const unitPrice = Number(qs(`#salesUnitPrice_${index}`).value) || 0;
+
+        if (!productName || quantity <= 0 || unitPrice < 0) {
+            isValid = false;
+        }
+
+        const productDetails = {
+            productName: productName,
+            productDescription: qs(`#salesProductDescription_${index}`).value.trim(),
+            quantity: quantity,
+            unitPrice: unitPrice, // **FIXED SYNTAX ERROR HERE** (for unitPrice in sales)
+            totalPrice: quantity * unitPrice
+        };
+        products.push(productDetails);
     });
-    
-    if (saveRes.ok) {
-      console.log('✅ Purchase invoice saved to documents');
-    }
-    
-  } catch (e) {
-    console.error('Print and save invoice error:', e);
-    alert('❌ Failed to generate invoice.');
-  }
-}
 
-// =========================================
-// Enhanced Report Generation with Date Range
-// =========================================
-function openReportModal() {
-  const modal = qs('#reportModal');
-  if (modal) {
-    modal.style.display = 'block';
+    if (!isValid) {
+        showMsg(messageEl, 'Please ensure all product fields have valid data (Name, Qty > 0, Price >= 0).', 'red');
+        return;
+    }
+
+    const salesOrder = {
+        customerName,
+        salesDate,
+        products
+    };
+
+    const data = await fetchData('/sales', {
+        method: 'POST',
+        body: JSON.stringify(salesOrder)
+    });
+
+    if (data && data.sale) {
+        showMsg(messageEl, `Sales Order ${data.sale.salesId} saved and inventory updated!`, 'green');
+        closeNewSalesModal();
+        fetchSales();
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value); // Refresh inventory
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to save sales order. (Check inventory stock)';
+        showMsg(messageEl, msg, 'red');
+    }
+};
+
+window.printAndSaveSalesInvoice = (salesId) => {
+    // Simple print function, modern systems would generate a PDF on the server.
+    const sale = sales.find(s => s.salesId === salesId);
+    if (!sale) {
+        alert('Sales order not found.');
+        return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<html><head><title>Sales Invoice - ${sale.salesId}</title>`);
+    printWindow.document.write('<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">');
+    printWindow.document.write('</head><body>');
+    
+    printWindow.document.write('<div class="container mt-5">');
+    printWindow.document.write(`<h1>Sales Invoice #${sale.salesId}</h1>`);
+    printWindow.document.write(`<p><strong>Customer:</strong> ${escapeHtml(sale.customerName)}</p>`);
+    printWindow.document.write(`<p><strong>Date:</strong> ${new Date(sale.salesDate).toLocaleDateString()}</p>`);
+    
+    let totalRevenue = 0;
+    printWindow.document.write('<table class="table table-bordered">');
+    printWindow.document.write('<thead><tr><th>Product Name</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>');
+    printWindow.document.write('<tbody>');
+    sale.products.forEach(p => {
+        const subtotal = p.quantity * p.unitPrice;
+        totalRevenue += subtotal;
+        printWindow.document.write(`
+            <tr>
+                <td>${escapeHtml(p.productName)}</td>
+                <td>${escapeHtml(p.productDescription)}</td>
+                <td>${p.quantity}</td>
+                <td>$${p.unitPrice.toFixed(2)}</td>
+                <td>$${subtotal.toFixed(2)}</td>
+            </tr>
+        `);
+    });
+    printWindow.document.write('</tbody>');
+    printWindow.document.write(`<tfoot><tr><td colspan="4" class="text-right"><strong>Total Revenue:</strong></td><td><strong>$${totalRevenue.toFixed(2)}</strong></td></tr></tfoot>`);
+    printWindow.document.write('</table>');
+    
+    printWindow.document.write('</div>');
+    printWindow.document.write('<script>window.onload = function() { window.print(); };</script>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+};
+
+window.deleteSales = async (salesId) => {
+    if (!confirm(`Are you sure you want to delete Sales Order ${salesId}? This will reverse the inventory changes.`)) return;
+
+    const data = await fetchData(`/sales/${salesId}`, {
+        method: 'DELETE'
+    });
+
+    if (data && data.success) {
+        showMsg(qs('#messageArea'), `Sales Order ${salesId} deleted and inventory reversed successfully!`, 'green');
+        fetchSales();
+        fetchInventory(currentPageNumber, itemsPerPage, qs('#inventorySearch').value); // Refresh inventory
+        fetchActivityLog();
+    } else {
+        const msg = data && data.message ? data.message : 'Failed to delete sales order.';
+        showMsg(qs('#messageArea'), msg, 'red');
+    }
+};
+
+window.viewSalesDetails = (salesId) => {
+    const sale = sales.find(s => s.salesId === salesId);
+    if (!sale) return;
+
+    qs('#salesDetailsId').textContent = sale.salesId;
+    qs('#salesDetailsCustomer').textContent = escapeHtml(sale.customerName);
+    qs('#salesDetailsDate').textContent = new Date(sale.salesDate).toLocaleDateString();
+
+    const detailBody = qs('#salesDetailsTableBody');
+    detailBody.innerHTML = '';
+    let grandTotal = 0;
+    let netProfit = 0;
+
+    sale.products.forEach(p => {
+        const revenue = p.quantity * p.unitPrice;
+        const cost = p.quantity * p.unitCost;
+        const profit = revenue - cost;
+        grandTotal += revenue;
+        netProfit += profit;
+        const row = detailBody.insertRow();
+        row.innerHTML = `
+            <td>${escapeHtml(p.productName)}</td>
+            <td>${escapeHtml(p.productDescription)}</td>
+            <td>${p.quantity}</td>
+            <td>$${p.unitPrice.toFixed(2)}</td>
+            <td>$${revenue.toFixed(2)}</td>
+            <td>$${profit.toFixed(2)}</td>
+        `;
+    });
+
+    qs('#salesDetailsGrandTotal').textContent = `$${grandTotal.toFixed(2)}`;
+    qs('#salesDetailsNetProfit').textContent = `$${netProfit.toFixed(2)}`;
+
+
+    const modal = new bootstrap.Modal(qs('#salesDetailsModal'));
+    modal.show();
+};
+
+window.closeSalesDetailsModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#salesDetailsModal'));
+    if (modal) modal.hide();
+};
+
+
+// --- Reporting ---
+
+window.openReportModal = () => {
+    qs('#reportType').value = 'sales_summary';
+    selectReportType();
+    const modal = new bootstrap.Modal(qs('#reportModal'));
+    modal.show();
+};
+
+window.selectReportType = () => {
+    const type = qs('#reportType').value;
+    const dateRangeDiv = qs('#reportDateRange');
+    const specificFieldDiv = qs('#reportSpecificField');
+
+    // Reset visibility
+    dateRangeDiv.classList.add('d-none');
+    specificFieldDiv.classList.add('d-none');
     qs('#reportStartDate').value = '';
     qs('#reportEndDate').value = '';
-    
-    qsa('.report-option').forEach(opt => opt.classList.remove('selected'));
-    selectReportType('inventory');
-  }
-}
+    qs('#reportSpecificFieldInput').value = '';
 
-function closeReportModal() {
-  const modal = qs('#reportModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
+    // Set fields based on type
+    if (type.includes('_summary') || type === 'profit_loss') {
+        dateRangeDiv.classList.remove('d-none');
+    } else if (type === 'inventory_stock') {
+        // No extra fields needed
+    } else if (type === 'top_products') {
+        dateRangeDiv.classList.remove('d-none');
+        specificFieldDiv.classList.remove('d-none');
+        qs('#reportSpecificFieldLabel').textContent = 'Limit (e.g., 10):';
+    }
+};
 
-function selectReportType(type) {
-  qsa('.report-option').forEach(opt => opt.classList.remove('selected'));
-  qs(`#report-${type}`).classList.add('selected');
-  qs('#selectedReportType').value = type;
-}
+window.generateSelectedReport = async () => {
+    const type = qs('#reportType').value;
+    const startDate = qs('#reportStartDate').value;
+    const endDate = qs('#reportEndDate').value;
+    const specificField = qs('#reportSpecificFieldInput').value;
+    const messageEl = qs('#reportMessageArea');
+    const resultEl = qs('#reportResults');
 
-async function generateSelectedReport() {
-  const reportType = qs('#selectedReportType').value;
-  const startDate = qs('#reportStartDate').value;
-  const endDate = qs('#reportEndDate').value;
-  
-  if (!reportType) {
-    alert('⚠️ Please select a report type.');
-    return;
-  }
-  
-  if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-    alert('❌ Start date cannot be after end date.');
-    return;
-  }
-  
-  closeReportModal();
-  
-  switch (reportType) {
-    case 'inventory':
-      await generateInventoryReport(startDate, endDate);
-      break;
-  }
-}
+    let endpoint = `/reports/${type}?`;
+    
+    if (startDate) endpoint += `startDate=${startDate}&`;
+    if (endDate) endpoint += `endDate=${endDate}&`;
+    if (specificField) endpoint += `limit=${specificField}&`; // Only used for top_products
 
-async function generateInventoryReport(startDate, endDate) {
-  if (!confirm('Generate Inventory Report?')) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/inventory/report/pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ startDate, endDate })
-    });
-    
-    if (!res.ok) throw new Error('Failed to generate report');
-    
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    
-    let filename = 'Inventory_Report';
-    if (startDate || endDate) {
-      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
-      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
-      filename += `_${start}_to_${end}`;
+    showMsg(messageEl, 'Generating report...', 'blue');
+    resultEl.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+    const data = await fetchData(endpoint, { method: 'GET' });
+
+    if (data && data.report) {
+        showMsg(messageEl, 'Report generated successfully.', 'green');
+        renderReportResults(type, data.report);
     } else {
-      filename += '_Full_List';
+        const msg = data && data.message ? data.message : 'Failed to generate report.';
+        showMsg(messageEl, msg, 'red');
+        resultEl.innerHTML = '';
     }
-    filename += `_${Date.now()}.pdf`;
-    
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    a.remove();
-    
-    alert('✅ Inventory Report Generated Successfully!');
-    
-  } catch (e) {
-    console.error('Inventory report error:', e);
-    alert('❌ Failed to generate inventory report.');
-  }
-}
+};
 
-// =========================================
-// Folder Management for Documents
-// =========================================
-async function fetchFolders() {
-  try {
-    const res = await apiFetch(`${API_BASE}/folders`);
-    if (res.ok) {
-      folders = await res.json();
-      renderFolders();
-    }
-  } catch (err) {
-    console.error('Fetch folders error:', err);
-  }
-}
+const renderReportResults = (type, reportData) => {
+    const resultEl = qs('#reportResults');
+    resultEl.innerHTML = '';
+    let html = `<h4>${formatReportTitle(type)} Report</h4>`;
 
-function renderFolders() {
-  const folderList = qs('#folderList');
-  if (!folderList) return;
-  
-  folderList.innerHTML = '';
-  
-  const currentFolders = folders.filter(folder => 
-    (currentFolder === 'root' && !folder.parentFolder) ||
-    (currentFolder !== 'root' && folder.parentFolder === currentFolder)
-  );
-  
-  currentFolders.forEach(folder => {
-    const folderItem = document.createElement('div');
-    folderItem.className = 'folder-item';
-    folderItem.innerHTML = `
-      <div class="folder-icon">📁</div>
-      <div class="folder-name">${escapeHtml(folder.name)}</div>
-      <div class="folder-info">Created by: ${escapeHtml(folder.createdBy || 'System')}</div>
-      <div class="folder-actions">
-        <button class="secondary-btn small-btn" onclick="renameFolder('${folder.id}')">✏️</button>
-        <button class="danger-btn small-btn" onclick="deleteFolder('${folder.id}')">🗑️</button>
-      </div>
-    `;
-    folderItem.addEventListener('click', (e) => {
-      if (!e.target.closest('.folder-actions')) {
-        navigateToFolder(folder.id);
-      }
-    });
-    folderList.appendChild(folderItem);
-  });
-}
-
-function navigateToFolder(folderId) {
-  currentFolder = folderId;
-  updateBreadcrumb();
-  fetchDocuments();
-  renderFolders();
-}
-
-function updateBreadcrumb() {
-  const breadcrumb = qs('#folderBreadcrumb');
-  if (!breadcrumb) return;
-  
-  breadcrumb.innerHTML = '';
-  
-  const rootItem = document.createElement('div');
-  rootItem.className = `breadcrumb-item ${currentFolder === 'root' ? 'active' : ''}`;
-  rootItem.textContent = 'Root';
-  rootItem.addEventListener('click', () => navigateToFolder('root'));
-  breadcrumb.appendChild(rootItem);
-  
-  if (currentFolder !== 'root') {
-    const folder = folders.find(f => f.id === currentFolder);
-    if (folder) {
-      const pathItem = document.createElement('div');
-      pathItem.className = 'breadcrumb-item active';
-      pathItem.textContent = folder.name;
-      breadcrumb.appendChild(pathItem);
-    }
-  }
-}
-
-async function createFolder() {
-  const folderName = prompt('Enter folder name:');
-  if (!folderName) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/folders`, {
-      method: 'POST',
-      body: JSON.stringify({ 
-        name: folderName,
-        parentFolder: currentFolder === 'root' ? null : currentFolder
-      })
-    });
-    
-    if (res.ok) {
-      await fetchFolders();
-      alert('✅ Folder created successfully!');
+    if (type === 'inventory_stock') {
+        html += '<table class="table table-striped"><thead><tr><th>Product Name</th><th>Qty in Stock</th><th>Unit Cost</th><th>Total Value</th></tr></thead><tbody>';
+        reportData.forEach(p => {
+            html += `<tr><td>${escapeHtml(p.productName)}</td><td>${p.quantity}</td><td>$${p.unitCost.toFixed(2)}</td><td>$${(p.quantity * p.unitCost).toFixed(2)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    } else if (type.includes('_summary')) {
+        html += `<p>Total Orders: ${reportData.totalOrders}</p>`;
+        html += `<p>Total Amount: $${reportData.totalAmount.toFixed(2)}</p>`;
+        html += `<p>Total Items Sold/Purchased: ${reportData.totalItems}</p>`;
+    } else if (type === 'profit_loss') {
+        html += `<p>Total Revenue: $${reportData.totalRevenue.toFixed(2)}</p>`;
+        html += `<p>Total Cost of Goods Sold (COGS): $${reportData.totalCost.toFixed(2)}</p>`;
+        html += `<p><strong>Net Profit: $${reportData.netProfit.toFixed(2)}</strong></p>`;
+    } else if (type === 'top_products') {
+        html += '<table class="table table-striped"><thead><tr><th>Rank</th><th>Product Name</th><th>Total Quantity Sold</th><th>Total Revenue</th></tr></thead><tbody>';
+        reportData.forEach((p, index) => {
+            html += `<tr><td>${index + 1}</td><td>${escapeHtml(p.productName)}</td><td>${p.totalQuantity}</td><td>$${p.totalRevenue.toFixed(2)}</td></tr>`;
+        });
+        html += '</tbody></table>';
     } else {
-      const error = await res.json();
-      alert(`❌ Failed to create folder: ${error.message}`);
+        html += '<pre>' + JSON.stringify(reportData, null, 2) + '</pre>';
     }
-  } catch (err) {
-    console.error('Create folder error:', err);
-    alert('❌ Server error while creating folder.');
-  }
-}
 
-async function renameFolder(folderId) {
-  const folder = folders.find(f => f.id === folderId);
-  if (!folder) return;
-  
-  const newName = prompt('Enter new folder name:', folder.name);
-  if (!newName) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/folders/${folderId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ name: newName })
+    resultEl.innerHTML = html;
+};
+
+const formatReportTitle = (type) => {
+    return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+};
+
+
+// --- Statements/Invoice Preview ---
+
+// Placeholder/Example functions for statements/invoices
+window.openStatementsModal = () => {
+    const modal = new bootstrap.Modal(qs('#statementsModal'));
+    modal.show();
+    // Assuming initial tab is set to purchase history
+    switchTab('purchase-statement');
+};
+
+window.switchTab = (tabName) => {
+    // Logic to switch the active tab content
+    qsa('.statement-tab-content').forEach(el => el.classList.add('d-none'));
+    qsa('.statement-tab-link').forEach(el => el.classList.remove('active'));
+
+    qs(`#${tabName}`).classList.remove('d-none');
+    qs(`#link-${tabName}`).classList.add('active');
+
+    if (tabName === 'purchase-statement') {
+        renderPurchaseHistoryForStatements();
+    } else if (tabName === 'sales-statement') {
+        renderSalesHistoryForStatements();
+    }
+};
+
+// Re-render functions for the statement modal (simpler tables)
+const renderPurchaseHistoryForStatements = () => {
+     const tableBody = qs('#statementPurchaseTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    purchases.forEach(purchase => {
+        const total = purchase.products.reduce((sum, p) => sum + (p.quantity * p.unitCost), 0);
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td>${purchase.purchaseId}</td>
+            <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+            <td>${escapeHtml(purchase.supplierName)}</td>
+            <td>$${total.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="previewDocument('purchase', '${purchase.purchaseId}')">Preview Invoice</button>
+            </td>
+        `;
     });
+};
+
+const renderSalesHistoryForStatements = () => {
+    const tableBody = qs('#statementSalesTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    sales.forEach(sale => {
+        const total = sale.products.reduce((sum, p) => sum + (p.quantity * p.unitPrice), 0);
+        const row = tableBody.insertRow();
+        row.innerHTML = `
+            <td>${sale.salesId}</td>
+            <td>${new Date(sale.salesDate).toLocaleDateString()}</td>
+            <td>${escapeHtml(sale.customerName)}</td>
+            <td>$${total.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="previewDocument('sales', '${sale.salesId}')">Preview Invoice</button>
+            </td>
+        `;
+    });
+};
+
+window.previewDocument = (type, id) => {
+    let documentData = null;
+    let title = '';
+
+    if (type === 'purchase') {
+        documentData = purchases.find(p => p.purchaseId === id);
+        title = `Purchase Invoice #${id}`;
+    } else if (type === 'sales') {
+        documentData = sales.find(s => s.salesId === id);
+        title = `Sales Invoice #${id}`;
+    }
+
+    if (!documentData) {
+        alert('Document not found.');
+        return;
+    }
+
+    qs('#previewModalLabel').textContent = title;
+    const previewBody = qs('#previewDocumentBody');
+    previewBody.innerHTML = '';
     
-    if (res.ok) {
-      await fetchFolders();
-      alert('✅ Folder renamed successfully!');
+    // Simple HTML structure for preview
+    let html = `<div class="p-3">`;
+    html += `<h4>${title}</h4>`;
+    
+    if (type === 'purchase') {
+        html += `<p><strong>Supplier:</strong> ${escapeHtml(documentData.supplierName)}</p>`;
+        html += `<p><strong>Date:</strong> ${new Date(documentData.purchaseDate).toLocaleDateString()}</p>`;
+        
+        let totalAmount = 0;
+        html += '<table class="table table-sm table-bordered mt-3"><thead><tr><th>Product</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead><tbody>';
+        documentData.products.forEach(p => {
+            const subtotal = p.quantity * p.unitCost;
+            totalAmount += subtotal;
+            html += `<tr><td>${escapeHtml(p.productName)}</td><td>${p.quantity}</td><td>$${p.unitCost.toFixed(2)}</td><td>$${subtotal.toFixed(2)}</td></tr>`;
+        });
+        html += `</tbody><tfoot><tr><td colspan="3" class="text-right"><strong>Total:</strong></td><td><strong>$${totalAmount.toFixed(2)}</strong></td></tr></tfoot></table>`;
+        
+    } else if (type === 'sales') {
+        html += `<p><strong>Customer:</strong> ${escapeHtml(documentData.customerName)}</p>`;
+        html += `<p><strong>Date:</strong> ${new Date(documentData.salesDate).toLocaleDateString()}</p>`;
+        
+        let totalRevenue = 0;
+        html += '<table class="table table-sm table-bordered mt-3"><thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>';
+        documentData.products.forEach(p => {
+            const subtotal = p.quantity * p.unitPrice;
+            totalRevenue += subtotal;
+            html += `<tr><td>${escapeHtml(p.productName)}</td><td>${p.quantity}</td><td>$${p.unitPrice.toFixed(2)}</td><td>$${subtotal.toFixed(2)}</td></tr>`;
+        });
+        html += `</tbody><tfoot><tr><td colspan="3" class="text-right"><strong>Total:</strong></td><td><strong>$${totalRevenue.toFixed(2)}</strong></td></tr></tfoot></table>`;
+    }
+    
+    html += `</div>`;
+    previewBody.innerHTML = html;
+
+    const modal = new bootstrap.Modal(qs('#previewModal'));
+    modal.show();
+};
+
+window.closePreviewModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#previewModal'));
+    if (modal) modal.hide();
+};
+
+
+// --- Company Information ---
+
+const fetchCompanyInfo = async () => {
+    if (!isAuthenticated) return;
+    const data = await fetchData('/company/info');
+    if (data && data.companyInfo) {
+        companyInfo = data.companyInfo;
+        renderCompanyInfo();
+    }
+};
+
+const renderCompanyInfo = () => {
+    const nameEl = qs('#companyNameDisplay');
+    const addressEl = qs('#companyAddressDisplay');
+    const phoneEl = qs('#companyPhoneDisplay');
+    const emailEl = qs('#companyEmailDisplay');
+
+    if (nameEl) nameEl.textContent = escapeHtml(companyInfo.companyName || 'N/A');
+    if (addressEl) addressEl.textContent = escapeHtml(companyInfo.address || 'N/A');
+    if (phoneEl) phoneEl.textContent = escapeHtml(companyInfo.phone || 'N/A');
+    if (emailEl) emailEl.textContent = escapeHtml(companyInfo.email || 'N/A');
+};
+
+window.openCompanyInfoModal = () => {
+    qs('#infoCompanyName').value = companyInfo.companyName || '';
+    qs('#infoAddress').value = companyInfo.address || '';
+    qs('#infoPhone').value = companyInfo.phone || '';
+    qs('#infoEmail').value = companyInfo.email || '';
+    qs('#companyInfoMessage').textContent = '';
+
+    const modal = new bootstrap.Modal(qs('#companyInfoModal'));
+    modal.show();
+};
+
+window.closeCompanyInfoModal = () => {
+    const modal = bootstrap.Modal.getInstance(qs('#companyInfoModal'));
+    if (modal) modal.hide();
+};
+
+window.updateCompanyInfo = async () => {
+    const companyName = qs('#infoCompanyName').value.trim();
+    const address = qs('#infoAddress').value.trim();
+    const phone = qs('#infoPhone').value.trim();
+    const email = qs('#infoEmail').value.trim();
+    const messageEl = qs('#companyInfoMessage');
+
+    if (!companyName) {
+        showMsg(messageEl, 'Company Name is required.', 'red');
+        return;
+    }
+
+    const updatedInfo = { companyName, address, phone, email };
+
+    const data = await fetchData('/company/info', {
+        method: 'PUT',
+        body: JSON.stringify(updatedInfo)
+    });
+
+    if (data && data.companyInfo) {
+        showMsg(messageEl, 'Company information updated successfully!', 'green');
+        companyInfo = data.companyInfo;
+        renderCompanyInfo();
+        closeCompanyInfoModal();
+        fetchActivityLog();
     } else {
-      const error = await res.json();
-      alert(`❌ Failed to rename folder: ${error.message}`);
+        const msg = data && data.message ? data.message : 'Failed to update company information.';
+        showMsg(messageEl, msg, 'red');
     }
-  } catch (err) {
-    console.error('Rename folder error:', err);
-    alert('❌ Server error while renaming folder.');
-  }
-}
+};
 
-async function deleteFolder(folderId) {
-  const folder = folders.find(f => f.id === folderId);
-  if (!folder) return;
-  
-  if (!confirm(`Are you sure you want to delete folder "${folder.name}"?`)) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/folders/${folderId}`, {
-      method: 'DELETE'
-    });
+// --- Initialization & Event Listeners ---
+
+window.addEventListener('load', () => {
+    // Check login status is already called on script load
     
-    if (res.status === 204) {
-      await fetchFolders();
-      if (currentFolder === folderId) {
-        navigateToFolder('root');
-      }
-      alert('✅ Folder deleted successfully!');
-    } else {
-      const error = await res.json();
-      alert(`❌ Failed to delete folder: ${error.message}`);
-    }
-  } catch (err) {
-    console.error('Delete folder error:', err);
-    alert('❌ Server error while deleting folder.');
-  }
-}
-
-// =========================================
-// UPDATED: Document Management with Folders
-// =========================================
-async function fetchDocuments() {
-  try {
-    const url = currentFolder === 'root' 
-      ? `${API_BASE}/documents` 
-      : `${API_BASE}/documents?folder=${currentFolder}`;
-    
-    const res = await apiFetch(url);
-    if (!res.ok) throw new Error('Failed to fetch documents');
-    const data = await res.json();
-    documents = data.map(d => ({ ...d, id: d.id || d._id }));
-    renderDocuments(documents);
-  } catch(err) {
-    console.error(err);
-  }
-}
-
-function renderDocuments(docs) {
-  const list = qs('#docList');
-  if(!list) return;
-  list.innerHTML = '';
-
-  docs.forEach(d => {
-    const id = d.id || d._id;
-    const sizeMB = ((d.sizeBytes || d.size || 0) / (1024*1024)).toFixed(2);
-    
-    const isLikelyValid = d.size > 0 && parseFloat(sizeMB) > 0;
-    const fileType = d.contentType || 'Unknown';
-    
-    let displayType = fileType.split('/').pop();
-    if (displayType === 'vnd.openxmlformats-officedocument.spreadsheetml.sheet') displayType = 'xlsx';
-    if (displayType === 'vnd.openxmlformats-officedocument.wordprocessingml.document') displayType = 'docx';
-    if (displayType === 'vnd.openxmlformats-officedocument.presentationml.presentation') displayType = 'pptx';
-    
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(d.name||'')}</td>
-      <td>${sizeMB} MB</td>
-      <td>${escapeHtml(d.date||'')}</td>
-      <td>${displayType}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn download-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}">
-          ⬇️ Download
-        </button>
-        <button class="danger-btn small-btn delete-btn" data-id="${id}">🗑️ Delete</button>
-        <button class="info-btn small-btn preview-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}" title="Preview">👁️ Preview</button>
-      </td>
-    `;
-    list.appendChild(tr);
-  });
-
-  bindDocumentEvents();
-}
-
-async function uploadDocuments(){
-  const fileInput = qs('#docUpload');
-  const files = fileInput?.files;
-  let msgEl = qs('#uploadMessage');
-  
-  if(!msgEl){ 
-    msgEl = document.createElement('p'); 
-    msgEl.id = 'uploadMessage'; 
-    if(qs('.controls')) qs('.controls').appendChild(msgEl); 
-  }
-
-  if(!files || files.length === 0) { 
-    showMsg(msgEl, '⚠️ Please select a file to upload.', 'red'); 
-    return; 
-  }
-  
-  if (files.length > 1) {
-    showMsg(msgEl, '⚠️ Only single file uploads are supported. Please select only one file.', 'red');
-    fileInput.value = '';
-    return;
-  }
-  
-  const file = files[0];
-  
-  if (file.size === 0) {
-    showMsg(msgEl, '⚠️ The selected file is empty (0 bytes).', 'red');
-    return;
-  }
-
-  if (file.size > 50 * 1024 * 1024) {
-    showMsg(msgEl, '⚠️ File size exceeds 50MB limit.', 'red');
-    return;
-  }
-
-  if(!confirm(`Confirm Upload: Upload file "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)?`)) { 
-    showMsg(msgEl, 'Upload cancelled.', 'orange'); 
-    return; 
-  }
-  
-  showMsg(msgEl, `📤 Uploading file "${file.name}"...`, 'orange');
-
-  try {
-    const fileBuffer = await file.arrayBuffer();
-    
-    if (!fileBuffer || fileBuffer.byteLength === 0) {
-      throw new Error("File reading failed - empty buffer");
+    // Attach search and filter handlers if elements exist on the page
+    if (qs('#inventorySearch')) {
+        qs('#inventorySearch').addEventListener('input', () => {
+            // Debounce or immediate search on input
+            searchInventory();
+        });
     }
 
-    const uint8Array = new Uint8Array(fileBuffer);
+    if (qs('#itemsPerPage')) {
+        qs('#itemsPerPage').addEventListener('change', changeItemsPerPage);
+    }
     
-    const res = await fetch(`${API_BASE}/documents`, { 
-        method: 'POST', 
-        body: uint8Array,
-        headers: {
-            'Content-Type': file.type || 'application/octet-stream', 
-            'X-Username': getUsername(),
-            'X-File-Name': encodeURIComponent(file.name),
-            'X-Folder-Id': currentFolder === 'root' ? '' : currentFolder,
-            'Content-Length': fileBuffer.byteLength.toString()
-        }
+    // Attach sort handlers to table headers
+    qsa('#inventoryTable th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => sortInventory(th.dataset.sort));
     });
 
-    if(res.ok) {
-      const result = await res.json();
-      showMsg(msgEl, `✅ Successfully uploaded: "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)`, 'green');
-      await fetchDocuments();
-      
-    } else {
-      const errorData = await res.json().catch(() => ({ message: 'Unknown server error' }));
-      throw new Error(errorData.message || `Server error: ${res.status}`);
-    }
-  } catch(e) {
-    console.error('❌ Upload error:', e);
-    showMsg(msgEl, `❌ Upload failed: ${e.message}`, 'red');
-    if(fileInput) fileInput.value = '';
-    return;
-  }
-  
-  if(fileInput) fileInput.value = '';
-  setTimeout(() => { 
-    if(msgEl) {
-      msgEl.remove(); 
-    }
-  }, 3000);
-}
-
-function previewDocument(docId, docName) {
-  const previewUrl = `${API_BASE}/documents/preview/${docId}`;
-  const modal = qs('#previewModal');
-  const iframe = qs('#previewIframe');
-  const previewTitle = qs('#previewTitle');
-  
-  if (modal && iframe && previewTitle) {
-    previewTitle.textContent = `Preview: ${docName}`;
-    iframe.src = previewUrl;
-    modal.style.display = 'block';
-  }
-}
-
-function closePreviewModal() {
-  const modal = qs('#previewModal');
-  const iframe = qs('#previewIframe');
-  
-  if (modal && iframe) {
-    modal.style.display = 'none';
-    iframe.src = '';
-  }
-}
-
-function searchDocuments() {
-  const q = (qs('#searchDocs')?.value || '').toLowerCase().trim();
-  const filtered = documents.filter(d => (d.name||'').toLowerCase().includes(q) || (d.date? d.date.toLowerCase() : '').includes(q));
-  renderDocuments(filtered);
-}
-
-function bindDocumentEvents() {
-  qsa('.download-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const id = this.getAttribute('data-id');
-      const name = this.getAttribute('data-name');
-      downloadDocument(id, name);
-    });
-  });
-
-  qsa('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const id = this.getAttribute('data-id');
-      deleteDocumentConfirm(id);
-    });
-  });
-
-  qsa('.preview-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const id = this.getAttribute('data-id');
-      const name = this.getAttribute('data-name');
-      previewDocument(id, name);
-    });
-  });
-}
-
-async function downloadDocument(docId, fileName) {
-  if(!confirm(`Confirm Download: ${fileName}?`)) return;
-  
-  try {
-    console.log(`Starting download: ${fileName} (ID: ${docId})`);
-    
-    const res = await fetch(`${API_BASE}/documents/download/${docId}`);
-    
-    if(!res.ok) {
-      let errorMessage = 'Download failed';
-      try {
-        const errorData = await res.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch (e) {
-        errorMessage = `Server error: ${res.status} ${res.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const contentLength = res.headers.get('Content-Length');
-    const contentType = res.headers.get('Content-Type');
-    
-    console.log(`Download response:`, {
-      status: res.status,
-      contentLength,
-      contentType
-    });
-
-    if (!contentLength || contentLength === '0') {
-      throw new Error('File is empty or not properly stored');
-    }
-
-    const blob = await res.blob();
-    
-    console.log(`Blob created:`, {
-      size: blob.size,
-      type: blob.type
-    });
-
-    if (blob.size === 0) {
-      throw new Error('Downloaded file is empty');
-    }
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    
-    setTimeout(() => {
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    }, 100);
-
-    console.log(`Download completed: ${fileName}`);
-
-  } catch (error) {
-    console.error('Download error:', error);
-    alert(`❌ Download Failed: ${error.message}`);
-    
-    if (fileName.includes('Inventory_Report') && confirm('This report file appears to be corrupted. Would you like to generate a new one?')) {
-      if (fileName.endsWith('.pdf')) {
-        generateInventoryReport();
-      }
-    }
-  }
-}
-
-async function deleteDocumentConfirm(id) {
-  const doc = documents.find(d => String(d.id) === String(id));
-  if(!doc) {
-    alert('Document not found in local list');
-    return;
-  }
-  
-  if(!confirm(`Delete document: ${doc.name}?`)) return;
-  
-  try {
-    console.log(`Deleting document: ${id}`);
-    const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
-    
-    if(res.status === 204 || res.ok) { 
-      await fetchDocuments(); 
-      alert('🗑️ Document deleted successfully!'); 
-    } else {
-      const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
-      alert('❌ Failed to delete document: ' + errorData.message);
-    }
-  } catch(e) { 
-    console.error('Delete error:', e); 
-    alert('❌ Server error while deleting document: ' + e.message); 
-  }
-}
-
-async function cleanupCorruptedDocuments() {
-  if (!confirm('This will remove all documents that are corrupted or have 0 bytes. Continue?')) return;
-  
-  try {
-    const res = await apiFetch(`${API_BASE}/cleanup-documents`, { method: 'DELETE' });
-    const data = await res.json();
-    
-    if (data.success) {
-      alert(`✅ Cleanup completed! Removed ${data.deletedCount} corrupted documents.`);
-      await fetchDocuments();
-    } else {
-      alert('❌ Cleanup failed: ' + data.message);
-    }
-  } catch (e) {
-    console.error('Cleanup error:', e);
-    alert('Cleanup failed: ' + e.message);
-  }
-}
-
-// =========================================
-// Statements Management
-// =========================================
-function openStatementsModal() {
-  const modal = qs('#statementsModal');
-  if (modal) {
-    modal.style.display = 'block';
-    switchTab('inventory-reports');
-  }
-}
-
-function closeStatementsModal() {
-  const modal = qs('#statementsModal');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
-
-function switchTab(tabName) {
-  qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
-  qs(`#tab-${tabName}`).classList.add('active');
-  
-  qsa('.tab-content').forEach(content => content.classList.remove('active'));
-  qs(`#content-${tabName}`).classList.add('active');
-  
-  loadStatements(tabName);
-}
-
-async function loadStatements(type) {
-  try {
-    const res = await apiFetch(`${API_BASE}/statements/${type}`);
-    if (res.ok) {
-      const statements = await res.json();
-      renderStatements(type, statements);
-    }
-  } catch (err) {
-    console.error('Load statements error:', err);
-  }
-}
-
-function renderStatements(type, statements) {
-  const container = qs(`#${type}List`);
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  if (statements.length === 0) {
-    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
-    return;
-  }
-  
-  let totalSize = 0;
-  
-  statements.forEach(doc => {
-    totalSize += doc.size || 0;
-    
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${escapeHtml(doc.name)}</td>
-      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
-      <td>${escapeHtml(doc.date || '')}</td>
-      <td class="actions">
-        <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
-        <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
-        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${doc.id}')">🗑️ Delete</button>
-      </td>
-    `;
-    container.appendChild(tr);
-  });
-  
-  const countElement = qs(`#${type.replace('-', '')}Count`);
-  const sizeElement = qs(`#${type.replace('-', '')}Size`);
-  
-  if (countElement) countElement.textContent = statements.length;
-  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
-}
-
-// =========================================
-// ACTIVITY LOGS AND DASHBOARD FUNCTIONS - UPDATED NAMES
-// =========================================
-async function fetchLogs() {
-  try {
-    const res = await apiFetch(`${API_BASE}/logs`);
-    if(!res.ok) throw new Error('Failed to fetch logs');
-    activityLog = await res.json();
-    renderLogs();
-  } catch(err) { console.error(err); }
-}
-
-function renderLogs() {
-  const list = qs('#logList');
-  if (!list) return;
-
-  list.innerHTML = "";
-
-  activityLog.forEach(log => {
-    const tr = document.createElement("tr");
-
-    const userCell = document.createElement("td");
-    userCell.textContent = log.user || "System";
-
-    const actionCell = document.createElement("td");
-    actionCell.textContent = log.action || "";
-
-    const timeCell = document.createElement("td");
-    const timeStr = log.time || "N/A";
-    timeCell.textContent = timeStr;
-
-    tr.appendChild(userCell);
-    tr.appendChild(actionCell);
-    tr.appendChild(timeCell);
-
-    list.appendChild(tr);
-  });
-
-  renderDashboardData();
-}
-
-function renderDashboardData(){
-  const tbody = qs('#recentActivities');
-  if(tbody) {
-    tbody.innerHTML = '';
-    activityLog.slice().slice(0,5).forEach(l => {
-      const timeStr = l.time || 'N/A';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${escapeHtml(l.user||'Admin')}</td><td>${escapeHtml(l.action)}</td><td>${escapeHtml(timeStr)}</td>`;
-      tbody.appendChild(tr);
-    });
-  }
-
-  if(qs('#dash_totalItems')) {
-    let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed names
-    inventory.forEach(it => {
-      const qty = Number(it.quantity || 0);
-      const itemCost = qty * Number(it.unitCost || 0); // UPDATED: Changed from invVal
-      const itemPrice = qty * Number(it.unitPrice || 0); // UPDATED: Changed from rev
-      
-      totalCost += itemCost;
-      totalPrice += itemPrice;
-      totalStock += qty;
-    });
-    qs('#dash_totalItems').textContent = inventory.length;
-    
-    // UPDATED: Changed variable names for consistency
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`; // UPDATED: Changed from #dash_totalValue
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // UPDATED: Changed from #dash_totalRevenue
-    if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
-    
-    // Update profit using the unified function
-    updateProfitCard();
-  }
-}
-
-// =========================================
-// AUTHENTICATION FUNCTIONS
-// =========================================
-async function login(){
-  const user = qs('#username')?.value?.trim();
-  const pass = qs('#password')?.value?.trim();
-  const msg = qs('#loginMessage');
-  showMsg(msg, '');
-  if(!user || !pass) { showMsg(msg, '⚠️ Please enter username and password.', 'red'); return; }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/login`, { method: 'POST', body: JSON.stringify({ username: user, password: pass }) });
-    const data = await res.json();
-    if(res.ok) {
-      sessionStorage.setItem('isLoggedIn', 'true');
-      sessionStorage.setItem('adminName', user);
-      showMsg(msg, '✅ Login successful! Redirecting...', 'green');
-      setTimeout(()=> window.location.href = 'inventory.html', 700);
-    } else {
-      showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
-    }
-  } catch(e) {
-    showMsg(msg, '❌ Server connection failed.', 'red');
-    console.error(e);
-  }
-}
-
-async function register(){
-  const user = qs('#newUsername')?.value?.trim();
-  const pass = qs('#newPassword')?.value?.trim();
-  const code = qs('#securityCode')?.value?.trim();
-  const msg = qs('#registerMessage');
-  showMsg(msg, '');
-  if(!user || !pass || !code) { showMsg(msg, '⚠️ Please fill in all fields.', 'red'); return; }
-
-  try {
-    const res = await apiFetch(`${API_BASE}/register`, { method: 'POST', body: JSON.stringify({ username: user, password: pass, securityCode: code }) });
-    const data = await res.json();
-    if(res.ok) {
-      showMsg(msg, '✅ Registered successfully! You can now log in.', 'green');
-      setTimeout(()=> toggleForm(), 900);
-    } else {
-      showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
-    }
-  } catch(e) { showMsg(msg, '❌ Server connection failed.', 'red'); console.error(e); }
-}
-
-function toggleForm(){
-  const loginForm = qs('#loginForm');
-  const registerForm = qs('#registerForm');
-  const formTitle = qs('#formTitle');
-  if(!loginForm || !registerForm || !formTitle) return;
-  if(getComputedStyle(loginForm).display === 'none') {
-    loginForm.style.display = 'block';
-    registerForm.style.display = 'none';
-    formTitle.textContent = '🔐 Admin Login';
-  } else {
-    loginForm.style.display = 'none';
-    registerForm.style.display = 'block';
-    formTitle.textContent = '🧾 Register Account';
-  }
-}
-
-// =========================================
-// SETTINGS PAGE FUNCTIONS
-// =========================================
-function bindSettingPage(){
-  const currentUsername = getUsername();
-  if(qs('#currentUser')) qs('#currentUser').textContent = currentUsername;
-
-  qs('#changePasswordBtn')?.addEventListener('click', async ()=> {
-    const newPass = qs('#newPassword')?.value;
-    const confPass = qs('#confirmPassword')?.value;
-    const code = qs('#securityCode')?.value;
-    const msgEl = qs('#passwordMessage');
-    showMsg(msgEl, '');
-    if(!newPass || !confPass || !code) { return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); }
-    if(newPass !== confPass) { return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); }
-    if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
-
-    try {
-      const res = await apiFetch(`${API_BASE}/account/password`, { method: 'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok) {
-        showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
-        qs('#newPassword').value = '';
-        qs('#confirmPassword').value = '';
-        qs('#securityCode').value = '';
-        setTimeout(logout, 1500);
-      } else {
-        showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
-      }
-    } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); }
-  });
-
-  qs('#deleteAccountBtn')?.addEventListener('click', async ()=> {
-    if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${currentUsername}"?`)) return;
-    const code = prompt('Enter Admin Security Code to CONFIRM account deletion:');
-    if(!code) return alert('Deletion cancelled.');
-    try {
-      const res = await apiFetch(`${API_BASE}/account`, { method: 'DELETE', body: JSON.stringify({ username: currentUsername, securityCode: code }) });
-      const data = await res.json();
-      if(res.ok) { alert('🗑️ Account deleted successfully. You will now be logged out.'); logout(); }
-      else alert(`❌ ${data.message || 'Failed to delete account.'}`);
-    } catch(e) { alert('❌ Server connection failed during account deletion.'); }
-  });
-}
-
-// =========================================
-// EDIT PAGE BINDING FUNCTIONS
-// =========================================
-function bindPurchaseEditPage() {
-  console.log('Purchase edit page binding');
-}
-
-function bindSalesEditPage() {
-  console.log('Sales edit page binding');
-}
-
-// =========================================
-// Scroll to Add New Product Form
-// =========================================
-function scrollToAddProductForm() {
-  const addProductSection = qs('#addProductSection');
-  if (addProductSection) {
-    addProductSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    
-    setTimeout(() => {
-      const firstInput = qs('#p_sku');
-      if (firstInput) {
-        firstInput.focus();
-      }
-    }, 500);
-  }
-}
-
-// =========================================
-// ENHANCED UI BINDING - FIXED with Company Info Modal Fix
-// =========================================
-function bindInventoryUI(){
-  qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
-  qs('#reportBtn')?.addEventListener('click', openReportModal);
-  qs('#statementsBtn')?.addEventListener('click', openStatementsModal);
-  qs('#searchInput')?.addEventListener('input', searchInventory);
-  qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
-    if(qs('#searchInput')) { 
-      qs('#searchInput').value=''; 
-      searchInventory(); 
-    } 
-  });
-  
-  qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
-  
-  // Purchase buttons - FIXED: Using direct function calls
-  qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
-  qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
-  
-  // Sales buttons - FIXED: Using direct function calls
-  qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
-  qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
-  
-  // Other modal bindings
-  qs('#addProductItem')?.addEventListener('click', () => addProductItem());
-  qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
-  qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
-  
-  qs('#addSalesProductItem')?.addEventListener('click', () => addSalesProductItem());
-  qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
-  qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
-  
-  qs('#generateReportBtn')?.addEventListener('click', generateSelectedReport);
-  qs('#closeReportModal')?.addEventListener('click', closeReportModal);
-  
-  qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
-  
-  // Close buttons for detail modals - FIXED: Corrected element IDs
-  qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
-  qs('#closeSalesDetailsModal')?.addEventListener('click', closeSalesDetailsModal);
-  
-  // Company info modal binding - FIXED: Now properly binding the close button
-  qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
-  
-  // ===== FIXED: Preview Modal Close Button Binding =====
-  // Bind the preview modal close button
-  const previewCloseBtn = qs('#previewModal .close');
-  if (previewCloseBtn) {
-    previewCloseBtn.addEventListener('click', closePreviewModal);
-  }
-  
-  // Bind all close buttons with class "close" (for backward compatibility)
-  qsa('.close').forEach(closeBtn => {
-    // Skip the preview modal close button since we already bound it above
-    if (closeBtn.closest('#previewModal')) return;
-    
-    closeBtn.addEventListener('click', function() {
-      const modal = this.closest('.modal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-    });
-  });
-  
-  window.addEventListener('click', (e) => {
-    if (e.target === qs('#purchaseHistoryModal')) closePurchaseHistoryModal();
-    if (e.target === qs('#newPurchaseModal')) closeNewPurchaseModal();
-    if (e.target === qs('#salesHistoryModal')) closeSalesHistoryModal();
-    if (e.target === qs('#newSalesModal')) closeNewSalesModal();
-    if (e.target === qs('#reportModal')) closeReportModal();
-    if (e.target === qs('#statementsModal')) closeStatementsModal();
-    if (e.target === qs('#previewModal')) closePreviewModal();
-    if (e.target === qs('#purchaseDetailsModal')) closePurchaseDetailsModal();
-    if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
-    if (e.target === qs('#companyInfoModal')) closeCompanyInfoModal();
-  });
-  
-  bindDateRangeFilterEvents();
-  bindPaginationEvents();
-}
-
-function bindDocumentsUI(){
-  qs('#uploadDocsBtn')?.addEventListener('click', uploadDocuments);
-  qs('#searchDocs')?.addEventListener('input', searchDocuments);
-  qs('#createFolderBtn')?.addEventListener('click', createFolder);
-  qs('#navigateToRoot')?.addEventListener('click', () => navigateToFolder('root'));
-  
-  // ===== FIXED: Bind preview modal close button for documents page =====
-  const previewCloseBtn = qs('#previewModal .close');
-  if (previewCloseBtn) {
-    previewCloseBtn.addEventListener('click', closePreviewModal);
-  }
-  
-  // Also bind window click to close preview modal
-  window.addEventListener('click', (e) => {
-    if (e.target === qs('#previewModal')) {
-      closePreviewModal();
-    }
-  });
-}
-
-// =========================================
-// ENHANCED INITIALIZATION
-// =========================================
-window.addEventListener('load', async () => {
-  initializeTheme();
-  
-  const adminName = getUsername();
-  if(qs('#adminName')) qs('#adminName').textContent = adminName;
-
-  try {
-    // Fetch all data in parallel for better performance
-    await fetchAllData();
-    
-    // Bind UI based on current page
-    if(currentPage.includes('inventory') || currentPage === '' || currentPage === 'index.html') { 
-      bindInventoryUI(); 
-    }
-    if(currentPage.includes('documents')) { 
-      await fetchFolders();
-      await fetchDocuments(); 
-      bindDocumentsUI(); 
-    }
-    if(currentPage.includes('product')) bindProductPage();
-    if(currentPage.includes('setting')) bindSettingPage();
-    if(currentPage.includes('purchase-edit')) bindPurchaseEditPage();
-    if(currentPage.includes('sales-edit')) bindSalesEditPage();
-  } catch(e) { 
-    console.error('Init error', e); 
-    alert('Error loading data. Please refresh the page.');
-  }
+    // Initial fetch of data if authenticated
+    // Note: checkLoginStatus calls fetchInitialData if authenticated and not on login page
 });
 
-// =========================================
-// DOM BINDINGS
-// =========================================
-document.addEventListener('DOMContentLoaded', ()=> {
-  if(currentPage.includes('login.html')) {
-    qs('#loginBtn')?.addEventListener('click', login);
-    qs('#registerBtn')?.addEventListener('click', register);
-    qs('#toggleToRegister')?.addEventListener('click', toggleForm);
-    qs('#toggleToLogin')?.addEventListener('click', toggleForm);
-    if (qs('#contactPhone') && window.CONFIG && CONFIG.CONTACT_PHONE) qs('#contactPhone').textContent = CONFIG.CONTACT_PHONE;
-  }
-});
-
-function showCardTooltip(message) {
-  // Simple alert for now
-}
-
-// =========================================
-// EXPORT FUNCTIONS TO GLOBAL SCOPE - FIXED
-// =========================================
+// Expose functions globally for HTML event handlers
+window.checkLoginStatus = checkLoginStatus;
+window.openLoginModal = openLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.login = login;
 window.logout = logout;
-window.toggleTheme = toggleTheme;
-window.openEditPageForItem = openEditPageForItem;
-window.confirmAndDeleteItem = confirmAndDeleteItem;
+
+window.openNewProductModal = openNewProductModal;
+window.closeNewProductModal = closeNewProductModal;
+window.saveNewProduct = saveNewProduct;
+window.openEditProductModal = openEditProductModal;
+window.closeEditProductModal = closeEditProductModal;
+window.saveEditProduct = saveEditProduct;
+window.deleteProduct = deleteProduct;
+window.searchInventory = searchInventory;
+window.changeItemsPerPage = changeItemsPerPage;
+window.changePage = changePage;
+window.sortInventory = sortInventory;
+window.openActivityLogModal = openActivityLogModal;
+window.closeActivityLogModal = closeActivityLogModal;
+
+window.uploadDocument = uploadDocument;
 window.downloadDocument = downloadDocument;
-window.deleteDocumentConfirm = deleteDocumentConfirm;
-window.cleanupCorruptedDocuments = cleanupCorruptedDocuments;
-window.showCardTooltip = showCardTooltip;
+window.deleteDocument = deleteDocument;
+window.openDocumentsModal = openDocumentsModal;
 
 window.openPurchaseHistoryModal = openPurchaseHistoryModal;
 window.closePurchaseHistoryModal = closePurchaseHistoryModal;
 window.openNewPurchaseModal = openNewPurchaseModal;
 window.closeNewPurchaseModal = closeNewPurchaseModal;
+window.addPurchaseProductRow = addPurchaseProductRow;
+window.removePurchaseProductRow = removePurchaseProductRow;
+window.calculatePurchaseTotal = calculatePurchaseTotal;
 window.savePurchaseOrder = savePurchaseOrder;
 window.printAndSavePurchaseInvoice = printAndSavePurchaseInvoice;
 window.deletePurchase = deletePurchase;
@@ -2758,6 +1718,9 @@ window.openSalesHistoryModal = openSalesHistoryModal;
 window.closeSalesHistoryModal = closeSalesHistoryModal;
 window.openNewSalesModal = openNewSalesModal;
 window.closeNewSalesModal = closeNewSalesModal;
+window.addSalesProductRow = addSalesProductRow;
+window.removeSalesProductRow = removeSalesProductRow;
+window.calculateSalesTotal = calculateSalesTotal;
 window.saveSalesOrder = saveSalesOrder;
 window.printAndSaveSalesInvoice = printAndSaveSalesInvoice;
 window.deleteSales = deleteSales;
@@ -2783,5 +1746,3 @@ window.openCompanyInfoModal = openCompanyInfoModal;
 window.closeCompanyInfoModal = closeCompanyInfoModal;
 
 window.login = login;
-window.register = register;
-window.toggleForm = toggleForm;
