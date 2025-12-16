@@ -708,57 +708,50 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           };
         }
 
-drawTableHeader();
+        drawTableHeader();
+        
+        let subtotalQty = 0;
+        let grandTotalCost = 0; // Changed from totalValue
+        let grandTotalPrice = 0; // Changed from totalRevenue
+        let rowsOnPage = 0;
 
-let subtotalQty = 0;
-let grandTotalCost = 0;
-let grandTotalPrice = 0;
-let rowsOnPage = 0;
+        for (let i = 0; i < items.length; i++) {
+          if (rowsOnPage === 10) {
+            doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+            y = 40;
+            rowsOnPage = 0;
+            drawTableHeader();
+          }
 
-for (let i = 0; i < items.length; i++) {
-  if (rowsOnPage === 10) {
-    doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-    y = 40;
-    rowsOnPage = 0;
-    drawTableHeader();
-  }
+          const calculations = drawTableRow(items[i], i);
+          
+          subtotalQty += calculations.qty;
+          grandTotalCost += calculations.totalCost;
+          grandTotalPrice += calculations.totalPrice;
+          
+          rowsOnPage++;
+        }
 
-  const calculations = drawTableRow(items[i], i);
-  
-  subtotalQty += calculations.qty;
-  grandTotalCost += calculations.totalCost;
-  grandTotalPrice += calculations.totalPrice;
-  
-  rowsOnPage++;
-}
+        const lastPageIndex = doc.bufferedPageRange().count - 1;
+        doc.switchToPage(lastPageIndex);
+        
+        let boxY = y + 20;
+        
+        // FIXED: Check if there's enough space for summary box
+        if (boxY > 450) {
+          doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+          boxY = 40;
+        }
+        
+        // UPDATED: New summary format
+        doc.rect(560, boxY, 230, 72).stroke();
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text(`Total Products: ${items.length}`, 570, boxY + 10);
+        doc.text(`Total Quantity: ${subtotalQty} units`, 570, boxY + 25);
+        doc.text(`Total Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 40); // Changed from "Total Inventory Value"
+        doc.text(`Total Retail Price: RM ${grandTotalPrice.toFixed(2)}`, 570, boxY + 55); // Changed from "Total Potential Revenue"
 
-const lastPageIndex = doc.bufferedPageRange().count - 1;
-doc.switchToPage(lastPageIndex);
-
-let boxY = y + 20;
-
-// FIXED: Check if there's enough space for summary box
-if (boxY > 450) {
-  doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-  boxY = 40;
-}
-
-// UPDATED: Adjusted summary box with SUBTOTAL header
-// Increased box height to accommodate the new header
-doc.rect(560, boxY, 230, 85).stroke();
-
-// SUBTOTAL header
-doc.font("Helvetica-Bold").fontSize(12);
-doc.text("SUBTOTAL:", 570, boxY + 8);
-
-// Summary details
-doc.font("Helvetica").fontSize(10);
-doc.text(`Total Products: ${items.length}`, 570, boxY + 25);
-doc.text(`Total Quantity: ${subtotalQty} units`, 570, boxY + 40);
-doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 55);
-doc.text(`Total Retail Price: RM ${grandTotalPrice.toFixed(2)}`, 570, boxY + 70);
-
-doc.flushPages();
+        doc.flushPages();
 
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
@@ -1235,6 +1228,89 @@ app.get("/api/purchases", async (req, res) => {
   }
 });
 
+// ===== NEW: Enhanced Purchases with Pagination and Search =====
+app.get("/api/purchases/enhanced", async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '',
+      startDate = '', 
+      endDate = '',
+      sortBy = 'purchaseDate',
+      sortOrder = 'desc' 
+    } = req.query;
+    
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    
+    let query = {};
+    
+    // Text search
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { purchaseId: searchRegex },
+        { supplier: searchRegex },
+        { supplierContact: searchRegex },
+        { 'items.productName': searchRegex }
+      ];
+    }
+    
+    // Date range filter
+    if (startDate || endDate) {
+      query.purchaseDate = {};
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        query.purchaseDate.$gte = start;
+      }
+      
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.purchaseDate.$lte = end;
+      }
+    }
+    
+    // Build sort object
+    const sortObj = {};
+    sortObj[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    
+    // Execute query with pagination
+    const total = await Purchase.countDocuments(query);
+    const purchases = await Purchase.find(query)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+    
+    const normalized = purchases.map((p, index) => ({
+      ...p,
+      id: p._id.toString(),
+      purchaseDate: formatDateUTC8(p.purchaseDate),
+      // Add sequential number for display
+      number: skip + index + 1
+    }));
+    
+    res.json({
+      success: true,
+      data: normalized,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        totalItems: total,
+        itemsPerPage: limitNum
+      }
+    });
+    
+  } catch (err) {
+    console.error("enhanced purchases get error", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // ===== FIXED: Purchase Details Endpoint =====
 app.get("/api/purchases/:id", async (req, res) => {
   try {
@@ -1422,6 +1498,89 @@ app.get("/api/sales", async (req, res) => {
   } catch (err) {
     console.error("sales get error", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ===== NEW: Enhanced Sales with Pagination and Search =====
+app.get("/api/sales/enhanced", async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '',
+      startDate = '', 
+      endDate = '',
+      sortBy = 'salesDate',
+      sortOrder = 'desc' 
+    } = req.query;
+    
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    
+    let query = {};
+    
+    // Text search
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { salesId: searchRegex },
+        { customer: searchRegex },
+        { customerContact: searchRegex },
+        { 'items.productName': searchRegex }
+      ];
+    }
+    
+    // Date range filter
+    if (startDate || endDate) {
+      query.salesDate = {};
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        query.salesDate.$gte = start;
+      }
+      
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.salesDate.$lte = end;
+      }
+    }
+    
+    // Build sort object
+    const sortObj = {};
+    sortObj[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    
+    // Execute query with pagination
+    const total = await Sales.countDocuments(query);
+    const sales = await Sales.find(query)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+    
+    const normalized = sales.map((s, index) => ({
+      ...s,
+      id: s._id.toString(),
+      salesDate: formatDateUTC8(s.salesDate),
+      // Add sequential number for display
+      number: skip + index + 1
+    }));
+    
+    res.json({
+      success: true,
+      data: normalized,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        totalItems: total,
+        itemsPerPage: limitNum
+      }
+    });
+    
+  } catch (err) {
+    console.error("enhanced sales get error", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
