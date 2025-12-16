@@ -746,9 +746,10 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         // UPDATED: New summary format
         doc.rect(560, boxY, 230, 72).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
+        doc.text(`Subtotal: ${items.length}`, 570, boxY + 5);
         doc.text(`Total Products: ${items.length}`, 570, boxY + 10);
         doc.text(`Total Quantity: ${subtotalQty} units`, 570, boxY + 25);
-        doc.text(`Total Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 40); // Changed from "Total Inventory Value"
+        doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 40); // Changed from "Total Inventory Value"
         doc.text(`Total Retail Price: RM ${grandTotalPrice.toFixed(2)}`, 570, boxY + 55); // Changed from "Total Potential Revenue"
 
         doc.flushPages();
