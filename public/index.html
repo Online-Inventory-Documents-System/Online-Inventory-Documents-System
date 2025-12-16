@@ -131,7 +131,6 @@
         <div class="action-wave"></div>
       </button>
 
-      <!-- UPDATED: Changed from View Statements to Add New Product -->
       <button class="action-card add-new-product" id="addNewProductBtn">
         <div class="action-icon">➕</div>
         <div class="action-content">
@@ -762,114 +761,6 @@
     </div>
   </div>
 
-  <!-- Statements Modal -->
-  <div id="statementsModal" class="modal">
-    <div class="modal-content x-large-modal">
-      <div class="modal-header">
-        <h2>🗂️ Statements & Reports</h2>
-        <span class="close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <div class="statements-tabs">
-          <button id="tab-inventory-reports" class="tab-button active" onclick="switchTab('inventory-reports')">
-            📦 Inventory Reports
-          </button>
-          <button id="tab-purchase-invoices" class="tab-button" onclick="switchTab('purchase-invoices')">
-            🛒 Purchase Invoices
-          </button>
-          <button id="tab-sales-invoices" class="tab-button" onclick="switchTab('sales-invoices')">
-            💰 Sales Invoices
-          </button>
-        </div>
-
-        <!-- Inventory Reports Tab -->
-        <div id="content-inventory-reports" class="tab-content active">
-          <div class="statement-summary">
-            <div class="statement-count">Total Reports: <span id="inventoryReportsCount">0</span></div>
-            <div class="statement-size">Total Size: <span id="inventoryReportsSize">0 MB</span></div>
-          </div>
-          <div class="table-container"> 
-            <table id="inventoryReportsTable">
-              <thead>
-                <tr>
-                  <th>Report Name</th>
-                  <th>Size</th>
-                  <th>Generated Date</th>
-                  <th class="actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="inventory-reportsList"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Purchase Invoices Tab -->
-        <div id="content-purchase-invoices" class="tab-content">
-          <div class="statement-summary">
-            <div class="statement-count">Total Invoices: <span id="purchaseInvoicesCount">0</span></div>
-            <div class="statement-size">Total Size: <span id="purchaseInvoicesSize">0 MB</span></div>
-          </div>
-          <div class="table-container"> 
-            <table id="purchaseInvoicesTable">
-              <thead>
-                <tr>
-                  <th>Invoice Name</th>
-                  <th>Size</th>
-                  <th>Generated Date</th>
-                  <th class="actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="purchase-invoicesList"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Sales Invoices Tab -->
-        <div id="content-sales-invoices" class="tab-content">
-          <div class="statement-summary">
-            <div class="statement-count">Total Invoices: <span id="salesInvoicesCount">0</span></div>
-            <div class="statement-size">Total Size: <span id="salesInvoicesSize">0 MB</span></div>
-          </div>
-          <div class="table-container"> 
-            <table id="salesInvoicesTable">
-              <thead>
-                <tr>
-                  <th>Invoice Name</th>
-                  <th>Size</th>
-                  <th>Generated Date</th>
-                  <th class="actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="sales-invoicesList"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button id="closeStatementsModal" class="secondary-btn">✖️ Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Document Preview Modal -->
-  <div id="previewModal" class="modal">
-    <div class="modal-content x-large-modal">
-      <div class="modal-header">
-        <h2 id="previewTitle">Document Preview</h2>
-        <span class="close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <div class="preview-container">
-          <iframe id="previewIframe" class="preview-iframe"></iframe>
-        </div>
-        <div class="preview-actions">
-          <button onclick="closePreviewModal()" class="secondary-btn">✖️ Close Preview</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- JS -->
   <script src="js/setting.js" defer></script>
   <script src="js/script.js" defer></script>
@@ -920,4 +811,5 @@
     </script>
 </body>
 </html>
+
 
