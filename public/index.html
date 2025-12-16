@@ -181,10 +181,11 @@
       </div>
     </div>
     
+    <!-- UPDATED: Date Range Search on Left, Text Search on Right -->
     <div class="controls">
-      <div class="search-controls">
-        <!-- Date Range Search Controls -->
-        <div class="date-range-container">
+      <div class="search-controls-dual">
+        <!-- Left side: Date Range Search Controls -->
+        <div class="date-range-container left-search">
           <label for="startDate">📅 Date Range:</label>
           <div class="date-inputs">
             <div class="date-input-group">
@@ -200,8 +201,8 @@
           </div>
         </div>
         
-        <!-- Text Search -->
-        <div class="text-search-container">
+        <!-- Right side: Text Search -->
+        <div class="text-search-container right-search">
           <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
           <button id="clearSearchBtn" class="secondary-btn">Clear Text</button>
         </div>
@@ -251,7 +252,7 @@
   </section>
 
   <!-- All modals remain the same as before -->
-  <!-- Purchase History Modal -->
+  <!-- Purchase History Modal - UPDATED with Search and Pagination -->
   <div id="purchaseHistoryModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -259,10 +260,66 @@
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
+        <!-- Purchase Pagination Controls -->
+        <div class="pagination-container">
+          <div class="pagination-info">
+            Showing <span id="currentPurchasePageStart">1</span>-<span id="currentPurchasePageEnd">10</span> of <span id="purchaseTotalItems">0</span> items
+          </div>
+          <div class="pagination-controls">
+            <button class="pagination-btn" id="firstPurchasePageBtn" title="First Page">««</button>
+            <button class="pagination-btn" id="prevPurchasePageBtn" title="Previous Page">«</button>
+            
+            <div id="purchasePageNumbers" class="page-numbers"></div>
+            
+            <button class="pagination-btn" id="nextPurchasePageBtn" title="Next Page">»</button>
+            <button class="pagination-btn" id="lastPurchasePageBtn" title="Last Page">»»</button>
+            
+            <div class="items-per-page">
+              <span>Show:</span>
+              <select id="purchaseItemsPerPageSelect">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <!-- UPDATED: Purchase Search Controls with Date Range on Left, Text Search on Right -->
+        <div class="controls">
+          <div class="search-controls-dual">
+            <!-- Left side: Purchase Date Range Search Controls -->
+            <div class="date-range-container purchase-date-range-container left-search">
+              <label for="purchaseStartDate">📅 Date Range:</label>
+              <div class="date-inputs">
+                <div class="date-input-group">
+                  <span class="date-label">From:</span>
+                  <input id="purchaseStartDate" type="date" />
+                </div>
+                <div class="date-input-group">
+                  <span class="date-label">To:</span>
+                  <input id="purchaseEndDate" type="date" />
+                </div>
+                <button id="applyPurchaseDateRangeBtn" class="primary-btn">Apply</button>
+                <button id="clearPurchaseDateRangeBtn" class="secondary-btn">Clear Dates</button>
+              </div>
+            </div>
+            
+            <!-- Right side: Purchase Text Search -->
+            <div class="text-search-container right-search">
+              <input id="purchaseSearchInput" placeholder="Search purchase ID, supplier, contact..." type="text" />
+              <button id="clearPurchaseSearchBtn" class="secondary-btn">Clear Text</button>
+            </div>
+          </div>
+        </div>
+        
         <div class="table-container"> 
           <table id="purchaseHistoryTable">
             <thead>
               <tr>
+                <!-- UPDATED: Added NO column -->
+                <th class="number-header">NO</th>
                 <th>Purchase ID</th>
                 <th>Supplier</th>
                 <!-- UPDATED: Added Supplier Contact column -->
@@ -276,11 +333,27 @@
             <tbody id="purchaseHistoryList"></tbody>
           </table>
         </div>
+        
+        <!-- Purchase Pagination Footer -->
+        <div class="pagination-container" style="border-bottom: none; border-top: 1px solid var(--border-color); margin-top: 15px;">
+          <div class="pagination-info">
+            Page <span id="currentPurchasePage">1</span> of <span id="purchaseTotalPages">1</span>
+          </div>
+          <div class="pagination-controls">
+            <button class="pagination-btn" id="firstPurchasePageBtnFooter" title="First Page">««</button>
+            <button class="pagination-btn" id="prevPurchasePageBtnFooter" title="Previous Page">«</button>
+            
+            <div id="purchasePageNumbersFooter" class="page-numbers"></div>
+            
+            <button class="pagination-btn" id="nextPurchasePageBtnFooter" title="Next Page">»</button>
+            <button class="pagination-btn" id="lastPurchasePageBtnFooter" title="Last Page">»»</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Sales History Modal -->
+  <!-- Sales History Modal - UPDATED with Search and Pagination -->
   <div id="salesHistoryModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -288,10 +361,66 @@
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
+        <!-- Sales Pagination Controls -->
+        <div class="pagination-container">
+          <div class="pagination-info">
+            Showing <span id="currentSalesPageStart">1</span>-<span id="currentSalesPageEnd">10</span> of <span id="salesTotalItems">0</span> items
+          </div>
+          <div class="pagination-controls">
+            <button class="pagination-btn" id="firstSalesPageBtn" title="First Page">««</button>
+            <button class="pagination-btn" id="prevSalesPageBtn" title="Previous Page">«</button>
+            
+            <div id="salesPageNumbers" class="page-numbers"></div>
+            
+            <button class="pagination-btn" id="nextSalesPageBtn" title="Next Page">»</button>
+            <button class="pagination-btn" id="lastSalesPageBtn" title="Last Page">»»</button>
+            
+            <div class="items-per-page">
+              <span>Show:</span>
+              <select id="salesItemsPerPageSelect">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <!-- UPDATED: Sales Search Controls with Date Range on Left, Text Search on Right -->
+        <div class="controls">
+          <div class="search-controls-dual">
+            <!-- Left side: Sales Date Range Search Controls -->
+            <div class="date-range-container sales-date-range-container left-search">
+              <label for="salesStartDate">📅 Date Range:</label>
+              <div class="date-inputs">
+                <div class="date-input-group">
+                  <span class="date-label">From:</span>
+                  <input id="salesStartDate" type="date" />
+                </div>
+                <div class="date-input-group">
+                  <span class="date-label">To:</span>
+                  <input id="salesEndDate" type="date" />
+                </div>
+                <button id="applySalesDateRangeBtn" class="primary-btn">Apply</button>
+                <button id="clearSalesDateRangeBtn" class="secondary-btn">Clear Dates</button>
+              </div>
+            </div>
+            
+            <!-- Right side: Sales Text Search -->
+            <div class="text-search-container right-search">
+              <input id="salesSearchInput" placeholder="Search sales ID, customer, contact..." type="text" />
+              <button id="clearSalesSearchBtn" class="secondary-btn">Clear Text</button>
+            </div>
+          </div>
+        </div>
+        
         <div class="table-container"> 
           <table id="salesHistoryTable">
             <thead>
               <tr>
+                <!-- UPDATED: Added NO column -->
+                <th class="number-header">NO</th>
                 <th>Sales ID</th>
                 <th>Customer</th>
                 <!-- UPDATED: Added Customer Contact column -->
@@ -304,6 +433,22 @@
             </thead>
             <tbody id="salesHistoryList"></tbody>
           </table>
+        </div>
+        
+        <!-- Sales Pagination Footer -->
+        <div class="pagination-container" style="border-bottom: none; border-top: 1px solid var(--border-color); margin-top: 15px;">
+          <div class="pagination-info">
+            Page <span id="currentSalesPage">1</span> of <span id="salesTotalPages">1</span>
+          </div>
+          <div class="pagination-controls">
+            <button class="pagination-btn" id="firstSalesPageBtnFooter" title="First Page">««</button>
+            <button class="pagination-btn" id="prevSalesPageBtnFooter" title="Previous Page">«</button>
+            
+            <div id="salesPageNumbersFooter" class="page-numbers"></div>
+            
+            <button class="pagination-btn" id="nextSalesPageBtnFooter" title="Next Page">»</button>
+            <button class="pagination-btn" id="lastSalesPageBtnFooter" title="Last Page">»»</button>
+          </div>
         </div>
       </div>
     </div>
@@ -768,10 +913,10 @@
             if (this.scrollWidth > this.clientWidth) {
               alert(this.getAttribute('data-tooltip') + ': ' + this.textContent);
             }
-          }
+            }
+          });
         });
       });
-    });
-  </script>
+    </script>
 </body>
 </html>
