@@ -708,51 +708,57 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           };
         }
 
-        drawTableHeader();
-        
-        let subtotalQty = 0;
-        let grandTotalCost = 0; // Changed from totalValue
-        let grandTotalPrice = 0; // Changed from totalRevenue
-        let rowsOnPage = 0;
+drawTableHeader();
 
-        for (let i = 0; i < items.length; i++) {
-          if (rowsOnPage === 10) {
-            doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-            y = 40;
-            rowsOnPage = 0;
-            drawTableHeader();
-          }
+let subtotalQty = 0;
+let grandTotalCost = 0;
+let grandTotalPrice = 0;
+let rowsOnPage = 0;
 
-          const calculations = drawTableRow(items[i], i);
-          
-          subtotalQty += calculations.qty;
-          grandTotalCost += calculations.totalCost;
-          grandTotalPrice += calculations.totalPrice;
-          
-          rowsOnPage++;
-        }
+for (let i = 0; i < items.length; i++) {
+  if (rowsOnPage === 10) {
+    doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+    y = 40;
+    rowsOnPage = 0;
+    drawTableHeader();
+  }
 
-        const lastPageIndex = doc.bufferedPageRange().count - 1;
-        doc.switchToPage(lastPageIndex);
-        
-        let boxY = y + 20;
-        
-        // FIXED: Check if there's enough space for summary box
-        if (boxY > 450) {
-          doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-          boxY = 40;
-        }
-        
-        // UPDATED: New summary format
-        doc.rect(560, boxY, 230, 72).stroke();
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text(`Subtotal: ${items.length}`, 570, boxY + 5);
-        doc.text(`Total Products: ${items.length}`, 570, boxY + 10);
-        doc.text(`Total Quantity: ${subtotalQty} units`, 570, boxY + 25);
-        doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 40); // Changed from "Total Inventory Value"
-        doc.text(`Total Retail Price: RM ${grandTotalPrice.toFixed(2)}`, 570, boxY + 55); // Changed from "Total Potential Revenue"
+  const calculations = drawTableRow(items[i], i);
+  
+  subtotalQty += calculations.qty;
+  grandTotalCost += calculations.totalCost;
+  grandTotalPrice += calculations.totalPrice;
+  
+  rowsOnPage++;
+}
 
-        doc.flushPages();
+const lastPageIndex = doc.bufferedPageRange().count - 1;
+doc.switchToPage(lastPageIndex);
+
+let boxY = y + 20;
+
+// FIXED: Check if there's enough space for summary box
+if (boxY > 450) {
+  doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+  boxY = 40;
+}
+
+// UPDATED: Adjusted summary box with SUBTOTAL header
+// Increased box height to accommodate the new header
+doc.rect(560, boxY, 230, 85).stroke();
+
+// SUBTOTAL header
+doc.font("Helvetica-Bold").fontSize(12);
+doc.text("SUBTOTAL:", 570, boxY + 8);
+
+// Summary details
+doc.font("Helvetica").fontSize(10);
+doc.text(`Total Products: ${items.length}`, 570, boxY + 25);
+doc.text(`Total Quantity: ${subtotalQty} units`, 570, boxY + 40);
+doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 570, boxY + 55);
+doc.text(`Total Retail Price: RM ${grandTotalPrice.toFixed(2)}`, 570, boxY + 70);
+
+doc.flushPages();
 
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
