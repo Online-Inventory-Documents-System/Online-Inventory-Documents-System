@@ -494,19 +494,19 @@ function searchInventory(){
       if (!itemDate) return false;
       
       if (startDate && !endDate) {
-        const start = parseDateFromInput(startDate);
+        const start = new Date(startDate);
         return itemDate >= start;
       }
       
       if (!startDate && endDate) {
-        const end = parseDateFromInput(endDate);
+        const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
         return itemDate <= end;
       }
       
       if (startDate && endDate) {
-        const start = parseDateFromInput(startDate);
-        const end = parseDateFromInput(endDate);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
         return itemDate >= start && itemDate <= end;
       }
@@ -521,31 +521,8 @@ function searchInventory(){
 }
 
 // =========================================
-// DATE RANGE FILTERING FUNCTIONS - FIXED: Input parsing for DD/MM/YYYY
+// DATE RANGE FILTERING FUNCTIONS
 // =========================================
-function parseDateFromInput(dateStr) {
-  // Convert DD/MM/YYYY from input to Date object
-  if (!dateStr) return null;
-  const parts = dateStr.split('/');
-  if (parts.length !== 3) return new Date(dateStr); // Fallback to default parsing
-  
-  const day = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1; // Months are 0-indexed
-  const year = parseInt(parts[2], 10);
-  
-  return new Date(year, month, day);
-}
-
-function formatDateForInput(date) {
-  // Format date as DD/MM/YYYY for input fields
-  if (!date) return '';
-  const d = new Date(date);
-  const day = d.getDate().toString().padStart(2, '0');
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-}
-
 function filterByDateRange(startDate, endDate) {
   if (!startDate && !endDate) {
     filteredInventory = [...inventory];
@@ -569,19 +546,19 @@ function filterByDateRange(startDate, endDate) {
     if (!itemDate) return false;
     
     if (startDate && !endDate) {
-      const start = parseDateFromInput(startDate);
+      const start = new Date(startDate);
       return itemDate >= start;
     }
     
     if (!startDate && endDate) {
-      const end = parseDateFromInput(endDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       return itemDate <= end;
     }
     
     if (startDate && endDate) {
-      const start = parseDateFromInput(startDate);
-      const end = parseDateFromInput(endDate);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       return itemDate >= start && itemDate <= end;
     }
@@ -628,8 +605,11 @@ function createDateRangeStatusElement() {
 }
 
 function formatDateDisplay(dateString) {
-  // Input is already in DD/MM/YYYY format from the date picker
-  return dateString; // Return as-is since we're using DD/MM/YYYY
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function clearDateRangeFilter() {
@@ -646,8 +626,8 @@ function applyDateRangeFilter() {
   const endDate = qs('#endDate')?.value;
   
   if (startDate && endDate) {
-    const start = parseDateFromInput(startDate);
-    const end = parseDateFromInput(endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
     
     if (start > end) {
       alert('❌ Start date cannot be after end date.');
@@ -1789,14 +1769,9 @@ async function generateSelectedReport() {
     return;
   }
   
-  if (startDate && endDate) {
-    const start = parseDateFromInput(startDate);
-    const end = parseDateFromInput(endDate);
-    
-    if (start > end) {
-      alert('❌ Start date cannot be after end date.');
-      return;
-    }
+  if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+    alert('❌ Start date cannot be after end date.');
+    return;
   }
   
   closeReportModal();
@@ -1827,9 +1802,9 @@ async function generateInventoryReport(startDate, endDate) {
     
     let filename = 'Inventory_Report';
     if (startDate || endDate) {
-      const start = startDate || 'All';
-      const end = endDate || 'All';
-      filename += `_${start.replace(/\//g, '-')}_to_${end.replace(/\//g, '-')}`;
+      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
+      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
+      filename += `_${start}_to_${end}`;
     } else {
       filename += '_Full_List';
     }
@@ -2317,6 +2292,83 @@ async function cleanupCorruptedDocuments() {
 }
 
 // =========================================
+// Statements Management
+// =========================================
+function openStatementsModal() {
+  const modal = qs('#statementsModal');
+  if (modal) {
+    modal.style.display = 'block';
+    switchTab('inventory-reports');
+  }
+}
+
+function closeStatementsModal() {
+  const modal = qs('#statementsModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function switchTab(tabName) {
+  qsa('.tab-button').forEach(btn => btn.classList.remove('active'));
+  qs(`#tab-${tabName}`).classList.add('active');
+  
+  qsa('.tab-content').forEach(content => content.classList.remove('active'));
+  qs(`#content-${tabName}`).classList.add('active');
+  
+  loadStatements(tabName);
+}
+
+async function loadStatements(type) {
+  try {
+    const res = await apiFetch(`${API_BASE}/statements/${type}`);
+    if (res.ok) {
+      const statements = await res.json();
+      renderStatements(type, statements);
+    }
+  } catch (err) {
+    console.error('Load statements error:', err);
+  }
+}
+
+function renderStatements(type, statements) {
+  const container = qs(`#${type}List`);
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  if (statements.length === 0) {
+    container.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No statements found</td></tr>';
+    return;
+  }
+  
+  let totalSize = 0;
+  
+  statements.forEach(doc => {
+    totalSize += doc.size || 0;
+    
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(doc.name)}</td>
+      <td>${((doc.size || 0) / (1024*1024)).toFixed(2)} MB</td>
+      <td>${escapeHtml(doc.date || '')}</td>
+      <td class="actions">
+        <button class="primary-btn small-btn" onclick="previewDocument('${doc.id}', '${escapeHtml(doc.name)}')">👁️ Preview</button>
+        <button class="success-btn small-btn" onclick="downloadDocument('${doc.id}', '${escapeHtml(doc.name)}')">⬇️ Download</button>
+        <button class="danger-btn small-btn" onclick="deleteDocumentConfirm('${doc.id}')">🗑️ Delete</button>
+      </td>
+    `;
+    container.appendChild(tr);
+  });
+  
+  const countElement = qs(`#${type.replace('-', '')}Count`);
+  const sizeElement = qs(`#${type.replace('-', '')}Size`);
+  
+  if (countElement) countElement.textContent = statements.length;
+  if (sizeElement) sizeElement.textContent = (totalSize / (1024*1024)).toFixed(2);
+}
+
+// =========================================
 // ACTIVITY LOGS AND DASHBOARD FUNCTIONS - UPDATED NAMES
 // =========================================
 async function fetchLogs() {
@@ -2716,7 +2768,7 @@ window.openReportModal = openReportModal;
 window.selectReportType = selectReportType;
 window.generateSelectedReport = generateSelectedReport;
 
-
+window.openStatementsModal = openStatementsModal;
 window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
