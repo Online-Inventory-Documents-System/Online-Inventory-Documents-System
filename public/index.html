@@ -185,7 +185,7 @@
       <div class="search-controls-dual">
         <!-- Left side: Date Range Search Controls -->
         <div class="date-range-container left-search">
-          <label for="startDate">📅 Date</label>
+          <label for="startDate">📅 Date Range</label>
           <div class="date-inputs">
             <div class="date-input-group">
               <span class="date-label">From:</span>
@@ -290,7 +290,7 @@
           <div class="search-controls-dual">
             <!-- Left side: Purchase Date Range Search Controls -->
             <div class="date-range-container purchase-date-range-container left-search">
-              <label for="purchaseStartDate">📅 Date Range:</label>
+              <label for="purchaseStartDate">📅 Date Range</label>
               <div class="date-inputs">
                 <div class="date-input-group">
                   <span class="date-label">From:</span>
@@ -391,7 +391,7 @@
           <div class="search-controls-dual">
             <!-- Left side: Sales Date Range Search Controls -->
             <div class="date-range-container sales-date-range-container left-search">
-              <label for="salesStartDate">📅 Date Range:</label>
+              <label for="salesStartDate">📅 Date Range</label>
               <div class="date-inputs">
                 <div class="date-input-group">
                   <span class="date-label">From:</span>
@@ -804,12 +804,10 @@
             if (this.scrollWidth > this.clientWidth) {
               alert(this.getAttribute('data-tooltip') + ': ' + this.textContent);
             }
-            }
-          });
+          }
         });
       });
-    </script>
+    });
+  </script>
 </body>
 </html>
-
-
