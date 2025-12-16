@@ -22,11 +22,23 @@ let currentFolder = 'root';
 let companyInfo = {};
 const currentPage = window.location.pathname.split('/').pop();
 
-// Pagination variables
+// Pagination variables for inventory
 let currentPageNumber = 1;
 let itemsPerPage = 10;
 let totalPages = 1;
 let filteredInventory = [];
+
+// Pagination variables for purchases
+let currentPurchasePage = 1;
+let purchaseItemsPerPage = 10;
+let purchaseTotalPages = 1;
+let filteredPurchases = [];
+
+// Pagination variables for sales
+let currentSalesPage = 1;
+let salesItemsPerPage = 10;
+let salesTotalPages = 1;
+let filteredSales = [];
 
 // Total net profit - UPDATED: Changed from totalNetProfit to totalNetProfit
 let totalNetProfit = 0;
@@ -194,9 +206,9 @@ async function fetchAllData() {
 }
 
 // =========================================
-// PAGINATION FUNCTIONS
+// INVENTORY PAGINATION FUNCTIONS
 // =========================================
-function updatePagination(items) {
+function updateInventoryPagination(items) {
   const totalItems = items.length;
   totalPages = Math.ceil(totalItems / itemsPerPage);
   
@@ -214,13 +226,13 @@ function updatePagination(items) {
   if (qs('#currentPageStart')) qs('#currentPageStart').textContent = start;
   if (qs('#currentPageEnd')) qs('#currentPageEnd').textContent = end;
   
-  updatePageNumberButtons();
-  updatePaginationButtonStates();
+  updateInventoryPageNumberButtons();
+  updateInventoryPaginationButtonStates();
   
   return items.slice(start - 1, end);
 }
 
-function updatePageNumberButtons() {
+function updateInventoryPageNumberButtons() {
   const pageNumbersContainer = qs('#pageNumbers');
   const pageNumbersFooter = qs('#pageNumbersFooter');
   
@@ -231,7 +243,7 @@ function updatePageNumberButtons() {
   containers.forEach(container => {
     container.innerHTML = '';
     
-    addPageButton(container, 1);
+    addInventoryPageButton(container, 1);
     
     if (currentPageNumber > 3) {
       const ellipsis = document.createElement('span');
@@ -245,7 +257,7 @@ function updatePageNumberButtons() {
     
     for (let i = startPage; i <= endPage; i++) {
       if (i > 1 && i < totalPages) {
-        addPageButton(container, i);
+        addInventoryPageButton(container, i);
       }
     }
     
@@ -257,20 +269,20 @@ function updatePageNumberButtons() {
     }
     
     if (totalPages > 1) {
-      addPageButton(container, totalPages);
+      addInventoryPageButton(container, totalPages);
     }
   });
 }
 
-function addPageButton(container, pageNumber) {
+function addInventoryPageButton(container, pageNumber) {
   const button = document.createElement('button');
   button.className = `pagination-btn ${pageNumber === currentPageNumber ? 'active' : ''}`;
   button.textContent = pageNumber;
-  button.onclick = () => goToPage(pageNumber);
+  button.onclick = () => goToInventoryPage(pageNumber);
   container.appendChild(button);
 }
 
-function updatePaginationButtonStates() {
+function updateInventoryPaginationButtonStates() {
   const buttons = {
     first: ['firstPageBtn', 'firstPageBtnFooter'],
     prev: ['prevPageBtn', 'prevPageBtnFooter'],
@@ -297,13 +309,13 @@ function updatePaginationButtonStates() {
   });
 }
 
-function goToPage(page) {
+function goToInventoryPage(page) {
   if (page < 1 || page > totalPages || page === currentPageNumber) return;
   currentPageNumber = page;
   renderInventory(filteredInventory);
 }
 
-function changeItemsPerPage() {
+function changeInventoryItemsPerPage() {
   const select = qs('#itemsPerPageSelect');
   if (select) {
     itemsPerPage = parseInt(select.value);
@@ -312,20 +324,290 @@ function changeItemsPerPage() {
   }
 }
 
-function bindPaginationEvents() {
-  qs('#firstPageBtn')?.addEventListener('click', () => goToPage(1));
-  qs('#firstPageBtnFooter')?.addEventListener('click', () => goToPage(1));
+function bindInventoryPaginationEvents() {
+  qs('#firstPageBtn')?.addEventListener('click', () => goToInventoryPage(1));
+  qs('#firstPageBtnFooter')?.addEventListener('click', () => goToInventoryPage(1));
   
-  qs('#prevPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
-  qs('#prevPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber - 1));
+  qs('#prevPageBtn')?.addEventListener('click', () => goToInventoryPage(currentPageNumber - 1));
+  qs('#prevPageBtnFooter')?.addEventListener('click', () => goToInventoryPage(currentPageNumber - 1));
   
-  qs('#nextPageBtn')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
-  qs('#nextPageBtnFooter')?.addEventListener('click', () => goToPage(currentPageNumber + 1));
+  qs('#nextPageBtn')?.addEventListener('click', () => goToInventoryPage(currentPageNumber + 1));
+  qs('#nextPageBtnFooter')?.addEventListener('click', () => goToInventoryPage(currentPageNumber + 1));
   
-  qs('#lastPageBtn')?.addEventListener('click', () => goToPage(totalPages));
-  qs('#lastPageBtnFooter')?.addEventListener('click', () => goToPage(totalPages));
+  qs('#lastPageBtn')?.addEventListener('click', () => goToInventoryPage(totalPages));
+  qs('#lastPageBtnFooter')?.addEventListener('click', () => goToInventoryPage(totalPages));
   
-  qs('#itemsPerPageSelect')?.addEventListener('change', changeItemsPerPage);
+  qs('#itemsPerPageSelect')?.addEventListener('change', changeInventoryItemsPerPage);
+}
+
+// =========================================
+// PURCHASE PAGINATION FUNCTIONS
+// =========================================
+function updatePurchasePagination(items) {
+  const totalItems = items.length;
+  purchaseTotalPages = Math.ceil(totalItems / purchaseItemsPerPage);
+  
+  if (currentPurchasePage > purchaseTotalPages) {
+    currentPurchasePage = purchaseTotalPages || 1;
+  }
+  
+  if (qs('#currentPurchasePage')) qs('#currentPurchasePage').textContent = currentPurchasePage;
+  if (qs('#purchaseTotalPages')) qs('#purchaseTotalPages').textContent = purchaseTotalPages;
+  if (qs('#purchaseTotalItems')) qs('#purchaseTotalItems').textContent = totalItems;
+  
+  const start = ((currentPurchasePage - 1) * purchaseItemsPerPage) + 1;
+  const end = Math.min(currentPurchasePage * purchaseItemsPerPage, totalItems);
+  
+  if (qs('#currentPurchasePageStart')) qs('#currentPurchasePageStart').textContent = start;
+  if (qs('#currentPurchasePageEnd')) qs('#currentPurchasePageEnd').textContent = end;
+  
+  updatePurchasePageNumberButtons();
+  updatePurchasePaginationButtonStates();
+  
+  return items.slice(start - 1, end);
+}
+
+function updatePurchasePageNumberButtons() {
+  const pageNumbersContainer = qs('#purchasePageNumbers');
+  const pageNumbersFooter = qs('#purchasePageNumbersFooter');
+  
+  if (!pageNumbersContainer && !pageNumbersFooter) return;
+  
+  const containers = [pageNumbersContainer, pageNumbersFooter].filter(Boolean);
+  
+  containers.forEach(container => {
+    container.innerHTML = '';
+    
+    addPurchasePageButton(container, 1);
+    
+    if (currentPurchasePage > 3) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.style.padding = '6px';
+      container.appendChild(ellipsis);
+    }
+    
+    const startPage = Math.max(2, currentPurchasePage - 1);
+    const endPage = Math.min(purchaseTotalPages - 1, currentPurchasePage + 1);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      if (i > 1 && i < purchaseTotalPages) {
+        addPurchasePageButton(container, i);
+      }
+    }
+    
+    if (currentPurchasePage < purchaseTotalPages - 2) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.style.padding = '6px';
+      container.appendChild(ellipsis);
+    }
+    
+    if (purchaseTotalPages > 1) {
+      addPurchasePageButton(container, purchaseTotalPages);
+    }
+  });
+}
+
+function addPurchasePageButton(container, pageNumber) {
+  const button = document.createElement('button');
+  button.className = `pagination-btn ${pageNumber === currentPurchasePage ? 'active' : ''}`;
+  button.textContent = pageNumber;
+  button.onclick = () => goToPurchasePage(pageNumber);
+  container.appendChild(button);
+}
+
+function updatePurchasePaginationButtonStates() {
+  const buttons = {
+    first: ['firstPurchasePageBtn', 'firstPurchasePageBtnFooter'],
+    prev: ['prevPurchasePageBtn', 'prevPurchasePageBtnFooter'],
+    next: ['nextPurchasePageBtn', 'nextPurchasePageBtnFooter'],
+    last: ['lastPurchasePageBtn', 'lastPurchasePageBtnFooter']
+  };
+  
+  Object.entries(buttons).forEach(([type, ids]) => {
+    ids.forEach(id => {
+      const btn = qs(`#${id}`);
+      if (btn) {
+        switch(type) {
+          case 'first':
+          case 'prev':
+            btn.disabled = currentPurchasePage === 1;
+            break;
+          case 'next':
+          case 'last':
+            btn.disabled = currentPurchasePage === purchaseTotalPages;
+            break;
+        }
+      }
+    });
+  });
+}
+
+function goToPurchasePage(page) {
+  if (page < 1 || page > purchaseTotalPages || page === currentPurchasePage) return;
+  currentPurchasePage = page;
+  renderPurchaseHistory(filteredPurchases);
+}
+
+function changePurchaseItemsPerPage() {
+  const select = qs('#purchaseItemsPerPageSelect');
+  if (select) {
+    purchaseItemsPerPage = parseInt(select.value);
+    currentPurchasePage = 1;
+    renderPurchaseHistory(filteredPurchases);
+  }
+}
+
+function bindPurchasePaginationEvents() {
+  qs('#firstPurchasePageBtn')?.addEventListener('click', () => goToPurchasePage(1));
+  qs('#firstPurchasePageBtnFooter')?.addEventListener('click', () => goToPurchasePage(1));
+  
+  qs('#prevPurchasePageBtn')?.addEventListener('click', () => goToPurchasePage(currentPurchasePage - 1));
+  qs('#prevPurchasePageBtnFooter')?.addEventListener('click', () => goToPurchasePage(currentPurchasePage - 1));
+  
+  qs('#nextPurchasePageBtn')?.addEventListener('click', () => goToPurchasePage(currentPurchasePage + 1));
+  qs('#nextPurchasePageBtnFooter')?.addEventListener('click', () => goToPurchasePage(currentPurchasePage + 1));
+  
+  qs('#lastPurchasePageBtn')?.addEventListener('click', () => goToPurchasePage(purchaseTotalPages));
+  qs('#lastPurchasePageBtnFooter')?.addEventListener('click', () => goToPurchasePage(purchaseTotalPages));
+  
+  qs('#purchaseItemsPerPageSelect')?.addEventListener('change', changePurchaseItemsPerPage);
+}
+
+// =========================================
+// SALES PAGINATION FUNCTIONS
+// =========================================
+function updateSalesPagination(items) {
+  const totalItems = items.length;
+  salesTotalPages = Math.ceil(totalItems / salesItemsPerPage);
+  
+  if (currentSalesPage > salesTotalPages) {
+    currentSalesPage = salesTotalPages || 1;
+  }
+  
+  if (qs('#currentSalesPage')) qs('#currentSalesPage').textContent = currentSalesPage;
+  if (qs('#salesTotalPages')) qs('#salesTotalPages').textContent = salesTotalPages;
+  if (qs('#salesTotalItems')) qs('#salesTotalItems').textContent = totalItems;
+  
+  const start = ((currentSalesPage - 1) * salesItemsPerPage) + 1;
+  const end = Math.min(currentSalesPage * salesItemsPerPage, totalItems);
+  
+  if (qs('#currentSalesPageStart')) qs('#currentSalesPageStart').textContent = start;
+  if (qs('#currentSalesPageEnd')) qs('#currentSalesPageEnd').textContent = end;
+  
+  updateSalesPageNumberButtons();
+  updateSalesPaginationButtonStates();
+  
+  return items.slice(start - 1, end);
+}
+
+function updateSalesPageNumberButtons() {
+  const pageNumbersContainer = qs('#salesPageNumbers');
+  const pageNumbersFooter = qs('#salesPageNumbersFooter');
+  
+  if (!pageNumbersContainer && !pageNumbersFooter) return;
+  
+  const containers = [pageNumbersContainer, pageNumbersFooter].filter(Boolean);
+  
+  containers.forEach(container => {
+    container.innerHTML = '';
+    
+    addSalesPageButton(container, 1);
+    
+    if (currentSalesPage > 3) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.style.padding = '6px';
+      container.appendChild(ellipsis);
+    }
+    
+    const startPage = Math.max(2, currentSalesPage - 1);
+    const endPage = Math.min(salesTotalPages - 1, currentSalesPage + 1);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      if (i > 1 && i < salesTotalPages) {
+        addSalesPageButton(container, i);
+      }
+    }
+    
+    if (currentSalesPage < salesTotalPages - 2) {
+      const ellipsis = document.createElement('span');
+      ellipsis.textContent = '...';
+      ellipsis.style.padding = '6px';
+      container.appendChild(ellipsis);
+    }
+    
+    if (salesTotalPages > 1) {
+      addSalesPageButton(container, salesTotalPages);
+    }
+  });
+}
+
+function addSalesPageButton(container, pageNumber) {
+  const button = document.createElement('button');
+  button.className = `pagination-btn ${pageNumber === currentSalesPage ? 'active' : ''}`;
+  button.textContent = pageNumber;
+  button.onclick = () => goToSalesPage(pageNumber);
+  container.appendChild(button);
+}
+
+function updateSalesPaginationButtonStates() {
+  const buttons = {
+    first: ['firstSalesPageBtn', 'firstSalesPageBtnFooter'],
+    prev: ['prevSalesPageBtn', 'prevSalesPageBtnFooter'],
+    next: ['nextSalesPageBtn', 'nextSalesPageBtnFooter'],
+    last: ['lastSalesPageBtn', 'lastSalesPageBtnFooter']
+  };
+  
+  Object.entries(buttons).forEach(([type, ids]) => {
+    ids.forEach(id => {
+      const btn = qs(`#${id}`);
+      if (btn) {
+        switch(type) {
+          case 'first':
+          case 'prev':
+            btn.disabled = currentSalesPage === 1;
+            break;
+          case 'next':
+          case 'last':
+            btn.disabled = currentSalesPage === salesTotalPages;
+            break;
+        }
+      }
+    });
+  });
+}
+
+function goToSalesPage(page) {
+  if (page < 1 || page > salesTotalPages || page === currentSalesPage) return;
+  currentSalesPage = page;
+  renderSalesHistory(filteredSales);
+}
+
+function changeSalesItemsPerPage() {
+  const select = qs('#salesItemsPerPageSelect');
+  if (select) {
+    salesItemsPerPage = parseInt(select.value);
+    currentSalesPage = 1;
+    renderSalesHistory(filteredSales);
+  }
+}
+
+function bindSalesPaginationEvents() {
+  qs('#firstSalesPageBtn')?.addEventListener('click', () => goToSalesPage(1));
+  qs('#firstSalesPageBtnFooter')?.addEventListener('click', () => goToSalesPage(1));
+  
+  qs('#prevSalesPageBtn')?.addEventListener('click', () => goToSalesPage(currentSalesPage - 1));
+  qs('#prevSalesPageBtnFooter')?.addEventListener('click', () => goToSalesPage(currentSalesPage - 1));
+  
+  qs('#nextSalesPageBtn')?.addEventListener('click', () => goToSalesPage(currentSalesPage + 1));
+  qs('#nextSalesPageBtnFooter')?.addEventListener('click', () => goToSalesPage(currentSalesPage + 1));
+  
+  qs('#lastSalesPageBtn')?.addEventListener('click', () => goToSalesPage(salesTotalPages));
+  qs('#lastSalesPageBtnFooter')?.addEventListener('click', () => goToSalesPage(salesTotalPages));
+  
+  qs('#salesItemsPerPageSelect')?.addEventListener('change', changeSalesItemsPerPage);
 }
 
 // =========================================
@@ -392,7 +674,7 @@ function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
   
-  const paginatedItems = updatePagination(items);
+  const paginatedItems = updateInventoryPagination(items);
   
   list.innerHTML = '';
   let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed from totalCost/totalPrice
@@ -756,20 +1038,26 @@ async function fetchSales() {
     if (!res.ok) throw new Error('Failed to fetch sales');
     const data = await res.json();
     sales = data.map(s => ({ ...s, id: s.id || s._id }));
-    renderSalesHistory();
+    filteredSales = [...sales];
+    // Don't render here, will be rendered when modal opens
   } catch(err) {
     console.error('Fetch sales error:', err);
   }
 }
 
-function renderSalesHistory() {
+function renderSalesHistory(items) {
   const list = qs('#salesHistoryList');
   if (!list) return;
   list.innerHTML = '';
   
-  sales.forEach(s => {
+  const paginatedItems = updateSalesPagination(items);
+  const startNumber = ((currentSalesPage - 1) * salesItemsPerPage) + 1;
+  
+  paginatedItems.forEach((s, index) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <!-- UPDATED: Added NO column -->
+      <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
       <!-- UPDATED: Added customer contact in table -->
@@ -791,7 +1079,9 @@ function openSalesHistoryModal() {
   const modal = qs('#salesHistoryModal');
   if (modal) {
     modal.style.display = 'block';
-    fetchSales();
+    // Reset pagination when opening modal
+    currentSalesPage = 1;
+    renderSalesHistory(filteredSales);
   }
 }
 
@@ -800,6 +1090,143 @@ function closeSalesHistoryModal() {
   if (modal) {
     modal.style.display = 'none';
   }
+}
+
+// ===== NEW: Sales Search Function =====
+function searchSales() {
+  const textQuery = (qs('#salesSearchInput')?.value || '').toLowerCase().trim();
+  const startDate = qs('#salesStartDate')?.value || '';
+  const endDate = qs('#salesEndDate')?.value || '';
+  
+  let filtered = sales;
+  
+  if (textQuery) {
+    filtered = filtered.filter(sale => 
+      (sale.salesId||'').toLowerCase().includes(textQuery) || 
+      (sale.customer||'').toLowerCase().includes(textQuery) ||
+      (sale.customerContact||'').toLowerCase().includes(textQuery) ||
+      (sale.notes||'').toLowerCase().includes(textQuery)
+    );
+  }
+  
+  if (startDate || endDate) {
+    filtered = filtered.filter(sale => {
+      if (!sale.salesDate) return false;
+      
+      // Convert DD/MM/YYYY to Date object for comparison
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('/');
+        if (parts.length !== 3) return null;
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+      };
+      
+      const saleDate = parseDate(sale.salesDate);
+      if (!saleDate) return false;
+      
+      if (startDate && !endDate) {
+        const start = new Date(startDate);
+        return saleDate >= start;
+      }
+      
+      if (!startDate && endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return saleDate <= end;
+      }
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return saleDate >= start && saleDate <= end;
+      }
+      
+      return true;
+    });
+  }
+  
+  filteredSales = filtered;
+  currentSalesPage = 1;
+  renderSalesHistory(filtered);
+}
+
+function clearSalesSearch() {
+  if (qs('#salesSearchInput')) qs('#salesSearchInput').value = '';
+  if (qs('#salesStartDate')) qs('#salesStartDate').value = '';
+  if (qs('#salesEndDate')) qs('#salesEndDate').value = '';
+  filteredSales = [...sales];
+  currentSalesPage = 1;
+  renderSalesHistory(filteredSales);
+}
+
+function applySalesDateRangeFilter() {
+  const startDate = qs('#salesStartDate')?.value;
+  const endDate = qs('#salesEndDate')?.value;
+  
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+      alert('❌ Start date cannot be after end date.');
+      return;
+    }
+  }
+  
+  searchSales();
+}
+
+function bindSalesSearchEvents() {
+  qs('#salesSearchInput')?.addEventListener('input', searchSales);
+  qs('#clearSalesSearchBtn')?.addEventListener('click', clearSalesSearch);
+  qs('#applySalesDateRangeBtn')?.addEventListener('click', applySalesDateRangeFilter);
+  qs('#clearSalesDateRangeBtn')?.addEventListener('click', clearSalesSearch);
+  
+  qs('#salesStartDate')?.addEventListener('change', function() {
+    if (qs('#salesEndDate')?.value) {
+      applySalesDateRangeFilter();
+    }
+  });
+  
+  qs('#salesEndDate')?.addEventListener('change', function() {
+    if (qs('#salesStartDate')?.value) {
+      applySalesDateRangeFilter();
+    }
+  });
+}
+
+// ===== NEW: Sales Date Range Status =====
+function updateSalesDateRangeStatus(isActive, startDate, endDate) {
+  const dateRangeContainer = qs('.sales-date-range-container');
+  const statusElement = qs('.sales-date-range-status') || createSalesDateRangeStatusElement();
+  
+  if (isActive) {
+    dateRangeContainer.classList.add('active');
+    
+    let statusText = 'Filtering by: ';
+    if (startDate && endDate) {
+      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
+    } else if (startDate) {
+      statusText += `From ${formatDateDisplay(startDate)}`;
+    } else if (endDate) {
+      statusText += `Until ${formatDateDisplay(endDate)}`;
+    }
+    
+    statusElement.textContent = statusText;
+    statusElement.classList.add('active');
+  } else {
+    dateRangeContainer.classList.remove('active');
+    statusElement.classList.remove('active');
+    statusElement.textContent = '';
+  }
+}
+
+function createSalesDateRangeStatusElement() {
+  const statusElement = document.createElement('span');
+  statusElement.className = 'sales-date-range-status';
+  qs('.sales-date-range-container').appendChild(statusElement);
+  return statusElement;
 }
 
 function openNewSalesModal() {
@@ -1251,20 +1678,26 @@ async function fetchPurchases() {
     if (!res.ok) throw new Error('Failed to fetch purchases');
     const data = await res.json();
     purchases = data.map(p => ({ ...p, id: p.id || p._id }));
-    renderPurchaseHistory();
+    filteredPurchases = [...purchases];
+    // Don't render here, will be rendered when modal opens
   } catch(err) {
     console.error('Fetch purchases error:', err);
   }
 }
 
-function renderPurchaseHistory() {
+function renderPurchaseHistory(items) {
   const list = qs('#purchaseHistoryList');
   if (!list) return;
   list.innerHTML = '';
   
-  purchases.forEach(p => {
+  const paginatedItems = updatePurchasePagination(items);
+  const startNumber = ((currentPurchasePage - 1) * purchaseItemsPerPage) + 1;
+  
+  paginatedItems.forEach((p, index) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <!-- UPDATED: Added NO column -->
+      <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
       <!-- UPDATED: Added supplier contact in table -->
@@ -1286,7 +1719,9 @@ function openPurchaseHistoryModal() {
   const modal = qs('#purchaseHistoryModal');
   if (modal) {
     modal.style.display = 'block';
-    fetchPurchases();
+    // Reset pagination when opening modal
+    currentPurchasePage = 1;
+    renderPurchaseHistory(filteredPurchases);
   }
 }
 
@@ -1295,6 +1730,143 @@ function closePurchaseHistoryModal() {
   if (modal) {
     modal.style.display = 'none';
   }
+}
+
+// ===== NEW: Purchase Search Function =====
+function searchPurchases() {
+  const textQuery = (qs('#purchaseSearchInput')?.value || '').toLowerCase().trim();
+  const startDate = qs('#purchaseStartDate')?.value || '';
+  const endDate = qs('#purchaseEndDate')?.value || '';
+  
+  let filtered = purchases;
+  
+  if (textQuery) {
+    filtered = filtered.filter(purchase => 
+      (purchase.purchaseId||'').toLowerCase().includes(textQuery) || 
+      (purchase.supplier||'').toLowerCase().includes(textQuery) ||
+      (purchase.supplierContact||'').toLowerCase().includes(textQuery) ||
+      (purchase.notes||'').toLowerCase().includes(textQuery)
+    );
+  }
+  
+  if (startDate || endDate) {
+    filtered = filtered.filter(purchase => {
+      if (!purchase.purchaseDate) return false;
+      
+      // Convert DD/MM/YYYY to Date object for comparison
+      const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('/');
+        if (parts.length !== 3) return null;
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+      };
+      
+      const purchaseDate = parseDate(purchase.purchaseDate);
+      if (!purchaseDate) return false;
+      
+      if (startDate && !endDate) {
+        const start = new Date(startDate);
+        return purchaseDate >= start;
+      }
+      
+      if (!startDate && endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return purchaseDate <= end;
+      }
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        return purchaseDate >= start && purchaseDate <= end;
+      }
+      
+      return true;
+    });
+  }
+  
+  filteredPurchases = filtered;
+  currentPurchasePage = 1;
+  renderPurchaseHistory(filtered);
+}
+
+function clearPurchaseSearch() {
+  if (qs('#purchaseSearchInput')) qs('#purchaseSearchInput').value = '';
+  if (qs('#purchaseStartDate')) qs('#purchaseStartDate').value = '';
+  if (qs('#purchaseEndDate')) qs('#purchaseEndDate').value = '';
+  filteredPurchases = [...purchases];
+  currentPurchasePage = 1;
+  renderPurchaseHistory(filteredPurchases);
+}
+
+function applyPurchaseDateRangeFilter() {
+  const startDate = qs('#purchaseStartDate')?.value;
+  const endDate = qs('#purchaseEndDate')?.value;
+  
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+      alert('❌ Start date cannot be after end date.');
+      return;
+    }
+  }
+  
+  searchPurchases();
+}
+
+function bindPurchaseSearchEvents() {
+  qs('#purchaseSearchInput')?.addEventListener('input', searchPurchases);
+  qs('#clearPurchaseSearchBtn')?.addEventListener('click', clearPurchaseSearch);
+  qs('#applyPurchaseDateRangeBtn')?.addEventListener('click', applyPurchaseDateRangeFilter);
+  qs('#clearPurchaseDateRangeBtn')?.addEventListener('click', clearPurchaseSearch);
+  
+  qs('#purchaseStartDate')?.addEventListener('change', function() {
+    if (qs('#purchaseEndDate')?.value) {
+      applyPurchaseDateRangeFilter();
+    }
+  });
+  
+  qs('#purchaseEndDate')?.addEventListener('change', function() {
+    if (qs('#purchaseStartDate')?.value) {
+      applyPurchaseDateRangeFilter();
+    }
+  });
+}
+
+// ===== NEW: Purchase Date Range Status =====
+function updatePurchaseDateRangeStatus(isActive, startDate, endDate) {
+  const dateRangeContainer = qs('.purchase-date-range-container');
+  const statusElement = qs('.purchase-date-range-status') || createPurchaseDateRangeStatusElement();
+  
+  if (isActive) {
+    dateRangeContainer.classList.add('active');
+    
+    let statusText = 'Filtering by: ';
+    if (startDate && endDate) {
+      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
+    } else if (startDate) {
+      statusText += `From ${formatDateDisplay(startDate)}`;
+    } else if (endDate) {
+      statusText += `Until ${formatDateDisplay(endDate)}`;
+    }
+    
+    statusElement.textContent = statusText;
+    statusElement.classList.add('active');
+  } else {
+    dateRangeContainer.classList.remove('active');
+    statusElement.classList.remove('active');
+    statusElement.textContent = '';
+  }
+}
+
+function createPurchaseDateRangeStatusElement() {
+  const statusElement = document.createElement('span');
+  statusElement.className = 'purchase-date-range-status';
+  qs('.purchase-date-range-container').appendChild(statusElement);
+  return statusElement;
 }
 
 function openNewPurchaseModal() {
@@ -2583,7 +3155,11 @@ function bindInventoryUI(){
   });
   
   bindDateRangeFilterEvents();
-  bindPaginationEvents();
+  bindInventoryPaginationEvents();
+  bindPurchaseSearchEvents();
+  bindSalesSearchEvents();
+  bindPurchasePaginationEvents();
+  bindSalesPaginationEvents();
 }
 
 function bindDocumentsUI(){
@@ -2708,3 +3284,12 @@ window.closeCompanyInfoModal = closeCompanyInfoModal;
 window.login = login;
 window.register = register;
 window.toggleForm = toggleForm;
+
+// ===== NEW: Search and Pagination functions =====
+window.searchPurchases = searchPurchases;
+window.clearPurchaseSearch = clearPurchaseSearch;
+window.applyPurchaseDateRangeFilter = applyPurchaseDateRangeFilter;
+
+window.searchSales = searchSales;
+window.clearSalesSearch = clearSalesSearch;
+window.applySalesDateRangeFilter = applySalesDateRangeFilter;
