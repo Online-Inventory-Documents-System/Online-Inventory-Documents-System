@@ -2708,4 +2708,3 @@ window.closeCompanyInfoModal = closeCompanyInfoModal;
 window.login = login;
 window.register = register;
 window.toggleForm = toggleForm;
-
