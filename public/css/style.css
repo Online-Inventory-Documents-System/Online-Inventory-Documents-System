@@ -1885,6 +1885,7 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid #000000;
 }
 
 #purchaseHistoryTable thead th {
@@ -1893,6 +1894,7 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 #salesHistoryTable thead th {
@@ -1901,6 +1903,12 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+#purchaseHistoryTable thead th:last-child,
+#salesHistoryTable thead th:last-child {
+  border-right: none;
 }
 
 #purchaseHistoryTable tbody tr:hover,
@@ -3381,4 +3389,241 @@ body[data-theme="dark"] section {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* =========================================
+   UPDATED: Sales History Table Layout to Match Restock History
+========================================= */
+/* Make Sales History Table match Restock History layout */
+#salesHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.95rem;
+  min-width: 1100px;
+}
+
+#salesHistoryTable th, #salesHistoryTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid #000000;
+  word-wrap: break-word;
+}
+
+#salesHistoryTable th:last-child, 
+#salesHistoryTable td:last-child {
+  border-right: none;
+}
+
+#salesHistoryTable thead th {
+  background-color: var(--info-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky; 
+  top: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.95rem;
+  padding: 15px 15px;
+}
+
+#salesHistoryTable thead th:last-child {
+  border-right: none;
+}
+
+#salesHistoryTable tbody tr:hover {
+  background-color: #f1f1f1;
+  transition: background-color 0.2s;
+}
+
+/* Column width adjustments for Sales History */
+#salesHistoryTable th:nth-child(1), /* NO */
+#salesHistoryTable td:nth-child(1) {
+  min-width: 50px;
+  max-width: 60px;
+  text-align: center;
+}
+
+#salesHistoryTable th:nth-child(2), /* Sales ID */
+#salesHistoryTable td:nth-child(2) {
+  min-width: 150px;
+  max-width: 180px;
+}
+
+#salesHistoryTable th:nth-child(3), /* Customer */
+#salesHistoryTable td:nth-child(3) {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+#salesHistoryTable th:nth-child(4), /* Customer Contact */
+#salesHistoryTable td:nth-child(4) {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+#salesHistoryTable th:nth-child(5), /* Items Count */
+#salesHistoryTable td:nth-child(5) {
+  min-width: 90px;
+  max-width: 100px;
+  text-align: center;
+}
+
+#salesHistoryTable th:nth-child(6), /* Total Amount */
+#salesHistoryTable td:nth-child(6) {
+  min-width: 100px;
+  max-width: 120px;
+  text-align: right;
+}
+
+#salesHistoryTable th:nth-child(7), /* Date */
+#salesHistoryTable td:nth-child(7) {
+  min-width: 100px;
+  max-width: 110px;
+  text-align: center;
+}
+
+#salesHistoryTable th:nth-child(8), /* Actions */
+#salesHistoryTable td:nth-child(8) {
+  min-width: 140px;
+  max-width: 150px;
+  text-align: center;
+}
+
+/* Restock History Table Styling for consistency */
+#purchaseHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+  font-size: 0.95rem;
+  min-width: 1100px;
+}
+
+#purchaseHistoryTable th, #purchaseHistoryTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid #000000;
+  word-wrap: break-word;
+}
+
+#purchaseHistoryTable th:last-child, 
+#purchaseHistoryTable td:last-child {
+  border-right: none;
+}
+
+#purchaseHistoryTable thead th {
+  background-color: var(--success-color);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  position: sticky; 
+  top: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.95rem;
+  padding: 15px 15px;
+}
+
+#purchaseHistoryTable thead th:last-child {
+  border-right: none;
+}
+
+#purchaseHistoryTable tbody tr:hover {
+  background-color: #f1f1f1;
+  transition: background-color 0.2s;
+}
+
+/* Column width adjustments for Restock History */
+#purchaseHistoryTable th:nth-child(1), /* NO */
+#purchaseHistoryTable td:nth-child(1) {
+  min-width: 50px;
+  max-width: 60px;
+  text-align: center;
+}
+
+#purchaseHistoryTable th:nth-child(2), /* Restock ID */
+#purchaseHistoryTable td:nth-child(2) {
+  min-width: 150px;
+  max-width: 180px;
+}
+
+#purchaseHistoryTable th:nth-child(3), /* Supplier */
+#purchaseHistoryTable td:nth-child(3) {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+#purchaseHistoryTable th:nth-child(4), /* Supplier Contact */
+#purchaseHistoryTable td:nth-child(4) {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+#purchaseHistoryTable th:nth-child(5), /* Items Count */
+#purchaseHistoryTable td:nth-child(5) {
+  min-width: 90px;
+  max-width: 100px;
+  text-align: center;
+}
+
+#purchaseHistoryTable th:nth-child(6), /* Total Amount */
+#purchaseHistoryTable td:nth-child(6) {
+  min-width: 100px;
+  max-width: 120px;
+  text-align: right;
+}
+
+#purchaseHistoryTable th:nth-child(7), /* Date */
+#purchaseHistoryTable td:nth-child(7) {
+  min-width: 100px;
+  max-width: 110px;
+  text-align: center;
+}
+
+#purchaseHistoryTable th:nth-child(8), /* Actions */
+#purchaseHistoryTable td:nth-child(8) {
+  min-width: 140px;
+  max-width: 150px;
+  text-align: center;
+}
+
+/* Horizontal action buttons styling (View/Delete) */
+.horizontal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.horizontal-actions .action-btn {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+/* Money formatting */
+.money-cell {
+  font-family: 'Consolas', monospace;
+  font-weight: bold;
+  text-align: right;
+}
+
+/* Dark mode adjustments for both tables */
+.dark-mode #salesHistoryTable thead th {
+  background-color: #138496;
+}
+
+.dark-mode #purchaseHistoryTable thead th {
+  background-color: #1e7e34;
+}
+
+.dark-mode #salesHistoryTable tbody tr:hover,
+.dark-mode #purchaseHistoryTable tbody tr:hover {
+  background-color: #3f4a56;
 }
