@@ -745,29 +745,29 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   UPDATED: Date Range Search Controls Styling - LEFT SIDE
+   UPDATED: Date Range and Search Controls - Same Line Layout
 ========================================= */
 .search-controls-dual {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
-    gap: 20px;
-    flex-wrap: wrap;
+    gap: 30px;
+    flex-wrap: nowrap;
 }
 
 /* Left side: Date Range Search */
 .left-search {
     flex: 1;
-    min-width: 300px;
+    min-width: 450px;
 }
 
-/* Right side: Text Search */
+/* Right side: Text Search with label */
 .right-search {
     flex: 1;
-    min-width: 300px;
+    min-width: 350px;
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
 }
 
 .date-range-container {
@@ -782,12 +782,14 @@ input:focus, select:focus, textarea:focus {
     color: var(--primary-color);
     white-space: nowrap;
     font-size: 0.95rem;
+    margin-bottom: 8px;
+    display: block;
 }
 
 .date-inputs {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
@@ -810,6 +812,7 @@ input:focus, select:focus, textarea:focus {
     padding: 8px 10px;
     margin: 0;
     font-size: 0.9rem;
+    height: 36px;
 }
 
 .date-range-container .primary-btn,
@@ -820,27 +823,50 @@ input:focus, select:focus, textarea:focus {
     height: 36px;
 }
 
+/* Text Search Container with label */
 .text-search-container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
     width: 100%;
-    justify-content: flex-end;
 }
 
-.text-search-container input[type="text"] {
-    width: 280px;
+.text-search-container label {
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.search-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.search-input-group input[type="text"] {
+    flex: 1;
+    min-width: 200px;
     padding: 8px 12px;
     margin: 0;
     font-size: 0.9rem;
     height: 36px;
 }
 
-.text-search-container .secondary-btn {
+.search-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.search-input-group .secondary-btn {
     padding: 8px 12px;
     font-size: 0.85rem;
     white-space: nowrap;
     height: 36px;
+    min-width: 70px;
 }
 
 /* Active date range filter indicator */
@@ -871,10 +897,10 @@ input:focus, select:focus, textarea:focus {
     }
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1100px) {
     .search-controls-dual {
         flex-direction: column;
-        gap: 15px;
+        gap: 20px;
     }
     
     .left-search, .right-search {
@@ -882,13 +908,12 @@ input:focus, select:focus, textarea:focus {
         min-width: auto;
     }
     
-    .text-search-container {
-        justify-content: flex-start;
+    .date-inputs {
+        flex-wrap: wrap;
     }
     
-    .text-search-container input[type="text"] {
-        width: 100%;
-        max-width: 280px;
+    .search-input-group {
+        flex-wrap: wrap;
     }
 }
 
@@ -913,18 +938,23 @@ input:focus, select:focus, textarea:focus {
         width: auto;
     }
     
-    .text-search-container {
+    .search-input-group {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
     
-    .text-search-container input[type="text"] {
+    .search-input-group input[type="text"] {
         width: 100%;
-        max-width: none;
+        min-width: auto;
     }
     
-    .text-search-container .secondary-btn {
+    .search-buttons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .search-input-group .secondary-btn {
         width: auto;
     }
 }
@@ -1281,6 +1311,17 @@ input:focus, select:focus, textarea:focus {
 .dark-mode .date-range-container.active {
     background: rgba(0, 123, 255, 0.2);
     border-color: #80bdff;
+}
+
+/* Dark mode for text search */
+.dark-mode .text-search-container label {
+    color: #80bdff;
+}
+
+.dark-mode .text-search-container input[type="text"] {
+    background: #495057;
+    color: var(--text-dark);
+    border-color: #6c757d;
 }
 
 /* Dark mode for welcome section */
@@ -2767,7 +2808,7 @@ body[data-theme="dark"] section {
   
   .search-controls-dual {
     flex-direction: column;
-    gap: 10px;
+    gap: 20px;
   }
   
   .left-search, .right-search {
@@ -2789,12 +2830,18 @@ body[data-theme="dark"] section {
     min-width: auto;
   }
   
-  .text-search-container {
-    justify-content: flex-start;
+  .search-input-group {
+    flex-direction: column;
+    gap: 8px;
   }
   
-  .text-search-container input[type="text"] {
+  .search-input-group input[type="text"] {
     width: 100%;
+  }
+  
+  .search-buttons {
+    width: 100%;
+    justify-content: flex-start;
   }
   
   .modal-content {
