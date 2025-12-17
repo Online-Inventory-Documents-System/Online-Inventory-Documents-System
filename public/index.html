@@ -84,20 +84,22 @@
 
     <!-- ENHANCED ACTION BUTTONS GRID -->
     <div class="action-buttons-grid">
+      <!-- UPDATED: Changed from New Purchase Order to Restock Item -->
       <button class="action-card new-purchase" id="newPurchaseBtn">
         <div class="action-icon">🛒</div>
         <div class="action-content">
-          <div class="action-title">New Purchase Order</div>
-          <div class="action-subtitle">Create new purchase</div>
+          <div class="action-title">Restock Item</div>
+          <div class="action-subtitle">Add stock to inventory</div>
         </div>
         <div class="action-wave"></div>
       </button>
 
+      <!-- UPDATED: Changed from Purchase History to Restock History -->
       <button class="action-card purchase-history" id="purchaseHistoryBtn">
         <div class="action-icon">📋</div>
         <div class="action-content">
-          <div class="action-title">Purchase History</div>
-          <div class="action-subtitle">View all purchase orders</div>
+          <div class="action-title">Restock History</div>
+          <div class="action-subtitle">View all restock orders</div>
         </div>
         <div class="action-wave"></div>
       </button>
@@ -302,11 +304,11 @@
   </div>
 
   <!-- All other modals remain the same as before -->
-  <!-- Purchase History Modal - UPDATED with Search and Pagination -->
+  <!-- UPDATED: Purchase History Modal changed to Restock History Modal -->
   <div id="purchaseHistoryModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
-        <h2>📋 Purchase History</h2>
+        <h2>📋 Restock History</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
@@ -360,7 +362,7 @@
             <div class="text-search-container right-search">
               <label for="purchaseSearchInput">🔍 Search</label>
               <div class="search-input-group">
-                <input id="purchaseSearchInput" placeholder="Purchase ID, supplier, contact..." type="text" />
+                <input id="purchaseSearchInput" placeholder="Restock ID, supplier, contact..." type="text" />
                 <div class="search-buttons">
                   <button id="clearPurchaseSearchBtn" class="secondary-btn">Clear</button>
                 </div>
@@ -375,7 +377,7 @@
               <tr>
                 <!-- UPDATED: Added NO column -->
                 <th class="number-header">NO</th>
-                <th>Purchase ID</th>
+                <th>Restock ID</th>
                 <th>Supplier</th>
                 <!-- UPDATED: Added Supplier Contact column -->
                 <th>Supplier Contact</th>
@@ -514,18 +516,18 @@
     </div>
   </div>
 
-  <!-- Purchase Details Modal -->
+  <!-- UPDATED: Purchase Details Modal changed to Restock Details Modal -->
   <div id="purchaseDetailsModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
-        <h2>📄 Purchase Order Details</h2>
+        <h2>📄 Restock Order Details</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
         <div class="purchase-details-header">
           <div class="detail-row">
             <div class="detail-group">
-              <label>Purchase ID:</label>
+              <label>Restock ID:</label>
               <span id="detailPurchaseId" class="detail-value"></span>
             </div>
             <div class="detail-group">
@@ -540,7 +542,7 @@
               <span id="detailSupplierContact" class="detail-value"></span>
             </div>
             <div class="detail-group">
-              <label>Purchase Date:</label>
+              <label>Restock Date:</label>
               <span id="detailPurchaseDate" class="detail-value"></span>
             </div>
           </div>
@@ -561,7 +563,7 @@
           </div>
         </div>
 
-        <h3>Purchase Items</h3>
+        <h3>Restock Items</h3>
         <div class="table-container">
           <table id="purchaseDetailsTable">
             <thead>
@@ -656,11 +658,11 @@
     </div>
   </div>
 
-  <!-- UPDATED: New Purchase Order Modal with Supplier Contact field -->
+  <!-- UPDATED: New Purchase Order Modal changed to New Restock Order Modal with Supplier Contact field -->
   <div id="newPurchaseModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
-        <h2>🛒 New Purchase Order</h2>
+        <h2>🛒 New Restock Order</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
@@ -678,7 +680,7 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="purchaseDate">Purchase Date:</label>
+            <label for="purchaseDate">Restock Date:</label>
             <input type="date" id="purchaseDate">
           </div>
           <div class="form-group">
@@ -691,7 +693,7 @@
           <textarea id="purchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
         </div>
 
-        <h3>Purchase Items</h3>
+        <h3>Restock Items</h3>
         <div class="search-product-section">
           <input type="text" id="productSearch" placeholder="Search by SKU or product name..." class="search-input">
           <div id="productResults" class="product-results"></div>
@@ -711,7 +713,7 @@
         </div>
 
         <div class="modal-actions">
-          <button id="savePurchaseBtn" class="primary-btn">💾 Save Purchase Order</button>
+          <button id="savePurchaseBtn" class="primary-btn">💾 Save Restock Order</button>
           <button id="printPurchaseBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
         </div>
@@ -872,5 +874,3 @@
   </script>
 </body>
 </html>
-
-
