@@ -180,7 +180,7 @@
       </div>
     </div>
     
-    <!-- UPDATED: Date Range Search on Left, Text Search on Right -->
+    <!-- UPDATED: Date Range and Search on same line with labels -->
     <div class="controls">
       <div class="search-controls-dual">
         <!-- Left side: Date Range Search Controls -->
@@ -200,10 +200,15 @@
           </div>
         </div>
         
-        <!-- Right side: Text Search -->
+        <!-- Right side: Text Search with label -->
         <div class="text-search-container right-search">
-          <input id="searchInput" placeholder="Search SKU, name, or category..." type="text" />
-          <button id="clearSearchBtn" class="secondary-btn">Clear Text</button>
+          <label for="searchInput">🔍 Search</label>
+          <div class="search-input-group">
+            <input id="searchInput" placeholder="SKU, name, or category..." type="text" />
+            <div class="search-buttons">
+              <button id="clearSearchBtn" class="secondary-btn">Clear</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -305,10 +310,15 @@
               </div>
             </div>
             
-            <!-- Right side: Purchase Text Search -->
+            <!-- Right side: Purchase Text Search with label -->
             <div class="text-search-container right-search">
-              <input id="purchaseSearchInput" placeholder="Search purchase ID, supplier, contact..." type="text" />
-              <button id="clearPurchaseSearchBtn" class="secondary-btn">Clear Text</button>
+              <label for="purchaseSearchInput">🔍 Search</label>
+              <div class="search-input-group">
+                <input id="purchaseSearchInput" placeholder="Purchase ID, supplier, contact..." type="text" />
+                <div class="search-buttons">
+                  <button id="clearPurchaseSearchBtn" class="secondary-btn">Clear</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -406,10 +416,15 @@
               </div>
             </div>
             
-            <!-- Right side: Sales Text Search -->
+            <!-- Right side: Sales Text Search with label -->
             <div class="text-search-container right-search">
-              <input id="salesSearchInput" placeholder="Search sales ID, customer, contact..." type="text" />
-              <button id="clearSalesSearchBtn" class="secondary-btn">Clear Text</button>
+              <label for="salesSearchInput">🔍 Search</label>
+              <div class="search-input-group">
+                <input id="salesSearchInput" placeholder="Sales ID, customer, contact..." type="text" />
+                <div class="search-buttons">
+                  <button id="clearSalesSearchBtn" class="secondary-btn">Clear</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -811,5 +826,3 @@
   </script>
 </body>
 </html>
-
-
