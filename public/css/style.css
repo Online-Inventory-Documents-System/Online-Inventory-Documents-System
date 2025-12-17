@@ -368,12 +368,22 @@ section {
   overflow-y: auto;
 }
 
+.medium-modal {
+  width: 600px;
+}
+
 .large-modal {
   width: 900px;
 }
 
 .x-large-modal {
   width: 1200px;
+}
+
+/* Add Product Modal Specific Styles */
+#addProductModal .modal-content {
+  width: 650px;
+  max-width: 95%;
 }
 
 /* Purchase/Sales History Modal Enhancements */
@@ -411,6 +421,51 @@ section {
 /* Modal body padding enhancement */
 .modal-body {
   padding: 30px;
+}
+
+/* Add Product Form Styling */
+.add-product-form {
+  margin-bottom: 20px;
+}
+
+.add-product-form .form-group {
+  margin-bottom: 25px;
+}
+
+.add-product-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.add-product-form .form-group label {
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 8px;
+  display: block;
+  font-size: 1rem;
+}
+
+.add-product-form .form-group input {
+  font-size: 1.05rem;
+  padding: 14px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.add-product-form .form-group input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
+}
+
+.form-hint {
+  font-size: 0.85rem;
+  color: var(--secondary-color);
+  margin-top: 15px;
+  font-style: italic;
 }
 
 /* Form group enhancement for purchase/sales modals */
@@ -1329,6 +1384,22 @@ input:focus, select:focus, textarea:focus {
     background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
 }
 
+/* Dark mode for add product modal */
+.dark-mode .add-product-form .form-group label {
+  color: #80bdff;
+}
+
+.dark-mode .add-product-form .form-group input {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
+}
+
+.dark-mode .add-product-form .form-group input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.5);
+}
+
 /* =========================================
    Activity Log Table
 ========================================= */
@@ -1897,8 +1968,13 @@ input:focus, select:focus, textarea:focus {
   background-color: #3f4a56;
 }
 
-/* Responsive design */
+/* Responsive design for add product modal */
 @media (max-width: 768px) {
+  .add-product-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  
   .section-header {
     flex-direction: column;
     align-items: stretch;
@@ -2232,7 +2308,6 @@ input:focus, select:focus, textarea:focus {
       background: linear-gradient(135deg, #e74c3c, #c0392b);
     }
 
-    /* UPDATED: Changed from view-statements to add-new-product */
     .action-card.add-new-product {
       background: linear-gradient(135deg, #34495e, #2c3e50);
     }
@@ -2801,9 +2876,9 @@ body[data-theme="dark"] section {
     font-size: 0.9rem;
   }
   
-  .product-bar {
+  .add-product-form .form-row {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 0;
   }
   
   .search-controls-dual {
@@ -2849,7 +2924,7 @@ body[data-theme="dark"] section {
     width: 95%;
   }
   
-  .x-large-modal, .large-modal {
+  .x-large-modal, .large-modal, .medium-modal {
     width: 95%;
   }
   
@@ -2882,8 +2957,6 @@ body[data-theme="dark"] section {
     padding: 8px 6px;
     font-size: 0.8rem;
   }
-  
-  /* REMOVED: Progressive column hiding - Keep all columns visible */
   
   /* Keep only minimal width adjustments for mobile */
   #inventoryTable th:nth-child(1),
@@ -2977,8 +3050,6 @@ body[data-theme="dark"] section {
     font-size: 0.75em;
   }
   
-  /* REMOVED: Column hiding for small mobile */
-  
   .statements-tabs {
     flex-direction: column;
   }
@@ -2986,23 +3057,10 @@ body[data-theme="dark"] section {
   .tab-button {
     text-align: center;
   }
-  
-  /* Product bar adjustments for mobile */
-  .product-bar input {
-    font-size: 0.9rem;
-    padding: 10px;
-  }
-  
-  .product-bar button {
-    font-size: 0.9rem;
-    padding: 10px;
-  }
 }
 
 /* Small mobile devices */
 @media (max-width: 360px) {
-  /* REMOVED: Column hiding for very small mobile */
-  
   .pagination-btn {
     min-width: 28px;
     padding: 4px 8px;
