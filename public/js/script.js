@@ -385,7 +385,7 @@ function bindInventoryPaginationEvents() {
 }
 
 // =========================================
-// PURCHASE PAGINATION FUNCTIONS
+// PURCHASE PAGINATION FUNCTIONS - UPDATED TO RESTOCK
 // =========================================
 function updatePurchasePagination(items) {
   const totalItems = items.length;
@@ -1740,7 +1740,7 @@ async function printAndSaveSalesInvoice(salesId) {
 }
 
 // =========================================
-// PURCHASE MANAGEMENT FUNCTIONS - FIXED
+// PURCHASE MANAGEMENT FUNCTIONS - UPDATED TO RESTOCK
 // =========================================
 async function fetchPurchases() {
   try {
@@ -2162,7 +2162,7 @@ async function savePurchaseOrder() {
     items
   };
   
-  let confirmMessage = `Confirm Purchase Order:\n\nSupplier: ${supplierName}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Restock Order:\n\nSupplier: ${supplierName}\nContact: ${supplierContact}\nItems: ${items.length}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.purchasePrice.toFixed(2)} = RM ${(item.quantity * item.purchasePrice).toFixed(2)}\n`;
   });
@@ -2180,7 +2180,7 @@ async function savePurchaseOrder() {
     
     if (res.ok) {
       const savedPurchase = await res.json();
-      alert('✅ Purchase order saved successfully!');
+      alert('✅ Restock order saved successfully!');
       
       // Refresh data
       await fetchInventory();
@@ -2193,11 +2193,11 @@ async function savePurchaseOrder() {
       
     } else {
       const error = await res.json();
-      alert(`❌ Failed to save purchase order: ${error.message}`);
+      alert(`❌ Failed to save restock order: ${error.message}`);
     }
   } catch (e) {
     console.error('Save purchase order error:', e);
-    alert('❌ Server connection error while saving purchase order.');
+    alert('❌ Server connection error while saving restock order.');
   }
 }
 
@@ -2320,20 +2320,20 @@ async function deletePurchase(id) {
   const purchase = purchases.find(p => String(p.id) === String(id));
   if (!purchase) return;
   
-  if (!confirm(`Confirm Delete Purchase Order:\n${purchase.purchaseId} from ${purchase.supplier}?\n\nThis will remove ${purchase.items.length} items and revert inventory quantities.`)) return;
+  if (!confirm(`Confirm Delete Restock Order:\n${purchase.purchaseId} from ${purchase.supplier}?\n\nThis will remove ${purchase.items.length} items and revert inventory quantities.`)) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
     if (res.status === 204) {
       await fetchPurchases();
       await fetchInventory();
-      alert('🗑️ Purchase order deleted!');
+      alert('🗑️ Restock order deleted!');
     } else {
-      alert('❌ Failed to delete purchase order.');
+      alert('❌ Failed to delete restock order.');
     }
   } catch (e) {
     console.error(e);
-    alert('❌ Server connection error while deleting purchase order.');
+    alert('❌ Server connection error while deleting restock order.');
   }
 }
 
@@ -3143,7 +3143,6 @@ function bindInventoryUI(){
   
   // Other existing bindings
   qs('#reportBtn')?.addEventListener('click', openReportModal);
-  qs('#statementsBtn')?.addEventListener('click', openStatementsModal);
   qs('#searchInput')?.addEventListener('input', searchInventory);
   qs('#clearSearchBtn')?.addEventListener('click', ()=> { 
     if(qs('#searchInput')) { 
@@ -3171,8 +3170,6 @@ function bindInventoryUI(){
   
   qs('#generateReportBtn')?.addEventListener('click', generateSelectedReport);
   qs('#closeReportModal')?.addEventListener('click', closeReportModal);
-  
-  qs('#closeStatementsModal')?.addEventListener('click', closeStatementsModal);
   
   // Close buttons for detail modals - FIXED: Corrected element IDs
   qs('#closePurchaseDetailsModal')?.addEventListener('click', closePurchaseDetailsModal);
@@ -3208,7 +3205,6 @@ function bindInventoryUI(){
     if (e.target === qs('#salesHistoryModal')) closeSalesHistoryModal();
     if (e.target === qs('#newSalesModal')) closeNewSalesModal();
     if (e.target === qs('#reportModal')) closeReportModal();
-    if (e.target === qs('#statementsModal')) closeStatementsModal();
     if (e.target === qs('#previewModal')) closePreviewModal();
     if (e.target === qs('#purchaseDetailsModal')) closePurchaseDetailsModal();
     if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
@@ -3328,7 +3324,6 @@ window.openReportModal = openReportModal;
 window.selectReportType = selectReportType;
 window.generateSelectedReport = generateSelectedReport;
 
-window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
 
