@@ -111,6 +111,50 @@ function logout(){
 }
 
 // =========================================
+// NEW: Add Product Modal Functions
+// =========================================
+function openAddProductModal() {
+  // First, scroll to the inventory table
+  const inventoryTitle = qs('#currentInventoryTitle');
+  if (inventoryTitle) {
+    inventoryTitle.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start' 
+    });
+  }
+  
+  // Then open the modal
+  const modal = qs('#addProductModal');
+  if (modal) {
+    resetAddProductForm();
+    modal.style.display = 'block';
+    
+    // Focus on the first input field
+    setTimeout(() => {
+      const skuInput = qs('#p_sku');
+      if (skuInput) skuInput.focus();
+    }, 300);
+  }
+}
+
+function closeAddProductModal() {
+  const modal = qs('#addProductModal');
+  if (modal) {
+    modal.style.display = 'none';
+    resetAddProductForm();
+  }
+}
+
+function resetAddProductForm() {
+  if (qs('#p_sku')) qs('#p_sku').value = '';
+  if (qs('#p_name')) qs('#p_name').value = '';
+  if (qs('#p_category')) qs('#p_category').value = '';
+  if (qs('#p_quantity')) qs('#p_quantity').value = '0';
+  if (qs('#p_unitCost')) qs('#p_unitCost').value = '0.00';
+  if (qs('#p_unitPrice')) qs('#p_unitPrice').value = '0.00';
+}
+
+// =========================================
 // Company Information Management
 // =========================================
 async function fetchCompanyInfo() {
@@ -939,7 +983,7 @@ function bindDateRangeFilterEvents() {
 }
 
 // =========================================
-// INVENTORY CRUD OPERATIONS
+// INVENTORY CRUD OPERATIONS - UPDATED FOR MODAL
 // =========================================
 async function confirmAndAddProduct(){
   const sku = qs('#p_sku')?.value?.trim();
@@ -948,7 +992,27 @@ async function confirmAndAddProduct(){
   const quantity = Number(qs('#p_quantity')?.value || 0);
   const unitCost = Number(qs('#p_unitCost')?.value || 0); // UPDATED: Changed from unitCost
   const unitPrice = Number(qs('#p_unitPrice')?.value || 0); // UPDATED: Changed from unitPrice
-  if(!sku || !name) return alert('⚠️ Please enter SKU and Name.');
+  
+  // Validate required fields
+  if(!sku || !name) {
+    alert('⚠️ Please enter SKU and Product Name.');
+    return;
+  }
+  
+  if (quantity < 0) {
+    alert('⚠️ Quantity cannot be negative.');
+    return;
+  }
+  
+  if (unitCost < 0) {
+    alert('⚠️ Unit Cost cannot be negative.');
+    return;
+  }
+  
+  if (unitPrice < 0) {
+    alert('⚠️ Unit Price cannot be negative.');
+    return;
+  }
 
   // UPDATED: Updated confirmation message
   if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
@@ -957,14 +1021,20 @@ async function confirmAndAddProduct(){
   try {
     const res = await apiFetch(`${API_BASE}/inventory`, { method: 'POST', body: JSON.stringify(newItem) });
     if(res.ok) {
-      ['#p_sku','#p_name','#p_category','#p_quantity','#p_unitCost','#p_unitPrice'].forEach(id => { if(qs(id)) qs(id).value = ''; });
+      // Close the modal first
+      closeAddProductModal();
+      
+      // Then refresh data
       await fetchInventory();
       if(currentPage.includes('inventory')) await fetchLogs();
       alert('✅ Product added successfully.');
     } else {
       alert('❌ Failed to add product.');
     }
-  } catch(e) { console.error(e); alert('❌ Server connection error while adding product.'); }
+  } catch(e) { 
+    console.error(e); 
+    alert('❌ Server connection error while adding product.'); 
+  }
 }
 
 async function confirmAndDeleteItem(id){
@@ -3059,27 +3129,19 @@ function bindSalesEditPage() {
 }
 
 // =========================================
-// Scroll to Add New Product Form
-// =========================================
-function scrollToAddProductForm() {
-  const addProductSection = qs('#addProductSection');
-  if (addProductSection) {
-    addProductSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    
-    setTimeout(() => {
-      const firstInput = qs('#p_sku');
-      if (firstInput) {
-        firstInput.focus();
-      }
-    }, 500);
-  }
-}
-
-// =========================================
-// ENHANCED UI BINDING - FIXED with Company Info Modal Fix
+// ENHANCED UI BINDING - FIXED with Add Product Modal
 // =========================================
 function bindInventoryUI(){
+  // Updated: Bind the new Add Product Modal button
+  qs('#addNewProductBtn')?.addEventListener('click', openAddProductModal);
+  
+  // Updated: Bind the Add Product button inside the modal
   qs('#addProductBtn')?.addEventListener('click', confirmAndAddProduct);
+  
+  // Bind the close button for Add Product Modal
+  qs('#closeAddProductModal')?.addEventListener('click', closeAddProductModal);
+  
+  // Other existing bindings
   qs('#reportBtn')?.addEventListener('click', openReportModal);
   qs('#statementsBtn')?.addEventListener('click', openStatementsModal);
   qs('#searchInput')?.addEventListener('input', searchInventory);
@@ -3089,8 +3151,6 @@ function bindInventoryUI(){
       searchInventory(); 
     } 
   });
-  
-  qs('#addNewProductBtn')?.addEventListener('click', scrollToAddProductForm);
   
   // Purchase buttons - FIXED: Using direct function calls
   qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
@@ -3142,6 +3202,7 @@ function bindInventoryUI(){
   });
   
   window.addEventListener('click', (e) => {
+    if (e.target === qs('#addProductModal')) closeAddProductModal();
     if (e.target === qs('#purchaseHistoryModal')) closePurchaseHistoryModal();
     if (e.target === qs('#newPurchaseModal')) closeNewPurchaseModal();
     if (e.target === qs('#salesHistoryModal')) closeSalesHistoryModal();
@@ -3267,7 +3328,6 @@ window.openReportModal = openReportModal;
 window.selectReportType = selectReportType;
 window.generateSelectedReport = generateSelectedReport;
 
-
 window.switchTab = switchTab;
 window.previewDocument = previewDocument;
 window.closePreviewModal = closePreviewModal;
@@ -3293,3 +3353,8 @@ window.applyPurchaseDateRangeFilter = applyPurchaseDateRangeFilter;
 window.searchSales = searchSales;
 window.clearSalesSearch = clearSalesSearch;
 window.applySalesDateRangeFilter = applySalesDateRangeFilter;
+
+// ===== NEW: Add Product Modal Functions =====
+window.openAddProductModal = openAddProductModal;
+window.closeAddProductModal = closeAddProductModal;
+window.confirmAndAddProduct = confirmAndAddProduct;
