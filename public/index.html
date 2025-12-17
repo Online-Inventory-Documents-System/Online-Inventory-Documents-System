@@ -580,7 +580,7 @@
         </div>
 
         <div class="modal-actions">
-          <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
+          <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Recipt</button>
           <button id="closePurchaseDetailsModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -713,8 +713,8 @@
         </div>
 
         <div class="modal-actions">
-          <button id="savePurchaseBtn" class="primary-btn">💾 Save Restock Order</button>
-          <button id="printPurchaseBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
+          <button id="savePurchaseBtn" class="primary-btn">💾 Save Restock Order & Print</button>
+          <button id="printPurchaseBtn" class="success-btn" style="display: none;">🖨️ Print Recipt</button>
           <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -776,7 +776,7 @@
         </div>
 
         <div class="modal-actions">
-          <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
+          <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order & Print</button>
           <button id="printSalesBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
         </div>
@@ -803,18 +803,12 @@
           </div>
         </div>
 
-        <h3>Select Report Type</h3>
         <div class="report-options">
-          <!-- UPDATED: Only keep Inventory Report -->
           <div class="report-option" id="report-inventory" onclick="selectReportType('inventory')">
             <div class="icon">📦</div>
             <h3>Inventory Report</h3>
             <p>Current stock levels, values, and status analysis</p>
           </div>
-          <!-- REMOVED: Purchase and Sales Report options -->
-        </div>
-
-        <input type="hidden" id="selectedReportType" value="">
 
         <div class="modal-actions">
           <button id="generateReportBtn" class="primary-btn">🚀 Generate Report</button>
@@ -874,3 +868,4 @@
   </script>
 </body>
 </html>
+
