@@ -214,9 +214,7 @@ section {
   font-size: 0.95rem;
   padding: 12px 10px;
   border-bottom: 1px solid #e9ecef;
-  white-space: nowrap; /* Disable automatic line wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-wrap: break-word;
 }
 
 /* Number column styling */
@@ -311,7 +309,6 @@ section {
   min-width: 100px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  white-space: nowrap; /* Prevent status badge text wrapping */
 }
 
 .status-in-stock {
@@ -571,6 +568,19 @@ section {
   background: #495057;
   color: var(--text-dark);
   border-color: #6c757d;
+}
+
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .pagination-controls {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* =========================================
@@ -950,8 +960,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   FIXED WIDTH TABLE FOR HORIZONTAL SCROLLING
-   No line wrapping, no resizing on small screens
+   RESPONSIVE TABLE STYLING FOR INVENTORY
 ========================================= */
 .table-container {
     overflow-x: auto; 
@@ -962,15 +971,13 @@ input:focus, select:focus, textarea:focus {
     background: var(--card-light);
     max-width: 100%;
     -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-    width: 100%;
 }
 
 #inventoryTable, #documentsTable, #salesHistoryTable {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    min-width: 1300px; /* Fixed minimum width - NO RESPONSIVE RESIZING */
-    table-layout: fixed; /* Fixed table layout to prevent resizing */
+    min-width: 1300px; /* Minimum width for horizontal scroll */
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
@@ -980,10 +987,8 @@ input:focus, select:focus, textarea:focus {
     text-align: left;
     border-bottom: 1px solid var(--border-color);
     border-right: 1px solid #000000;
-    white-space: nowrap; /* NO LINE WRAPPING */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: none; /* Remove max-width constraints */
+    word-wrap: break-word;
+    max-width: 200px;
 }
 
 /* Remove border only from last column */
@@ -1001,7 +1006,6 @@ input:focus, select:focus, textarea:focus {
     z-index: 10;
     border-right: 1px solid rgba(255, 255, 255, 0.3);
     padding: 15px 10px;
-    white-space: nowrap; /* Prevent header text wrapping */
 }
 
 #inventoryTable thead th:last-child,
@@ -1009,51 +1013,43 @@ input:focus, select:focus, textarea:focus {
     border-right: none;
 }
 
-/* FIXED COLUMN WIDTHS - NO RESPONSIVE CHANGES */
+/* RESPONSIVE COLUMN WIDTHS FOR BETTER FIT */
 #inventoryTable th:nth-child(1), /* NO */
 #inventoryTable td:nth-child(1) {
-    width: 60px; /* Fixed width */
-    min-width: 60px; /* Fixed min width */
-    max-width: 60px; /* Fixed max width */
+    min-width: 50px;
+    max-width: 60px;
     text-align: center;
     font-size: 0.9rem;
 }
 
 #inventoryTable th:nth-child(2), /* SKU */
 #inventoryTable td:nth-child(2) {
-    width: 110px; /* Fixed width */
-    min-width: 110px; /* Fixed min width */
-    max-width: 110px; /* Fixed max width */
+    min-width: 90px;
+    max-width: 110px;
     font-size: 0.9rem;
 }
 
 #inventoryTable th:nth-child(3), /* NAME */
 #inventoryTable td:nth-child(3) {
-    width: 180px; /* Fixed width */
-    min-width: 180px; /* Fixed min width */
-    max-width: 180px; /* Fixed max width */
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: 120px;
+    max-width: 180px;
+    word-break: break-word;
 }
 
 #inventoryTable th:nth-child(4), /* CATEGORY */
 #inventoryTable td:nth-child(4) {
-    width: 110px; /* Fixed width */
-    min-width: 110px; /* Fixed min width */
-    max-width: 110px; /* Fixed max width */
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: 90px;
+    max-width: 110px;
 }
 
 #inventoryTable th:nth-child(5), /* QUANTITY */
 #inventoryTable td:nth-child(5) {
-    width: 80px; /* Fixed width */
-    min-width: 80px; /* Fixed min width */
-    max-width: 80px; /* Fixed max width */
+    min-width: 70px;
+    max-width: 80px;
     text-align: center;
 }
 
-/* CURRENCY COLUMNS - FIXED WIDTHS */
+/* CURRENCY COLUMNS */
 #inventoryTable td:nth-child(6), /* Unit Cost */
 #inventoryTable td:nth-child(7), /* Unit Price */
 #inventoryTable td:nth-child(8), /* Inventory Value */
@@ -1062,36 +1058,32 @@ input:focus, select:focus, textarea:focus {
     text-align: center;
     font-family: 'Consolas', monospace;
     font-weight: bold;
-    width: 120px; /* Fixed width */
-    min-width: 120px; /* Fixed min width */
-    max-width: 120px; /* Fixed max width */
+    min-width: 100px;
+    max-width: 120px;
     font-size: 0.9rem;
 }
 
-/* Date column - FIXED WIDTH */
+/* Date column */
 #inventoryTable td:nth-child(10) {
-    width: 100px; /* Fixed width */
-    min-width: 100px; /* Fixed min width */
-    max-width: 100px; /* Fixed max width */
     text-align: center;
+    min-width: 90px;
+    max-width: 100px;
     font-size: 0.85rem;
 }
 
-/* Status column - FIXED WIDTH */
+/* Status column */
 #inventoryTable td:nth-child(11) {
-    width: 110px; /* Fixed width */
-    min-width: 110px; /* Fixed min width */
-    max-width: 110px; /* Fixed max width */
     text-align: center;
+    min-width: 100px;
+    max-width: 110px;
     font-size: 0.85rem;
 }
 
-/* Actions column - FIXED WIDTH */
+/* Actions column */
 #inventoryTable td:nth-child(12) {
-    width: 120px; /* Fixed width */
-    min-width: 120px; /* Fixed min width */
-    max-width: 120px; /* Fixed max width */
     text-align: center;
+    min-width: 110px;
+    max-width: 120px;
     font-size: 0.85rem;
 }
 
@@ -1100,7 +1092,6 @@ input:focus, select:focus, textarea:focus {
     padding: 12px 15px;
     text-align: left;
     border-bottom: 1px solid var(--border-color);
-    white-space: nowrap; /* Prevent wrapping */
 }
 
 #documentsTable thead th {
@@ -1112,7 +1103,6 @@ input:focus, select:focus, textarea:focus {
     position: sticky; 
     top: 0;
     z-index: 10;
-    white-space: nowrap; /* Prevent header wrapping */
 }
 
 /* Table row styles */
@@ -1148,11 +1138,10 @@ input:focus, select:focus, textarea:focus {
 .small-btn {
     padding: 5px 8px;
     font-size: 0.8em;
-    white-space: nowrap; /* Prevent button text wrapping */
 }
 
 /* =========================================
-   Dashboard Layout - NO RESPONSIVE RESIZING
+   Dashboard Layout
 ========================================= */
 .dashboard-grid {
     display: grid;
@@ -1175,7 +1164,6 @@ input:focus, select:focus, textarea:focus {
 .dashboard-info li {
     padding: 8px 0;
     border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
-    white-space: nowrap; /* Prevent wrapping */
 }
 .dashboard-info li:last-child {
     border-bottom: none;
@@ -1197,7 +1185,6 @@ input:focus, select:focus, textarea:focus {
     color: white;
     cursor: pointer;
     transition: transform 0.2s;
-    white-space: nowrap; /* Prevent button text wrapping */
 }
 .quick-access-btn:hover {
     transform: translateY(-3px);
@@ -1217,7 +1204,6 @@ input:focus, select:focus, textarea:focus {
 #recentActivities th, #recentActivities td {
     padding: 8px;
     border-bottom: 1px solid var(--border-color);
-    white-space: nowrap; /* Prevent wrapping */
 }
 
 /* =========================================
@@ -1344,7 +1330,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Activity Log Table - NO WRAPPING
+   Activity Log Table
 ========================================= */
 
 #activityLog {
@@ -1373,7 +1359,6 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   min-width: 750px;
   border-collapse: collapse;
-  table-layout: fixed; /* Fixed layout */
 }
 
 #activityTable thead th {
@@ -1384,16 +1369,12 @@ input:focus, select:focus, textarea:focus {
   text-align: left;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  white-space: nowrap; /* No wrapping */
 }
 
 #activityTable td {
   padding: 12px 15px;
   border-bottom: 1px solid var(--border-color);
   font-size: 0.95rem;
-  white-space: nowrap; /* No wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 #activityTable tbody tr:hover {
@@ -1444,7 +1425,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   MODERN SUMMARY CARDS - NO WRAPPING
+   MODERN SUMMARY CARDS
 ========================================= */
 .summary-cards {
   display: grid;
@@ -1497,14 +1478,12 @@ input:focus, select:focus, textarea:focus {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  white-space: nowrap; /* No wrapping */
 }
 
 .card-value {
   font-size: 1.8rem;
   font-weight: 700;
   transition: all 0.3s ease;
-  white-space: nowrap; /* No wrapping */
 }
 
 .card:hover .card-value {
@@ -1823,13 +1802,11 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid var(--border-color);
 }
 
-/* Purchase/Sales History Table - NO WRAPPING */
+/* Purchase/Sales History Table */
 #purchaseHistoryTable,
 #salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1100px; /* Fixed minimum width */
-  table-layout: fixed; /* Fixed layout */
 }
 
 #purchaseHistoryTable th, #purchaseHistoryTable td,
@@ -1837,9 +1814,6 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  white-space: nowrap; /* No wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 #purchaseHistoryTable thead th {
@@ -1848,7 +1822,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap; /* No wrapping */
 }
 
 #salesHistoryTable thead th {
@@ -1857,7 +1830,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap; /* No wrapping */
 }
 
 #purchaseHistoryTable tbody tr:hover,
@@ -1958,7 +1930,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Purchase/Sales Details Modal Styling - NO WRAPPING
+   Purchase/Sales Details Modal Styling
 ========================================= */
 .purchase-details-header,
 .sales-details-header {
@@ -1993,29 +1965,25 @@ input:focus, select:focus, textarea:focus {
   display: block;
   margin-bottom: 5px;
   font-size: 0.9rem;
-  white-space: nowrap; /* No wrapping */
 }
 
 .detail-value {
   color: var(--text-light);
   font-size: 0.95rem;
-  white-space: nowrap; /* No wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .dark-mode .detail-value {
   color: var(--text-dark);
 }
 
-/* Purchase/Sales History Table Styling - NO WRAPPING */
+/* Purchase/Sales History Table Styling */
 #purchaseHistoryTable,
 #salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
   margin: 0;
   font-size: 0.95rem;
-  min-width: 1100px; /* Fixed minimum width */
+  min-width: 1100px;
 }
 
 #purchaseHistoryTable th, #purchaseHistoryTable td,
@@ -2024,9 +1992,6 @@ input:focus, select:focus, textarea:focus {
   text-align: left;
   border-bottom: 1px solid var(--border-color);
   border-right: 1px solid #000000;
-  white-space: nowrap; /* No wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 #purchaseHistoryTable th:last-child, 
@@ -2047,7 +2012,6 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid rgba(255, 255, 255, 0.3);
   font-size: 0.95rem;
   padding: 15px 15px;
-  white-space: nowrap; /* No wrapping */
 }
 
 #salesHistoryTable thead th {
@@ -2061,7 +2025,6 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid rgba(255, 255, 255, 0.3);
   font-size: 0.95rem;
   padding: 15px 15px;
-  white-space: nowrap; /* No wrapping */
 }
 
 #purchaseHistoryTable thead th:last-child,
@@ -2069,14 +2032,13 @@ input:focus, select:focus, textarea:focus {
   border-right: none;
 }
 
-/* Purchase/Sales Details Table - NO WRAPPING */
+/* Purchase/Sales Details Table */
 #purchaseDetailsTable,
 #salesDetailsTable {
   width: 100%;
   border-collapse: collapse;
   margin: 0;
   font-size: 0.95rem;
-  min-width: 800px; /* Fixed minimum width */
 }
 
 #purchaseDetailsTable th, #purchaseDetailsTable td,
@@ -2085,9 +2047,6 @@ input:focus, select:focus, textarea:focus {
   text-align: left;
   border-bottom: 1px solid var(--border-color);
   border-right: 1px solid #000000;
-  white-space: nowrap; /* No wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 #purchaseDetailsTable th:last-child, 
@@ -2106,7 +2065,6 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid rgba(255, 255, 255, 0.3);
   font-size: 0.95rem;
   padding: 12px 12px;
-  white-space: nowrap; /* No wrapping */
 }
 
 #salesDetailsTable thead th {
@@ -2118,7 +2076,6 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid rgba(255, 255, 255, 0.3);
   font-size: 0.95rem;
   padding: 12px 12px;
-  white-space: nowrap; /* No wrapping */
 }
 
 /* Purchase/Sales Edit Page Styling */
@@ -2168,7 +2125,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-       ENHANCED BUTTON LAYOUT STYLING - NO WRAPPING
+       ENHANCED BUTTON LAYOUT STYLING
     ========================================= */
     .action-buttons-grid {
       display: grid;
@@ -2230,14 +2187,12 @@ input:focus, select:focus, textarea:focus {
       font-weight: 700;
       margin-bottom: 5px;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-      white-space: nowrap; /* No wrapping */
     }
 
     .action-subtitle {
       font-size: 0.85rem;
       opacity: 0.9;
       font-weight: 500;
-      white-space: nowrap; /* No wrapping */
     }
 
     .action-wave {
@@ -2468,7 +2423,6 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
   color: var(--primary-color);
   cursor: pointer;
-  white-space: nowrap; /* No wrapping */
 }
 
 .breadcrumb-item:not(:last-child)::after {
@@ -2572,7 +2526,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Statements Section Styling - NO WRAPPING
+   Statements Section Styling
 ========================================= */
 .statements-tabs {
   display: flex;
@@ -2591,7 +2545,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 500;
   color: var(--secondary-color);
   transition: all 0.3s ease;
-  white-space: nowrap; /* No wrapping */
 }
 
 .tab-button:hover {
@@ -2626,7 +2579,6 @@ input:focus, select:focus, textarea:focus {
 .statement-filters label {
   font-size: 0.9rem;
   margin-bottom: 5px;
-  white-space: nowrap; /* No wrapping */
 }
 
 /* Statement Summary */
@@ -2644,7 +2596,6 @@ input:focus, select:focus, textarea:focus {
 .statement-count, .statement-size {
   font-weight: 600;
   color: var(--primary-color);
-  white-space: nowrap; /* No wrapping */
 }
 
 .statement-count span, .statement-size span {
@@ -2656,7 +2607,7 @@ input:focus, select:focus, textarea:focus {
   border-color: #495057;
 }
 
-/* Enhanced Statements Tables - NO WRAPPING */
+/* Enhanced Statements Tables */
 #inventoryReportsTable,
 #purchaseInvoicesTable,
 #salesInvoicesTable {
@@ -2664,8 +2615,6 @@ input:focus, select:focus, textarea:focus {
   border-collapse: collapse;
   margin: 0;
   font-size: 0.95rem;
-  min-width: 1000px; /* Fixed minimum width */
-  table-layout: fixed; /* Fixed layout */
 }
 
 #inventoryReportsTable th, #inventoryReportsTable td,
@@ -2674,9 +2623,6 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-  white-space: nowrap; /* No wrapping */
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 #inventoryReportsTable thead th {
@@ -2685,7 +2631,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap; /* No wrapping */
 }
 
 #purchaseInvoicesTable thead th {
@@ -2694,7 +2639,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap; /* No wrapping */
 }
 
 #salesInvoicesTable thead th {
@@ -2703,7 +2647,6 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap; /* No wrapping */
 }
 
 #inventoryReportsTable tbody tr:hover,
@@ -2757,7 +2700,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Enhanced Button Groups - NO WRAPPING
+   Enhanced Button Groups
 ========================================= */
 .btn-group-vertical {
   display: flex;
@@ -2782,7 +2725,6 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   gap: 8px;
   justify-content: center;
-  white-space: nowrap; /* No wrapping */
 }
 
 /* =========================================
@@ -2810,17 +2752,24 @@ body[data-theme="dark"] section {
 }
 
 /* =========================================
-   MOBILE RESPONSIVE IMPROVEMENTS - DISABLED
-   All responsive resizing is disabled - horizontal scroll only
+   MOBILE RESPONSIVE IMPROVEMENTS - UPDATED
 ========================================= */
 @media (max-width: 1200px) {
-  /* NO responsive changes - maintain fixed layout */
+  section {
+    max-width: 98%;
+    padding: 20px;
+  }
+  
+  .welcome-section h2 {
+    font-size: 1.6rem;
+  }
+  
+  .welcome-section p {
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 768px) {
-  /* Disable all responsive resizing for mobile */
-  /* Only minimal adjustments for very small screens */
-  
   header {
     padding: 10px 15px;
   }
@@ -2920,49 +2869,45 @@ body[data-theme="dark"] section {
     grid-template-columns: 1fr;
   }
   
-  /* IMPORTANT: Table maintains fixed width - NO responsive changes */
+  /* Responsive table adjustments */
   .table-container {
     font-size: 0.85rem;
     border: none;
     background: transparent;
     box-shadow: none;
-    overflow-x: scroll; /* Force horizontal scroll */
   }
   
   #inventoryTable th,
   #inventoryTable td {
     padding: 8px 6px;
     font-size: 0.8rem;
-    /* Maintain fixed widths - NO responsive resizing */
   }
   
-  /* All table column widths remain FIXED */
+  /* REMOVED: Progressive column hiding - Keep all columns visible */
+  
+  /* Keep only minimal width adjustments for mobile */
   #inventoryTable th:nth-child(1),
   #inventoryTable td:nth-child(1) {
-    width: 60px !important; /* Fixed width */
-    min-width: 60px !important; /* Fixed min width */
-    max-width: 60px !important; /* Fixed max width */
+    min-width: 40px;
+    max-width: 50px;
   }
   
   #inventoryTable th:nth-child(2),
   #inventoryTable td:nth-child(2) {
-    width: 110px !important; /* Fixed width */
-    min-width: 110px !important; /* Fixed min width */
-    max-width: 110px !important; /* Fixed max width */
+    min-width: 70px;
+    max-width: 90px;
   }
   
   #inventoryTable th:nth-child(3),
   #inventoryTable td:nth-child(3) {
-    width: 180px !important; /* Fixed width */
-    min-width: 180px !important; /* Fixed min width */
-    max-width: 180px !important; /* Fixed max width */
+    min-width: 100px;
+    max-width: 150px;
   }
   
   #inventoryTable th:nth-child(5),
   #inventoryTable td:nth-child(5) {
-    width: 80px !important; /* Fixed width */
-    min-width: 80px !important; /* Fixed min width */
-    max-width: 80px !important; /* Fixed max width */
+    min-width: 60px;
+    max-width: 70px;
   }
   
   .status-badge {
@@ -3032,7 +2977,7 @@ body[data-theme="dark"] section {
     font-size: 0.75em;
   }
   
-  /* NO column hiding - maintain full table with horizontal scroll */
+  /* REMOVED: Column hiding for small mobile */
   
   .statements-tabs {
     flex-direction: column;
@@ -3056,7 +3001,7 @@ body[data-theme="dark"] section {
 
 /* Small mobile devices */
 @media (max-width: 360px) {
-  /* NO column hiding - maintain full table with horizontal scroll */
+  /* REMOVED: Column hiding for very small mobile */
   
   .pagination-btn {
     min-width: 28px;
