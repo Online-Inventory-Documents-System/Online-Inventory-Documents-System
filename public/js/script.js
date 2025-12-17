@@ -1115,6 +1115,7 @@ async function fetchSales() {
   }
 }
 
+// UPDATED: Enhanced renderSalesHistory function to match restock history layout
 function renderSalesHistory(items) {
   const list = qs('#salesHistoryList');
   if (!list) return;
@@ -1136,9 +1137,12 @@ function renderSalesHistory(items) {
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(s.salesDate || 'N/A')}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
+        <div class="btn-group">
+          <!-- UPDATED: Changed to horizontal layout matching PDF -->
+          <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')" title="View Details">👁️ View</button>
+          <button class="info-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')" title="Print Invoice">🖨️ Invoice</button>
+          <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')" title="Delete Order">🗑️ Delete</button>
+        </div>
       </td>
     `;
     list.appendChild(tr);
@@ -1755,6 +1759,7 @@ async function fetchPurchases() {
   }
 }
 
+// UPDATED: Enhanced renderPurchaseHistory function to match PDF layout
 function renderPurchaseHistory(items) {
   const list = qs('#purchaseHistoryList');
   if (!list) return;
@@ -1776,9 +1781,12 @@ function renderPurchaseHistory(items) {
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
+        <div class="btn-group">
+          <!-- UPDATED: Changed to horizontal layout matching PDF -->
+          <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')" title="View Details">👁️ View</button>
+          <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')" title="Print Invoice">🖨️ Invoice</button>
+          <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')" title="Delete Order">🗑️ Delete</button>
+        </div>
       </td>
     `;
     list.appendChild(tr);
@@ -3089,7 +3097,7 @@ function bindSettingPage(){
     if(newPass !== confPass) { return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); }
     if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
 
-    try {
+  try {
       const res = await apiFetch(`${API_BASE}/account/password`, { method: 'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
       const data = await res.json();
       if(res.ok) {
