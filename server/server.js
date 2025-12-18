@@ -19,16 +19,45 @@ let invoiceCounter = {
   sales: 0
 };
 
-// Initialize counters from database
+// FIXED: Initialize counters from database with proper async handling
 async function initializeCounters() {
   try {
-    const sales = await Sales.countDocuments({});
-    const inventoryReports = await Doc.countDocuments({ tags: 'inventory-report' });
+    console.log('🔄 Initializing counters from database...');
     
-    invoiceCounter.sales = sales;
-    invoiceCounter.inventory = inventoryReports;
+    // Get the maximum salesId from existing sales
+    const lastSale = await Sales.findOne().sort({ salesId: -1 }).lean();
+    if (lastSale && lastSale.salesId) {
+      const match = lastSale.salesId.match(/SAL-(\d+)/);
+      if (match) {
+        const lastNumber = parseInt(match[1], 10);
+        invoiceCounter.sales = lastNumber;
+        console.log(`📊 Sales counter initialized to: ${invoiceCounter.sales}`);
+      }
+    }
+    
+    // Get the maximum inventory report number from documents
+    const lastInventoryReport = await Doc.findOne({ tags: 'inventory-report' })
+      .sort({ name: -1 })
+      .lean();
+    
+    if (lastInventoryReport && lastInventoryReport.name) {
+      const match = lastInventoryReport.name.match(/INVR-(\d+)/);
+      if (match) {
+        const lastNumber = parseInt(match[1], 10);
+        invoiceCounter.inventory = lastNumber;
+        console.log(`📊 Inventory counter initialized to: ${invoiceCounter.inventory}`);
+      }
+    }
+    
+    console.log('✅ Counters initialized successfully');
+    console.log(`   Sales counter: ${invoiceCounter.sales}`);
+    console.log(`   Inventory counter: ${invoiceCounter.inventory}`);
+    
   } catch (err) {
-    console.error("Counter initialization error:", err);
+    console.error("❌ Counter initialization error:", err);
+    // Initialize with safe defaults
+    invoiceCounter.sales = 0;
+    invoiceCounter.inventory = 0;
   }
 }
 
@@ -113,12 +142,15 @@ function formatTime12Hour(date) {
   });
 }
 
-// ===== Generate invoice numbers =====
+// ===== FIXED: Generate invoice numbers with proper counter management =====
 function generateInvoiceNumber(type) {
   invoiceCounter[type] = invoiceCounter[type] + 1;
   const prefix = type === 'inventory' ? 'INVR' : 'SAL';
   const number = invoiceCounter[type].toString().padStart(9, '0');
-  return `${prefix}-${number}`;
+  const invoiceNumber = `${prefix}-${number}`;
+  
+  console.log(`📝 Generated ${type} invoice number: ${invoiceNumber} (counter: ${invoiceCounter[type]})`);
+  return invoiceNumber;
 }
 
 // ===== Schemas =====
@@ -169,6 +201,27 @@ const SalesSchema = new Schema({
   createdAt: { type: Date, default: Date.now }
 });
 const Sales = mongoose.model("Sales", SalesSchema);
+
+// ===== NEW: Purchase Schema for Restocking =====
+const PurchaseItemSchema = new Schema({
+  sku: String,
+  productName: String,
+  quantity: { type: Number, default: 0 },
+  purchasePrice: { type: Number, default: 0 },
+  totalAmount: { type: Number, default: 0 }
+});
+
+const PurchaseSchema = new Schema({
+  purchaseId: { type: String, unique: true, required: true },
+  supplier: String,
+  supplierContact: String,
+  purchaseDate: { type: Date, default: Date.now },
+  notes: String,
+  items: [PurchaseItemSchema],
+  totalAmount: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+});
+const Purchase = mongoose.model("Purchase", PurchaseSchema);
 
 // ===== Folder Schema for Document Management =====
 const FolderSchema = new Schema({
@@ -992,11 +1045,32 @@ app.get("/api/sales/:id", async (req, res) => {
   }
 });
 
+// ===== FIXED: Sales POST endpoint with duplicate key handling =====
 app.post("/api/sales", async (req, res) => {
   try {
     const { customer, customerContact, salesDate, notes, items } = req.body;
     
-    const salesId = generateInvoiceNumber('sales');
+    let salesId;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    // Generate unique salesId with retry logic
+    while (attempts < maxAttempts) {
+      salesId = generateInvoiceNumber('sales');
+      
+      // Check if this salesId already exists
+      const existingSale = await Sales.findOne({ salesId });
+      if (!existingSale) {
+        break; // Unique ID found
+      }
+      
+      console.log(`⚠️ Sales ID ${salesId} already exists, retrying...`);
+      attempts++;
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Failed to generate unique sales ID after multiple attempts');
+      }
+    }
     
     let totalAmount = 0;
     const salesItems = [];
@@ -1046,7 +1120,15 @@ app.post("/api/sales", async (req, res) => {
 
   } catch (err) {
     console.error("sales post error", err);
-    res.status(500).json({ message: "Server error" });
+    
+    // Handle duplicate key error specifically
+    if (err.code === 11000 || err.name === 'MongoServerError') {
+      return res.status(409).json({ 
+        message: "Sales ID already exists. Please try again or contact support." 
+      });
+    }
+    
+    res.status(500).json({ message: "Server error: " + err.message });
   }
 });
 
@@ -1316,6 +1398,276 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
   }
 });
 
+// ============================================================================
+//                          PURCHASE MANAGEMENT ENDPOINTS
+// ============================================================================
+// ===== FIXED: Initialize purchase counter =====
+async function initializePurchaseCounter() {
+  try {
+    const lastPurchase = await Purchase.findOne().sort({ purchaseId: -1 }).lean();
+    if (lastPurchase && lastPurchase.purchaseId) {
+      const match = lastPurchase.purchaseId.match(/PUR-(\d+)/);
+      if (match) {
+        return parseInt(match[1], 10);
+      }
+    }
+    return 0;
+  } catch (err) {
+    console.error("Purchase counter initialization error:", err);
+    return 0;
+  }
+}
+
+// Generate purchase ID
+function generatePurchaseNumber() {
+  invoiceCounter.purchases = invoiceCounter.purchases + 1;
+  const number = invoiceCounter.purchases.toString().padStart(9, '0');
+  return `PUR-${number}`;
+}
+
+// Get all purchases
+app.get("/api/purchases", async (req, res) => {
+  try {
+    const purchases = await Purchase.find({}).sort({ purchaseDate: -1 }).lean();
+    const normalized = purchases.map(p => ({
+      ...p,
+      id: p._id.toString(),
+      purchaseDate: formatDateUTC8(p.purchaseDate)
+    }));
+    res.json(normalized);
+  } catch (err) {
+    console.error("purchases get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Get single purchase
+app.get("/api/purchases/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid purchase ID format" });
+    }
+    
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+    
+    const response = {
+      ...purchase,
+      id: purchase._id.toString(),
+      _id: purchase._id.toString(),
+      purchaseDate: formatDateUTC8(purchase.purchaseDate)
+    };
+    
+    res.json(response);
+  } catch (err) {
+    console.error("purchase get error", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// FIXED: Create purchase with duplicate key handling
+app.post("/api/purchases", async (req, res) => {
+  try {
+    const { supplier, supplierContact, purchaseDate, notes, items } = req.body;
+    
+    let purchaseId;
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    // Generate unique purchaseId with retry logic
+    while (attempts < maxAttempts) {
+      purchaseId = generatePurchaseNumber();
+      
+      // Check if this purchaseId already exists
+      const existingPurchase = await Purchase.findOne({ purchaseId });
+      if (!existingPurchase) {
+        break; // Unique ID found
+      }
+      
+      console.log(`⚠️ Purchase ID ${purchaseId} already exists, retrying...`);
+      attempts++;
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Failed to generate unique purchase ID after multiple attempts');
+      }
+    }
+    
+    let totalAmount = 0;
+    const purchaseItems = [];
+
+    for (const item of items) {
+      const itemTotal = item.quantity * item.purchasePrice;
+      totalAmount += itemTotal;
+
+      purchaseItems.push({
+        sku: item.sku,
+        productName: item.productName,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        totalAmount: itemTotal
+      });
+
+      // Update inventory
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        // Update cost if needed
+        if (item.purchasePrice > 0) {
+          inventoryItem.unitCost = item.purchasePrice;
+        }
+        await inventoryItem.save();
+      } else {
+        // Create new inventory item if it doesn't exist
+        await Inventory.create({
+          sku: item.sku,
+          name: item.productName,
+          quantity: item.quantity,
+          unitCost: item.purchasePrice,
+          unitPrice: item.purchasePrice * 1.3 // Markup 30%
+        });
+      }
+    }
+
+    const purchase = await Purchase.create({
+      purchaseId,
+      supplier,
+      supplierContact: supplierContact || supplier || 'N/A',
+      purchaseDate: purchaseDate || new Date(),
+      notes,
+      items: purchaseItems,
+      totalAmount
+    });
+
+    await logActivity(req.headers["x-username"], `Created purchase order: ${purchaseId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
+
+    res.status(201).json({
+      ...purchase.toObject(),
+      id: purchase._id.toString(),
+      purchaseId: purchase.purchaseId,
+      purchaseDate: formatDateUTC8(purchase.purchaseDate)
+    });
+
+  } catch (err) {
+    console.error("purchases post error", err);
+    
+    // Handle duplicate key error specifically
+    if (err.code === 11000 || err.name === 'MongoServerError') {
+      return res.status(409).json({ 
+        message: "Purchase ID already exists. Please try again or contact support." 
+      });
+    }
+    
+    res.status(500).json({ message: "Server error: " + err.message });
+  }
+});
+
+// Delete purchase
+app.delete("/api/purchases/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid purchase ID format" });
+    }
+    
+    const purchase = await Purchase.findById(req.params.id);
+    if (!purchase) {
+      return res.status(404).json({ success: false, message: "Purchase not found" });
+    }
+
+    // Restore inventory quantities
+    for (const item of purchase.items) {
+      const inventoryItem = await Inventory.findOne({ sku: item.sku });
+      if (inventoryItem) {
+        inventoryItem.quantity = Math.max(0, (inventoryItem.quantity || 0) - item.quantity);
+        await inventoryItem.save();
+      }
+    }
+
+    await Purchase.findByIdAndDelete(req.params.id);
+    await logActivity(req.headers["x-username"], `Deleted purchase order: ${purchase.purchaseId}`, req.headers['user-agent'] || 'Unknown Device');
+    
+    res.json({ 
+      success: true, 
+      message: "Purchase order deleted successfully",
+      purchaseId: purchase.purchaseId
+    });
+
+  } catch (err) {
+    console.error("purchase delete error", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Purchase invoice generation
+app.get("/api/purchases/invoice/:id", async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid purchase ID format" });
+    }
+    
+    const purchase = await Purchase.findById(req.params.id).lean();
+    if (!purchase) {
+      return res.status(404).json({ message: "Purchase not found" });
+    }
+
+    const company = await getCompanyInfo();
+    const filename = `Purchase_Invoice_${purchase.purchaseId}.pdf`;
+
+    const pdfBuffer = await new Promise(async (resolve, reject) => {
+      try {
+        const invoiceData = {
+          title: 'PURCHASE INVOICE',
+          companyInfo: {
+            name: company.name,
+            address: company.address,
+            phone: company.phone,
+            email: company.email
+          },
+          docMeta: {
+            reference: purchase.purchaseId,
+            dateString: formatDateUTC8(purchase.purchaseDate),
+            status: 'PURCHASE'
+          },
+          supplier: {
+            name: purchase.supplier || 'Supplier',
+            contact: purchase.supplierContact || purchase.supplier || 'N/A'
+          },
+          items: purchase.items.map((item, index) => ({
+            no: index + 1,
+            name: item.productName || 'N/A',
+            sku: item.sku || 'N/A',
+            qty: item.quantity || 0,
+            price: item.purchasePrice || 0,
+            total: item.totalAmount || 0
+          })),
+          totals: {
+            subtotal: purchase.totalAmount || 0,
+            tax: 0,
+            grandTotal: purchase.totalAmount || 0
+          },
+          extraNotes: purchase.notes || ''
+        };
+
+        const buffer = await generateSinglePageInvoicePDFBuffer(invoiceData);
+        resolve(buffer);
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error("❌ Purchase Invoice Generation Error:", err);
+    res.status(500).json({ message: "Purchase invoice generation failed: " + err.message });
+  }
+});
+
 // ===== Helper function to split text into lines =====
 function splitTextIntoLines(text, maxLineLength) {
   if (!text) return [];
@@ -1338,7 +1690,7 @@ function splitTextIntoLines(text, maxLineLength) {
 }
 
 // ===== UPDATED: Generate SINGLE PAGE PDF buffer with all improvements =====
-function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, items = [], totals = {}, extraNotes = '' }) {
+function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, supplier = {}, items = [], totals = {}, extraNotes = '' }) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ 
@@ -1374,22 +1726,26 @@ function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {
       doc.fontSize(12).font('Helvetica-Bold')
          .text(title, rightX, topY, { align: 'right' });
       doc.fontSize(10).font('Helvetica')
-         .text(`Invoice No: ${docMeta.reference || generateInvoiceNumber(title.includes('SALES') ? 'sales' : 'sales')}`, rightX, topY + 20, { align: 'right' });
+         .text(`Invoice No: ${docMeta.reference || generateInvoiceNumber('sales')}`, rightX, topY + 20, { align: 'right' });
       doc.text(`Date: ${docMeta.dateString || formatDateUTC8(new Date())}`, { align: 'right' });
       doc.text(`Status: ${docMeta.status || 'INVOICE'}`, { align: 'right' });
 
       // Customer/Supplier information
-      const customerY = Math.max(addressY + 30, 120);
+      const infoY = Math.max(addressY + 30, 120);
+      const infoLabel = title.includes('PURCHASE') ? 'Supplier:' : 'Customer:';
+      const infoName = title.includes('PURCHASE') ? supplier.name : customer.name;
+      const infoContact = title.includes('PURCHASE') ? supplier.contact : customer.contact;
+      
       doc.fontSize(10).font('Helvetica-Bold')
-         .text('Customer:', 36, customerY);
+         .text(infoLabel, 36, infoY);
       doc.font('Helvetica')
-         .text(customer.name || 'N/A', 36, customerY + 15);
-      if (customer.contact) {
-        doc.text(`Contact: ${customer.contact}`, 36, doc.y);
+         .text(infoName || 'N/A', 36, infoY + 15);
+      if (infoContact) {
+        doc.text(`Contact: ${infoContact}`, 36, doc.y);
       }
 
       // Table header
-      const tableTop = customerY + 50;
+      const tableTop = infoY + 50;
       const colX = { 
         no: 36,      // NO column
         item: 60,    // Product Name
@@ -2203,14 +2559,24 @@ app.get("*", (req, res) => {
 // ============================================================================
 async function ensureDefaultAdminAndStartupLog() {
   try {
+    // Initialize counters first
+    await initializeCounters();
+    
+    // Initialize purchase counter
+    invoiceCounter.purchases = await initializePurchaseCounter();
+    console.log(`📊 Purchase counter initialized to: ${invoiceCounter.purchases}`);
+    
+    // Create default admin if needed
     const count = await User.countDocuments({}).exec();
     if (count === 0) {
       await User.create({ username: "admin", password: "password" });
       await logActivity("System", "Default admin user created", 'System');
     }
 
+    // Ensure company info exists
     await getCompanyInfo();
     
+    // Create default folders
     const rootFolders = ['Reports', 'Invoices', 'Documents', 'Backups'];
     for (const folderName of rootFolders) {
       const exists = await Folder.findOne({ name: folderName, parentFolder: null });
@@ -2223,9 +2589,9 @@ async function ensureDefaultAdminAndStartupLog() {
       }
     }
     
-    await initializeCounters();
-    
     await logActivity("System", `Server started on port ${PORT}`, 'System');
+    console.log(`✅ Server startup completed successfully`);
+    
   } catch (err) {
     console.error("Startup error:", err);
   }
