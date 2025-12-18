@@ -736,6 +736,7 @@ function updateProfitCard() {
 }
 
 // UPDATED: Inventory table rendering without TOTAL COST and TOTAL PRICE columns
+// UPDATED: Adjusted action buttons to be on the same horizontal line
 function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
@@ -777,6 +778,7 @@ function renderInventory(items) {
     else if(qty < 10) tr.classList.add('low-stock-row');
 
     // FIXED: Removed TOTAL COST and TOTAL PRICE columns
+    // UPDATED: Adjusted action buttons to be on the same horizontal line
     tr.innerHTML = `
       <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(it.sku||'')}</td>
@@ -788,8 +790,10 @@ function renderInventory(items) {
       <td class="date-cell">${escapeHtml(date)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
-        <button class="action-btn primary-btn edit-btn" data-id="${id}">✏️ Edit</button>
-        <button class="action-btn danger-btn delete-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
+        <div class="action-buttons-horizontal">
+          <button class="action-btn primary-btn edit-btn" data-id="${id}">✏️ Edit</button>
+          <button class="action-btn danger-btn delete-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
+        </div>
       </td>
     `;
     list.appendChild(tr);
@@ -1300,6 +1304,7 @@ async function fetchSales() {
   }
 }
 
+// UPDATED: Sales history table with adjusted action buttons on same horizontal line
 function renderSalesHistory(items) {
   const list = qs('#salesHistoryList');
   if (!list) return;
@@ -1319,9 +1324,11 @@ function renderSalesHistory(items) {
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(s.salesDate || 'N/A')}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
+        <div class="action-buttons-horizontal">
+          <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
+          <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
+          <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
+        </div>
       </td>
     `;
     list.appendChild(tr);
@@ -1905,9 +1912,11 @@ function renderPurchaseHistory(items) {
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(p.purchaseDate || 'N/A')}</td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
-        <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
+        <div class="action-buttons-horizontal">
+          <button class="primary-btn small-btn" onclick="viewPurchaseDetails('${p.id}')">👁️ View</button>
+          <button class="success-btn small-btn" onclick="printAndSavePurchaseInvoice('${p.id}')">🖨️ Invoice</button>
+          <button class="danger-btn small-btn" onclick="deletePurchase('${p.id}')">🗑️ Delete</button>
+        </div>
       </td>
     `;
     list.appendChild(tr);
@@ -2496,6 +2505,9 @@ async function generateSelectedReport() {
     case 'inventory':
       await generateInventoryReport(startDate, endDate);
       break;
+    case 'sales':
+      await generateSalesReport(startDate, endDate);
+      break;
   }
 }
 
@@ -2537,6 +2549,48 @@ async function generateInventoryReport(startDate, endDate) {
   } catch (e) {
     console.error('Inventory report error:', e);
     alert('❌ Failed to generate inventory report.');
+  }
+}
+
+// NEW: Sales Report Generation
+async function generateSalesReport(startDate, endDate) {
+  if (!confirm('Generate Sales Report?')) return;
+  
+  try {
+    const res = await apiFetch(`${API_BASE}/sales/report/pdf`, {
+      method: 'POST',
+      body: JSON.stringify({ startDate, endDate })
+    });
+    
+    if (!res.ok) throw new Error('Failed to generate sales report');
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    
+    let filename = 'Sales_Report';
+    if (startDate || endDate) {
+      const start = startDate ? new Date(startDate).toISOString().split('T')[0] : 'All';
+      const end = endDate ? new Date(endDate).toISOString().split('T')[0] : 'All';
+      filename += `_${start}_to_${end}`;
+    } else {
+      filename += '_All_Sales';
+    }
+    filename += `_${Date.now()}.pdf`;
+    
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+    alert('✅ Sales Report Generated Successfully!');
+    
+  } catch (e) {
+    console.error('Sales report error:', e);
+    alert('❌ Failed to generate sales report.');
   }
 }
 
@@ -2739,11 +2793,13 @@ function renderDocuments(docs) {
       <td>${escapeHtml(d.date||'')}</td>
       <td>${displayType}</td>
       <td class="actions">
-        <button class="primary-btn small-btn download-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}">
-          ⬇️ Download
-        </button>
-        <button class="danger-btn small-btn delete-btn" data-id="${id}">🗑️ Delete</button>
-        <button class="info-btn small-btn preview-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}" title="Preview">👁️ Preview</button>
+        <div class="action-buttons-horizontal">
+          <button class="primary-btn small-btn download-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}">
+            ⬇️ Download
+          </button>
+          <button class="danger-btn small-btn delete-btn" data-id="${id}">🗑️ Delete</button>
+          <button class="info-btn small-btn preview-btn" data-id="${id}" data-name="${escapeHtml(d.name||'')}" title="Preview">👁️ Preview</button>
+        </div>
       </td>
     `;
     list.appendChild(tr);
@@ -3207,11 +3263,10 @@ function bindInventoryUI(){
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   
   // Other modal bindings
-  qs('#addProductItem')?.addEventListener('click', () => addProductItem());
+  // REMOVED: qs('#addProductItem')?.addEventListener('click', () => addProductItem()); // No longer needed
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
   
-  qs('#addSalesProductItem')?.addEventListener('click', () => addSalesProductItem());
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
   qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
   
