@@ -111,22 +111,29 @@ function logout(){
 }
 
 // =========================================
-// NEW: Add Product Modal Functions (Compact Design)
+// NEW: Add Product Modal Functions
 // =========================================
 function openAddProductModal() {
+  // First, scroll to the inventory table
+  const inventoryTitle = qs('#currentInventoryTitle');
+  if (inventoryTitle) {
+    inventoryTitle.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start' 
+    });
+  }
+  
+  // Then open the modal
   const modal = qs('#addProductModal');
   if (modal) {
     resetAddProductForm();
     modal.style.display = 'block';
     
-    // Prevent background scrolling
-    document.body.style.overflow = 'hidden';
-    
     // Focus on the first input field
     setTimeout(() => {
       const skuInput = qs('#p_sku');
       if (skuInput) skuInput.focus();
-    }, 100);
+    }, 300);
   }
 }
 
@@ -135,8 +142,6 @@ function closeAddProductModal() {
   if (modal) {
     modal.style.display = 'none';
     resetAddProductForm();
-    // Restore scrolling
-    document.body.style.overflow = '';
   }
 }
 
@@ -234,7 +239,6 @@ function openCompanyInfoModal() {
     if (qs('#companyEmail')) qs('#companyEmail').value = companyInfo.email || '';
     
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
   }
 }
 
@@ -242,7 +246,6 @@ function closeCompanyInfoModal() {
   const modal = qs('#companyInfoModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
   }
 }
 
@@ -1070,7 +1073,7 @@ async function confirmAndDeleteItem(id){
 }
 
 // =========================================
-// FIXED: Edit Product Modal Functions (Compact Design)
+// FIXED: Edit Product Modal Functions
 // =========================================
 async function openEditProductModal(productId) {
   try {
@@ -1101,7 +1104,6 @@ async function openEditProductModal(productId) {
       if (qs('#edit_unitPrice')) qs('#edit_unitPrice').value = product.unitPrice || 0;
       
       editModal.style.display = 'block';
-      document.body.style.overflow = 'hidden';
     } else {
       // Fallback: Use simple prompt-based editing
       editProductSimple(productId, product);
@@ -1221,7 +1223,6 @@ function closeEditProductModal() {
   const modal = qs('#editProductModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
   }
 }
 
@@ -1289,7 +1290,7 @@ async function bindProductPage(){
 }
 
 // =========================================
-// Sales Management Functions
+// Sales Management Functions - FIXED DELETE
 // =========================================
 async function fetchSales() {
   try {
@@ -1298,7 +1299,6 @@ async function fetchSales() {
     const data = await res.json();
     sales = data.map(s => ({ ...s, id: s.id || s._id }));
     filteredSales = [...sales];
-    renderSalesHistory(filteredSales); // Ensure sales history is rendered immediately
   } catch(err) {
     console.error('Fetch sales error:', err);
   }
@@ -1339,7 +1339,8 @@ function openSalesHistoryModal() {
   const modal = qs('#salesHistoryModal');
   if (modal) {
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
     // Reset pagination when opening modal
     currentSalesPage = 1;
     renderSalesHistory(filteredSales);
@@ -1350,7 +1351,8 @@ function closeSalesHistoryModal() {
   const modal = qs('#salesHistoryModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = ''; // Restore scrolling
+    // Restore background scrolling
+    document.body.style.overflow = '';
   }
 }
 
@@ -1465,11 +1467,9 @@ function openNewSalesModal() {
     if (salesItems) salesItems.innerHTML = '';
     loadProductSearchForSales();
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
     updateSalesTotalAmount();
-    
-    // Add initial product row
-    addSalesProductItem();
   } else {
     console.error('New sales modal not found');
     alert('Sales modal not found. Please check if the HTML is loaded correctly.');
@@ -1480,7 +1480,8 @@ function closeNewSalesModal() {
   const modal = qs('#newSalesModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = ''; // Restore scrolling
+    // Restore background scrolling
+    document.body.style.overflow = '';
     resetSalesForm();
   }
 }
@@ -1506,37 +1507,47 @@ function addSalesProductItem(product = null) {
   const itemId = `sales-item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   
   const itemRow = document.createElement('div');
-  itemRow.className = 'sales-item-row compact-row';
+  itemRow.className = 'sales-item-row';
   itemRow.id = itemId;
   
   const availableStock = product ? (product.quantity || 0) : 0;
   
   itemRow.innerHTML = `
-    <div class="form-group compact-group">
+    <div class="form-group">
       <label>SKU</label>
-      <input type="text" class="product-sku compact-input" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
+      <input type="text" class="product-sku" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
     </div>
-    <div class="form-group compact-group">
+    <div class="form-group">
       <label>Product Name</label>
-      <input type="text" class="product-name compact-input" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
+      <input type="text" class="product-name" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
     </div>
-    <div class="form-group compact-group">
-      <label>Quantity</label>
-      <input type="number" class="product-quantity compact-input" placeholder="Qty" min="1" max="${availableStock}" value="${product ? '1' : '1'}">
+    <div class="form-group">
+      <label>Quantity (Stock: ${availableStock})</label>
+      <input type="number" class="product-quantity" placeholder="Qty" min="1" max="${availableStock}" value="${product ? '1' : '1'}">
     </div>
-    <div class="form-group compact-group">
-      <label>Price (RM)</label>
-      <input type="number" class="product-price compact-input" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitPrice || '0.00') : '0.00'}">
+    <div class="form-group">
+      <label>Sale Price (RM)</label>
+      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitPrice || '0.00') : '0.00'}">
     </div>
-    <button class="danger-btn remove-item-btn compact-btn" type="button" title="Remove Item">🗑️</button>
+    <div class="form-group">
+      <label>Total (RM)</label>
+      <input type="text" class="product-total" placeholder="Total" readonly value="0.00">
+    </div>
+    <button class="danger-btn remove-item-btn" type="button" title="Remove Item">🗑️</button>
   `;
   
   container.appendChild(itemRow);
   
   const quantityInput = itemRow.querySelector('.product-quantity');
   const priceInput = itemRow.querySelector('.product-price');
+  const totalInput = itemRow.querySelector('.product-total');
   
   const calculateTotal = () => {
+    const qty = Number(quantityInput.value) || 0;
+    const price = Number(priceInput.value) || 0;
+    if (totalInput) {
+      totalInput.value = (qty * price).toFixed(2);
+    }
     updateSalesTotalAmount();
   };
   
@@ -1559,13 +1570,10 @@ function updateSalesTotalAmount() {
   const itemRows = qsa('#salesItems .sales-item-row');
   
   itemRows.forEach(row => {
-    const quantityInput = row.querySelector('.product-quantity');
-    const priceInput = row.querySelector('.product-price');
-    
-    if (quantityInput && priceInput) {
-      const quantity = Number(quantityInput.value) || 0;
-      const price = Number(priceInput.value) || 0;
-      total += quantity * price;
+    const totalInput = row.querySelector('.product-total');
+    if (totalInput) {
+      const itemTotal = Number(totalInput.value) || 0;
+      total += itemTotal;
     }
   });
   
@@ -1597,7 +1605,7 @@ function loadProductSearchForSales() {
       
       filtered.forEach(item => {
         const div = document.createElement('div');
-        div.className = 'product-result-item compact-result';
+        div.className = 'product-result-item';
         div.innerHTML = `
           <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
           <div class="name">${escapeHtml(item.name || 'N/A')}</div>
@@ -1824,67 +1832,48 @@ function closeSalesDetailsModal() {
   }
 }
 
-// FIXED: Enhanced deleteSales function with immediate UI update
+// FIXED: Sales Delete Function - Immediate refresh without page reload
 async function deleteSales(id) {
   const sale = sales.find(s => String(s.id) === String(id));
-  if (!sale) {
-    alert('❌ Sales order not found.');
-    return;
-  }
+  if (!sale) return;
   
   if (!confirm(`Confirm Delete Sales Order:\n${sale.salesId} for ${sale.customer}?\n\nThis will remove ${sale.items.length} items and revert inventory quantities.`)) return;
   
   try {
-    // Show loading state
-    const deleteBtn = event?.target || qs(`[onclick="deleteSales('${id}')"]`);
-    if (deleteBtn) {
-      deleteBtn.disabled = true;
-      deleteBtn.innerHTML = '<span class="loading-spinner"></span> Deleting...';
-    }
-    
     const res = await apiFetch(`${API_BASE}/sales/${id}`, { method: 'DELETE' });
-    
-    if (res.status === 204 || res.ok) {
-      // Immediately update UI without full refresh
-      const salesIndex = sales.findIndex(s => String(s.id) === String(id));
-      if (salesIndex !== -1) {
-        sales.splice(salesIndex, 1);
-        filteredSales = [...sales];
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success) {
+        // Remove from local arrays
+        sales = sales.filter(s => String(s.id) !== String(id));
+        filteredSales = filteredSales.filter(s => String(s.id) !== String(id));
+        
+        // Update UI immediately
         renderSalesHistory(filteredSales);
+        
+        // Refresh inventory data in background
+        fetchInventory().catch(console.error);
+        
+        alert('✅ Sales order deleted successfully!');
+      } else {
+        alert('❌ Failed to delete sales order: ' + (result.message || 'Unknown error'));
       }
-      
-      await fetchInventory(); // Refresh inventory quantities
-      updateProfitCard(); // Update profit display
-      
-      alert('🗑️ Sales order deleted successfully!');
-      
-      // Close modals if open
-      closeSalesDetailsModal();
-      
     } else {
-      const error = await res.json().catch(() => ({ message: 'Unknown error' }));
-      throw new Error(error.message || 'Failed to delete sales order');
+      const error = await res.json();
+      alert('❌ Failed to delete sales order: ' + (error.message || 'Unknown error'));
     }
   } catch (e) {
-    console.error('Delete sales error:', e);
-    alert(`❌ Failed to delete sales order: ${e.message}`);
-  } finally {
-    // Reset button state
-    const deleteBtn = event?.target || qs(`[onclick="deleteSales('${id}')"]`);
-    if (deleteBtn) {
-      deleteBtn.disabled = false;
-      deleteBtn.innerHTML = '🗑️ Delete';
-    }
+    console.error('Sales delete error:', e);
+    alert('❌ Server connection error while deleting sales order.');
   }
 }
 
 async function printAndSaveSalesInvoice(salesId) {
   try {
-    // Show loading
-    const printBtn = event?.target || qs(`[onclick="printAndSaveSalesInvoice('${salesId}')"]`);
-    if (printBtn) {
-      printBtn.disabled = true;
-      printBtn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+    const sale = sales.find(s => String(s.id) === String(salesId));
+    if (!sale) {
+      alert('❌ Sales order not found.');
+      return;
     }
     
     const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
@@ -1899,8 +1888,7 @@ async function printAndSaveSalesInvoice(salesId) {
     a.style.display = 'none';
     a.href = url;
     
-    const sale = sales.find(s => String(s.id) === String(salesId));
-    const filename = sale ? `Invoice_${sale.salesId}.pdf` : `Invoice_${salesId}.pdf`;
+    const filename = sale.salesId ? `Invoice_${sale.salesId}.pdf` : `Invoice_${salesId}.pdf`;
     
     a.download = filename;
     document.body.appendChild(a);
@@ -1908,7 +1896,7 @@ async function printAndSaveSalesInvoice(salesId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    // Save to documents
+    // Try to save invoice to documents
     try {
       const saveRes = await apiFetch(`${API_BASE}/sales/save-invoice/${salesId}`, {
         method: 'POST'
@@ -1918,22 +1906,13 @@ async function printAndSaveSalesInvoice(salesId) {
         console.log('✅ Invoice saved to documents');
       }
     } catch (saveError) {
-      console.warn('Failed to save invoice to documents:', saveError);
-      // Don't alert the user about this non-critical failure
+      console.error('Invoice save to documents error:', saveError);
+      // Don't alert for this error as the download was successful
     }
-    
-    alert('✅ Invoice generated and downloaded successfully!');
     
   } catch (e) {
     console.error('Print and save invoice error:', e);
-    alert(`❌ Failed to generate sales invoice: ${e.message}`);
-  } finally {
-    // Reset button state
-    const printBtn = event?.target || qs(`[onclick="printAndSaveSalesInvoice('${salesId}')"]`);
-    if (printBtn) {
-      printBtn.disabled = false;
-      printBtn.innerHTML = '🖨️ Invoice';
-    }
+    alert('❌ Failed to generate sales invoice: ' + e.message);
   }
 }
 
@@ -1986,7 +1965,6 @@ function openPurchaseHistoryModal() {
   const modal = qs('#purchaseHistoryModal');
   if (modal) {
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
     currentPurchasePage = 1;
     renderPurchaseHistory(filteredPurchases);
   }
@@ -1996,7 +1974,6 @@ function closePurchaseHistoryModal() {
   const modal = qs('#purchaseHistoryModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
   }
 }
 
@@ -2110,7 +2087,6 @@ function openNewPurchaseModal() {
     if (purchaseItems) purchaseItems.innerHTML = '';
     loadProductSearch();
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
     updateTotalAmount();
   } else {
     console.error('New purchase modal not found');
@@ -2122,7 +2098,6 @@ function closeNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
     resetPurchaseForm();
   }
 }
@@ -2151,35 +2126,45 @@ function addProductItem(product = null) {
   const itemId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   
   const itemRow = document.createElement('div');
-  itemRow.className = 'purchase-item-row compact-row';
+  itemRow.className = 'purchase-item-row';
   itemRow.id = itemId;
   
   itemRow.innerHTML = `
-    <div class="form-group compact-group">
+    <div class="form-group">
       <label>SKU</label>
-      <input type="text" class="product-sku compact-input" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
+      <input type="text" class="product-sku" placeholder="SKU" value="${product ? escapeHtml(product.sku || '') : ''}" ${product ? 'readonly' : ''}>
     </div>
-    <div class="form-group compact-group">
+    <div class="form-group">
       <label>Product Name</label>
-      <input type="text" class="product-name compact-input" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
+      <input type="text" class="product-name" placeholder="Product Name" value="${product ? escapeHtml(product.name || '') : ''}" ${product ? 'readonly' : ''}>
     </div>
-    <div class="form-group compact-group">
+    <div class="form-group">
       <label>Quantity</label>
-      <input type="number" class="product-quantity compact-input" placeholder="Qty" min="1" value="${product ? '1' : '1'}">
+      <input type="number" class="product-quantity" placeholder="Qty" min="1" value="${product ? '1' : '1'}">
     </div>
-    <div class="form-group compact-group">
-      <label>Price (RM)</label>
-      <input type="number" class="product-price compact-input" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitCost || '0.00') : '0.00'}">
+    <div class="form-group">
+      <label>Unit Price (RM)</label>
+      <input type="number" class="product-price" placeholder="Price" step="0.01" min="0" value="${product ? (product.unitCost || '0.00') : '0.00'}">
     </div>
-    <button class="danger-btn remove-item-btn compact-btn" type="button" title="Remove Item">🗑️</button>
+    <div class="form-group">
+      <label>Total (RM)</label>
+      <input type="text" class="product-total" placeholder="Total" readonly value="0.00">
+    </div>
+    <button class="danger-btn remove-item-btn" type="button" title="Remove Item">🗑️</button>
   `;
   
   container.appendChild(itemRow);
   
   const quantityInput = itemRow.querySelector('.product-quantity');
   const priceInput = itemRow.querySelector('.product-price');
+  const totalInput = itemRow.querySelector('.product-total');
   
   const calculateTotal = () => {
+    const qty = Number(quantityInput.value) || 0;
+    const price = Number(priceInput.value) || 0;
+    if (totalInput) {
+      totalInput.value = (qty * price).toFixed(2);
+    }
     updateTotalAmount();
   };
   
@@ -2202,13 +2187,10 @@ function updateTotalAmount() {
   
   const newItemRows = qsa('#purchaseItems .purchase-item-row');
   newItemRows.forEach(row => {
-    const quantityInput = row.querySelector('.product-quantity');
-    const priceInput = row.querySelector('.product-price');
-    
-    if (quantityInput && priceInput) {
-      const quantity = Number(quantityInput.value) || 0;
-      const price = Number(priceInput.value) || 0;
-      newTotal += quantity * price;
+    const totalInput = row.querySelector('.product-total');
+    if (totalInput) {
+      const itemTotal = Number(totalInput.value) || 0;
+      newTotal += itemTotal;
     }
   });
   
@@ -2240,7 +2222,7 @@ function loadProductSearch() {
       
       filtered.forEach(item => {
         const div = document.createElement('div');
-        div.className = 'product-result-item compact-result';
+        div.className = 'product-result-item';
         div.innerHTML = `
           <div class="sku">${escapeHtml(item.sku || 'N/A')}</div>
           <div class="name">${escapeHtml(item.name || 'N/A')}</div>
@@ -2442,7 +2424,6 @@ async function viewPurchaseDetails(purchaseId) {
     const modal = qs('#purchaseDetailsModal');
     if (modal) {
       modal.style.display = 'block';
-      document.body.style.overflow = 'hidden';
     }
     
   } catch (e) {
@@ -2455,10 +2436,10 @@ function closePurchaseDetailsModal() {
   const modal = qs('#purchaseDetailsModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
   }
 }
 
+// FIXED: Purchase Delete Function - Immediate refresh
 async function deletePurchase(id) {
   const purchase = purchases.find(p => String(p.id) === String(id));
   if (!purchase) return;
@@ -2468,20 +2449,34 @@ async function deletePurchase(id) {
   try {
     const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
     if (res.status === 204) {
-      await fetchPurchases();
-      await fetchInventory();
-      alert('🗑️ Restock order deleted!');
+      // Remove from local arrays
+      purchases = purchases.filter(p => String(p.id) !== String(id));
+      filteredPurchases = filteredPurchases.filter(p => String(p.id) !== String(id));
+      
+      // Update UI immediately
+      renderPurchaseHistory(filteredPurchases);
+      
+      // Refresh inventory data in background
+      fetchInventory().catch(console.error);
+      
+      alert('✅ Restock order deleted successfully!');
     } else {
       alert('❌ Failed to delete restock order.');
     }
   } catch (e) {
-    console.error(e);
+    console.error('Purchase delete error:', e);
     alert('❌ Server connection error while deleting restock order.');
   }
 }
 
 async function printAndSavePurchaseInvoice(purchaseId) {
   try {
+    const purchase = purchases.find(p => String(p.id) === String(purchaseId));
+    if (!purchase) {
+      alert('❌ Purchase order not found.');
+      return;
+    }
+    
     const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -2491,8 +2486,7 @@ async function printAndSavePurchaseInvoice(purchaseId) {
     a.style.display = 'none';
     a.href = url;
     
-    const purchase = purchases.find(p => String(p.id) === String(purchaseId));
-    const filename = purchase ? `Invoice_${purchase.purchaseId}.pdf` : `Invoice_${purchaseId}.pdf`;
+    const filename = purchase.purchaseId ? `Invoice_${purchase.purchaseId}.pdf` : `Invoice_${purchaseId}.pdf`;
     
     a.download = filename;
     document.body.appendChild(a);
@@ -2500,17 +2494,23 @@ async function printAndSavePurchaseInvoice(purchaseId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
-      method: 'POST'
-    });
-    
-    if (saveRes.ok) {
-      console.log('✅ Purchase invoice saved to documents');
+    // Try to save invoice to documents
+    try {
+      const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
+        method: 'POST'
+      });
+      
+      if (saveRes.ok) {
+        console.log('✅ Purchase invoice saved to documents');
+      }
+    } catch (saveError) {
+      console.error('Invoice save to documents error:', saveError);
+      // Don't alert for this error as the download was successful
     }
     
   } catch (e) {
     console.error('Print and save invoice error:', e);
-    alert('❌ Failed to generate invoice.');
+    alert('❌ Failed to generate invoice: ' + e.message);
   }
 }
 
@@ -2521,7 +2521,6 @@ function openReportModal() {
   const modal = qs('#reportModal');
   if (modal) {
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
     qs('#reportStartDate').value = '';
     qs('#reportEndDate').value = '';
     
@@ -2534,7 +2533,6 @@ function closeReportModal() {
   const modal = qs('#reportModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
   }
 }
 
@@ -2577,14 +2575,7 @@ async function generateInventoryReport(startDate, endDate) {
   try {
     const res = await apiFetch(`${API_BASE}/inventory/report/pdf`, {
       method: 'POST',
-      body: JSON.stringify({ 
-        startDate, 
-        endDate,
-        landscape: true, // Request landscape layout
-        fontSize: 10,    // Optimized font size for clarity
-        tableWidth: '100%', // Make table larger
-        includeMargins: true // Include proper margins
-      })
+      body: JSON.stringify({ startDate, endDate })
     });
     
     if (!res.ok) throw new Error('Failed to generate report');
@@ -2626,13 +2617,7 @@ async function generateSalesReport(startDate, endDate) {
   try {
     const res = await apiFetch(`${API_BASE}/sales/report/pdf`, {
       method: 'POST',
-      body: JSON.stringify({ 
-        startDate, 
-        endDate,
-        landscape: true,  // Request landscape layout
-        fontSize: 10,     // Optimized font size
-        tableWidth: '100%' // Make table larger
-      })
+      body: JSON.stringify({ startDate, endDate })
     });
     
     if (!res.ok) throw new Error('Failed to generate sales report');
@@ -2668,7 +2653,7 @@ async function generateSalesReport(startDate, endDate) {
 }
 
 // =========================================
-// Folder Management for Documents
+// Folder Management for Documents - FIXED DELETE
 // =========================================
 async function fetchFolders() {
   try {
@@ -2796,27 +2781,12 @@ async function renameFolder(folderId) {
   }
 }
 
-// FIXED: Enhanced deleteFolder function to handle folders with files
+// FIXED: Folder Delete with better error handling
 async function deleteFolder(folderId) {
   const folder = folders.find(f => f.id === folderId);
   if (!folder) return;
   
-  // Check if folder has documents
-  try {
-    const documentsRes = await apiFetch(`${API_BASE}/documents?folder=${folderId}`);
-    const documentsInFolder = await documentsRes.json();
-    
-    if (documentsInFolder && documentsInFolder.length > 0) {
-      if (!confirm(`This folder contains ${documentsInFolder.length} document(s). Deleting it will also delete all documents inside.\n\nAre you sure you want to delete folder "${folder.name}" and all its contents?`)) {
-        return;
-      }
-    } else {
-      if (!confirm(`Are you sure you want to delete folder "${folder.name}"?`)) return;
-    }
-  } catch (err) {
-    console.error('Error checking folder contents:', err);
-    if (!confirm(`Are you sure you want to delete folder "${folder.name}"?`)) return;
-  }
+  if (!confirm(`Are you sure you want to delete folder "${folder.name}"?\n\nThis will also delete all documents inside the folder.`)) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/folders/${folderId}`, {
@@ -2825,6 +2795,7 @@ async function deleteFolder(folderId) {
     
     if (res.ok) {
       await fetchFolders();
+      await fetchDocuments();
       if (currentFolder === folderId) {
         navigateToFolder('root');
       }
@@ -2835,7 +2806,7 @@ async function deleteFolder(folderId) {
     }
   } catch (err) {
     console.error('Delete folder error:', err);
-    alert('❌ Server error while deleting folder. Please make sure the folder is empty or try again later.');
+    alert('❌ Server error while deleting folder: ' + (err.message || 'Unknown error'));
   }
 }
 
@@ -3003,8 +2974,8 @@ function closePreviewModal() {
   
   if (modal && iframe) {
     modal.style.display = 'none';
-    iframe.src = '';
     document.body.style.overflow = '';
+    iframe.src = '';
   }
 }
 
@@ -3107,7 +3078,9 @@ async function deleteDocumentConfirm(id) {
     const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
     
     if(res.status === 204 || res.ok) { 
-      await fetchDocuments(); 
+      // Remove from local array and update UI
+      documents = documents.filter(d => String(d.id) !== String(id));
+      renderDocuments(documents);
       alert('🗑️ Document deleted successfully!'); 
     } else {
       const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
@@ -3353,9 +3326,6 @@ function bindInventoryUI(){
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   
-  // Company info button
-  qs('#companyInfoBtn')?.addEventListener('click', openCompanyInfoModal);
-  
   // Other modal bindings
   qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
   qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
@@ -3389,7 +3359,13 @@ function bindInventoryUI(){
       const modal = this.closest('.modal');
       if (modal) {
         modal.style.display = 'none';
-        document.body.style.overflow = '';
+        // Restore scrolling for modals that disable it
+        if (modal.id === 'salesHistoryModal' || 
+            modal.id === 'newSalesModal' || 
+            modal.id === 'salesDetailsModal' ||
+            modal.id === 'previewModal') {
+          document.body.style.overflow = '';
+        }
       }
     });
   });
@@ -3406,6 +3382,11 @@ function bindInventoryUI(){
     if (e.target === qs('#purchaseDetailsModal')) closePurchaseDetailsModal();
     if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
     if (e.target === qs('#companyInfoModal')) closeCompanyInfoModal();
+    
+    // Restore scrolling when clicking outside modal
+    if (e.target.classList.contains('modal')) {
+      document.body.style.overflow = '';
+    }
   });
   
   bindDateRangeFilterEvents();
