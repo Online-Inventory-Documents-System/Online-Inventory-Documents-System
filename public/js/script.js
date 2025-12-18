@@ -2451,20 +2451,26 @@ async function deletePurchase(id) {
   
   try {
     const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
-    if (res.status === 204) {
-      // Remove from local arrays
-      purchases = purchases.filter(p => String(p.id) !== String(id));
-      filteredPurchases = filteredPurchases.filter(p => String(p.id) !== String(id));
-      
-      // Update UI immediately
-      renderPurchaseHistory(filteredPurchases);
-      
-      // Refresh inventory data in background
-      fetchInventory().catch(console.error);
-      
-      alert('✅ Restock order deleted successfully!');
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success) {
+        // Remove from local arrays
+        purchases = purchases.filter(p => String(p.id) !== String(id));
+        filteredPurchases = filteredPurchases.filter(p => String(p.id) !== String(id));
+        
+        // Update UI immediately
+        renderPurchaseHistory(filteredPurchases);
+        
+        // Refresh inventory data in background
+        fetchInventory().catch(console.error);
+        
+        alert('✅ Restock order deleted successfully!');
+      } else {
+        alert('❌ Failed to delete restock order: ' + (result.message || 'Unknown error'));
+      }
     } else {
-      alert('❌ Failed to delete restock order.');
+      const error = await res.json();
+      alert('❌ Failed to delete restock order: ' + (error.message || 'Unknown error'));
     }
   } catch (e) {
     console.error('Purchase delete error:', e);
