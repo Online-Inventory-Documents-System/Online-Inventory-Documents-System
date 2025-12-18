@@ -495,77 +495,13 @@ app.delete("/api/inventory/:id", async (req, res) => {
 //                    ENHANCED PDF REPORT WITH DATE RANGE - FIXED LAYOUT
 // ============================================================================
 
-// Helper functions (must be included)
-const formatDateTimeUTC8 = (date) => {
-  const d = new Date(date);
-  d.setHours(d.getHours() + 8); // Convert to UTC+8
-  return d.toLocaleString('en-MY', {
-    timeZone: 'Asia/Kuala_Lumpur',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-};
-
-const formatDateUTC8 = (date) => {
-  const d = new Date(date);
-  d.setHours(d.getHours() + 8); // Convert to UTC+8
-  return d.toLocaleDateString('en-MY', {
-    timeZone: 'Asia/Kuala_Lumpur',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-};
-
-const splitTextIntoLines = (text, maxChars) => {
-  const words = text.split(' ');
-  const lines = [];
-  let currentLine = '';
-
-  words.forEach(word => {
-    if ((currentLine + word).length <= maxChars) {
-      currentLine += (currentLine ? ' ' : '') + word;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  });
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
-};
-
-const generateInvoiceNumber = (type) => {
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000);
-  return `${type.toUpperCase()}-${timestamp}${random}`;
-};
-
-// Company info function (must be included)
-const getCompanyInfo = async () => {
-  // This should fetch from your database
-  return {
-    name: "L&B Company Sdn. Bhd.",
-    address: "Sarawak Skills, Jalan Canna, Tabuan Jaya, 93350 Kuching, Sarawak",
-    phone: "01133127622",
-    email: "llbcompany13@gmail.com"
-  };
-};
-
-// Log activity function (must be included)
-const logActivity = async (user, action, device) => {
-  // Implementation for logging activity
-  console.log(`Activity Log: ${user} - ${action} - ${device}`);
-  // Add your database logging logic here
-};
+// REMOVE THESE DUPLICATE DECLARATIONS IF THEY EXIST ELSEWHERE IN YOUR CODE:
+// const formatDateTimeUTC8 = (date) => { ... }
+// const formatDateUTC8 = (date) => { ... }
+// const splitTextIntoLines = (text, maxChars) => { ... }
+// const generateInvoiceNumber = (type) => { ... }
+// const getCompanyInfo = async () => { ... }
+// const logActivity = async (user, action, device) => { ... }
 
 // Main PDF generation endpoint
 app.post("/api/inventory/report/pdf", async (req, res) => {
