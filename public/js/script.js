@@ -155,6 +155,26 @@ function resetAddProductForm() {
 }
 
 // =========================================
+// NEW: Dashboard Statistics Loading
+// =========================================
+async function loadDashboardStats() {
+  try {
+    const response = await apiFetch(`${API_BASE}/dashboard/stats`);
+    const data = await response.json();
+    
+    if (data.success) {
+      // Update only 4 cards
+      if (qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = data.stats.inventory.count;
+      if (qs('#cardTotalStock')) qs('#cardTotalStock').textContent = data.stats.inventory.stock;
+      if (qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${data.stats.inventory.cost.toFixed(2)}`;
+      if (qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${data.stats.sales.total.toFixed(2)}`;
+    }
+  } catch (error) {
+    console.error('Error loading dashboard stats:', error);
+  }
+}
+
+// =========================================
 // Company Information Management
 // =========================================
 async function fetchCompanyInfo() {
@@ -244,6 +264,8 @@ async function fetchAllData() {
     
     // Update profit after all data is loaded
     updateProfitCard();
+    // Load dashboard stats
+    await loadDashboardStats();
   } catch (error) {
     console.error('Error fetching all data:', error);
   }
@@ -702,9 +724,9 @@ function updateProfitCard() {
   
   // Update all net profit displays - UPDATED: Changed card names
   const netProfitElements = [
-    '#cardTotalProfit', // Changed from #cardTotalProfit
-    '#dash_totalProfit', // Changed from #dash_totalProfit
-    '#totalNetProfitDisplay' // Changed from #totalNetProfitDisplay
+    '#cardTotalProfit',
+    '#dash_totalProfit',
+    '#totalNetProfitDisplay'
   ];
   
   netProfitElements.forEach(selector => {
@@ -714,6 +736,7 @@ function updateProfitCard() {
   });
 }
 
+// UPDATED: Inventory table rendering to remove TOTAL COST and TOTAL PRICE columns
 function renderInventory(items) {
   const list = qs('#inventoryList');
   if(!list) return;
@@ -721,9 +744,9 @@ function renderInventory(items) {
   const paginatedItems = updateInventoryPagination(items);
   
   list.innerHTML = '';
-  let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed from totalCost/totalPrice
+  let totalCost = 0, totalPrice = 0, totalStock = 0;
 
-  // ADDED: Calculate starting number for current page
+  // Calculate starting number for current page
   const startNumber = ((currentPageNumber - 1) * itemsPerPage) + 1;
 
   paginatedItems.forEach((it, index) => {
@@ -731,11 +754,7 @@ function renderInventory(items) {
     const qty = Number(it.quantity || 0);
     const uc = Number(it.unitCost || 0);
     const up = Number(it.unitPrice || 0);
-    const totalCostVal = qty * uc; // UPDATED: Changed from totalCostVal
-    const totalPriceVal = qty * up; // UPDATED: Changed from totalPriceVal
     
-    totalCost += totalCostVal;
-    totalPrice += totalPriceVal;
     totalStock += qty;
 
     // Date is already formatted as DD/MM/YYYY from server
@@ -758,8 +777,8 @@ function renderInventory(items) {
     if(qty === 0) tr.classList.add('out-of-stock-row');
     else if(qty < 10) tr.classList.add('low-stock-row');
 
+    // UPDATED: Removed TOTAL COST and TOTAL PRICE columns
     tr.innerHTML = `
-      <!-- UPDATED: Added NO column with sequential number -->
       <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(it.sku||'')}</td>
       <td>${escapeHtml(it.name||'')}</td>
@@ -767,26 +786,25 @@ function renderInventory(items) {
       <td class="quantity-cell">${qty}</td>
       <td class="money cost-cell">RM ${uc.toFixed(2)}</td>
       <td class="money price-cell">RM ${up.toFixed(2)}</td>
-      <!-- UPDATED: Changed Inventory Value to Total Cost -->
-      <td class="money value-cell">RM ${totalCostVal.toFixed(2)}</td>
-      <!-- UPDATED: Changed Revenue to Total Price -->
-      <td class="money revenue-cell">RM ${totalPriceVal.toFixed(2)}</td>
       <td class="date-cell">${escapeHtml(date)}</td>
       <td><span class="status-badge ${statusClass}">${statusText}</span></td>
       <td class="actions">
-        <button class="primary-btn small-btn" onclick="openEditPageForItem('${id}')">✏️ Edit</button>
-        <button class="danger-btn small-btn" onclick="confirmAndDeleteItem('${id}')">🗑️ Delete</button>
+        <button class="action-btn primary-btn edit-btn" data-id="${id}">✏️ Edit</button>
+        <button class="action-btn danger-btn delete-btn" data-id="${id}">🗑️ Delete</button>
       </td>
     `;
     list.appendChild(tr);
   });
 
-  // UPDATED: Updated card display names
-  if(qs('#cardTotalValue')) qs('#cardTotalValue').textContent = `RM ${totalCost.toFixed(2)}`; // Changed from #cardTotalValue
-  if(qs('#cardTotalRevenue')) qs('#cardTotalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // Changed from #cardTotalRevenue
-  updateProfitCard();
+  // Update dashboard stats
   if(qs('#cardTotalStock')) qs('#cardTotalStock').textContent = totalStock;
   if(qs('#cardTotalProducts')) qs('#cardTotalProducts').textContent = items.length;
+  
+  // Load dashboard stats from API
+  loadDashboardStats();
+  
+  // Attach event listeners for edit and delete buttons
+  attachInventoryEventListeners();
 }
 
 function searchInventory(){
@@ -990,8 +1008,8 @@ async function confirmAndAddProduct(){
   const name = qs('#p_name')?.value?.trim();
   const category = qs('#p_category')?.value?.trim();
   const quantity = Number(qs('#p_quantity')?.value || 0);
-  const unitCost = Number(qs('#p_unitCost')?.value || 0); // UPDATED: Changed from unitCost
-  const unitPrice = Number(qs('#p_unitPrice')?.value || 0); // UPDATED: Changed from unitPrice
+  const unitCost = Number(qs('#p_unitCost')?.value || 0);
+  const unitPrice = Number(qs('#p_unitPrice')?.value || 0);
   
   // Validate required fields
   if(!sku || !name) {
@@ -1014,7 +1032,6 @@ async function confirmAndAddProduct(){
     return;
   }
 
-  // UPDATED: Updated confirmation message
   if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
 
   const newItem = { sku, name, category, quantity, unitCost, unitPrice };
@@ -1052,12 +1069,99 @@ async function confirmAndDeleteItem(id){
   } catch(e) { console.error(e); alert('❌ Server connection error while deleting product.'); }
 }
 
-function openEditPageForItem(id){ 
-  window.location.href = `product.html?id=${encodeURIComponent(id)}`; 
+// =========================================
+// NEW: Edit Product Modal Functions
+// =========================================
+async function openEditProductModal(productId) {
+  try {
+    const response = await apiFetch(`${API_BASE}/inventory/${productId}`);
+    const product = await response.json();
+    
+    document.getElementById('edit_product_id').value = product.id;
+    document.getElementById('edit_sku').value = product.sku;
+    document.getElementById('edit_name').value = product.name;
+    document.getElementById('edit_category').value = product.category || '';
+    document.getElementById('edit_quantity').value = product.quantity;
+    document.getElementById('edit_unitCost').value = product.unitCost;
+    document.getElementById('edit_unitPrice').value = product.unitPrice;
+    
+    // Show modal
+    document.getElementById('editProductModal').style.display = 'block';
+  } catch (error) {
+    console.error('Error loading product for edit:', error);
+    alert('Error loading product details.');
+  }
+}
+
+async function updateProduct() {
+  const productId = document.getElementById('edit_product_id').value;
+  const updatedProduct = {
+    sku: document.getElementById('edit_sku').value,
+    name: document.getElementById('edit_name').value,
+    category: document.getElementById('edit_category').value,
+    quantity: parseInt(document.getElementById('edit_quantity').value),
+    unitCost: parseFloat(document.getElementById('edit_unitCost').value),
+    unitPrice: parseFloat(document.getElementById('edit_unitPrice').value)
+  };
+  
+  try {
+    const response = await apiFetch(`${API_BASE}/inventory/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updatedProduct)
+    });
+    
+    if (response.ok) {
+      await response.json();
+      alert('Product updated successfully!');
+      closeEditProductModal();
+      await fetchInventory(); // Refresh the inventory list
+      await loadDashboardStats(); // Refresh dashboard stats
+    } else {
+      const error = await response.json();
+      alert('Error updating product: ' + error.message);
+    }
+  } catch (error) {
+    console.error('Error updating product:', error);
+    alert('Error updating product. Please try again.');
+  }
+}
+
+function closeEditProductModal() {
+  document.getElementById('editProductModal').style.display = 'none';
+  document.getElementById('edit_product_id').value = '';
+  document.getElementById('edit_sku').value = '';
+  document.getElementById('edit_name').value = '';
+  document.getElementById('edit_category').value = '';
+  document.getElementById('edit_quantity').value = '0';
+  document.getElementById('edit_unitCost').value = '0.00';
+  document.getElementById('edit_unitPrice').value = '0.00';
 }
 
 // =========================================
-// PRODUCT EDIT PAGE FUNCTIONS
+// Attach Inventory Event Listeners
+// =========================================
+function attachInventoryEventListeners() {
+  // Edit button event listener
+  qsa('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const productId = this.getAttribute('data-id');
+      await openEditProductModal(productId);
+    });
+  });
+  
+  // Delete button event listener
+  qsa('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const productId = this.getAttribute('data-id');
+      await confirmAndDeleteItem(productId);
+    });
+  });
+}
+
+// =========================================
+// PRODUCT EDIT PAGE FUNCTIONS (Legacy)
 // =========================================
 async function bindProductPage(){
   const params = new URLSearchParams(window.location.search);
@@ -1073,8 +1177,8 @@ async function bindProductPage(){
       if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
       if(qs('#prod_category')) qs('#prod_category').value = it.category || '';
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
-      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0; // UPDATED: Changed from unitCost
-      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0; // UPDATED: Changed from unitPrice
+      if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
+      if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
     } catch(e) { alert('Failed to load product details.'); return; }
   }
 
@@ -1086,8 +1190,8 @@ async function bindProductPage(){
       name: qs('#prod_name')?.value,
       category: qs('#prod_category')?.value,
       quantity: Number(qs('#prod_quantity')?.value || 0),
-      unitCost: Number(qs('#prod_unitCost')?.value || 0), // UPDATED: Changed from unitCost
-      unitPrice: Number(qs('#prod_unitPrice')?.value || 0) // UPDATED: Changed from unitPrice
+      unitCost: Number(qs('#prod_unitCost')?.value || 0),
+      unitPrice: Number(qs('#prod_unitPrice')?.value || 0)
     };
     try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -1109,7 +1213,6 @@ async function fetchSales() {
     const data = await res.json();
     sales = data.map(s => ({ ...s, id: s.id || s._id }));
     filteredSales = [...sales];
-    // Don't render here, will be rendered when modal opens
   } catch(err) {
     console.error('Fetch sales error:', err);
   }
@@ -1126,11 +1229,9 @@ function renderSalesHistory(items) {
   paginatedItems.forEach((s, index) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <!-- UPDATED: Added NO column -->
       <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(s.salesId || 'N/A')}</td>
       <td>${escapeHtml(s.customer || '')}</td>
-      <!-- UPDATED: Added customer contact in table -->
       <td>${escapeHtml(s.customerContact || 'N/A')}</td>
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
@@ -1138,11 +1239,116 @@ function renderSalesHistory(items) {
       <td class="actions">
         <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
         <button class="success-btn small-btn" onclick="printAndSaveSalesInvoice('${s.id}')">🖨️ Invoice</button>
-        <button class="danger-btn small-btn" onclick="deleteSales('${s.id}')">🗑️ Delete</button>
+        <button class="action-btn danger-btn delete-sales-btn" data-id="${s.id}">🗑️ Delete</button>
       </td>
     `;
     list.appendChild(tr);
   });
+  
+  // Attach sales event listeners
+  attachSalesHistoryEventListeners();
+}
+
+// NEW: Attach sales history event listeners
+function attachSalesHistoryEventListeners() {
+  // Delete button event listener - FIXED to refresh immediately
+  qsa('.delete-sales-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const salesId = this.getAttribute('data-id');
+      
+      if (confirm('Are you sure you want to delete this sales order? This action cannot be undone.')) {
+        try {
+          const response = await apiFetch(`${API_BASE}/sales/${salesId}`, {
+            method: 'DELETE'
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            alert(`Sales order ${result.salesId} deleted successfully!`);
+            // FIXED: Refresh sales history immediately
+            await refreshSalesHistory();
+          } else {
+            alert('Error deleting sales order: ' + (result.message || 'Unknown error'));
+          }
+        } catch (error) {
+          console.error('Error deleting sales:', error);
+          alert('Error deleting sales order. Please try again.');
+        }
+      }
+    });
+  });
+}
+
+// NEW: Refresh sales history function
+async function refreshSalesHistory() {
+  try {
+    // Get current pagination and filter values
+    const currentPage = parseInt(qs('#currentSalesPage')?.textContent || 1);
+    const itemsPerPage = parseInt(qs('#salesItemsPerPageSelect')?.value || 10);
+    const searchTerm = qs('#salesSearchInput')?.value || '';
+    const startDate = qs('#salesStartDate')?.value || '';
+    const endDate = qs('#salesEndDate')?.value || '';
+    
+    // Reload sales history with current filters
+    await loadSalesHistory(currentPage, itemsPerPage, searchTerm, startDate, endDate);
+  } catch (error) {
+    console.error('Error refreshing sales history:', error);
+  }
+}
+
+// NEW: Load sales history with filters
+async function loadSalesHistory(page = 1, limit = 10, search = '', startDate = '', endDate = '') {
+  try {
+    let url = `${API_BASE}/sales/enhanced?page=${page}&limit=${limit}&sortBy=salesDate&sortOrder=desc`;
+    
+    if (search) {
+      url += `&search=${encodeURIComponent(search)}`;
+    }
+    
+    if (startDate) {
+      url += `&startDate=${startDate}`;
+    }
+    
+    if (endDate) {
+      url += `&endDate=${endDate}`;
+    }
+    
+    const response = await apiFetch(url);
+    const data = await response.json();
+    
+    if (data.success) {
+      sales = data.data.map(s => ({ ...s, id: s.id || s._id }));
+      filteredSales = [...sales];
+      
+      // Render sales history table
+      renderSalesHistory(filteredSales);
+      
+      // Update pagination controls
+      updateSalesPaginationControl(data.pagination);
+      
+      // FIXED: Attach event listeners after rendering
+      setTimeout(() => {
+        attachSalesHistoryEventListeners();
+      }, 100);
+    }
+  } catch (error) {
+    console.error('Error loading sales history:', error);
+    alert('Error loading sales history. Please try again.');
+  }
+}
+
+// NEW: Update sales pagination control
+function updateSalesPaginationControl(pagination) {
+  if (pagination) {
+    if (qs('#currentSalesPage')) qs('#currentSalesPage').textContent = pagination.currentPage || 1;
+    if (qs('#salesTotalPages')) qs('#salesTotalPages').textContent = pagination.totalPages || 1;
+    if (qs('#salesTotalItems')) qs('#salesTotalItems').textContent = pagination.totalItems || 0;
+    
+    if (qs('#currentSalesPageStart')) qs('#currentSalesPageStart').textContent = pagination.start || 1;
+    if (qs('#currentSalesPageEnd')) qs('#currentSalesPageEnd').textContent = pagination.end || pagination.totalItems || 0;
+  }
 }
 
 function openSalesHistoryModal() {
@@ -1151,7 +1357,8 @@ function openSalesHistoryModal() {
     modal.style.display = 'block';
     // Reset pagination when opening modal
     currentSalesPage = 1;
-    renderSalesHistory(filteredSales);
+    // Load sales history with current filters
+    loadSalesHistory();
   }
 }
 
@@ -1162,7 +1369,7 @@ function closeSalesHistoryModal() {
   }
 }
 
-// ===== NEW: Sales Search Function =====
+// ===== Sales Search Function =====
 function searchSales() {
   const textQuery = (qs('#salesSearchInput')?.value || '').toLowerCase().trim();
   const startDate = qs('#salesStartDate')?.value || '';
@@ -1183,7 +1390,6 @@ function searchSales() {
     filtered = filtered.filter(sale => {
       if (!sale.salesDate) return false;
       
-      // Convert DD/MM/YYYY to Date object for comparison
       const parseDate = (dateStr) => {
         if (!dateStr) return null;
         const parts = dateStr.split('/');
@@ -1264,39 +1470,6 @@ function bindSalesSearchEvents() {
       applySalesDateRangeFilter();
     }
   });
-}
-
-// ===== NEW: Sales Date Range Status =====
-function updateSalesDateRangeStatus(isActive, startDate, endDate) {
-  const dateRangeContainer = qs('.sales-date-range-container');
-  const statusElement = qs('.sales-date-range-status') || createSalesDateRangeStatusElement();
-  
-  if (isActive) {
-    dateRangeContainer.classList.add('active');
-    
-    let statusText = 'Filtering by: ';
-    if (startDate && endDate) {
-      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
-    } else if (startDate) {
-      statusText += `From ${formatDateDisplay(startDate)}`;
-    } else if (endDate) {
-      statusText += `Until ${formatDateDisplay(endDate)}`;
-    }
-    
-    statusElement.textContent = statusText;
-    statusElement.classList.add('active');
-  } else {
-    dateRangeContainer.classList.remove('active');
-    statusElement.classList.remove('active');
-    statusElement.textContent = '';
-  }
-}
-
-function createSalesDateRangeStatusElement() {
-  const statusElement = document.createElement('span');
-  statusElement.className = 'sales-date-range-status';
-  qs('.sales-date-range-container').appendChild(statusElement);
-  return statusElement;
 }
 
 function openNewSalesModal() {
@@ -1459,7 +1632,6 @@ function loadProductSearchForSales() {
 }
 
 async function saveSalesOrder() {
-  // Validate required fields
   const customerName = qs('#customerName')?.value?.trim();
   const customerContact = qs('#customerContact')?.value?.trim();
   
@@ -1566,7 +1738,6 @@ async function saveSalesOrder() {
   }
 }
 
-// ===== FIXED: View Sales Details Function =====
 async function viewSalesDetails(salesId) {
   try {
     console.log(`Fetching sales details for ID: ${salesId}`);
@@ -1580,25 +1751,22 @@ async function viewSalesDetails(salesId) {
     const sale = await res.json();
     console.log('Sales details loaded:', sale);
     
-    // Check if modal exists
     if (!qs('#salesDetailsModal')) {
       console.error('Sales details modal not found');
       alert('Sales details modal is not available. Please refresh the page.');
       return;
     }
     
-    // Update sales details - using the correct element IDs from your HTML
     const detailElements = {
       'detailSalesId': 'detailSalesId',
       'detailCustomer': 'detailCustomer',
-      'detailCustomerContact': 'detailCustomerContact', // ADDED: Customer Contact
+      'detailCustomerContact': 'detailCustomerContact',
       'detailSalesDate': 'detailSalesDate',
       'detailSalesTotalAmount': 'detailSalesTotalAmount',
       'detailSalesNotes': 'detailSalesNotes',
       'detailSalesNotesRow': 'detailSalesNotesRow'
     };
     
-    // Update each element if it exists
     Object.entries(detailElements).forEach(([key, elementId]) => {
       const element = qs(`#${elementId}`);
       if (element) {
@@ -1609,7 +1777,7 @@ async function viewSalesDetails(salesId) {
           case 'detailCustomer':
             element.textContent = sale.customer || 'N/A';
             break;
-          case 'detailCustomerContact': // ADDED: Customer Contact
+          case 'detailCustomerContact':
             element.textContent = sale.customerContact || 'N/A';
             break;
           case 'detailSalesDate':
@@ -1634,7 +1802,6 @@ async function viewSalesDetails(salesId) {
       }
     });
     
-    // Update sales items list
     const itemsList = qs('#salesDetailsList');
     if (itemsList) {
       itemsList.innerHTML = '';
@@ -1654,13 +1821,11 @@ async function viewSalesDetails(salesId) {
       }
     }
     
-    // Set print button handler
     const printBtn = qs('#printSalesInvoiceBtn');
     if (printBtn) {
       printBtn.onclick = () => printAndSaveSalesInvoice(salesId);
     }
     
-    // Show the modal
     const modal = qs('#salesDetailsModal');
     if (modal) {
       modal.style.display = 'block';
@@ -1705,7 +1870,6 @@ async function deleteSales(id) {
 
 async function printAndSaveSalesInvoice(salesId) {
   try {
-    // Print the invoice
     const res = await fetch(`${API_BASE}/sales/invoice/${salesId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -1724,7 +1888,6 @@ async function printAndSaveSalesInvoice(salesId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    // Save to statements/documents
     const saveRes = await apiFetch(`${API_BASE}/sales/save-invoice/${salesId}`, {
       method: 'POST'
     });
@@ -1749,7 +1912,6 @@ async function fetchPurchases() {
     const data = await res.json();
     purchases = data.map(p => ({ ...p, id: p.id || p._id }));
     filteredPurchases = [...purchases];
-    // Don't render here, will be rendered when modal opens
   } catch(err) {
     console.error('Fetch purchases error:', err);
   }
@@ -1766,11 +1928,9 @@ function renderPurchaseHistory(items) {
   paginatedItems.forEach((p, index) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <!-- UPDATED: Added NO column -->
       <td class="number-cell">${startNumber + index}</td>
       <td>${escapeHtml(p.purchaseId || 'N/A')}</td>
       <td>${escapeHtml(p.supplier || '')}</td>
-      <!-- UPDATED: Added supplier contact in table -->
       <td>${escapeHtml(p.supplierContact || 'N/A')}</td>
       <td>${p.items ? p.items.length : 0} items</td>
       <td class="money">RM ${(p.totalAmount || 0).toFixed(2)}</td>
@@ -1789,7 +1949,6 @@ function openPurchaseHistoryModal() {
   const modal = qs('#purchaseHistoryModal');
   if (modal) {
     modal.style.display = 'block';
-    // Reset pagination when opening modal
     currentPurchasePage = 1;
     renderPurchaseHistory(filteredPurchases);
   }
@@ -1802,7 +1961,6 @@ function closePurchaseHistoryModal() {
   }
 }
 
-// ===== NEW: Purchase Search Function =====
 function searchPurchases() {
   const textQuery = (qs('#purchaseSearchInput')?.value || '').toLowerCase().trim();
   const startDate = qs('#purchaseStartDate')?.value || '';
@@ -1823,7 +1981,6 @@ function searchPurchases() {
     filtered = filtered.filter(purchase => {
       if (!purchase.purchaseDate) return false;
       
-      // Convert DD/MM/YYYY to Date object for comparison
       const parseDate = (dateStr) => {
         if (!dateStr) return null;
         const parts = dateStr.split('/');
@@ -1904,39 +2061,6 @@ function bindPurchaseSearchEvents() {
       applyPurchaseDateRangeFilter();
     }
   });
-}
-
-// ===== NEW: Purchase Date Range Status =====
-function updatePurchaseDateRangeStatus(isActive, startDate, endDate) {
-  const dateRangeContainer = qs('.purchase-date-range-container');
-  const statusElement = qs('.purchase-date-range-status') || createPurchaseDateRangeStatusElement();
-  
-  if (isActive) {
-    dateRangeContainer.classList.add('active');
-    
-    let statusText = 'Filtering by: ';
-    if (startDate && endDate) {
-      statusText += `${formatDateDisplay(startDate)} to ${formatDateDisplay(endDate)}`;
-    } else if (startDate) {
-      statusText += `From ${formatDateDisplay(startDate)}`;
-    } else if (endDate) {
-      statusText += `Until ${formatDateDisplay(endDate)}`;
-    }
-    
-    statusElement.textContent = statusText;
-    statusElement.classList.add('active');
-  } else {
-    dateRangeContainer.classList.remove('active');
-    statusElement.classList.remove('active');
-    statusElement.textContent = '';
-  }
-}
-
-function createPurchaseDateRangeStatusElement() {
-  const statusElement = document.createElement('span');
-  statusElement.className = 'purchase-date-range-status';
-  qs('.purchase-date-range-container').appendChild(statusElement);
-  return statusElement;
 }
 
 function openNewPurchaseModal() {
@@ -2100,7 +2224,6 @@ function loadProductSearch() {
 }
 
 async function savePurchaseOrder() {
-  // Validate required fields
   const supplierName = qs('#supplierName')?.value?.trim();
   const supplierContact = qs('#supplierContact')?.value?.trim();
   
@@ -2182,11 +2305,9 @@ async function savePurchaseOrder() {
       const savedPurchase = await res.json();
       alert('✅ Restock order saved successfully!');
       
-      // Refresh data
       await fetchInventory();
       await fetchPurchases();
       
-      // Automatically print and save invoice
       await printAndSavePurchaseInvoice(savedPurchase.id);
       
       closeNewPurchaseModal();
@@ -2201,7 +2322,6 @@ async function savePurchaseOrder() {
   }
 }
 
-// ===== FIXED: View Purchase Details Function =====
 async function viewPurchaseDetails(purchaseId) {
   try {
     console.log(`Fetching purchase details for ID: ${purchaseId}`);
@@ -2215,25 +2335,22 @@ async function viewPurchaseDetails(purchaseId) {
     const purchase = await res.json();
     console.log('Purchase details loaded:', purchase);
     
-    // Check if modal exists
     if (!qs('#purchaseDetailsModal')) {
       console.error('Purchase details modal not found');
       alert('Purchase details modal is not available. Please refresh the page.');
       return;
     }
     
-    // Update purchase details - using the correct element IDs from your HTML
     const detailElements = {
       'detailPurchaseId': 'detailPurchaseId',
       'detailSupplier': 'detailSupplier',
-      'detailSupplierContact': 'detailSupplierContact', // ADDED: Supplier Contact
+      'detailSupplierContact': 'detailSupplierContact',
       'detailPurchaseDate': 'detailPurchaseDate',
       'detailTotalAmount': 'detailTotalAmount',
       'detailNotes': 'detailNotes',
       'detailNotesRow': 'detailNotesRow'
     };
     
-    // Update each element if it exists
     Object.entries(detailElements).forEach(([key, elementId]) => {
       const element = qs(`#${elementId}`);
       if (element) {
@@ -2244,7 +2361,7 @@ async function viewPurchaseDetails(purchaseId) {
           case 'detailSupplier':
             element.textContent = purchase.supplier || 'N/A';
             break;
-          case 'detailSupplierContact': // ADDED: Supplier Contact
+          case 'detailSupplierContact':
             element.textContent = purchase.supplierContact || 'N/A';
             break;
           case 'detailPurchaseDate':
@@ -2269,7 +2386,6 @@ async function viewPurchaseDetails(purchaseId) {
       }
     });
     
-    // Update purchase items list
     const itemsList = qs('#purchaseDetailsList');
     if (itemsList) {
       itemsList.innerHTML = '';
@@ -2289,13 +2405,11 @@ async function viewPurchaseDetails(purchaseId) {
       }
     }
     
-    // Set print button handler
     const printBtn = qs('#printDetailsInvoiceBtn');
     if (printBtn) {
       printBtn.onclick = () => printAndSavePurchaseInvoice(purchaseId);
     }
     
-    // Show the modal
     const modal = qs('#purchaseDetailsModal');
     if (modal) {
       modal.style.display = 'block';
@@ -2339,7 +2453,6 @@ async function deletePurchase(id) {
 
 async function printAndSavePurchaseInvoice(purchaseId) {
   try {
-    // Print the invoice
     const res = await fetch(`${API_BASE}/purchases/invoice/${purchaseId}`);
     if (!res.ok) throw new Error('Failed to generate invoice');
     
@@ -2358,7 +2471,6 @@ async function printAndSavePurchaseInvoice(purchaseId) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    // Save to statements/documents
     const saveRes = await apiFetch(`${API_BASE}/purchases/save-invoice/${purchaseId}`, {
       method: 'POST'
     });
@@ -2985,28 +3097,6 @@ function renderDashboardData(){
       tbody.appendChild(tr);
     });
   }
-
-  if(qs('#dash_totalItems')) {
-    let totalCost = 0, totalPrice = 0, totalStock = 0; // UPDATED: Changed names
-    inventory.forEach(it => {
-      const qty = Number(it.quantity || 0);
-      const itemCost = qty * Number(it.unitCost || 0); // UPDATED: Changed from invVal
-      const itemPrice = qty * Number(it.unitPrice || 0); // UPDATED: Changed from rev
-      
-      totalCost += itemCost;
-      totalPrice += itemPrice;
-      totalStock += qty;
-    });
-    qs('#dash_totalItems').textContent = inventory.length;
-    
-    // UPDATED: Changed variable names for consistency
-    if(qs('#dash_totalValue')) qs('#dash_totalValue').textContent = `RM ${totalCost.toFixed(2)}`; // UPDATED: Changed from #dash_totalValue
-    if(qs('#dash_totalRevenue')) qs('#dash_totalRevenue').textContent = `RM ${totalPrice.toFixed(2)}`; // UPDATED: Changed from #dash_totalRevenue
-    if(qs('#dash_totalStock')) qs('#dash_totalStock').textContent = totalStock;
-    
-    // Update profit using the unified function
-    updateProfitCard();
-  }
 }
 
 // =========================================
@@ -3141,6 +3231,13 @@ function bindInventoryUI(){
   // Bind the close button for Add Product Modal
   qs('#closeAddProductModal')?.addEventListener('click', closeAddProductModal);
   
+  // Bind Edit Product Modal
+  qs('#updateProductBtn')?.addEventListener('click', updateProduct);
+  qs('#closeEditProductModal')?.addEventListener('click', closeEditProductModal);
+  
+  // Bind other edit modal close buttons
+  qs('#editProductModal .close')?.addEventListener('click', closeEditProductModal);
+  
   // Other existing bindings
   qs('#reportBtn')?.addEventListener('click', openReportModal);
   qs('#searchInput')?.addEventListener('input', searchInventory);
@@ -3177,6 +3274,7 @@ function bindInventoryUI(){
   
   // Company info modal binding - FIXED: Now properly binding the close button
   qs('#closeCompanyInfoModal')?.addEventListener('click', closeCompanyInfoModal);
+  qs('#saveCompanyInfoBtn')?.addEventListener('click', updateCompanyInfo);
   
   // ===== FIXED: Preview Modal Close Button Binding =====
   // Bind the preview modal close button
@@ -3200,6 +3298,7 @@ function bindInventoryUI(){
   
   window.addEventListener('click', (e) => {
     if (e.target === qs('#addProductModal')) closeAddProductModal();
+    if (e.target === qs('#editProductModal')) closeEditProductModal();
     if (e.target === qs('#purchaseHistoryModal')) closePurchaseHistoryModal();
     if (e.target === qs('#newPurchaseModal')) closeNewPurchaseModal();
     if (e.target === qs('#salesHistoryModal')) closeSalesHistoryModal();
@@ -3353,3 +3452,12 @@ window.applySalesDateRangeFilter = applySalesDateRangeFilter;
 window.openAddProductModal = openAddProductModal;
 window.closeAddProductModal = closeAddProductModal;
 window.confirmAndAddProduct = confirmAndAddProduct;
+
+// ===== NEW: Edit Product Functions =====
+window.openEditProductModal = openEditProductModal;
+window.closeEditProductModal = closeEditProductModal;
+window.updateProduct = updateProduct;
+
+// ===== NEW: Sales History Functions =====
+window.refreshSalesHistory = refreshSalesHistory;
+window.loadSalesHistory = loadSalesHistory;
