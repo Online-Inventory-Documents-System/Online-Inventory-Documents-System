@@ -215,12 +215,12 @@
   <!-- Add Product Modal -->
   <!-- ========================================= -->
   <div id="addProductModal" class="modal">
-    <div class="modal-content medium-modal">
+    <div class="modal-content medium-modal" style="width: 650px; max-height: 650px;">
       <div class="modal-header">
         <h2>➕ Add New Product</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
         <div class="add-product-form">
           <div class="form-group">
             <label for="p_sku">Item ID / SKU *</label>
@@ -259,7 +259,7 @@
           </div>
         </div>
         
-        <div class="modal-actions">
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
           <button id="addProductBtn" class="primary-btn">➕ Add Product</button>
           <button id="closeAddProductModal" class="secondary-btn">✖️ Cancel</button>
         </div>
@@ -269,12 +269,12 @@
 
   <!-- Edit Product Modal -->
   <div id="editProductModal" class="modal">
-    <div class="modal-content medium-modal">
+    <div class="modal-content medium-modal" style="width: 650px; max-height: 650px;">
       <div class="modal-header">
         <h2>✏️ Edit Product</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
         <div class="add-product-form">
           <input type="hidden" id="edit_product_id">
           
@@ -315,7 +315,7 @@
           </div>
         </div>
         
-        <div class="modal-actions">
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
           <button id="updateProductBtn" class="primary-btn">💾 Update Product</button>
           <button id="closeEditProductModal" class="secondary-btn">✖️ Cancel</button>
         </div>
@@ -401,7 +401,7 @@
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
-                <th class="actions">ACTIONS</th>
+                <th class="actions-header" style="min-width: 250px;">ACTIONS</th>
               </tr>
             </thead>
             <tbody id="salesHistoryList"></tbody>
@@ -473,7 +473,7 @@
           </div>
         </div>
 
-        <h3>Sales Items</h3>
+        <h3 style="color: var(--text-light)">Sales Items</h3>
         <div class="table-container">
           <table id="salesDetailsTable">
             <thead>
@@ -499,12 +499,12 @@
 
   <!-- New Sales Order Modal -->
   <div id="newSalesModal" class="modal">
-    <div class="modal-content x-large-modal">
+    <div class="modal-content x-large-modal" style="width: 1100px; max-height: 800px;">
       <div class="modal-header">
         <h2>💰 New Sales Order</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height: 600px; overflow-y: auto;">
         <div class="form-row">
           <div class="form-group">
             <label for="customerName">Customer Name:</label>
@@ -531,7 +531,7 @@
           <textarea id="salesNotes" placeholder="Any additional notes..." rows="3"></textarea>
         </div>
 
-        <h3>Sales Items</h3>
+        <h3 style="color: var(--text-light)">Sales Items</h3>
         <div class="search-product-section">
           <input type="text" id="productSearchSales" placeholder="Search by SKU or product name..." class="search-input">
           <div id="productResultsSales" class="product-results"></div>
@@ -541,7 +541,7 @@
           <div id="salesItems">
             <!-- Dynamic sales items will be added here -->
           </div>
-          <button id="addSalesProductItem" class="primary-btn" style="margin-top: 10px;">+ Add Product Item</button>
+          <!-- REMOVED: + Add Product Item button -->
         </div>
 
         <div class="sales-summary">
@@ -550,7 +550,7 @@
           </div>
         </div>
 
-        <div class="modal-actions">
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
           <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
           <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
         </div>
@@ -560,12 +560,12 @@
 
   <!-- Report Generation Modal -->
   <div id="reportModal" class="modal">
-    <div class="modal-content large-modal">
+    <div class="modal-content large-modal" style="width: 800px; max-height: 700px;">
       <div class="modal-header">
         <h2>📄 Generate Reports</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height: 550px; overflow-y: auto;">
         <div class="form-row">
           <div class="form-group">
             <label for="reportStartDate">Start Date:</label>
@@ -577,18 +577,23 @@
           </div>
         </div>
 
-        <h2>Select Report Type</h2>
+        <h2 style="color: var(--text-light)">Select Report Type</h2>
         <div class="report-options">
           <div class="report-option" id="report-inventory" onclick="selectReportType('inventory')">
             <div class="icon">📦</div>
             <h3>Inventory Report</h3>
             <p>Current stock levels, values, and status analysis</p>
           </div>
+          <div class="report-option" id="report-sales" onclick="selectReportType('sales')">
+            <div class="icon">💰</div>
+            <h3>Sales Report</h3>
+            <p>Sales transactions, revenue, and customer analysis</p>
+          </div>
         </div>
 
         <input type="hidden" id="selectedReportType" value="">
 
-        <div class="modal-actions">
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
           <button id="generateReportBtn" class="primary-btn">🚀 Generate Report</button>
           <button id="closeReportModal" class="secondary-btn">✖️ Close</button>
         </div>
