@@ -28,7 +28,7 @@
       <div class="clock" id="currentTime">Loading time...</div>
     </div>
 
-    <!-- MODERN SUMMARY CARDS -->
+    <!-- MODERN SUMMARY CARDS - UPDATED: Only 4 cards -->
     <h2 class="section-title">Summary Cards</h2>
     <div class="summary-cards">
       <div class="card card-total-products" onclick="showCardTooltip('Total number of products in inventory')">
@@ -36,6 +36,15 @@
         <div class="card-content">
           <div class="card-title">Total Products</div>
           <div class="card-value" id="cardTotalProducts">0</div>
+          <div class="card-wave"></div>
+        </div>
+      </div>
+      
+      <div class="card card-total-stock" onclick="showCardTooltip('Total quantity of all items in inventory')">
+        <div class="card-icon">📊</div>
+        <div class="card-content">
+          <div class="card-title">Total Stock Quantity</div>
+          <div class="card-value" id="cardTotalStock">0</div>
           <div class="card-wave"></div>
         </div>
       </div>
@@ -49,30 +58,12 @@
         </div>
       </div>
       
-      <div class="card card-total-revenue" onclick="showCardTooltip('Total retail value if all items are sold at current prices')">
+      <!-- UPDATED: Changed to Total Sales Revenue -->
+      <div class="card card-total-revenue" onclick="showCardTooltip('Total revenue from all completed sales')">
         <div class="card-icon">📈</div>
         <div class="card-content">
-          <div class="card-title">Total Retail Value</div>
+          <div class="card-title">Total Sales Revenue</div>
           <div class="card-value" id="cardTotalRevenue">RM 0.00</div>
-          <div class="card-wave"></div>
-        </div>
-      </div>
-      
-      <!-- UPDATED: Changed from Total Profit Earned to Total Net Profit -->
-      <div class="card card-total-profit" onclick="showCardTooltip('Total net profit earned from completed sales')">
-        <div class="card-icon">💸</div>
-        <div class="card-content">
-          <div class="card-title">Total Net Profit</div>
-          <div class="card-value" id="cardTotalProfit">RM 0.00</div>
-          <div class="card-wave"></div>
-        </div>
-      </div>
-      
-      <div class="card card-total-stock" onclick="showCardTooltip('Total quantity of all items in inventory')">
-        <div class="card-icon">📊</div>
-        <div class="card-content">
-          <div class="card-title">Total Stock Quantity</div>
-          <div class="card-value" id="cardTotalStock">0</div>
           <div class="card-wave"></div>
         </div>
       </div>
@@ -82,28 +73,8 @@
       <h2>Inventory Management Actions</h2>
     </div>
 
-    <!-- ENHANCED ACTION BUTTONS GRID -->
+    <!-- ENHANCED ACTION BUTTONS GRID - UPDATED: Removed purchase/restock buttons -->
     <div class="action-buttons-grid">
-      <!-- UPDATED: Changed from New Purchase Order to Restock Item -->
-      <button class="action-card new-purchase" id="newPurchaseBtn">
-        <div class="action-icon">🛒</div>
-        <div class="action-content">
-          <div class="action-title">Restock Item</div>
-          <div class="action-subtitle">Add stock to inventory</div>
-        </div>
-        <div class="action-wave"></div>
-      </button>
-
-      <!-- UPDATED: Changed from Purchase History to Restock History -->
-      <button class="action-card purchase-history" id="purchaseHistoryBtn">
-        <div class="action-icon">📋</div>
-        <div class="action-content">
-          <div class="action-title">Restock History</div>
-          <div class="action-subtitle">View all restock orders</div>
-        </div>
-        <div class="action-wave"></div>
-      </button>
-
       <button class="action-card generate-reports" id="reportBtn">
         <div class="action-icon">📄</div>
         <div class="action-content">
@@ -131,7 +102,6 @@
         <div class="action-wave"></div>
       </button>
 
-      <!-- UPDATED: Changed from 'View Statements' to 'Add New Product' with new functionality -->
       <button class="action-card add-new-product" id="addNewProductBtn">
         <div class="action-icon">➕</div>
         <div class="action-content">
@@ -141,8 +111,6 @@
         <div class="action-wave"></div>
       </button>
     </div>
-
-    <!-- REMOVED: The entire inline "Add New Product" form section -->
 
     <h2 id="currentInventoryTitle">Current Inventory List</h2> 
     
@@ -172,7 +140,7 @@
       </div>
     </div>
     
-    <!-- UPDATED: Date Range and Search on same line with labels -->
+    <!-- Date Range and Search -->
     <div class="controls">
       <div class="search-controls-dual">
         <!-- Left side: Date Range Search Controls -->
@@ -209,7 +177,6 @@
       <table id="inventoryTable">
           <thead>
               <tr>
-                  <!-- UPDATED: Added NO column header -->
                   <th class="number-header" data-tooltip="Number">NO</th>
                   <th class="sku-header" data-tooltip="Stock Keeping Unit">SKU</th>
                   <th class="name-header">Name</th>
@@ -217,10 +184,7 @@
                   <th class="quantity-header" data-tooltip="Quantity">QTY</th>
                   <th class="money cost-header" data-tooltip="Unit Cost">Unit Cost</th>
                   <th class="money price-header" data-tooltip="Unit Price">Unit Price</th>
-                  <!-- UPDATED: Changed INV VALUE to TOTAL COST -->
-                  <th class="money value-header" data-tooltip="Total Cost">TOTAL COST</th>
-                  <!-- UPDATED: Changed REVENUE to TOTAL PRICE -->
-                  <th class="money revenue-header" data-tooltip="Total Price">TOTAL PRICE</th>
+                  <!-- REMOVED: TOTAL COST and TOTAL PRICE columns -->
                   <th class="date-header">Date</th>
                   <th class="status-header">Status</th>
                   <th class="actions-header">Actions</th>
@@ -248,7 +212,7 @@
   </section>
 
   <!-- ========================================= -->
-  <!-- NEW: Add Product Modal (Pop-up) -->
+  <!-- Add Product Modal -->
   <!-- ========================================= -->
   <div id="addProductModal" class="modal">
     <div class="modal-content medium-modal">
@@ -303,114 +267,63 @@
     </div>
   </div>
 
-  <!-- All other modals remain the same as before -->
-  <!-- UPDATED: Purchase History Modal changed to Restock History Modal -->
-  <div id="purchaseHistoryModal" class="modal">
-    <div class="modal-content x-large-modal">
+  <!-- Edit Product Modal -->
+  <div id="editProductModal" class="modal">
+    <div class="modal-content medium-modal">
       <div class="modal-header">
-        <h2>📋 Restock History</h2>
+        <h2>✏️ Edit Product</h2>
         <span class="close">&times;</span>
       </div>
       <div class="modal-body">
-        <!-- Purchase Pagination Controls -->
-        <div class="pagination-container">
-          <div class="pagination-info">
-            Showing <span id="currentPurchasePageStart">1</span>-<span id="currentPurchasePageEnd">10</span> of <span id="purchaseTotalItems">0</span> items
+        <div class="add-product-form">
+          <input type="hidden" id="edit_product_id">
+          
+          <div class="form-group">
+            <label for="edit_sku">Item ID / SKU *</label>
+            <input type="text" id="edit_sku" placeholder="Enter unique SKU" required readonly>
           </div>
-          <div class="pagination-controls">
-            <button class="pagination-btn" id="firstPurchasePageBtn" title="First Page">««</button>
-            <button class="pagination-btn" id="prevPurchasePageBtn" title="Previous Page">«</button>
-            
-            <div id="purchasePageNumbers" class="page-numbers"></div>
-            
-            <button class="pagination-btn" id="nextPurchasePageBtn" title="Next Page">»</button>
-            <button class="pagination-btn" id="lastPurchasePageBtn" title="Last Page">»»</button>
-            
-            <div class="items-per-page">
-              <span>Show:</span>
-              <select id="purchaseItemsPerPageSelect">
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
+          
+          <div class="form-group">
+            <label for="edit_name">Product Name *</label>
+            <input type="text" id="edit_name" placeholder="Enter product name" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="edit_category">Category</label>
+            <input type="text" id="edit_category" placeholder="Enter category">
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="edit_quantity">Quantity *</label>
+              <input type="number" id="edit_quantity" placeholder="0" min="0" value="0" required>
             </div>
+            
+            <div class="form-group">
+              <label for="edit_unitCost">Unit Cost (RM) *</label>
+              <input type="number" id="edit_unitCost" placeholder="0.00" step="0.01" min="0" value="0.00" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="edit_unitPrice">Unit Price (RM) *</label>
+              <input type="number" id="edit_unitPrice" placeholder="0.00" step="0.01" min="0" value="0.00" required>
+            </div>
+          </div>
+          
+          <div class="form-hint">
+            <small>* Required fields</small>
           </div>
         </div>
         
-        <!-- UPDATED: Purchase Search Controls with Date Range on Left, Text Search on Right -->
-        <div class="controls">
-          <div class="search-controls-dual">
-            <!-- Left side: Purchase Date Range Search Controls -->
-            <div class="date-range-container purchase-date-range-container left-search">
-              <label for="purchaseStartDate">📅 Date Range</label>
-              <div class="date-inputs">
-                <div class="date-input-group">
-                  <span class="date-label">From:</span>
-                  <input id="purchaseStartDate" type="date" />
-                </div>
-                <div class="date-input-group">
-                  <span class="date-label">To:</span>
-                  <input id="purchaseEndDate" type="date" />
-                </div>
-                <button id="applyPurchaseDateRangeBtn" class="primary-btn">Apply</button>
-                <button id="clearPurchaseDateRangeBtn" class="secondary-btn">Clear Dates</button>
-              </div>
-            </div>
-            
-            <!-- Right side: Purchase Text Search with label -->
-            <div class="text-search-container right-search">
-              <label for="purchaseSearchInput">🔍 Search</label>
-              <div class="search-input-group">
-                <input id="purchaseSearchInput" placeholder="Restock ID, supplier, contact..." type="text" />
-                <div class="search-buttons">
-                  <button id="clearPurchaseSearchBtn" class="secondary-btn">Clear</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="table-container"> 
-          <table id="purchaseHistoryTable">
-            <thead>
-              <tr>
-                <!-- UPDATED: Added NO column -->
-                <th class="number-header">NO</th>
-                <th>Restock ID</th>
-                <th>Supplier</th>
-                <!-- UPDATED: Added Supplier Contact column -->
-                <th>Supplier Contact</th>
-                <th>Items Count</th>
-                <th class="money">Total Amount</th>
-                <th>Date</th>
-                <th class="actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="purchaseHistoryList"></tbody>
-          </table>
-        </div>
-        
-        <!-- Purchase Pagination Footer -->
-        <div class="pagination-container" style="border-bottom: none; border-top: 1px solid var(--border-color); margin-top: 15px;">
-          <div class="pagination-info">
-            Page <span id="currentPurchasePage">1</span> of <span id="purchaseTotalPages">1</span>
-          </div>
-          <div class="pagination-controls">
-            <button class="pagination-btn" id="firstPurchasePageBtnFooter" title="First Page">««</button>
-            <button class="pagination-btn" id="prevPurchasePageBtnFooter" title="Previous Page">«</button>
-            
-            <div id="purchasePageNumbersFooter" class="page-numbers"></div>
-            
-            <button class="pagination-btn" id="nextPurchasePageBtnFooter" title="Next Page">»</button>
-            <button class="pagination-btn" id="lastPurchasePageBtnFooter" title="Last Page">»»</button>
-          </div>
+        <div class="modal-actions">
+          <button id="updateProductBtn" class="primary-btn">💾 Update Product</button>
+          <button id="closeEditProductModal" class="secondary-btn">✖️ Cancel</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Sales History Modal - UPDATED with Search and Pagination -->
+  <!-- Sales History Modal -->
   <div id="salesHistoryModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -444,7 +357,7 @@
           </div>
         </div>
         
-        <!-- UPDATED: Sales Search Controls with Date Range on Left, Text Search on Right -->
+        <!-- Sales Search Controls -->
         <div class="controls">
           <div class="search-controls-dual">
             <!-- Left side: Sales Date Range Search Controls -->
@@ -481,16 +394,14 @@
           <table id="salesHistoryTable">
             <thead>
               <tr>
-                <!-- UPDATED: Added NO column -->
                 <th class="number-header">NO</th>
                 <th>Sales ID</th>
                 <th>Customer</th>
-                <!-- UPDATED: Added Customer Contact column -->
                 <th>Customer Contact</th>
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
-                <th class="actions">Actions</th>
+                <th class="actions">ACTIONS</th>
               </tr>
             </thead>
             <tbody id="salesHistoryList"></tbody>
@@ -516,77 +427,6 @@
     </div>
   </div>
 
-  <!-- UPDATED: Purchase Details Modal changed to Restock Details Modal -->
-  <div id="purchaseDetailsModal" class="modal">
-    <div class="modal-content x-large-modal">
-      <div class="modal-header">
-        <h2>📄 Restock Order Details</h2>
-        <span class="close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <div class="purchase-details-header">
-          <div class="detail-row">
-            <div class="detail-group">
-              <label>Restock ID:</label>
-              <span id="detailPurchaseId" class="detail-value"></span>
-            </div>
-            <div class="detail-group">
-              <label>Supplier:</label>
-              <span id="detailSupplier" class="detail-value"></span>
-            </div>
-          </div>
-          <!-- UPDATED: Added Supplier Contact row -->
-          <div class="detail-row">
-            <div class="detail-group">
-              <label>Supplier Contact:</label>
-              <span id="detailSupplierContact" class="detail-value"></span>
-            </div>
-            <div class="detail-group">
-              <label>Restock Date:</label>
-              <span id="detailPurchaseDate" class="detail-value"></span>
-            </div>
-          </div>
-          <div class="detail-row">
-            <div class="detail-group">
-              <label>Total Amount:</label>
-              <span id="detailTotalAmount" class="detail-value money"></span>
-            </div>
-            <div class="detail-group">
-              <!-- Empty for alignment -->
-            </div>
-          </div>
-          <div class="detail-row" id="detailNotesRow" style="display: none;">
-            <div class="detail-group full-width">
-              <label>Notes:</label>
-              <span id="detailNotes" class="detail-value"></span>
-            </div>
-          </div>
-        </div>
-
-        <h3>Restock Items</h3>
-        <div class="table-container">
-          <table id="purchaseDetailsTable">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Product Name</th>
-                <th>Quantity</th>
-                <th class="money">Unit Price</th>
-                <th class="money">Total Amount</th>
-              </tr>
-            </thead>
-            <tbody id="purchaseDetailsList"></tbody>
-          </table>
-        </div>
-
-        <div class="modal-actions">
-          <button id="printDetailsInvoiceBtn" class="success-btn">🖨️ Print Invoice</button>
-          <button id="closePurchaseDetailsModal" class="secondary-btn">✖️ Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Sales Details Modal -->
   <div id="salesDetailsModal" class="modal">
     <div class="modal-content x-large-modal">
@@ -606,7 +446,6 @@
               <span id="detailCustomer" class="detail-value"></span>
             </div>
           </div>
-          <!-- UPDATED: Added Customer Contact row -->
           <div class="detail-row">
             <div class="detail-group">
               <label>Customer Contact:</label>
@@ -658,70 +497,7 @@
     </div>
   </div>
 
-  <!-- UPDATED: New Purchase Order Modal changed to New Restock Order Modal with Supplier Contact field -->
-  <div id="newPurchaseModal" class="modal">
-    <div class="modal-content x-large-modal">
-      <div class="modal-header">
-        <h2>🛒 New Restock Order</h2>
-        <span class="close">&times;</span>
-      </div>
-      <div class="modal-body">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="supplierName">Supplier Name:</label>
-            <input type="text" id="supplierName" placeholder="Enter supplier name">
-          </div>
-          <!-- ADDED: Supplier Contact field -->
-          <div class="form-group">
-            <label for="supplierContact">Supplier Contact:</label>
-            <input type="text" id="supplierContact" placeholder="Enter supplier contact">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="purchaseDate">Restock Date:</label>
-            <input type="date" id="purchaseDate">
-          </div>
-          <div class="form-group">
-            <!-- Empty div for alignment -->
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="purchaseNotes">Notes (Optional):</label>
-          <textarea id="purchaseNotes" placeholder="Any additional notes..." rows="3"></textarea>
-        </div>
-
-        <h3>Restock Items</h3>
-        <div class="search-product-section">
-          <input type="text" id="productSearch" placeholder="Search by SKU or product name..." class="search-input">
-          <div id="productResults" class="product-results"></div>
-        </div>
-
-        <div class="purchase-items-container">
-          <div id="purchaseItems">
-            <!-- Dynamic purchase items will be added here -->
-          </div>
-          <button id="addProductItem" class="primary-btn" style="margin-top: 10px;">+ Add Product Item</button>
-        </div>
-
-        <div class="purchase-summary">
-          <div class="total-amount-display">
-            <strong>Total Amount: RM <span id="totalPurchaseAmount">0.00</span></strong>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button id="savePurchaseBtn" class="primary-btn">💾 Save Restock Order</button>
-          <button id="printPurchaseBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
-          <button id="closePurchaseModal" class="secondary-btn">✖️ Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- UPDATED: New Sales Order Modal with Customer Contact field -->
+  <!-- New Sales Order Modal -->
   <div id="newSalesModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -734,7 +510,6 @@
             <label for="customerName">Customer Name:</label>
             <input type="text" id="customerName" placeholder="Enter customer name">
           </div>
-          <!-- ADDED: Customer Contact field -->
           <div class="form-group">
             <label for="customerContact">Customer Contact:</label>
             <input type="text" id="customerContact" placeholder="Enter customer contact">
@@ -777,7 +552,6 @@
 
         <div class="modal-actions">
           <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
-          <button id="printSalesBtn" class="success-btn" style="display: none;">🖨️ Print Invoice</button>
           <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
         </div>
       </div>
@@ -805,13 +579,11 @@
 
         <h2>Select Report Type</h2>
         <div class="report-options">
-          <!-- UPDATED: Only keep Inventory Report -->
           <div class="report-option" id="report-inventory" onclick="selectReportType('inventory')">
             <div class="icon">📦</div>
             <h3>Inventory Report</h3>
             <p>Current stock levels, values, and status analysis</p>
           </div>
-          <!-- REMOVED: Purchase and Sales Report options -->
         </div>
 
         <input type="hidden" id="selectedReportType" value="">
