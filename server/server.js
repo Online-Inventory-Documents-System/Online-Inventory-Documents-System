@@ -492,7 +492,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//         ENHANCED PDF REPORT - FINAL COLOR & LAYOUT OPTIMIZED
+//         FINAL OPTIMIZED PDF REPORT - ALIGNMENT & PAGE FIX
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -512,11 +512,11 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       items = await Inventory.find({}).lean();
     }
 
-    const company = await getCompanyInfo(); // [cite: 1]
+    const company = await getCompanyInfo();
     const now = new Date();
-    const printDate = formatDateTimeUTC8(now); // [cite: 7]
-    const reportId = generateInvoiceNumber('inventory'); // [cite: 7]
-    const printedBy = req.headers["x-username"] || "System"; // [cite: 7]
+    const printDate = formatDateTimeUTC8(now);
+    const reportId = generateInvoiceNumber('inventory');
+    const printedBy = req.headers["x-username"] || "System";
     
     const filename = `Inventory_Report_${reportId}.pdf`;
 
@@ -538,22 +538,23 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       const rowHeight = 22;
       const col = { no: 40, sku: 70, name: 150, cat: 320, qty: 410, cost: 470, price: 560, date: 650, status: 730 };
 
-      // Header Drawing [cite: 1, 2, 3, 4]
-      const drawHeader = (isFirstPage = true) => {
-        if (isFirstPage) {
-            doc.fillColor("#000000").font("Helvetica-Bold").fontSize(20).text(company.name, 40, 40);
-            doc.fontSize(9).font("Helvetica");
-            doc.text(company.address, 40, 65, { width: 350 });
-            doc.text(`Phone: ${company.phone}`, 40, 90);
-            doc.text(`Email: ${company.email}`, 40, 102);
+      // Header Drawing - Fixed Horizontal Alignment
+      const drawHeader = () => {
+        // Left Side: Company Details (Source: 12, 13, 14, 15)
+        doc.fillColor("#000000").font("Helvetica-Bold").fontSize(20).text(company.name, 40, 40);
+        doc.fontSize(9).font("Helvetica");
+        doc.text(company.address, 40, 65, { width: 350 });
+        doc.text(`Phone: ${company.phone}`, 40, 85); // Fixed Y
+        doc.text(`Email: ${company.email}`, 40, 97); // Fixed Y
 
-            doc.font("Helvetica-Bold").fontSize(16).text("INVENTORY REPORT", 600, 40, { align: 'right', width: 200 });
-            doc.font("Helvetica").fontSize(9);
-            doc.text(`Print Date: ${printDate}`, 600, 60, { align: 'right', width: 200 });
-            doc.text(`Report ID: ${reportId}`, 600, 72, { align: 'right', width: 200 });
-            doc.text(`Printed by: ${printedBy}`, 600, 84, { align: 'right', width: 200 });
-            doc.moveTo(40, 125).lineTo(800, 125).stroke();
-        }
+        // Right Side: Report Meta (Source: 16, 17)
+        doc.font("Helvetica-Bold").fontSize(16).text("INVENTORY REPORT", 600, 40, { align: 'right', width: 200 });
+        doc.font("Helvetica").fontSize(9);
+        doc.text(`Print Date: ${printDate}`, 600, 65, { align: 'right', width: 200 }); // Aligned to Address line
+        doc.text(`Report ID: ${reportId}`, 600, 77, { align: 'right', width: 200 });
+        doc.text(`Printed by: ${printedBy}`, 600, 89, { align: 'right', width: 200 });
+        
+        doc.moveTo(40, 120).lineTo(800, 120).stroke();
       };
 
       const drawTableHeader = (y) => {
@@ -571,8 +572,8 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         doc.text("STATUS", col.status + 5, y + 7);
       };
 
-      drawHeader(true);
-      let currentY = 140; 
+      drawHeader();
+      let currentY = 135; 
       drawTableHeader(currentY);
       currentY += rowHeight;
 
@@ -581,16 +582,16 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
       // --- DATA ROWS ---
       items.forEach((item, index) => {
-        // Page Break Logic: Landscape A4 is 595pt high. We break at 500pt.
-        if (currentY > 480) {
+        // Safe page break at 450 to leave room for summary/footer
+        if (currentY > 450) {
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           currentY = 40; 
           drawTableHeader(currentY);
           currentY += rowHeight;
         }
 
-        const qty = Number(item.quantity || 0); // 
-        const cost = Number(item.unitCost || 0); // 
+        const qty = Number(item.quantity || 0);
+        const cost = Number(item.unitCost || 0);
         subtotalQty += qty; 
         grandTotalCost += (qty * cost);
 
@@ -605,7 +606,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         doc.text(`RM ${(Number(item.unitPrice || 0)).toFixed(2)}`, col.price, currentY + 7, { width: 80, align: 'right' });
         doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '-', col.date + 5, currentY + 7);
 
-        // --- STATUS COLOR ADJUSTMENT --- 
+        // Status Colors
         if (qty === 0) {
           doc.fillColor("#FF0000").text("Out of Stock", col.status + 5, currentY + 7);
         } else if (qty < 10) {
@@ -613,24 +614,22 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         } else {
           doc.fillColor("#008000").text("In Stock", col.status + 5, currentY + 7);
         }
-
         currentY += rowHeight;
       });
 
-      // --- SUMMARY BOX (SUBTOTAL) --- 
-      // Ensure summary doesn't fall off the page
-      if (currentY > 440) {
+      // --- SUMMARY BOX (Source: 20) ---
+      if (currentY > 420) {
         doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
         currentY = 40;
       }
 
       const summaryWidth = 260;
       const summaryX = 540; 
-      const summaryY = currentY + 20;
+      const summaryY = currentY + 15;
 
       doc.fillColor("#000000").rect(summaryX, summaryY, summaryWidth, 75).stroke();
       doc.font("Helvetica-Bold").fontSize(10);
-      doc.text("SUBTOTAL SUMMARY", summaryX + 10, summaryY + 10); // 
+      doc.text("SUBTOTAL SUMMARY", summaryX + 10, summaryY + 10);
       
       doc.font("Helvetica").fontSize(9);
       doc.text(`Total Products:`, summaryX + 10, summaryY + 28);
@@ -642,13 +641,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
       doc.font("Helvetica-Bold").text(`Total Inventory Value:`, summaryX + 10, summaryY + 58);
       doc.text(`RM ${grandTotalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}`, summaryX + 10, summaryY + 58, { width: summaryWidth - 20, align: 'right' });
 
-      // --- FOOTER ON ALL PAGES --- [cite: 8, 11]
+      // --- FOOTER AND PAGE NUMBER (Source: 19, 21) ---
       const pages = doc.bufferedPageRange();
       for (let i = 0; i < pages.count; i++) {
         doc.switchToPage(i);
-        doc.fontSize(8).font("Helvetica").fillColor("#777")
-           .text(`Generated by ${company.name} Inventory System`, 0, doc.page.height - 50, { align: "center", width: doc.page.width })
-           .text(`Page ${i + 1} of ${pages.count}`, 0, doc.page.height - 38, { align: "center", width: doc.page.width });
+        doc.fontSize(8).font("Helvetica").fillColor("#777");
+        // Use fixed bottom coordinates to prevent pushing content to new pages
+        doc.text(`Generated by ${company.name} Inventory System`, 0, 540, { align: "center", width: 842 });
+        doc.text(`Page ${i + 1} of ${pages.count}`, 0, 555, { align: "center", width: 842 });
       }
 
       doc.end();
