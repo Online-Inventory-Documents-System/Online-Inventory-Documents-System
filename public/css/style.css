@@ -1102,12 +1102,19 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.85rem;
 }
 
-/* Actions column */
+/* Actions column - UPDATED: Increased width for horizontal buttons */
 #inventoryTable td:nth-child(10) {
     text-align: center;
-    min-width: 110px;
-    max-width: 120px;
+    min-width: 180px;
+    max-width: 200px;
     font-size: 0.85rem;
+}
+
+#inventoryTable td:nth-child(10) .action-btn {
+    margin: 2px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    display: inline-block;
 }
 
 /* Documents table styling (no vertical borders) */
@@ -1156,11 +1163,12 @@ input:focus, select:focus, textarea:focus {
 }
 .actions {
     text-align: center;
-    min-width: 150px;
+    min-width: 250px;
 }
 .small-btn {
     padding: 5px 8px;
     font-size: 0.8em;
+    margin: 2px;
 }
 
 /* =========================================
@@ -2300,7 +2308,7 @@ input:focus, select:focus, textarea:focus {
     }
 
 /* =========================================
-   Report Generation Modal Styling
+   Report Generation Modal Styling - UPDATED for dark mode
 ========================================= */
 .report-options {
   display: grid;
@@ -2358,6 +2366,14 @@ input:focus, select:focus, textarea:focus {
 .dark-mode .report-option.selected {
   border-color: #80bdff;
   background: rgba(0, 123, 255, 0.2);
+}
+
+.dark-mode .report-option h3 {
+  color: #80bdff;
+}
+
+.dark-mode .report-option p {
+  color: #adb5bd;
 }
 
 /* =========================================
@@ -3258,4 +3274,42 @@ body[data-theme="dark"] section {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* =========================================
+   Updated Table Action Button Styling
+========================================= */
+#inventoryTable td:last-child {
+  text-align: center;
+  white-space: nowrap;
+}
+
+#inventoryTable td:last-child .action-btn {
+  margin: 2px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  min-width: 70px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+#salesHistoryTable td:last-child {
+  text-align: center;
+  white-space: nowrap;
+}
+
+#salesHistoryTable td:last-child .action-btn {
+  margin: 2px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  min-width: 70px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Make action buttons more compact */
+.action-btn.small-btn {
+  padding: 5px 8px !important;
+  font-size: 0.75rem !important;
+  margin: 1px !important;
 }
