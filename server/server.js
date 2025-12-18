@@ -492,7 +492,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    ENHANCED PDF REPORT WITH DATE RANGE - UPDATED LAYOUT
+//                    ENHANCED PDF REPORT WITH DATE RANGE - UPDATED LAYOUT (FIXED)
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
@@ -602,37 +602,53 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
         const rowHeight = 18;
+        const tableStartX = 40;
+        const tableEndX = 800;
+        const tableWidth = tableEndX - tableStartX;
         
-        // UPDATED: Full-width column layout
+        // FIXED: Adjusted column positions and widths to align with table borders
         const columns = [
-          { name: "NO", x: 40, width: 40 },
-          { name: "SKU", x: 90, width: 100 },
-          { name: "Product Name", x: 200, width: 180 },
-          { name: "Category", x: 390, width: 90 },
-          { name: "Quantity", x: 490, width: 60 },
-          { name: "Unit Cost", x: 560, width: 80 },
-          { name: "Unit Price", x: 650, width: 80 },
-          { name: "Date", x: 740, width: 90 },
-          { name: "Status", x: 840, width: 90 }
+          { name: "NO", x: tableStartX, width: 40, align: 'center' },
+          { name: "SKU", x: tableStartX + 40, width: 80, align: 'left' },
+          { name: "Product Name", x: tableStartX + 120, width: 150, align: 'left' },
+          { name: "Category", x: tableStartX + 270, width: 80, align: 'left' },
+          { name: "Quantity", x: tableStartX + 350, width: 60, align: 'center' },
+          { name: "Unit Cost", x: tableStartX + 410, width: 70, align: 'right' },
+          { name: "Unit Price", x: tableStartX + 480, width: 70, align: 'right' },
+          { name: "Date", x: tableStartX + 550, width: 70, align: 'center' },
+          { name: "Status", x: tableStartX + 620, width: 80, align: 'center' }
         ];
-        
-        // Adjust table width to be full width
-        const tableWidth = 980; // Full width for A4 landscape
         
         let y = 150;
 
         function drawTableHeader() {
-          doc.rect(columns[0].x, y, tableWidth - columns[0].x, rowHeight).stroke();
+          // Draw header rectangle
+          doc.rect(tableStartX, y, tableWidth, rowHeight).stroke();
           
+          // Draw vertical lines for columns
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
+          // Draw column names
           doc.font("Helvetica-Bold").fontSize(9);
           columns.forEach(col => {
-            doc.text(col.name, col.x + 3, y + 5, { width: col.width - 6, align: 'center' });
+            const textX = col.x + (col.align === 'center' ? col.width/2 : 3);
+            const textY = y + 5;
+            const options = {
+              width: col.width - 6,
+              align: col.align
+            };
+            
+            if (col.align === 'center') {
+              doc.text(col.name, textX, textY, options);
+            } else if (col.align === 'right') {
+              doc.text(col.name, col.x + col.width - 6, textY, { ...options, align: 'right' });
+            } else {
+              doc.text(col.name, col.x + 3, textY, options);
+            }
           });
           
           y += rowHeight;
@@ -653,24 +669,69 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
             status = 'In Stock';
           }
 
-          doc.rect(columns[0].x, y, tableWidth - columns[0].x, rowHeight).stroke();
+          // Draw row rectangle
+          doc.rect(tableStartX, y, tableWidth, rowHeight).stroke();
           
+          // Draw vertical lines for columns
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
                .stroke();
           }
           
+          // Draw row data
           doc.font("Helvetica").fontSize(8);
-          doc.text(String(index + 1), columns[0].x + 3, y + 5, { width: columns[0].width - 6, align: 'center' }); // NO column
-          doc.text(item.sku || "", columns[1].x + 3, y + 5, { width: columns[1].width - 6 });
-          doc.text(item.name || "", columns[2].x + 3, y + 5, { width: columns[2].width - 6 });
-          doc.text(item.category || "", columns[3].x + 3, y + 5, { width: columns[3].width - 6 });
-          doc.text(String(qty), columns[4].x + 3, y + 5, { width: columns[4].width - 6, align: 'center' });
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5, { width: columns[5].width - 6, align: 'right' });
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5, { width: columns[6].width - 6, align: 'right' });
-          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[7].x + 3, y + 5, { width: columns[7].width - 6, align: 'center' }); // Date column
-          doc.text(status, columns[8].x + 3, y + 5, { width: columns[8].width - 6, align: 'center' }); // Status column
+          
+          // NO column
+          doc.text(String(index + 1), columns[0].x + columns[0].width/2, y + 5, { 
+            width: columns[0].width - 6, 
+            align: 'center' 
+          });
+          
+          // SKU column
+          doc.text(item.sku || "", columns[1].x + 3, y + 5, { 
+            width: columns[1].width - 6 
+          });
+          
+          // Product Name column
+          doc.text(item.name || "", columns[2].x + 3, y + 5, { 
+            width: columns[2].width - 6 
+          });
+          
+          // Category column
+          doc.text(item.category || "", columns[3].x + 3, y + 5, { 
+            width: columns[3].width - 6 
+          });
+          
+          // Quantity column
+          doc.text(String(qty), columns[4].x + columns[4].width/2, y + 5, { 
+            width: columns[4].width - 6, 
+            align: 'center' 
+          });
+          
+          // Unit Cost column
+          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + columns[5].width - 3, y + 5, { 
+            width: columns[5].width - 6, 
+            align: 'right' 
+          });
+          
+          // Unit Price column
+          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + columns[6].width - 3, y + 5, { 
+            width: columns[6].width - 6, 
+            align: 'right' 
+          });
+          
+          // Date column
+          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[7].x + columns[7].width/2, y + 5, { 
+            width: columns[7].width - 6, 
+            align: 'center' 
+          });
+          
+          // Status column
+          doc.text(status, columns[8].x + columns[8].width/2, y + 5, { 
+            width: columns[8].width - 6, 
+            align: 'center' 
+          });
           
           y += rowHeight;
           
@@ -690,7 +751,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         for (let i = 0; i < items.length; i++) {
           if (rowsOnPage === 10) {
             doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-            y = 40;
+            y = 150;
             rowsOnPage = 0;
             drawTableHeader();
           }
@@ -711,7 +772,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         // FIXED: Check if there's enough space for summary box
         if (boxY > 450) {
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-          boxY = 40;
+          boxY = 150;
         }
         
         // UPDATED: Simplified summary format
