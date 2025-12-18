@@ -492,53 +492,29 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    ENHANCED PDF REPORT WITH DATE RANGE - UPDATED LAYOUT
+//         ENHANCED PDF REPORT - FINAL OPTIMIZED LAYOUT
 // ============================================================================
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
-    const { startDate, endDate, reportType = 'inventory' } = req.body;
+    const { startDate, endDate } = req.body;
     
-    console.log(`📊 Generating inventory report with date range:`, {
-      startDate,
-      endDate,
-      reportType
-    });
-
+    // 1. DATA FETCHING & FILTERING
     let query = {};
-    
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
-
-      query.createdAt = {
-        $gte: start,
-        $lte: end
-      };
-      
-      console.log(`Querying items between ${start} and ${end}`);
-    } else if (startDate) {
-      const start = new Date(startDate);
-      query.createdAt = { $gte: start };
-    } else if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      query.createdAt = { $lte: end };
+      query.createdAt = { $gte: start, $lte: end };
     }
 
     let items = await Inventory.find(query).lean();
-    
-    console.log(`Found ${items.length} items for report`);
-
     if (items.length === 0 && (startDate || endDate)) {
-      console.log(`No items found in date range, showing all items`);
       items = await Inventory.find({}).lean();
     }
 
     const company = await getCompanyInfo();
     const now = new Date();
-    const printDate = formatDateTimeUTC8(now); // Use UTC+8 formatted date/time
-    
+    const printDate = formatDateTimeUTC8(now);
     const reportId = generateInvoiceNumber('inventory');
     const printedBy = req.headers["x-username"] || "System";
     const dateRangeText = startDate && endDate 
@@ -547,232 +523,168 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
     
     const filename = `Inventory_Report_${reportId}.pdf`;
 
-    console.log(`📊 Generating PDF report: ${filename}, Date Range: ${dateRangeText}`);
+    // 2. PDF GENERATION
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      const pdfChunks = [];
+      const doc = new PDFDocument({
+        size: "A4",
+        layout: "landscape",
+        margin: 40,
+        bufferPages: true
+      });
 
-    const pdfBuffer = await new Promise(async (resolve, reject) => {
-      try {
-        let pdfChunks = [];
+      doc.on("data", chunk => pdfChunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(pdfChunks)));
+      doc.on("error", err => reject(err));
 
-        const doc = new PDFDocument({
-          size: "A4",
-          layout: "landscape",
-          margin: 40,
-          bufferPages: true
-        });
+      // --- SETTINGS & HELPERS ---
+      const tableTop = 150;
+      const rowHeight = 25; // Slightly taller for better readability
+      const tableWidth = 760; // Fills landscape width better
+      const col = {
+        no: 40,
+        sku: 70,
+        name: 150,
+        cat: 320,
+        qty: 410,
+        cost: 470,
+        price: 560,
+        date: 650,
+        status: 730
+      };
 
-        doc.on("data", chunk => {
-          pdfChunks.push(chunk);
-        });
-        
-        doc.on("end", () => {
-          const buffer = Buffer.concat(pdfChunks);
-          console.log(`✅ PDF generation completed: ${buffer.length} bytes`);
-          resolve(buffer);
-        });
-        
-        doc.on("error", (error) => {
-          console.error('❌ PDF generation error:', error);
-          reject(error);
-        });
-
-        // Company info with line wrapping
-        doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
+      const drawHeader = () => {
+        doc.font("Helvetica-Bold").fontSize(22).text(company.name, 40, 40);
         doc.fontSize(10).font("Helvetica");
-        
-        // Address with line wrapping
-        const addressLines = splitTextIntoLines(company.address, 30);
-        let addressY = 70;
-        addressLines.forEach(line => {
-          doc.text(line, 40, addressY);
-          addressY += 12;
-        });
-        
-        doc.text(`Phone: ${company.phone}`, 40, addressY);
-        doc.text(`Email: ${company.email}`, 40, addressY + 15);
+        doc.text(company.address, 40, 70, { width: 300 });
+        doc.text(`Phone: ${company.phone}`, 40, 100);
+        doc.text(`Email: ${company.email}`, 40, 115);
 
-        doc.font("Helvetica-Bold").fontSize(15)
-           .text("INVENTORY REPORT", 620, 40);
-
+        doc.font("Helvetica-Bold").fontSize(16).text("INVENTORY REPORT", 600, 40, { align: 'right', width: 200 });
         doc.font("Helvetica").fontSize(10);
-        doc.text(`Print Date: ${printDate}`, 620, 63);
-        doc.text(`Report ID: ${reportId}`, 620, 78);
-        doc.text(`Date Range: ${dateRangeText}`, 620, 93);
-        doc.text(`Printed by: ${printedBy}`, 620, 108);
+        doc.text(`Print Date: ${printDate}`, 600, 65, { align: 'right', width: 200 });
+        doc.text(`Report ID: ${reportId}`, 600, 80, { align: 'right', width: 200 });
+        doc.text(`Date Range: ${dateRangeText}`, 600, 95, { align: 'right', width: 200 });
+        doc.text(`Printed by: ${printedBy}`, 600, 110, { align: 'right', width: 200 });
 
-        doc.moveTo(40, 130).lineTo(800, 130).stroke();
+        doc.moveTo(40, 135).lineTo(800, 135).stroke();
+      };
 
-        const rowHeight = 18;
+      const drawTableHeader = (y) => {
+        doc.fillColor("#f0f0f0").rect(40, y, tableWidth, rowHeight).fill().fillColor("#000000");
+        doc.rect(40, y, tableWidth, rowHeight).stroke();
         
-        // UPDATED: Simplified column layout without TOTAL COST and TOTAL PRICE
-        const columns = [
-          { name: "NO", x: 40, width: 30 },
-          { name: "SKU", x: 70, width: 70 },
-          { name: "Product Name", x: 140, width: 120 },
-          { name: "Category", x: 260, width: 80 },
-          { name: "Quantity", x: 340, width: 50 },
-          { name: "Unit Cost", x: 390, width: 70 },
-          { name: "Unit Price", x: 460, width: 70 },
-          { name: "Date", x: 530, width: 80 },
-          { name: "Status", x: 610, width: 90 }
-        ];
-        
-        let y = 150;
+        doc.font("Helvetica-Bold").fontSize(9);
+        doc.text("NO", col.no + 5, y + 8);
+        doc.text("SKU", col.sku + 5, y + 8);
+        doc.text("PRODUCT NAME", col.name + 5, y + 8);
+        doc.text("CATEGORY", col.cat + 5, y + 8);
+        doc.text("QTY", col.qty, y + 8, { width: 50, align: 'center' });
+        doc.text("UNIT COST", col.cost, y + 8, { width: 80, align: 'right' });
+        doc.text("UNIT PRICE", col.price, y + 8, { width: 80, align: 'right' });
+        doc.text("DATE", col.date + 5, y + 8);
+        doc.text("STATUS", col.status + 5, y + 8);
+      };
 
-        function drawTableHeader() {
-          doc.rect(columns[0].x, y, 660, rowHeight).stroke();
-          
-          for (let i = 1; i < columns.length; i++) {
-            doc.moveTo(columns[i].x, y)
-               .lineTo(columns[i].x, y + rowHeight)
-               .stroke();
-          }
-          
-          doc.font("Helvetica-Bold").fontSize(9);
-          columns.forEach(col => {
-            doc.text(col.name, col.x + 3, y + 5);
-          });
-          
-          y += rowHeight;
-        }
+      // --- INITIAL RENDER ---
+      drawHeader();
+      let currentY = tableTop;
+      drawTableHeader(currentY);
+      currentY += rowHeight;
 
-        function drawTableRow(item, index) {
-          const qty = Number(item.quantity || 0);
-          const cost = Number(item.unitCost || 0);
-          const price = Number(item.unitPrice || 0);
-          
-          // Determine status
-          let status = '';
-          if (qty === 0) {
-            status = 'Out of Stock';
-          } else if (qty < 10) {
-            status = 'Low Stock';
-          } else {
-            status = 'In Stock';
-          }
+      let subtotalQty = 0;
+      let grandTotalCost = 0;
 
-          doc.rect(columns[0].x, y, 660, rowHeight).stroke();
-          
-          for (let i = 1; i < columns.length; i++) {
-            doc.moveTo(columns[i].x, y)
-               .lineTo(columns[i].x, y + rowHeight)
-               .stroke();
-          }
-          
-          doc.font("Helvetica").fontSize(8);
-          doc.text(String(index + 1), columns[0].x + 3, y + 5); // NO column
-          doc.text(item.sku || "", columns[1].x + 3, y + 5);
-          doc.text(item.name || "", columns[2].x + 3, y + 5);
-          doc.text(item.category || "", columns[3].x + 3, y + 5);
-          doc.text(String(qty), columns[4].x + 3, y + 5);
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5);
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5);
-          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[7].x + 3, y + 5); // Date column
-          doc.text(status, columns[8].x + 3, y + 5); // Status column
-          
-          y += rowHeight;
-          
-          return {
-            qty,
-            cost,
-            price
-          };
-        }
-
-        drawTableHeader();
-        
-        let subtotalQty = 0;
-        let grandTotalCost = 0;
-        let rowsOnPage = 0;
-
-        for (let i = 0; i < items.length; i++) {
-          if (rowsOnPage === 10) {
-            doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-            y = 40;
-            rowsOnPage = 0;
-            drawTableHeader();
-          }
-
-          const calculations = drawTableRow(items[i], i);
-          
-          subtotalQty += calculations.qty;
-          grandTotalCost += (calculations.qty * calculations.cost);
-          
-          rowsOnPage++;
-        }
-
-        const lastPageIndex = doc.bufferedPageRange().count - 1;
-        doc.switchToPage(lastPageIndex);
-        
-        let boxY = y + 20;
-        
-        // FIXED: Check if there's enough space for summary box
-        if (boxY > 450) {
+      // --- DATA ROWS ---
+      items.forEach((item, index) => {
+        // Check for page break (landscape height is ~595)
+        if (currentY > 480) {
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-          boxY = 40;
+          currentY = 50; 
+          drawTableHeader(currentY);
+          currentY += rowHeight;
         }
+
+        const qty = Number(item.quantity || 0);
+        const cost = Number(item.unitCost || 0);
+        const price = Number(item.unitPrice || 0);
+        subtotalQty += qty;
+        grandTotalCost += (qty * cost);
+
+        let status = qty === 0 ? 'Out of Stock' : (qty < 10 ? 'Low Stock' : 'In Stock');
+
+        // Row background and border
+        if (index % 2 === 1) doc.fillColor("#fafafa").rect(40, currentY, tableWidth, rowHeight).fill().fillColor("#000000");
+        doc.rect(40, currentY, tableWidth, rowHeight).stroke();
+
+        doc.font("Helvetica").fontSize(8);
+        doc.text(index + 1, col.no + 5, currentY + 8);
+        doc.text(item.sku || "-", col.sku + 5, currentY + 8);
         
-        // UPDATED: Simplified summary format
-        doc.rect(500, boxY, 230, 60).stroke();
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text(`Total Products: ${items.length}`, 510, boxY + 10);
-        doc.text(`Total Quantity: ${subtotalQty} units`, 510, boxY + 25);
-        doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 510, boxY + 40);
-
-        doc.flushPages();
-
-        const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
-          doc.switchToPage(i);
-          // FIXED: Adjusted footer position to ensure visibility
-          const pageHeight = doc.page.height;
-          const pageWidth = doc.page.width;
-          
-          // FIXED: Adjusted footer positions with more space
-          doc.fontSize(9).font("Helvetica")
-             .text(`This document is not subject to Sales & Service Tax (SST).`, 
-                   0, pageHeight - 95, { align: "center", width: pageWidth });
-          
-          doc.text(`Generated by ${company.name} Inventory System`, 
-                   0, pageHeight - 80, { align: "center", width: pageWidth });
-          
-          doc.text(`Page ${i + 1} of ${pages.count}`, 
-                   0, pageHeight - 65, { align: "center", width: pageWidth });
-        }
+        // Wrap Name Text to prevent overlapping
+        doc.text(item.name || "-", col.name + 5, currentY + 8, { width: 160, lineBreak: false, ellipsis: true });
         
-        doc.end();
+        doc.text(item.category || "-", col.cat + 5, currentY + 8, { width: 80, ellipsis: true });
+        doc.text(qty.toString(), col.qty, currentY + 8, { width: 50, align: 'center' });
+        doc.text(`RM ${cost.toFixed(2)}`, col.cost, currentY + 8, { width: 80, align: 'right' });
+        doc.text(`RM ${price.toFixed(2)}`, col.price, currentY + 8, { width: 80, align: 'right' });
+        doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '-', col.date + 5, currentY + 8);
+        doc.text(status, col.status + 5, currentY + 8);
 
-      } catch (error) {
-        reject(error);
+        currentY += rowHeight;
+      });
+
+      // --- SUMMARY BOX ---
+      if (currentY > 450) { doc.addPage({ size: "A4", layout: "landscape", margin: 40 }); currentY = 50; }
+      
+      const summaryY = currentY + 20;
+      doc.rect(530, summaryY, 270, 65).stroke();
+      doc.font("Helvetica-Bold").fontSize(10);
+      doc.text(`Total Products:`, 540, summaryY + 12);
+      doc.text(`${items.length}`, 790, summaryY + 12, { align: 'right' });
+      
+      doc.text(`Total Quantity:`, 540, summaryY + 27);
+      doc.text(`${subtotalQty} units`, 790, summaryY + 27, { align: 'right' });
+      
+      doc.fontSize(11).text(`Total Inventory Value:`, 540, summaryY + 45);
+      doc.text(`RM ${grandTotalCost.toLocaleString(undefined, {minimumFractionDigits: 2})}`, 680, summaryY + 45, { align: 'right', width: 110 });
+
+      // --- FOOTERS ON ALL PAGES ---
+      const pages = doc.bufferedPageRange();
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
+        const pWidth = doc.page.width;
+        const pHeight = doc.page.height;
+        
+        doc.fontSize(8).font("Helvetica").fillColor("#777")
+           .text(`Generated by ${company.name} Inventory System`, 0, pHeight - 60, { align: "center", width: pWidth })
+           .text(`Page ${i + 1} of ${pages.count}`, 0, pHeight - 45, { align: "center", width: pWidth });
       }
+
+      doc.end();
     });
 
-    console.log(`💾 Saving PDF to database: ${pdfBuffer.length} bytes`);
-
+    // 3. DATABASE SAVING & RESPONSE
     const savedDoc = await Doc.create({
       name: filename,
       size: pdfBuffer.length,
       date: new Date(),
       data: pdfBuffer,
       contentType: "application/pdf",
-      tags: ['inventory-report', 'pdf']
+      tags: ['inventory-report']
     });
 
-    console.log(`✅ PDF saved to database with ID: ${savedDoc._id}`);
-    await logActivity(printedBy, `Generated Inventory Report PDF: ${filename}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(printedBy, `Generated Inventory PDF: ${filename}`, req.headers['user-agent']);
 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Length", pdfBuffer.length);
     res.send(pdfBuffer);
 
-    console.log(`📤 PDF sent to browser: ${filename}`);
-
   } catch (err) {
-    console.error("❌ PDF Generation Error:", err);
+    console.error("❌ PDF Error:", err);
     res.status(500).json({ message: "PDF generation failed: " + err.message });
   }
 });
-
 
 // ============================================================================
 //                    SALES REPORT WITH DATE RANGE - NEW ENDPOINT
