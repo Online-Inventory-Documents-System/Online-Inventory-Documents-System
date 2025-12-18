@@ -189,14 +189,6 @@ section {
   background: linear-gradient(135deg, #fd7e14, #e8590c) !important;
 }
 
-.value-header {
-  background: linear-gradient(135deg, #6f42c1, #5a32a3) !important;
-}
-
-.revenue-header {
-  background: linear-gradient(135deg, #20c997, #199d76) !important;
-}
-
 .date-header {
   background: linear-gradient(135deg, #6610f2, #520dc2) !important;
 }
@@ -250,18 +242,6 @@ section {
   font-size: 1rem;
 }
 
-.value-cell {
-  color: #6f42c1;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
-.revenue-cell {
-  color: #20c997;
-  font-weight: 700;
-  font-size: 1rem;
-}
-
 .date-cell {
   color: #6610f2;
   font-weight: 600;
@@ -280,14 +260,6 @@ section {
 
 .dark-mode .price-cell {
   color: #ff922b;
-}
-
-.dark-mode .value-cell {
-  color: #9d4edd;
-}
-
-.dark-mode .revenue-cell {
-  color: #38d9a9;
 }
 
 .dark-mode .date-cell {
@@ -381,19 +353,18 @@ section {
 }
 
 /* Add Product Modal Specific Styles */
-#addProductModal .modal-content {
+#addProductModal .modal-content,
+#editProductModal .modal-content {
   width: 650px;
   max-width: 95%;
 }
 
-/* Purchase/Sales History Modal Enhancements */
-#purchaseHistoryModal .modal-content,
+/* Sales History Modal Enhancements */
 #salesHistoryModal .modal-content {
   width: 1300px;
   max-width: 95%;
 }
 
-#newPurchaseModal .modal-content,
 #newSalesModal .modal-content {
   width: 1100px;
   max-width: 95%;
@@ -468,7 +439,7 @@ section {
   font-style: italic;
 }
 
-/* Form group enhancement for purchase/sales modals */
+/* Form group enhancement */
 .form-group label {
   font-weight: 700;
   color: var(--primary-color);
@@ -492,8 +463,7 @@ section {
   box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
 }
 
-/* Detail sections enhancement for purchase/sales details */
-.purchase-details-header,
+/* Detail sections enhancement for sales details */
 .sales-details-header {
   background: linear-gradient(135deg, #f8f9fa, #e9ecef);
   padding: 25px;
@@ -1032,7 +1002,7 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
-    min-width: 1300px; /* Minimum width for horizontal scroll */
+    min-width: 1000px; /* Reduced from 1300px since we removed columns */
 }
 
 /* VERTICAL BORDERS FOR ALL CELLS */
@@ -1104,11 +1074,9 @@ input:focus, select:focus, textarea:focus {
     text-align: center;
 }
 
-/* CURRENCY COLUMNS */
+/* CURRENCY COLUMNS - FEWER NOW */
 #inventoryTable td:nth-child(6), /* Unit Cost */
-#inventoryTable td:nth-child(7), /* Unit Price */
-#inventoryTable td:nth-child(8), /* Inventory Value */
-#inventoryTable td:nth-child(9) { /* Potential Revenue */
+#inventoryTable td:nth-child(7) { /* Unit Price */
     white-space: nowrap;
     text-align: center;
     font-family: 'Consolas', monospace;
@@ -1119,7 +1087,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Date column */
-#inventoryTable td:nth-child(10) {
+#inventoryTable td:nth-child(8) {
     text-align: center;
     min-width: 90px;
     max-width: 100px;
@@ -1127,7 +1095,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Status column */
-#inventoryTable td:nth-child(11) {
+#inventoryTable td:nth-child(9) {
     text-align: center;
     min-width: 100px;
     max-width: 110px;
@@ -1135,7 +1103,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Actions column */
-#inventoryTable td:nth-child(12) {
+#inventoryTable td:nth-child(10) {
     text-align: center;
     min-width: 110px;
     max-width: 120px;
@@ -1496,7 +1464,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   MODERN SUMMARY CARDS
+   MODERN SUMMARY CARDS - UPDATED: Only 4 cards
 ========================================= */
 .summary-cards {
   display: grid;
@@ -1587,20 +1555,16 @@ input:focus, select:focus, textarea:focus {
   background: linear-gradient(135deg, #8E2DE2, #4A00E0);
 }
 
+.card-total-stock {
+  background: linear-gradient(135deg, #FF9800, #FF5722);
+}
+
 .card-total-value {
   background: linear-gradient(135deg, #FF416C, #FF4B2B);
 }
 
 .card-total-revenue {
-  background: linear-gradient(135deg, #009FFF, #0072FF);
-}
-
-.card-total-profit {
   background: linear-gradient(135deg, #00b09b, #96c93d);
-}
-
-.card-total-stock {
-  background: linear-gradient(135deg, #FF9800, #FF5722);
 }
 
 /* Dark mode adjustments */
@@ -1664,7 +1628,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Purchase & Sales Management Styles
+   Sales Management Styles
 ========================================= */
 .section-header {
   display: flex;
@@ -1691,7 +1655,7 @@ input:focus, select:focus, textarea:focus {
   gap: 5px;
 }
 
-/* Purchase/Sales Modal Styles */
+/* Sales Modal Styles */
 .modal {
   display: none;
   position: fixed;
@@ -1716,7 +1680,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 .search-product-section,
-.purchase-form-section,
 .sales-form-section {
   margin-bottom: 25px;
   padding: 20px;
@@ -1771,8 +1734,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.9rem;
 }
 
-/* Purchase/Sales Items Container */
-.purchase-items-container,
+/* Sales Items Container */
 .sales-items-container {
   margin: 20px 0;
   border: 1px solid var(--border-color);
@@ -1783,7 +1745,6 @@ input:focus, select:focus, textarea:focus {
   overflow-y: auto;
 }
 
-.purchase-item-row,
 .sales-item-row {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
@@ -1797,7 +1758,6 @@ input:focus, select:focus, textarea:focus {
   position: relative;
 }
 
-.purchase-item-row:last-child,
 .sales-item-row:last-child {
   margin-bottom: 0;
 }
@@ -1816,7 +1776,6 @@ input:focus, select:focus, textarea:focus {
   background: #bd2130;
 }
 
-.purchase-summary,
 .sales-summary {
   margin: 20px 0;
   padding: 20px;
@@ -1873,26 +1832,16 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid var(--border-color);
 }
 
-/* Purchase/Sales History Table */
-#purchaseHistoryTable,
+/* Sales History Table */
 #salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
 }
 
-#purchaseHistoryTable th, #purchaseHistoryTable td,
 #salesHistoryTable th, #salesHistoryTable td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid var(--border-color);
-}
-
-#purchaseHistoryTable thead th {
-  background-color: var(--success-color);
-  color: white;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 #salesHistoryTable thead th {
@@ -1903,14 +1852,12 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0.05em;
 }
 
-#purchaseHistoryTable tbody tr:hover,
 #salesHistoryTable tbody tr:hover {
   background-color: #f1f1f1;
 }
 
-/* Dark mode styles for purchase/sales section */
+/* Dark mode styles for sales section */
 .dark-mode .search-product-section,
-.dark-mode .purchase-form-section,
 .dark-mode .sales-form-section {
   background: #343a40;
   border-color: #495057;
@@ -1929,19 +1876,16 @@ input:focus, select:focus, textarea:focus {
   background-color: #3f4a56;
 }
 
-.dark-mode .purchase-items-container,
 .dark-mode .sales-items-container {
   background: #343a40;
   border-color: #495057;
 }
 
-.dark-mode .purchase-item-row,
 .dark-mode .sales-item-row {
   background: #495057;
   border-color: #6c757d;
 }
 
-.dark-mode .purchase-summary,
 .dark-mode .sales-summary {
   background: #2d3a2d;
   border-color: #28a745;
@@ -1955,15 +1899,10 @@ input:focus, select:focus, textarea:focus {
   border-color: #6c757d;
 }
 
-.dark-mode #purchaseHistoryTable thead th {
-  background-color: #1e7e34;
-}
-
 .dark-mode #salesHistoryTable thead th {
   background-color: #138496;
 }
 
-.dark-mode #purchaseHistoryTable tbody tr:hover,
 .dark-mode #salesHistoryTable tbody tr:hover {
   background-color: #3f4a56;
 }
@@ -1998,7 +1937,6 @@ input:focus, select:focus, textarea:focus {
     flex-direction: column;
   }
   
-  .purchase-item-row,
   .sales-item-row {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -2006,9 +1944,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================
-   Purchase/Sales Details Modal Styling
+   Sales Details Modal Styling
 ========================================= */
-.purchase-details-header,
 .sales-details-header {
   background: #f8f9fa;
   padding: 20px;
@@ -2052,8 +1989,7 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-dark);
 }
 
-/* Purchase/Sales History Table Styling */
-#purchaseHistoryTable,
+/* Sales History Table Styling */
 #salesHistoryTable {
   width: 100%;
   border-collapse: collapse;
@@ -2062,7 +1998,6 @@ input:focus, select:focus, textarea:focus {
   min-width: 1100px;
 }
 
-#purchaseHistoryTable th, #purchaseHistoryTable td,
 #salesHistoryTable th, #salesHistoryTable td {
   padding: 12px 15px;
   text-align: left;
@@ -2070,24 +2005,9 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid #000000;
 }
 
-#purchaseHistoryTable th:last-child, 
-#purchaseHistoryTable td:last-child,
 #salesHistoryTable th:last-child, 
 #salesHistoryTable td:last-child {
   border-right: none;
-}
-
-#purchaseHistoryTable thead th {
-  background-color: var(--success-color);
-  color: white;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  position: sticky; 
-  top: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.95rem;
-  padding: 15px 15px;
 }
 
 #salesHistoryTable thead th {
@@ -2103,13 +2023,11 @@ input:focus, select:focus, textarea:focus {
   padding: 15px 15px;
 }
 
-#purchaseHistoryTable thead th:last-child,
 #salesHistoryTable thead th:last-child {
   border-right: none;
 }
 
-/* Purchase/Sales Details Table */
-#purchaseDetailsTable,
+/* Sales Details Table */
 #salesDetailsTable {
   width: 100%;
   border-collapse: collapse;
@@ -2117,7 +2035,6 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.95rem;
 }
 
-#purchaseDetailsTable th, #purchaseDetailsTable td,
 #salesDetailsTable th, #salesDetailsTable td {
   padding: 10px 12px;
   text-align: left;
@@ -2125,22 +2042,9 @@ input:focus, select:focus, textarea:focus {
   border-right: 1px solid #000000;
 }
 
-#purchaseDetailsTable th:last-child, 
-#purchaseDetailsTable td:last-child,
 #salesDetailsTable th:last-child, 
 #salesDetailsTable td:last-child {
   border-right: none;
-}
-
-#purchaseDetailsTable thead th {
-  background-color: var(--primary-color);
-  color: white;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 0.95rem;
-  padding: 12px 12px;
 }
 
 #salesDetailsTable thead th {
@@ -2154,8 +2058,7 @@ input:focus, select:focus, textarea:focus {
   padding: 12px 12px;
 }
 
-/* Purchase/Sales Edit Page Styling */
-.purchase-edit-container,
+/* Sales Edit Page Styling */
 .sales-edit-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -2194,7 +2097,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Dark mode adjustments */
-.dark-mode .purchase-details-header,
 .dark-mode .sales-details-header {
   background: #343a40;
   border-color: #495057;
@@ -2288,14 +2190,6 @@ input:focus, select:focus, textarea:focus {
     }
 
     /* Individual button colors */
-    .action-card.purchase-history {
-      background: linear-gradient(135deg, #3498db, #2980b9);
-    }
-
-    .action-card.new-purchase {
-      background: linear-gradient(135deg, #2ecc71, #27ae60);
-    }
-
     .action-card.sales-history {
       background: linear-gradient(135deg, #9b59b6, #8e44ad);
     }
@@ -2332,7 +2226,6 @@ input:focus, select:focus, textarea:focus {
     }
 
     /* Pulse animation for important actions */
-    .action-card.new-purchase,
     .action-card.new-sales {
       animation: subtle-pulse 3s infinite;
     }
@@ -2684,7 +2577,6 @@ input:focus, select:focus, textarea:focus {
 
 /* Enhanced Statements Tables */
 #inventoryReportsTable,
-#purchaseInvoicesTable,
 #salesInvoicesTable {
   width: 100%;
   border-collapse: collapse;
@@ -2693,7 +2585,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 #inventoryReportsTable th, #inventoryReportsTable td,
-#purchaseInvoicesTable th, #purchaseInvoicesTable td,
 #salesInvoicesTable th, #salesInvoicesTable td {
   padding: 12px 15px;
   text-align: left;
@@ -2702,14 +2593,6 @@ input:focus, select:focus, textarea:focus {
 
 #inventoryReportsTable thead th {
   background-color: var(--primary-color);
-  color: white;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-#purchaseInvoicesTable thead th {
-  background-color: var(--success-color);
   color: white;
   font-weight: 600;
   text-transform: uppercase;
@@ -2725,7 +2608,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 #inventoryReportsTable tbody tr:hover,
-#purchaseInvoicesTable tbody tr:hover,
 #salesInvoicesTable tbody tr:hover {
   background-color: #f1f1f1;
 }
@@ -2734,16 +2616,11 @@ input:focus, select:focus, textarea:focus {
   background-color: #0056b3;
 }
 
-.dark-mode #purchaseInvoicesTable thead th {
-  background-color: #1e7e34;
-}
-
 .dark-mode #salesInvoicesTable thead th {
   background-color: #138496;
 }
 
 .dark-mode #inventoryReportsTable tbody tr:hover,
-.dark-mode #purchaseInvoicesTable tbody tr:hover,
 .dark-mode #salesInvoicesTable tbody tr:hover {
   background-color: #3f4a56;
 }
@@ -3069,7 +2946,7 @@ body[data-theme="dark"] section {
 }
 
 /* Print button visibility */
-#printPurchaseBtn, #printSalesBtn {
+#printSalesBtn {
   display: none !important;
 }
 
@@ -3251,7 +3128,7 @@ body[data-theme="dark"] section {
 
 /* Additional CSS to fix the button layout */
 .action-buttons-grid {
-  grid-template-columns: repeat(3, 1fr) !important;
+  grid-template-columns: repeat(2, 1fr) !important;
 }
 
 /* Green color for the clock */
