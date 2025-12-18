@@ -494,16 +494,6 @@ app.delete("/api/inventory/:id", async (req, res) => {
 // ============================================================================
 //                    ENHANCED PDF REPORT WITH DATE RANGE - FIXED LAYOUT
 // ============================================================================
-
-// REMOVE THESE DUPLICATE DECLARATIONS IF THEY EXIST ELSEWHERE IN YOUR CODE:
-// const formatDateTimeUTC8 = (date) => { ... }
-// const formatDateUTC8 = (date) => { ... }
-// const splitTextIntoLines = (text, maxChars) => { ... }
-// const generateInvoiceNumber = (type) => { ... }
-// const getCompanyInfo = async () => { ... }
-// const logActivity = async (user, action, device) => { ... }
-
-// Main PDF generation endpoint
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
     const { startDate, endDate, reportType = 'inventory' } = req.body;
@@ -614,17 +604,17 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const rowHeight = 20;
         const tableWidth = 720; // Fixed table width for landscape A4
         
-        // FIXED: Correct column positions and widths
+        // FIXED: Correct column positions and widths (non-overlapping)
         const columns = [
-          { name: "NO", x: 40, width: 40, align: "left" },
+          { name: "NO", x: 40, width: 40, align: "center" },
           { name: "SKU", x: 85, width: 80, align: "left" },
-          { name: "Product Name", x: 170, width: 150, align: "left" },
-          { name: "Category", x: 325, width: 90, align: "left" },
-          { name: "Quantity", x: 420, width: 60, align: "right" },
-          { name: "Unit Cost", x: 485, width: 70, align: "right" },
-          { name: "Unit Price", x: 560, width: 70, align: "right" },
-          { name: "Date", x: 635, width: 80, align: "center" },
-          { name: "Status", x: 720, width: 80, align: "center" }
+          { name: "Product Name", x: 170, width: 120, align: "left" },
+          { name: "Category", x: 295, width: 80, align: "left" },
+          { name: "Quantity", x: 380, width: 60, align: "right" },
+          { name: "Unit Cost", x: 445, width: 70, align: "right" },
+          { name: "Unit Price", x: 520, width: 70, align: "right" },
+          { name: "Date", x: 595, width: 70, align: "center" },
+          { name: "Status", x: 670, width: 90, align: "center" }
         ];
         
         let y = 150;
@@ -696,9 +686,10 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           // Draw row content
           doc.font("Helvetica").fontSize(8);
           
-          // NO column
+          // NO column (center aligned)
           doc.text(String(index + 1), columns[0].x + 5, y + 7, {
-            width: columns[0].width - 10
+            width: columns[0].width - 10,
+            align: "center"
           });
           
           // SKU column
@@ -765,13 +756,18 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let subtotalQty = 0;
         let grandTotalCost = 0;
         let rowsOnPage = 0;
-        const maxRowsPerPage = 18; // Fixed maximum rows per page
+        const maxRowsPerPage = 20; // Slightly increased for better fit
 
         for (let i = 0; i < items.length; i++) {
           if (rowsOnPage >= maxRowsPerPage) {
             doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
             y = 40;
             rowsOnPage = 0;
+            // Draw header on new page
+            doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
+            doc.fontSize(15).font("Helvetica-Bold").text("INVENTORY REPORT (Continued)", 620, 40);
+            doc.moveTo(40, 65).lineTo(800, 65).stroke();
+            y = 75;
             drawTableHeader();
           }
 
