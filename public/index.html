@@ -212,112 +212,116 @@
   </section>
 
   <!-- ========================================= -->
-  <!-- Add Product Modal -->
+  <!-- UPDATED: Add Product Modal - Large, Wide, No Scroll -->
   <!-- ========================================= -->
   <div id="addProductModal" class="modal">
-    <div class="modal-content medium-modal" style="width: 650px; max-height: 650px;">
+    <div class="modal-content x-large-modal" style="width: 1000px; height: auto; max-height: 90vh; overflow: hidden;">
       <div class="modal-header">
         <h2>➕ Add New Product</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+      <div class="modal-body" style="max-height: calc(90vh - 150px); overflow-y: auto; padding: 30px;">
         <div class="add-product-form">
-          <div class="form-group">
-            <label for="p_sku">Item ID / SKU *</label>
-            <input type="text" id="p_sku" placeholder="Enter unique SKU" required>
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
+            <div class="form-group">
+              <label for="p_sku">Item ID / SKU *</label>
+              <input type="text" id="p_sku" placeholder="Enter unique SKU" required style="font-size: 1.1rem; padding: 12px;">
+            </div>
+            
+            <div class="form-group">
+              <label for="p_name">Product Name *</label>
+              <input type="text" id="p_name" placeholder="Enter product name" required style="font-size: 1.1rem; padding: 12px;">
+            </div>
           </div>
           
-          <div class="form-group">
-            <label for="p_name">Product Name *</label>
-            <input type="text" id="p_name" placeholder="Enter product name" required>
-          </div>
-          
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 25px;">
             <label for="p_category">Category</label>
-            <input type="text" id="p_category" placeholder="Enter category">
+            <input type="text" id="p_category" placeholder="Enter category" style="font-size: 1.1rem; padding: 12px; width: 100%;">
           </div>
           
-          <div class="form-row">
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 25px; margin-bottom: 25px;">
             <div class="form-group">
               <label for="p_quantity">Quantity *</label>
-              <input type="number" id="p_quantity" placeholder="0" min="0" value="0" required>
+              <input type="number" id="p_quantity" placeholder="0" min="0" value="0" required style="font-size: 1.1rem; padding: 12px;">
             </div>
             
             <div class="form-group">
               <label for="p_unitCost">Unit Cost (RM) *</label>
-              <input type="number" id="p_unitCost" placeholder="0.00" step="0.01" min="0" value="0.00" required>
+              <input type="number" id="p_unitCost" placeholder="0.00" step="0.01" min="0" value="0.00" required style="font-size: 1.1rem; padding: 12px;">
             </div>
             
             <div class="form-group">
               <label for="p_unitPrice">Unit Price (RM) *</label>
-              <input type="number" id="p_unitPrice" placeholder="0.00" step="0.01" min="0" value="0.00" required>
+              <input type="number" id="p_unitPrice" placeholder="0.00" step="0.01" min="0" value="0.00" required style="font-size: 1.1rem; padding: 12px;">
             </div>
           </div>
           
-          <div class="form-hint">
+          <div class="form-hint" style="margin-top: 15px;">
             <small>* Required fields</small>
           </div>
         </div>
         
-        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
-          <button id="addProductBtn" class="primary-btn">➕ Add Product</button>
-          <button id="closeAddProductModal" class="secondary-btn">✖️ Cancel</button>
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 20px 0; margin-top: 30px; border-top: 1px solid var(--border-color);">
+          <button id="addProductBtn" class="primary-btn" style="padding: 12px 25px; font-size: 1.1rem;">➕ Add Product</button>
+          <button id="closeAddProductModal" class="secondary-btn" style="padding: 12px 25px; font-size: 1.1rem;">✖️ Cancel</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Edit Product Modal -->
+  <!-- UPDATED: Edit Product Modal - Large, Wide, No Scroll -->
   <div id="editProductModal" class="modal">
-    <div class="modal-content medium-modal" style="width: 650px; max-height: 650px;">
+    <div class="modal-content x-large-modal" style="width: 1000px; height: auto; max-height: 90vh; overflow: hidden;">
       <div class="modal-header">
         <h2>✏️ Edit Product</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+      <div class="modal-body" style="max-height: calc(90vh - 150px); overflow-y: auto; padding: 30px;">
         <div class="add-product-form">
           <input type="hidden" id="edit_product_id">
           
-          <div class="form-group">
-            <label for="edit_sku">Item ID / SKU *</label>
-            <input type="text" id="edit_sku" placeholder="Enter unique SKU" required readonly>
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
+            <div class="form-group">
+              <label for="edit_sku">Item ID / SKU *</label>
+              <input type="text" id="edit_sku" placeholder="Enter unique SKU" required readonly style="font-size: 1.1rem; padding: 12px; background-color: #f5f5f5;">
+            </div>
+            
+            <div class="form-group">
+              <label for="edit_name">Product Name *</label>
+              <input type="text" id="edit_name" placeholder="Enter product name" required style="font-size: 1.1rem; padding: 12px;">
+            </div>
           </div>
           
-          <div class="form-group">
-            <label for="edit_name">Product Name *</label>
-            <input type="text" id="edit_name" placeholder="Enter product name" required>
-          </div>
-          
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 25px;">
             <label for="edit_category">Category</label>
-            <input type="text" id="edit_category" placeholder="Enter category">
+            <input type="text" id="edit_category" placeholder="Enter category" style="font-size: 1.1rem; padding: 12px; width: 100%;">
           </div>
           
-          <div class="form-row">
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 25px; margin-bottom: 25px;">
             <div class="form-group">
               <label for="edit_quantity">Quantity *</label>
-              <input type="number" id="edit_quantity" placeholder="0" min="0" value="0" required>
+              <input type="number" id="edit_quantity" placeholder="0" min="0" value="0" required style="font-size: 1.1rem; padding: 12px;">
             </div>
             
             <div class="form-group">
               <label for="edit_unitCost">Unit Cost (RM) *</label>
-              <input type="number" id="edit_unitCost" placeholder="0.00" step="0.01" min="0" value="0.00" required>
+              <input type="number" id="edit_unitCost" placeholder="0.00" step="0.01" min="0" value="0.00" required style="font-size: 1.1rem; padding: 12px;">
             </div>
             
             <div class="form-group">
               <label for="edit_unitPrice">Unit Price (RM) *</label>
-              <input type="number" id="edit_unitPrice" placeholder="0.00" step="0.01" min="0" value="0.00" required>
+              <input type="number" id="edit_unitPrice" placeholder="0.00" step="0.01" min="0" value="0.00" required style="font-size: 1.1rem; padding: 12px;">
             </div>
           </div>
           
-          <div class="form-hint">
+          <div class="form-hint" style="margin-top: 15px;">
             <small>* Required fields</small>
           </div>
         </div>
         
-        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
-          <button id="updateProductBtn" class="primary-btn">💾 Update Product</button>
-          <button id="closeEditProductModal" class="secondary-btn">✖️ Cancel</button>
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 20px 0; margin-top: 30px; border-top: 1px solid var(--border-color);">
+          <button id="updateProductBtn" class="primary-btn" style="padding: 12px 25px; font-size: 1.1rem;">💾 Update Product</button>
+          <button id="closeEditProductModal" class="secondary-btn" style="padding: 12px 25px; font-size: 1.1rem;">✖️ Cancel</button>
         </div>
       </div>
     </div>
@@ -497,62 +501,61 @@
     </div>
   </div>
 
-  <!-- New Sales Order Modal -->
+  <!-- UPDATED: New Sales Order Modal - Large, Wide, No Scroll -->
   <div id="newSalesModal" class="modal">
-    <div class="modal-content x-large-modal" style="width: 1100px; max-height: 800px;">
+    <div class="modal-content x-large-modal" style="width: 1200px; height: auto; max-height: 90vh; overflow: hidden;">
       <div class="modal-header">
         <h2>💰 New Sales Order</h2>
         <span class="close">&times;</span>
       </div>
-      <div class="modal-body" style="max-height: 600px; overflow-y: auto;">
-        <div class="form-row">
+      <div class="modal-body" style="max-height: calc(90vh - 150px); overflow-y: auto; padding: 30px;">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
           <div class="form-group">
             <label for="customerName">Customer Name:</label>
-            <input type="text" id="customerName" placeholder="Enter customer name">
+            <input type="text" id="customerName" placeholder="Enter customer name" style="font-size: 1.1rem; padding: 12px;">
           </div>
           <div class="form-group">
             <label for="customerContact">Customer Contact:</label>
-            <input type="text" id="customerContact" placeholder="Enter customer contact">
+            <input type="text" id="customerContact" placeholder="Enter customer contact" style="font-size: 1.1rem; padding: 12px;">
           </div>
         </div>
 
-        <div class="form-row">
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
           <div class="form-group">
             <label for="salesDate">Sales Date:</label>
-            <input type="date" id="salesDate">
+            <input type="date" id="salesDate" style="font-size: 1.1rem; padding: 12px;">
           </div>
           <div class="form-group">
-            <!-- Empty div for alignment -->
+            <!-- Search Product Section -->
+            <div class="search-product-section">
+              <label for="productSearchSales">Search Product:</label>
+              <input type="text" id="productSearchSales" placeholder="Search by SKU or product name..." class="search-input" style="font-size: 1.1rem; padding: 12px; margin-top: 5px;">
+              <div id="productResultsSales" class="product-results" style="max-height: 200px;"></div>
+            </div>
           </div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom: 25px;">
           <label for="salesNotes">Notes (Optional):</label>
-          <textarea id="salesNotes" placeholder="Any additional notes..." rows="3"></textarea>
+          <textarea id="salesNotes" placeholder="Any additional notes..." rows="3" style="font-size: 1.1rem; padding: 12px; width: 100%;"></textarea>
         </div>
 
-        <h3 style="color: var(--text-light)">Sales Items</h3>
-        <div class="search-product-section">
-          <input type="text" id="productSearchSales" placeholder="Search by SKU or product name..." class="search-input">
-          <div id="productResultsSales" class="product-results"></div>
-        </div>
-
-        <div class="sales-items-container">
+        <h3 style="color: var(--text-light); margin-bottom: 20px;">Sales Items</h3>
+        <div class="sales-items-container" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; background: #f8f9fa;">
           <div id="salesItems">
             <!-- Dynamic sales items will be added here -->
           </div>
-          <!-- REMOVED: + Add Product Item button -->
         </div>
 
-        <div class="sales-summary">
+        <div class="sales-summary" style="margin: 25px 0; padding: 20px; border: 2px solid var(--success-color); border-radius: 8px; background: #f8fff9;">
           <div class="total-amount-display">
-            <strong>Total Amount: RM <span id="totalSalesAmount">0.00</span></strong>
+            <strong style="font-size: 1.2rem;">Total Amount: RM <span id="totalSalesAmount">0.00</span></strong>
           </div>
         </div>
 
-        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 15px 0; margin-top: 20px; border-top: 1px solid var(--border-color);">
-          <button id="saveSalesBtn" class="primary-btn">💾 Save Sales Order</button>
-          <button id="closeSalesModal" class="secondary-btn">✖️ Close</button>
+        <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 20px 0; margin-top: 30px; border-top: 1px solid var(--border-color);">
+          <button id="saveSalesBtn" class="primary-btn" style="padding: 12px 25px; font-size: 1.1rem;">💾 Save Sales Order</button>
+          <button id="closeSalesModal" class="secondary-btn" style="padding: 12px 25px; font-size: 1.1rem;">✖️ Close</button>
         </div>
       </div>
     </div>
