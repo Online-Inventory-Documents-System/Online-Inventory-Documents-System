@@ -111,7 +111,7 @@ function logout(){
 }
 
 // =========================================
-// NEW: Add Product Modal Functions
+// NEW: Add Product Modal Functions - UPDATED: No Scroll
 // =========================================
 function openAddProductModal() {
   // First, scroll to the inventory table
@@ -128,6 +128,7 @@ function openAddProductModal() {
   if (modal) {
     resetAddProductForm();
     modal.style.display = 'block';
+    document.body.classList.add('modal-open'); // Prevent background scrolling
     
     // Focus on the first input field
     setTimeout(() => {
@@ -141,6 +142,7 @@ function closeAddProductModal() {
   const modal = qs('#addProductModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
     resetAddProductForm();
   }
 }
@@ -239,6 +241,7 @@ function openCompanyInfoModal() {
     if (qs('#companyEmail')) qs('#companyEmail').value = companyInfo.email || '';
     
     modal.style.display = 'block';
+    document.body.classList.add('modal-open');
   }
 }
 
@@ -246,6 +249,7 @@ function closeCompanyInfoModal() {
   const modal = qs('#companyInfoModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -1073,7 +1077,7 @@ async function confirmAndDeleteItem(id){
 }
 
 // =========================================
-// FIXED: Edit Product Modal Functions
+// FIXED: Edit Product Modal Functions - UPDATED: No Scroll
 // =========================================
 async function openEditProductModal(productId) {
   try {
@@ -1090,7 +1094,7 @@ async function openEditProductModal(productId) {
       throw new Error('Product not found');
     }
     
-    // FIXED: Check if edit modal exists, if not use simple form
+    // Check if edit modal exists
     const editModal = qs('#editProductModal');
     
     if (editModal) {
@@ -1104,6 +1108,7 @@ async function openEditProductModal(productId) {
       if (qs('#edit_unitPrice')) qs('#edit_unitPrice').value = product.unitPrice || 0;
       
       editModal.style.display = 'block';
+      document.body.classList.add('modal-open');
     } else {
       // Fallback: Use simple prompt-based editing
       editProductSimple(productId, product);
@@ -1223,6 +1228,7 @@ function closeEditProductModal() {
   const modal = qs('#editProductModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -1230,10 +1236,7 @@ function closeEditProductModal() {
 // Attach Inventory Event Listeners
 // =========================================
 function attachInventoryEventListeners() {
-  // Edit button event listener - FIXED: Using onclick attribute instead
-  // The edit buttons are already using the onclick attribute in the renderInventory function
-  // But we'll also add event listeners for compatibility
-  
+  // Edit button event listener
   qsa('.edit-btn').forEach(btn => {
     btn.addEventListener('click', async function(e) {
       e.stopPropagation();
@@ -1241,9 +1244,6 @@ function attachInventoryEventListeners() {
       await openEditProductModal(productId);
     });
   });
-  
-  // Delete button event listener - FIXED: Already using onclick attribute
-  // We don't need to add event listeners for delete buttons since they use onclick
 }
 
 // =========================================
@@ -1339,8 +1339,7 @@ function openSalesHistoryModal() {
   const modal = qs('#salesHistoryModal');
   if (modal) {
     modal.style.display = 'block';
-    // Prevent background scrolling
-    document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
     // Reset pagination when opening modal
     currentSalesPage = 1;
     renderSalesHistory(filteredSales);
@@ -1351,8 +1350,7 @@ function closeSalesHistoryModal() {
   const modal = qs('#salesHistoryModal');
   if (modal) {
     modal.style.display = 'none';
-    // Restore background scrolling
-    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -1459,6 +1457,7 @@ function bindSalesSearchEvents() {
   });
 }
 
+// UPDATED: New Sales Modal - No Scroll
 function openNewSalesModal() {
   const modal = qs('#newSalesModal');
   if (modal) {
@@ -1467,8 +1466,7 @@ function openNewSalesModal() {
     if (salesItems) salesItems.innerHTML = '';
     loadProductSearchForSales();
     modal.style.display = 'block';
-    // Prevent background scrolling
-    document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
     updateSalesTotalAmount();
   } else {
     console.error('New sales modal not found');
@@ -1480,8 +1478,7 @@ function closeNewSalesModal() {
   const modal = qs('#newSalesModal');
   if (modal) {
     modal.style.display = 'none';
-    // Restore background scrolling
-    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
     resetSalesForm();
   }
 }
@@ -1815,7 +1812,7 @@ async function viewSalesDetails(salesId) {
     const modal = qs('#salesDetailsModal');
     if (modal) {
       modal.style.display = 'block';
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
     }
     
   } catch (e) {
@@ -1828,7 +1825,7 @@ function closeSalesDetailsModal() {
   const modal = qs('#salesDetailsModal');
   if (modal) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -1965,6 +1962,7 @@ function openPurchaseHistoryModal() {
   const modal = qs('#purchaseHistoryModal');
   if (modal) {
     modal.style.display = 'block';
+    document.body.classList.add('modal-open');
     currentPurchasePage = 1;
     renderPurchaseHistory(filteredPurchases);
   }
@@ -1974,6 +1972,7 @@ function closePurchaseHistoryModal() {
   const modal = qs('#purchaseHistoryModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -2087,6 +2086,7 @@ function openNewPurchaseModal() {
     if (purchaseItems) purchaseItems.innerHTML = '';
     loadProductSearch();
     modal.style.display = 'block';
+    document.body.classList.add('modal-open');
     updateTotalAmount();
   } else {
     console.error('New purchase modal not found');
@@ -2098,6 +2098,7 @@ function closeNewPurchaseModal() {
   const modal = qs('#newPurchaseModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
     resetPurchaseForm();
   }
 }
@@ -2424,6 +2425,7 @@ async function viewPurchaseDetails(purchaseId) {
     const modal = qs('#purchaseDetailsModal');
     if (modal) {
       modal.style.display = 'block';
+      document.body.classList.add('modal-open');
     }
     
   } catch (e) {
@@ -2436,6 +2438,7 @@ function closePurchaseDetailsModal() {
   const modal = qs('#purchaseDetailsModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -2521,6 +2524,7 @@ function openReportModal() {
   const modal = qs('#reportModal');
   if (modal) {
     modal.style.display = 'block';
+    document.body.classList.add('modal-open');
     qs('#reportStartDate').value = '';
     qs('#reportEndDate').value = '';
     
@@ -2533,6 +2537,7 @@ function closeReportModal() {
   const modal = qs('#reportModal');
   if (modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
   }
 }
 
@@ -2964,7 +2969,7 @@ function previewDocument(docId, docName) {
     previewTitle.textContent = `Preview: ${docName}`;
     iframe.src = previewUrl;
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
   }
 }
 
@@ -2974,7 +2979,7 @@ function closePreviewModal() {
   
   if (modal && iframe) {
     modal.style.display = 'none';
-    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
     iframe.src = '';
   }
 }
@@ -3297,7 +3302,7 @@ function bindInventoryUI(){
   // Bind the close button for Add Product Modal
   qs('#closeAddProductModal')?.addEventListener('click', closeAddProductModal);
   
-  // Edit Product Modal buttons - FIXED: Check if they exist first
+  // Edit Product Modal buttons
   const updateProductBtn = qs('#updateProductBtn');
   if (updateProductBtn) {
     updateProductBtn.addEventListener('click', updateProduct);
@@ -3318,18 +3323,11 @@ function bindInventoryUI(){
     } 
   });
   
-  // Purchase buttons
-  qs('#purchaseHistoryBtn')?.addEventListener('click', openPurchaseHistoryModal);
-  qs('#newPurchaseBtn')?.addEventListener('click', openNewPurchaseModal);
-  
   // Sales buttons
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
   
   // Other modal bindings
-  qs('#savePurchaseBtn')?.addEventListener('click', savePurchaseOrder);
-  qs('#closePurchaseModal')?.addEventListener('click', closeNewPurchaseModal);
-  
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
   qs('#closeSalesModal')?.addEventListener('click', closeNewSalesModal);
   
@@ -3352,48 +3350,35 @@ function bindInventoryUI(){
   
   // Bind all close buttons with class "close" (for backward compatibility)
   qsa('.close').forEach(closeBtn => {
-    // Skip the preview modal close button since we already bound it above
-    if (closeBtn.closest('#previewModal')) return;
-    
     closeBtn.addEventListener('click', function() {
       const modal = this.closest('.modal');
       if (modal) {
         modal.style.display = 'none';
-        // Restore scrolling for modals that disable it
-        if (modal.id === 'salesHistoryModal' || 
-            modal.id === 'newSalesModal' || 
-            modal.id === 'salesDetailsModal' ||
-            modal.id === 'previewModal') {
-          document.body.style.overflow = '';
-        }
+        document.body.classList.remove('modal-open');
       }
     });
   });
   
   window.addEventListener('click', (e) => {
-    if (e.target === qs('#addProductModal')) closeAddProductModal();
-    if (e.target === qs('#editProductModal')) closeEditProductModal();
-    if (e.target === qs('#purchaseHistoryModal')) closePurchaseHistoryModal();
-    if (e.target === qs('#newPurchaseModal')) closeNewPurchaseModal();
-    if (e.target === qs('#salesHistoryModal')) closeSalesHistoryModal();
-    if (e.target === qs('#newSalesModal')) closeNewSalesModal();
-    if (e.target === qs('#reportModal')) closeReportModal();
-    if (e.target === qs('#previewModal')) closePreviewModal();
-    if (e.target === qs('#purchaseDetailsModal')) closePurchaseDetailsModal();
-    if (e.target === qs('#salesDetailsModal')) closeSalesDetailsModal();
-    if (e.target === qs('#companyInfoModal')) closeCompanyInfoModal();
+    const modals = [
+      '#addProductModal', '#editProductModal', '#purchaseHistoryModal',
+      '#newPurchaseModal', '#salesHistoryModal', '#newSalesModal',
+      '#reportModal', '#previewModal', '#purchaseDetailsModal',
+      '#salesDetailsModal', '#companyInfoModal'
+    ];
     
-    // Restore scrolling when clicking outside modal
-    if (e.target.classList.contains('modal')) {
-      document.body.style.overflow = '';
-    }
+    modals.forEach(modalSelector => {
+      const modal = qs(modalSelector);
+      if (modal && e.target === modal) {
+        modal.style.display = 'none';
+        document.body.classList.remove('modal-open');
+      }
+    });
   });
   
   bindDateRangeFilterEvents();
   bindInventoryPaginationEvents();
-  bindPurchaseSearchEvents();
   bindSalesSearchEvents();
-  bindPurchasePaginationEvents();
   bindSalesPaginationEvents();
 }
 
@@ -3532,7 +3517,7 @@ window.openAddProductModal = openAddProductModal;
 window.closeAddProductModal = closeAddProductModal;
 window.confirmAndAddProduct = confirmAndAddProduct;
 
-// Edit Product Functions - FIXED
+// Edit Product Functions
 window.openEditProductModal = openEditProductModal;
 window.closeEditProductModal = closeEditProductModal;
 window.updateProduct = updateProduct;
