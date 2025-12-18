@@ -1,6 +1,4 @@
-// server/server.js
-// MongoDB (Mongoose) based server for Online Inventory & Documents Management System
-
+// server/server.js - UPDATED VERSION
 const express = require('express');
 const cors = require('cors');
 const xlsx = require('xlsx');
@@ -556,7 +554,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const doc = new PDFDocument({
           size: "A4",
           layout: "landscape",
-          margin: 40,
+          margin: 20, // Reduced margin for more space
           bufferPages: true
         });
 
@@ -575,61 +573,73 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           reject(error);
         });
 
-        // Company info with line wrapping
-        doc.fontSize(22).font("Helvetica-Bold").text(company.name, 40, 40);
-        doc.fontSize(10).font("Helvetica");
+        // Company info with line wrapping - compact
+        doc.fontSize(16).font("Helvetica-Bold").text(company.name, 20, 20);
+        doc.fontSize(8).font("Helvetica");
         
         // Address with line wrapping
-        const addressLines = splitTextIntoLines(company.address, 30);
-        let addressY = 70;
+        const addressLines = splitTextIntoLines(company.address, 40);
+        let addressY = 45;
         addressLines.forEach(line => {
-          doc.text(line, 40, addressY);
-          addressY += 12;
+          doc.text(line, 20, addressY);
+          addressY += 10;
         });
         
-        doc.text(`Phone: ${company.phone}`, 40, addressY);
-        doc.text(`Email: ${company.email}`, 40, addressY + 15);
+        doc.text(`Phone: ${company.phone}`, 20, addressY);
+        doc.text(`Email: ${company.email}`, 20, addressY + 10);
 
-        doc.font("Helvetica-Bold").fontSize(15)
-           .text("INVENTORY REPORT", 620, 40);
+        doc.font("Helvetica-Bold").fontSize(14)
+           .text("INVENTORY REPORT", 550, 20, { align: 'right' });
 
-        doc.font("Helvetica").fontSize(10);
-        doc.text(`Print Date: ${printDate}`, 620, 63);
-        doc.text(`Report ID: ${reportId}`, 620, 78);
-        doc.text(`Date Range: ${dateRangeText}`, 620, 93);
-        doc.text(`Printed by: ${printedBy}`, 620, 108);
+        doc.font("Helvetica").fontSize(8);
+        doc.text(`Print Date: ${printDate}`, 550, 40, { align: 'right' });
+        doc.text(`Report ID: ${reportId}`, 550, 52, { align: 'right' });
+        doc.text(`Date Range: ${dateRangeText}`, 550, 64, { align: 'right' });
+        doc.text(`Printed by: ${printedBy}`, 550, 76, { align: 'right' });
 
-        doc.moveTo(40, 130).lineTo(800, 130).stroke();
+        doc.moveTo(20, 95).lineTo(580, 95).stroke();
 
-        const rowHeight = 18;
+        const rowHeight = 16;
         
-        // UPDATED: Simplified column layout without TOTAL COST and TOTAL PRICE
+        // UPDATED: Larger column widths for better visibility
         const columns = [
-          { name: "NO", x: 40, width: 30 },
-          { name: "SKU", x: 70, width: 70 },
-          { name: "Product Name", x: 140, width: 120 },
-          { name: "Category", x: 260, width: 80 },
-          { name: "Quantity", x: 340, width: 50 },
-          { name: "Unit Cost", x: 390, width: 70 },
-          { name: "Unit Price", x: 460, width: 70 },
-          { name: "Date", x: 530, width: 80 },
-          { name: "Status", x: 610, width: 90 }
+          { name: "NO", x: 20, width: 25 },
+          { name: "SKU", x: 45, width: 80 },
+          { name: "Product Name", x: 125, width: 150 },
+          { name: "Category", x: 275, width: 80 },
+          { name: "Quantity", x: 355, width: 60 },
+          { name: "Unit Cost (RM)", x: 415, width: 75 },
+          { name: "Unit Price (RM)", x: 490, width: 75 },
+          { name: "Date", x: 565, width: 70 },
+          { name: "Status", x: 635, width: 80 }
         ];
         
-        let y = 150;
+        let y = 110;
 
         function drawTableHeader() {
-          doc.rect(columns[0].x, y, 660, rowHeight).stroke();
+          // Draw header rectangle
+          doc.rect(columns[0].x, y, 700, rowHeight)
+             .fillColor('#2c3e50')
+             .fill();
           
+          // Draw column dividers
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
+               .strokeColor('#ffffff')
                .stroke();
           }
           
-          doc.font("Helvetica-Bold").fontSize(9);
+          doc.font("Helvetica-Bold").fontSize(9)
+             .fillColor('#ffffff');
+          
           columns.forEach(col => {
-            doc.text(col.name, col.x + 3, y + 5);
+            const align = col.name.includes('Cost') || col.name.includes('Price') ? 'right' : 'left';
+            const padding = align === 'right' ? -3 : 3;
+            doc.text(col.name, col.x + padding, y + 4, { 
+              width: col.width - 6,
+              align: align 
+            });
           });
           
           y += rowHeight;
@@ -642,32 +652,89 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           
           // Determine status
           let status = '';
+          let statusColor = '#000000';
           if (qty === 0) {
             status = 'Out of Stock';
+            statusColor = '#dc3545';
           } else if (qty < 10) {
             status = 'Low Stock';
+            statusColor = '#ffc107';
           } else {
             status = 'In Stock';
+            statusColor = '#28a745';
           }
 
-          doc.rect(columns[0].x, y, 660, rowHeight).stroke();
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.rect(columns[0].x, y, 700, rowHeight)
+               .fillColor('#f8f9fa')
+               .fill();
+          }
           
+          // Draw column dividers
           for (let i = 1; i < columns.length; i++) {
             doc.moveTo(columns[i].x, y)
                .lineTo(columns[i].x, y + rowHeight)
+               .strokeColor('#e0e0e0')
                .stroke();
           }
           
-          doc.font("Helvetica").fontSize(8);
-          doc.text(String(index + 1), columns[0].x + 3, y + 5); // NO column
-          doc.text(item.sku || "", columns[1].x + 3, y + 5);
-          doc.text(item.name || "", columns[2].x + 3, y + 5);
-          doc.text(item.category || "", columns[3].x + 3, y + 5);
-          doc.text(String(qty), columns[4].x + 3, y + 5);
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5);
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5);
-          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[7].x + 3, y + 5); // Date column
-          doc.text(status, columns[8].x + 3, y + 5); // Status column
+          doc.font("Helvetica").fontSize(8)
+             .fillColor('#000000');
+          
+          // NO column
+          doc.text(String(index + 1), columns[0].x + 3, y + 4, { 
+            width: columns[0].width - 6,
+            align: 'center' 
+          });
+          
+          // SKU column
+          doc.text(item.sku || "", columns[1].x + 3, y + 4, { 
+            width: columns[1].width - 6 
+          });
+          
+          // Product Name column
+          doc.text(item.name || "", columns[2].x + 3, y + 4, { 
+            width: columns[2].width - 6 
+          });
+          
+          // Category column
+          doc.text(item.category || "", columns[3].x + 3, y + 4, { 
+            width: columns[3].width - 6 
+          });
+          
+          // Quantity column
+          doc.text(String(qty), columns[4].x + 3, y + 4, { 
+            width: columns[4].width - 6,
+            align: 'center' 
+          });
+          
+          // Unit Cost column
+          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x, y + 4, { 
+            width: columns[5].width - 6,
+            align: 'right' 
+          });
+          
+          // Unit Price column
+          doc.text(`RM ${price.toFixed(2)}`, columns[6].x, y + 4, { 
+            width: columns[6].width - 6,
+            align: 'right' 
+          });
+          
+          // Date column
+          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', 
+                  columns[7].x + 3, y + 4, { 
+                    width: columns[7].width - 6,
+                    align: 'center' 
+                  });
+          
+          // Status column with color
+          doc.fillColor(statusColor)
+             .text(status, columns[8].x + 3, y + 4, { 
+               width: columns[8].width - 6,
+               align: 'center' 
+             })
+             .fillColor('#000000');
           
           y += rowHeight;
           
@@ -683,11 +750,12 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let subtotalQty = 0;
         let grandTotalCost = 0;
         let rowsOnPage = 0;
+        let pageItems = [];
 
         for (let i = 0; i < items.length; i++) {
-          if (rowsOnPage === 10) {
-            doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
-            y = 40;
+          if (rowsOnPage === 20) {
+            doc.addPage({ size: "A4", layout: "landscape", margin: 20 });
+            y = 20;
             rowsOnPage = 0;
             drawTableHeader();
           }
@@ -705,38 +773,43 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         
         let boxY = y + 20;
         
-        // FIXED: Check if there's enough space for summary box
+        // Draw summary box
         if (boxY > 450) {
-          doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
+          doc.addPage({ size: "A4", layout: "landscape", margin: 20 });
           boxY = 40;
         }
         
-        // UPDATED: Simplified summary format
-        doc.rect(500, boxY, 230, 60).stroke();
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text(`Total Products: ${items.length}`, 510, boxY + 10);
-        doc.text(`Total Quantity: ${subtotalQty} units`, 510, boxY + 25);
-        doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 510, boxY + 40);
+        // Summary box with improved styling
+        doc.rect(450, boxY, 270, 50)
+           .fillColor('#f8f9fa')
+           .fill()
+           .strokeColor('#007bff')
+           .stroke();
+        
+        doc.font("Helvetica-Bold").fontSize(10)
+           .fillColor('#007bff');
+        doc.text(`Total Products: ${items.length}`, 460, boxY + 10);
+        doc.text(`Total Quantity: ${subtotalQty} units`, 460, boxY + 25);
+        doc.text(`Total Inventory Cost: RM ${grandTotalCost.toFixed(2)}`, 460, boxY + 40);
 
         doc.flushPages();
 
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          // FIXED: Adjusted footer position to ensure visibility
           const pageHeight = doc.page.height;
           const pageWidth = doc.page.width;
           
-          // FIXED: Adjusted footer positions with more space
-          doc.fontSize(9).font("Helvetica")
+          doc.fontSize(8).font("Helvetica")
+             .fillColor('#666666')
              .text(`This document is not subject to Sales & Service Tax (SST).`, 
-                   0, pageHeight - 95, { align: "center", width: pageWidth });
+                   0, pageHeight - 60, { align: "center", width: pageWidth });
           
           doc.text(`Generated by ${company.name} Inventory System`, 
-                   0, pageHeight - 80, { align: "center", width: pageWidth });
+                   0, pageHeight - 45, { align: "center", width: pageWidth });
           
           doc.text(`Page ${i + 1} of ${pages.count}`, 
-                   0, pageHeight - 65, { align: "center", width: pageWidth });
+                   0, pageHeight - 30, { align: "center", width: pageWidth });
         }
         
         doc.end();
@@ -976,7 +1049,7 @@ app.post("/api/sales/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                               SALES CRUD
+//                               SALES CRUD - FIXED DELETE
 // ============================================================================
 app.get("/api/sales", async (req, res) => {
   try {
@@ -1081,7 +1154,7 @@ app.get("/api/sales/:id", async (req, res) => {
   try {
     const sale = await Sales.findById(req.params.id).lean();
     if (!sale) {
-      return res.status(404).json({ message: "Sales not found" });
+      return res.status(404).json({ success: false, message: "Sales not found" });
     }
     
     // Include both id and _id for compatibility
@@ -1092,10 +1165,10 @@ app.get("/api/sales/:id", async (req, res) => {
       salesDate: formatDateUTC8(sale.salesDate)
     };
     
-    res.json(response);
+    res.json({ success: true, data: response });
   } catch (err) {
     console.error("sales get error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1124,6 +1197,7 @@ app.post("/api/sales", async (req, res) => {
       if (inventoryItem) {
         if (inventoryItem.quantity < item.quantity) {
           return res.status(400).json({ 
+            success: false,
             message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
           });
         }
@@ -1145,15 +1219,18 @@ app.post("/api/sales", async (req, res) => {
     await logActivity(req.headers["x-username"], `Created sales order: ${salesId} with ${items.length} items`, req.headers['user-agent'] || 'Unknown Device');
 
     res.status(201).json({
-      ...sale.toObject(),
-      id: sale._id.toString(),
-      salesId: sale.salesId,
-      salesDate: formatDateUTC8(sale.salesDate)
+      success: true,
+      data: {
+        ...sale.toObject(),
+        id: sale._id.toString(),
+        salesId: sale.salesId,
+        salesDate: formatDateUTC8(sale.salesDate)
+      }
     });
 
   } catch (err) {
     console.error("sales post error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1163,7 +1240,7 @@ app.put("/api/sales/:id", async (req, res) => {
     
     const existingSale = await Sales.findById(req.params.id);
     if (!existingSale) {
-      return res.status(404).json({ message: "Sales not found" });
+      return res.status(404).json({ success: false, message: "Sales not found" });
     }
 
     // Restore quantities from old items
@@ -1194,6 +1271,7 @@ app.put("/api/sales/:id", async (req, res) => {
       if (inventoryItem) {
         if (inventoryItem.quantity < item.quantity) {
           return res.status(400).json({ 
+            success: false,
             message: `Insufficient stock for ${item.productName}. Available: ${inventoryItem.quantity}, Requested: ${item.quantity}` 
           });
         }
@@ -1218,14 +1296,17 @@ app.put("/api/sales/:id", async (req, res) => {
     await logActivity(req.headers["x-username"], `Updated sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
 
     res.json({
-      ...sale.toObject(),
-      id: sale._id.toString(),
-      salesDate: formatDateUTC8(sale.salesDate)
+      success: true,
+      data: {
+        ...sale.toObject(),
+        id: sale._id.toString(),
+        salesDate: formatDateUTC8(sale.salesDate)
+      }
     });
 
   } catch (err) {
     console.error("sales update error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1233,31 +1314,33 @@ app.put("/api/sales/:id", async (req, res) => {
 app.delete("/api/sales/:id", async (req, res) => {
   try {
     const sale = await Sales.findById(req.params.id);
-    if (!sale)
+    if (!sale) {
       return res.status(404).json({ success: false, message: "Sales not found" });
+    }
 
     // Restore inventory quantities
     for (const item of sale.items) {
       const inventoryItem = await Inventory.findOne({ sku: item.sku });
       if (inventoryItem) {
-        inventoryItem.quantity = (inventoryItem.quantity || 0) + item.quantity;
+        inventoryItem.quantity = (inventoryItem.quantity || 0) + (item.quantity || 0);
         await inventoryItem.save();
       }
     }
 
     await Sales.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
+    await logActivity(req.headers["x-username"] || "System", `Deleted sales order: ${sale.salesId}`, req.headers['user-agent'] || 'Unknown Device');
     
     // Return success with data for immediate refresh
     res.json({ 
       success: true, 
       message: "Sales order deleted successfully",
-      salesId: sale.salesId
+      salesId: sale.salesId,
+      deletedId: req.params.id
     });
 
   } catch (err) {
     console.error("sales delete error", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error while deleting sales order" });
   }
 });
 
@@ -1268,7 +1351,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
   try {
     const sale = await Sales.findById(req.params.id).lean();
     if (!sale) {
-      return res.status(404).json({ message: "Sales not found" });
+      return res.status(404).json({ success: false, message: "Sales not found" });
     }
 
     const company = await getCompanyInfo();
@@ -1324,7 +1407,7 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
 
   } catch (err) {
     console.error("❌ Sales Invoice Generation Error:", err);
-    res.status(500).json({ message: "Sales invoice generation failed: " + err.message });
+    res.status(500).json({ success: false, message: "Sales invoice generation failed: " + err.message });
   }
 });
 
@@ -1335,7 +1418,7 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
   try {
     const sale = await Sales.findById(req.params.id).lean();
     if (!sale) {
-      return res.status(404).json({ message: "Sales not found" });
+      return res.status(404).json({ success: false, message: "Sales not found" });
     }
 
     const company = await getCompanyInfo();
@@ -1392,13 +1475,16 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
     const docObject = savedDoc.toObject();
     delete docObject.data;
     res.json({
-      ...docObject,
-      id: docObject._id.toString()
+      success: true,
+      data: {
+        ...docObject,
+        id: docObject._id.toString()
+      }
     });
 
   } catch (err) {
     console.error("❌ Save Sales Invoice Error:", err);
-    res.status(500).json({ message: "Failed to save sales invoice: " + err.message });
+    res.status(500).json({ success: false, message: "Failed to save sales invoice: " + err.message });
   }
 });
 
@@ -1600,7 +1686,7 @@ function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {
 }
 
 // ============================================================================
-//                    FOLDER MANAGEMENT
+//                    FOLDER MANAGEMENT - FIXED DELETE
 // ============================================================================
 app.get("/api/folders", async (req, res) => {
   try {
@@ -1612,7 +1698,7 @@ app.get("/api/folders", async (req, res) => {
     res.json(normalized);
   } catch (err) {
     console.error("folders get error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1622,7 +1708,7 @@ app.post("/api/folders", async (req, res) => {
     const username = req.headers["x-username"];
 
     if (!name) {
-      return res.status(400).json({ message: "Folder name is required" });
+      return res.status(400).json({ success: false, message: "Folder name is required" });
     }
 
     const existingFolder = await Folder.findOne({ 
@@ -1631,7 +1717,7 @@ app.post("/api/folders", async (req, res) => {
     });
     
     if (existingFolder) {
-      return res.status(409).json({ message: "Folder with this name already exists" });
+      return res.status(409).json({ success: false, message: "Folder with this name already exists" });
     }
 
     const folder = await Folder.create({
@@ -1643,13 +1729,16 @@ app.post("/api/folders", async (req, res) => {
     await logActivity(username, `Created folder: ${name}`, req.headers['user-agent'] || 'Unknown Device');
 
     res.status(201).json({
-      ...folder.toObject(),
-      id: folder._id.toString()
+      success: true,
+      data: {
+        ...folder.toObject(),
+        id: folder._id.toString()
+      }
     });
 
   } catch (err) {
     console.error("folder post error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1659,7 +1748,7 @@ app.put("/api/folders/:id", async (req, res) => {
     const username = req.headers["x-username"];
 
     if (!name) {
-      return res.status(400).json({ message: "Folder name is required" });
+      return res.status(400).json({ success: false, message: "Folder name is required" });
     }
 
     const folder = await Folder.findByIdAndUpdate(
@@ -1669,50 +1758,63 @@ app.put("/api/folders/:id", async (req, res) => {
     );
 
     if (!folder) {
-      return res.status(404).json({ message: "Folder not found" });
+      return res.status(404).json({ success: false, message: "Folder not found" });
     }
 
     await logActivity(username, `Renamed folder to: ${name}`, req.headers['user-agent'] || 'Unknown Device');
 
     res.json({
-      ...folder.toObject(),
-      id: folder._id.toString()
+      success: true,
+      data: {
+        ...folder.toObject(),
+        id: folder._id.toString()
+      }
     });
 
   } catch (err) {
     console.error("folder update error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
+// ===== FIXED: Folder Delete Endpoint with improved error handling =====
 app.delete("/api/folders/:id", async (req, res) => {
   try {
     const folder = await Folder.findById(req.params.id);
     if (!folder) {
-      return res.status(404).json({ message: "Folder not found" });
+      return res.status(404).json({ success: false, message: "Folder not found" });
     }
 
+    // Check for subfolders
     const subfolders = await Folder.find({ parentFolder: req.params.id });
     if (subfolders.length > 0) {
       return res.status(400).json({ 
+        success: false,
         message: "Cannot delete folder that contains subfolders. Please delete subfolders first." 
       });
     }
 
+    // Check for documents in this folder
     const documents = await Doc.find({ folder: req.params.id });
     if (documents.length > 0) {
       return res.status(400).json({ 
+        success: false,
         message: "Cannot delete folder that contains documents. Please move or delete documents first." 
       });
     }
 
     await Folder.findByIdAndDelete(req.params.id);
-    await logActivity(req.headers["x-username"], `Deleted folder: ${folder.name}`, req.headers['user-agent'] || 'Unknown Device');
-    res.status(204).send();
+    await logActivity(req.headers["x-username"] || "System", `Deleted folder: ${folder.name}`, req.headers['user-agent'] || 'Unknown Device');
+    
+    res.json({ 
+      success: true, 
+      message: "Folder deleted successfully",
+      folderId: req.params.id
+    });
 
   } catch (err) {
     console.error("folder delete error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error while deleting folder" });
   }
 });
 
@@ -1748,6 +1850,7 @@ app.post("/api/documents", async (req, res) => {
         if (!fileBuffer || fileBuffer.length === 0) {
           console.error("❌ Empty file buffer received");
           return res.status(400).json({ 
+            success: false,
             message: "No file content received. File is empty." 
           });
         }
@@ -1755,6 +1858,7 @@ app.post("/api/documents", async (req, res) => {
         if (!fileName) {
           console.error("❌ No filename provided");
           return res.status(400).json({ 
+            success: false,
             message: "Filename is required." 
           });
         }
@@ -1762,6 +1866,7 @@ app.post("/api/documents", async (req, res) => {
         if (fileBuffer.length > 50 * 1024 * 1024) {
           console.error("❌ File too large:", fileBuffer.length);
           return res.status(400).json({ 
+            success: false,
             message: "File size exceeds 50MB limit." 
           });
         }
@@ -1799,6 +1904,7 @@ app.post("/api/documents", async (req, res) => {
       } catch (error) {
         console.error("❌ Upload processing error:", error);
         res.status(500).json({ 
+          success: false,
           message: "File processing failed: " + error.message 
         });
       }
@@ -1807,6 +1913,7 @@ app.post("/api/documents", async (req, res) => {
     req.on('error', (error) => {
       console.error("❌ Request error during upload:", error);
       res.status(500).json({ 
+        success: false,
         message: "Upload failed due to connection error." 
       });
     });
@@ -1814,6 +1921,7 @@ app.post("/api/documents", async (req, res) => {
   } catch (error) {
     console.error("❌ Upload endpoint error:", error);
     res.status(500).json({ 
+      success: false,
       message: "Upload failed: " + error.message 
     });
   }
@@ -1844,7 +1952,7 @@ app.get("/api/documents", async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1852,17 +1960,18 @@ app.get("/api/documents/:id/check", async (req, res) => {
   try {
     const docu = await Doc.findById(req.params.id);
     if (!docu) {
-      return res.status(404).json({ hasData: false });
+      return res.status(404).json({ success: false, hasData: false });
     }
     
     res.json({
+      success: true,
       hasData: !!(docu.data && docu.data.length > 0),
       size: docu.size,
       name: docu.name
     });
   } catch (err) {
     console.error("Document check error:", err);
-    res.status(500).json({ hasData: false });
+    res.status(500).json({ success: false, hasData: false });
   }
 });
 
@@ -1870,7 +1979,7 @@ app.get("/api/documents/:id/verify", async (req, res) => {
   try {
     const docu = await Doc.findById(req.params.id);
     if (!docu) {
-      return res.status(404).json({ valid: false, message: "Document not found" });
+      return res.status(404).json({ success: false, valid: false, message: "Document not found" });
     }
     
     const isValid = docu.data && 
@@ -1879,6 +1988,7 @@ app.get("/api/documents/:id/verify", async (req, res) => {
                    docu.data.length === docu.size;
     
     res.json({
+      success: true,
       valid: isValid,
       name: docu.name,
       storedSize: docu.size,
@@ -1890,21 +2000,21 @@ app.get("/api/documents/:id/verify", async (req, res) => {
     });
   } catch (err) {
     console.error("Document verification error:", err);
-    res.status(500).json({ valid: false, message: "Verification failed" });
+    res.status(500).json({ success: false, valid: false, message: "Verification failed" });
   }
 });
 
 app.delete("/api/documents/:id", async (req, res) => {
   try {
     const docu = await Doc.findByIdAndDelete(req.params.id);
-    if (!docu) return res.status(404).json({ message: "Document not found" });
+    if (!docu) return res.status(404).json({ success: false, message: "Document not found" });
 
     await logActivity(req.headers["x-username"], `Deleted document: ${docu.name}`, req.headers['user-agent'] || 'Unknown Device');
-    res.status(204).send();
+    res.json({ success: true, message: "Document deleted successfully" });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1920,19 +2030,22 @@ app.put("/api/documents/:id/move", async (req, res) => {
     );
 
     if (!docu) {
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ success: false, message: "Document not found" });
     }
 
     await logActivity(username, `Moved document: ${docu.name} to folder`, req.headers['user-agent'] || 'Unknown Device');
     res.json({
-      ...docu.toObject(),
-      id: docu._id.toString(),
-      date: formatDateTimeUTC8(docu.date)
+      success: true,
+      data: {
+        ...docu.toObject(),
+        id: docu._id.toString(),
+        date: formatDateTimeUTC8(docu.date)
+      }
     });
 
   } catch (err) {
     console.error("document move error", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -1941,11 +2054,11 @@ app.get("/api/documents/preview/:id", async (req, res) => {
     const docu = await Doc.findById(req.params.id);
     
     if (!docu) {
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ success: false, message: "Document not found" });
     }
 
     if (!docu.data || docu.data.length === 0) {
-      return res.status(400).json({ message: "Document content not available" });
+      return res.status(400).json({ success: false, message: "Document content not available" });
     }
 
     res.setHeader("Content-Type", docu.contentType || "application/octet-stream");
@@ -1955,7 +2068,7 @@ app.get("/api/documents/preview/:id", async (req, res) => {
 
   } catch (err) {
     console.error("Document preview error:", err);
-    res.status(500).json({ message: "Preview failed" });
+    res.status(500).json({ success: false, message: "Preview failed" });
   }
 });
 
@@ -1967,7 +2080,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
     
     if (!docu) {
       console.log('❌ Document not found');
-      return res.status(404).json({ message: "Document not found" });
+      return res.status(404).json({ success: false, message: "Document not found" });
     }
 
     console.log(`📄 Found document: ${docu.name}, database size: ${docu.size} bytes`);
@@ -1987,6 +2100,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
       });
       
       return res.status(400).json({ 
+        success: false,
         message: "File content not available or corrupted." 
       });
     }
@@ -2004,7 +2118,7 @@ app.get("/api/documents/download/:id", async (req, res) => {
 
   } catch (err) {
     console.error("❌ Document download error:", err); 
-    res.status(500).json({ message: "Server error during download: " + err.message });
+    res.status(500).json({ success: false, message: "Server error during download: " + err.message });
   }
 });
 
@@ -2048,7 +2162,7 @@ app.get("/api/logs", async (req, res) => {
     })));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -2089,7 +2203,7 @@ app.get("/api/logs/login-history", async (req, res) => {
     })));
   } catch (err) {
     console.error("Login history error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -2161,6 +2275,7 @@ app.get("/api/search", async (req, res) => {
     
     if (!q || q.trim().length < 2) {
       return res.json({
+        success: true,
         inventory: [],
         sales: [],
         documents: []
@@ -2190,6 +2305,7 @@ app.get("/api/search", async (req, res) => {
     }).select('-data').limit(10).lean();
     
     res.json({
+      success: true,
       inventory: inventoryResults.map(i => ({ 
         ...i, 
         id: i._id.toString(),
@@ -2209,7 +2325,7 @@ app.get("/api/search", async (req, res) => {
     
   } catch (err) {
     console.error("Search error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -2229,6 +2345,7 @@ app.get("/api/system/health", async (req, res) => {
     const errorLogs = recentLogs.filter(log => log.action && log.action.toLowerCase().includes('error'));
     
     res.json({
+      success: true,
       status: 'healthy',
       timestamp: formatDateTimeUTC8(new Date()),
       database: {
@@ -2257,6 +2374,7 @@ app.get("/api/system/health", async (req, res) => {
   } catch (err) {
     console.error("Health check error:", err);
     res.status(500).json({ 
+      success: false,
       status: 'unhealthy',
       message: "Health check failed",
       error: err.message 
@@ -2271,7 +2389,7 @@ app.use(express.static(path.join(__dirname, "../public")));
 
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api/"))
-    return res.status(404).json({ message: "API route not found" });
+    return res.status(404).json({ success: false, message: "API route not found" });
 
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
