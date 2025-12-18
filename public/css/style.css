@@ -34,6 +34,10 @@ body {
   overflow-x: hidden;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 header {
   background: var(--primary-color);
   color: white;
@@ -329,15 +333,28 @@ section {
 /* =========================================
    ENHANCED MODAL SIZING FOR BETTER UX
 ========================================= */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
 .modal-content {
   background-color: var(--card-light);
-  margin: 2% auto;
+  margin: 3% auto;
   padding: 0;
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   max-width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 94vh;
+  overflow: hidden;
+  position: relative;
 }
 
 .medium-modal {
@@ -352,21 +369,28 @@ section {
   width: 1200px;
 }
 
-/* Add Product Modal Specific Styles */
+/* Add Product Modal Specific Styles - UPDATED: Large, Wide, No Scroll */
 #addProductModal .modal-content,
 #editProductModal .modal-content {
-  width: 650px;
+  width: 1000px;
   max-width: 95%;
+  height: auto;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+/* New Sales Modal Specific Styles - UPDATED: Large, Wide, No Scroll */
+#newSalesModal .modal-content {
+  width: 1200px;
+  max-width: 95%;
+  height: auto;
+  max-height: 90vh;
+  overflow: hidden;
 }
 
 /* Sales History Modal Enhancements */
 #salesHistoryModal .modal-content {
   width: 1300px;
-  max-width: 95%;
-}
-
-#newSalesModal .modal-content {
-  width: 1100px;
   max-width: 95%;
 }
 
@@ -379,6 +403,9 @@ section {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .modal-header h2 {
@@ -389,12 +416,14 @@ section {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Modal body padding enhancement */
+/* Modal body padding enhancement - UPDATED for no-scroll modals */
 .modal-body {
   padding: 30px;
+  max-height: calc(90vh - 150px);
+  overflow-y: auto;
 }
 
-/* Add Product Form Styling */
+/* Add Product Form Styling - UPDATED for larger forms */
 .add-product-form {
   margin-bottom: 20px;
 }
@@ -406,21 +435,21 @@ section {
 .add-product-form .form-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-  margin-bottom: 15px;
+  gap: 25px;
+  margin-bottom: 25px;
 }
 
 .add-product-form .form-group label {
   font-weight: 700;
   color: var(--primary-color);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   display: block;
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
 .add-product-form .form-group input {
-  font-size: 1.05rem;
-  padding: 14px;
+  font-size: 1.15rem;
+  padding: 14px 16px;
   border: 2px solid #e9ecef;
   border-radius: 8px;
   transition: all 0.3s ease;
@@ -433,7 +462,7 @@ section {
 }
 
 .form-hint {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--secondary-color);
   margin-top: 15px;
   font-style: italic;
@@ -1664,17 +1693,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* Sales Modal Styles */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
-}
-
 .close {
   color: white;
   float: right;
@@ -3313,32 +3331,33 @@ body[data-theme="dark"] section {
   font-size: 0.75rem !important;
   margin: 1px !important;
 }
+
 /* Modal scrolling fix */
 .modal {
   display: none;
   position: fixed;
-  z-index: 1000;
+  z-index: 2000;
   left: 0;
   top: 0;
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.7);
 }
 
 .modal-content {
   background-color: var(--card-light);
-  margin: 5% auto;
+  margin: 3% auto;
   padding: 0;
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   position: relative;
   overflow: hidden;
 }
 
 .modal-header {
-  padding: 20px 30px;
+  padding: 25px 30px;
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
   color: white;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -3352,7 +3371,7 @@ body[data-theme="dark"] section {
 
 .modal-body {
   padding: 30px;
-  max-height: calc(90vh - 120px);
+  max-height: calc(90vh - 150px);
   overflow-y: auto;
 }
 
@@ -3372,29 +3391,6 @@ body[data-theme="dark"] section {
 
 .modal-body::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
-}
-
-/* Prevent body scroll when modal is open */
-body.modal-open {
-  overflow: hidden;
-}
-
-/* Modal sizes */
-.small-modal {
-  width: 500px;
-}
-
-.medium-modal {
-  width: 700px;
-}
-
-.large-modal {
-  width: 900px;
-}
-
-.x-large-modal {
-  width: 1100px;
-  max-height: 85vh;
 }
 
 /* Close button */
@@ -3419,4 +3415,307 @@ body.modal-open {
   margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid var(--border-color);
+  position: sticky;
+  bottom: 0;
+  background: var(--card-light);
+  z-index: 5;
+}
+
+/* UPDATED: Larger modal sizes for better visibility */
+.x-large-modal {
+  width: 1200px;
+  max-height: 85vh;
+}
+
+.large-modal {
+  width: 900px;
+  max-height: 85vh;
+}
+
+.medium-modal {
+  width: 700px;
+  max-height: 85vh;
+}
+
+.small-modal {
+  width: 500px;
+  max-height: 85vh;
+}
+
+/* =========================================
+   Action Buttons Horizontal Layout
+========================================= */
+.action-buttons-horizontal {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.action-buttons-horizontal .action-btn {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+/* =========================================
+   Enhanced Form Styles for Large Modals
+========================================= */
+.add-product-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 25px;
+  margin-bottom: 25px;
+}
+
+.add-product-form .form-group label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+.add-product-form .form-group input {
+  font-size: 1.15rem;
+  padding: 14px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.add-product-form .form-group input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
+}
+
+/* =========================================
+   Sales Modal Specific Styles
+========================================= */
+#newSalesModal .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 25px;
+}
+
+#newSalesModal .form-group label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+#newSalesModal .form-group input,
+#newSalesModal .form-group textarea {
+  font-size: 1.15rem;
+  padding: 14px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+#newSalesModal .form-group input:focus,
+#newSalesModal .form-group textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
+}
+
+/* Sales items container */
+#newSalesModal .sales-items-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 15px;
+  background: #f8f9fa;
+  margin-bottom: 25px;
+}
+
+/* Search product section in sales modal */
+#newSalesModal .search-product-section {
+  margin-bottom: 20px;
+}
+
+#newSalesModal .search-product-section label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: block;
+  color: var(--primary-color);
+}
+
+#newSalesModal .search-input {
+  font-size: 1.15rem;
+  padding: 14px 16px;
+}
+
+/* Product results styling */
+.product-results {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: white;
+  margin-top: 10px;
+}
+
+.product-result-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.product-result-item:hover {
+  background-color: #e9ecef;
+}
+
+.product-result-item:last-child {
+  border-bottom: none;
+}
+
+.product-result-item .sku {
+  font-weight: bold;
+  color: var(--primary-color);
+  font-size: 1rem;
+}
+
+.product-result-item .name {
+  font-weight: 500;
+  font-size: 1rem;
+  margin: 5px 0;
+}
+
+.product-result-item .stock {
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+/* =========================================
+   Dark Mode Adjustments for Large Modals
+========================================= */
+.dark-mode .add-product-form .form-group label {
+  color: #80bdff;
+}
+
+.dark-mode .add-product-form .form-group input {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
+}
+
+.dark-mode .add-product-form .form-group input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.5);
+}
+
+.dark-mode #newSalesModal .form-group label {
+  color: #80bdff;
+}
+
+.dark-mode #newSalesModal .form-group input,
+.dark-mode #newSalesModal .form-group textarea {
+  background: #495057;
+  color: var(--text-dark);
+  border-color: #6c757d;
+}
+
+.dark-mode #newSalesModal .form-group input:focus,
+.dark-mode #newSalesModal .form-group textarea:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.5);
+}
+
+.dark-mode #newSalesModal .sales-items-container {
+  background: #343a40;
+  border-color: #495057;
+}
+
+.dark-mode .product-results {
+  background: #495057;
+  border-color: #6c757d;
+}
+
+.dark-mode .product-result-item {
+  border-bottom-color: #6c757d;
+}
+
+.dark-mode .product-result-item:hover {
+  background-color: #3f4a56;
+}
+
+.dark-mode .product-result-item .sku {
+  color: #80bdff;
+}
+
+.dark-mode .product-result-item .stock {
+  color: #adb5bd;
+}
+
+/* =========================================
+   Responsive Adjustments for Large Modals
+========================================= */
+@media (max-width: 1300px) {
+  .x-large-modal {
+    width: 95%;
+    margin: 2% auto;
+  }
+  
+  .large-modal {
+    width: 90%;
+    margin: 3% auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .add-product-form .form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  #newSalesModal .form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .modal-actions button {
+    width: 100%;
+  }
+  
+  .action-buttons-horizontal {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-header {
+    padding: 15px 20px;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.4rem;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .add-product-form .form-group input {
+    font-size: 1rem;
+    padding: 12px;
+  }
+  
+  #newSalesModal .form-group input,
+  #newSalesModal .form-group textarea {
+    font-size: 1rem;
+    padding: 12px;
+  }
 }
