@@ -537,7 +537,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
     const company = await getCompanyInfo();
     const now = new Date();
-    const printDate = formatDateTimeUTC8(now); // Use UTC+8 formatted date/time
+    const printDate = formatDateTimeUTC8(now);
     
     const reportId = generateInvoiceNumber('inventory');
     const printedBy = req.headers["x-username"] || "System";
@@ -601,22 +601,22 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
-        const rowHeight = 18;
+        const rowHeight = 20;
         const tableStartX = 40;
         const tableEndX = 800;
         const tableWidth = tableEndX - tableStartX;
         
-        // FIXED: Adjusted column positions and widths to align with table borders
+        // FIXED: Proper column layout matching your example PDF
         const columns = [
           { name: "NO", x: tableStartX, width: 40, align: 'center' },
           { name: "SKU", x: tableStartX + 40, width: 80, align: 'left' },
           { name: "Product Name", x: tableStartX + 120, width: 150, align: 'left' },
-          { name: "Category", x: tableStartX + 270, width: 80, align: 'left' },
-          { name: "Quantity", x: tableStartX + 350, width: 60, align: 'center' },
-          { name: "Unit Cost", x: tableStartX + 410, width: 70, align: 'right' },
-          { name: "Unit Price", x: tableStartX + 480, width: 70, align: 'right' },
-          { name: "Date", x: tableStartX + 550, width: 70, align: 'center' },
-          { name: "Status", x: tableStartX + 620, width: 80, align: 'center' }
+          { name: "Category", x: tableStartX + 270, width: 100, align: 'left' },
+          { name: "Quantity", x: tableStartX + 370, width: 60, align: 'center' },
+          { name: "Unit Cost", x: tableStartX + 430, width: 70, align: 'right' },
+          { name: "Unit Price", x: tableStartX + 500, width: 70, align: 'right' },
+          { name: "Date", x: tableStartX + 570, width: 70, align: 'center' },
+          { name: "Status", x: tableStartX + 640, width: 80, align: 'center' }
         ];
         
         let y = 150;
@@ -633,21 +633,23 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           }
           
           // Draw column names
-          doc.font("Helvetica-Bold").fontSize(9);
+          doc.font("Helvetica-Bold").fontSize(10);
           columns.forEach(col => {
-            const textX = col.x + (col.align === 'center' ? col.width/2 : 3);
-            const textY = y + 5;
-            const options = {
+            let textX;
+            let options = {
               width: col.width - 6,
               align: col.align
             };
             
             if (col.align === 'center') {
-              doc.text(col.name, textX, textY, options);
+              textX = col.x + col.width/2;
+              doc.text(col.name, textX, y + 6, options);
             } else if (col.align === 'right') {
-              doc.text(col.name, col.x + col.width - 6, textY, { ...options, align: 'right' });
+              textX = col.x + col.width - 3;
+              doc.text(col.name, textX, y + 6, { ...options, align: 'right' });
             } else {
-              doc.text(col.name, col.x + 3, textY, options);
+              textX = col.x + 3;
+              doc.text(col.name, textX, y + 6, options);
             }
           });
           
@@ -680,55 +682,56 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           }
           
           // Draw row data
-          doc.font("Helvetica").fontSize(8);
+          doc.font("Helvetica").fontSize(9);
           
-          // NO column
-          doc.text(String(index + 1), columns[0].x + columns[0].width/2, y + 5, { 
+          // NO column - center aligned
+          doc.text(String(index + 1), columns[0].x + columns[0].width/2, y + 6, { 
             width: columns[0].width - 6, 
             align: 'center' 
           });
           
-          // SKU column
-          doc.text(item.sku || "", columns[1].x + 3, y + 5, { 
+          // SKU column - left aligned
+          doc.text(item.sku || "", columns[1].x + 3, y + 6, { 
             width: columns[1].width - 6 
           });
           
-          // Product Name column
-          doc.text(item.name || "", columns[2].x + 3, y + 5, { 
+          // Product Name column - left aligned
+          doc.text(item.name || "", columns[2].x + 3, y + 6, { 
             width: columns[2].width - 6 
           });
           
-          // Category column
-          doc.text(item.category || "", columns[3].x + 3, y + 5, { 
+          // Category column - left aligned
+          doc.text(item.category || "", columns[3].x + 3, y + 6, { 
             width: columns[3].width - 6 
           });
           
-          // Quantity column
-          doc.text(String(qty), columns[4].x + columns[4].width/2, y + 5, { 
+          // Quantity column - center aligned
+          doc.text(String(qty), columns[4].x + columns[4].width/2, y + 6, { 
             width: columns[4].width - 6, 
             align: 'center' 
           });
           
-          // Unit Cost column
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + columns[5].width - 3, y + 5, { 
+          // Unit Cost column - right aligned
+          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + columns[5].width - 3, y + 6, { 
             width: columns[5].width - 6, 
             align: 'right' 
           });
           
-          // Unit Price column
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + columns[6].width - 3, y + 5, { 
+          // Unit Price column - right aligned
+          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + columns[6].width - 3, y + 6, { 
             width: columns[6].width - 6, 
             align: 'right' 
           });
           
-          // Date column
-          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[7].x + columns[7].width/2, y + 5, { 
-            width: columns[7].width - 6, 
-            align: 'center' 
-          });
+          // Date column - center aligned
+          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : 'N/A', 
+                  columns[7].x + columns[7].width/2, y + 6, { 
+                    width: columns[7].width - 6, 
+                    align: 'center' 
+                  });
           
-          // Status column
-          doc.text(status, columns[8].x + columns[8].width/2, y + 5, { 
+          // Status column - center aligned
+          doc.text(status, columns[8].x + columns[8].width/2, y + 6, { 
             width: columns[8].width - 6, 
             align: 'center' 
           });
@@ -769,13 +772,13 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         
         let boxY = y + 20;
         
-        // FIXED: Check if there's enough space for summary box
+        // Check if there's enough space for summary box
         if (boxY > 450) {
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           boxY = 150;
         }
         
-        // UPDATED: Simplified summary format
+        // Summary box
         doc.rect(650, boxY, 300, 60).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
         doc.text(`Total Products: ${items.length}`, 660, boxY + 10);
@@ -787,11 +790,9 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          // FIXED: Adjusted footer position to ensure visibility
           const pageHeight = doc.page.height;
           const pageWidth = doc.page.width;
           
-          // FIXED: Adjusted footer positions with more space
           doc.fontSize(9).font("Helvetica")
              .text(`This document is not subject to Sales & Service Tax (SST).`, 
                    0, pageHeight - 95, { align: "center", width: pageWidth });
