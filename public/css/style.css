@@ -34,14 +34,6 @@ body {
   overflow-x: hidden;
 }
 
-/* FIXED: Prevent body scrolling when modal is open */
-body.modal-open {
-  overflow: hidden !important;
-  position: fixed;
-  width: 100%;
-  height: 100%;
-}
-
 header {
   background: var(--primary-color);
   color: white;
@@ -335,21 +327,8 @@ section {
 }
 
 /* =========================================
-   ENHANCED MODAL SIZING FOR BETTER UX - UPDATED FOR COMPACT VIEW
+   ENHANCED MODAL SIZING FOR BETTER UX
 ========================================= */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
-  overflow: hidden;
-}
-
-/* FIXED: Modal content with locked background */
 .modal-content {
   background-color: var(--card-light);
   margin: 2% auto;
@@ -357,221 +336,139 @@ section {
   border-radius: 12px;
   box-shadow: var(--shadow-lg);
   max-width: 95%;
-  max-height: 85vh; /* Reduced from 90vh for better scrolling */
+  max-height: 90vh;
   overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-}
-
-/* FIXED: Compact modal sizes */
-.compact-modal {
-  width: 500px !important;
-  max-height: 75vh !important;
 }
 
 .medium-modal {
   width: 600px;
-  max-height: 80vh;
 }
 
 .large-modal {
   width: 900px;
-  max-height: 85vh;
 }
 
 .x-large-modal {
   width: 1200px;
-  max-height: 90vh;
 }
 
-/* FIXED: Sales History Modal - Lock background scrolling */
+/* Add Product Modal Specific Styles */
+#addProductModal .modal-content,
+#editProductModal .modal-content {
+  width: 650px;
+  max-width: 95%;
+}
+
+/* Sales History Modal Enhancements */
 #salesHistoryModal .modal-content {
   width: 1300px;
   max-width: 95%;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-/* FIXED: Compact modals for add/edit product and new sales */
-#addProductModal .modal-content,
-#editProductModal .modal-content {
-  width: 500px !important; /* Reduced from 650px */
-  max-width: 95%;
-  max-height: 70vh !important; /* Reduced height */
-  overflow-y: auto;
 }
 
 #newSalesModal .modal-content {
-  width: 900px !important; /* Reduced from 1100px */
+  width: 1100px;
   max-width: 95%;
-  max-height: 80vh;
-  overflow-y: auto;
 }
 
 /* Modal header enhancement */
 .modal-header {
   background: linear-gradient(135deg, var(--primary-color), #0056b3);
   color: white;
-  padding: 20px 25px; /* Reduced padding */
+  padding: 25px 30px;
   border-radius: 12px 12px 0 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
 .modal-header h2 {
   margin: 0;
   color: white;
-  font-size: 1.5rem; /* Reduced from 1.8rem */
+  font-size: 1.8rem;
   font-weight: 700;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Modal body padding enhancement */
 .modal-body {
-  padding: 20px 25px; /* Reduced padding */
-  max-height: calc(85vh - 70px); /* Adjust for header */
-  overflow-y: auto;
+  padding: 30px;
 }
 
-/* FIXED: Compact form styling for modals */
+/* Add Product Form Styling */
 .add-product-form {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .add-product-form .form-group {
-  margin-bottom: 15px; /* Reduced from 25px */
+  margin-bottom: 25px;
 }
 
-/* FIXED: Compact form row layout */
 .add-product-form .form-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px; /* Reduced from 15px */
-  margin-bottom: 10px; /* Reduced from 15px */
+  gap: 15px;
+  margin-bottom: 15px;
 }
 
 .add-product-form .form-group label {
   font-weight: 700;
   color: var(--primary-color);
-  margin-bottom: 6px; /* Reduced from 8px */
+  margin-bottom: 8px;
   display: block;
-  font-size: 0.9rem; /* Reduced from 1rem */
+  font-size: 1rem;
 }
 
 .add-product-form .form-group input {
-  font-size: 0.95rem; /* Reduced from 1.05rem */
-  padding: 10px 12px; /* Reduced from 14px */
+  font-size: 1.05rem;
+  padding: 14px;
   border: 2px solid #e9ecef;
-  border-radius: 6px; /* Reduced from 8px */
+  border-radius: 8px;
   transition: all 0.3s ease;
   width: 100%;
 }
 
 .add-product-form .form-group input:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Reduced from 0.3rem */
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
 }
 
 .form-hint {
-  font-size: 0.8rem; /* Reduced from 0.85rem */
+  font-size: 0.85rem;
   color: var(--secondary-color);
-  margin-top: 10px; /* Reduced from 15px */
+  margin-top: 15px;
   font-style: italic;
 }
 
-/* Compact form group enhancement */
+/* Form group enhancement */
 .form-group label {
   font-weight: 700;
   color: var(--primary-color);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: block;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .form-group input,
-.form-group textarea,
-.form-group select {
-  font-size: 0.95rem;
-  padding: 10px 12px;
+.form-group textarea {
+  font-size: 1.05rem;
+  padding: 14px;
   border: 2px solid #e9ecef;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.3s ease;
 }
 
 .form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+.form-group textarea:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-/* Compact sales items container */
-.sales-items-container {
-  margin: 15px 0; /* Reduced from 20px */
-  border: 1px solid var(--border-color);
-  border-radius: 6px; /* Reduced from 8px */
-  padding: 12px; /* Reduced from 15px */
-  background: #f8f9fa;
-  max-height: 300px; /* Reduced from 400px */
-  overflow-y: auto;
-}
-
-/* Compact sales item row */
-.sales-item-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
-  gap: 8px; /* Reduced from 10px */
-  align-items: end;
-  padding: 10px; /* Reduced from 12px */
-  margin-bottom: 8px; /* Reduced from 10px */
-  border: 1px solid #ddd;
-  border-radius: 4px; /* Reduced from 6px */
-  background: white;
-  position: relative;
-  font-size: 0.9rem;
-}
-
-/* Compact product search results */
-.product-results {
-  max-height: 150px; /* Reduced from 200px */
-  overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: white;
-}
-
-.product-result-item {
-  padding: 8px 12px; /* Reduced from 12px 15px */
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 0.9rem;
-}
-
-/* Compact modal actions */
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 20px; /* Reduced from 25px */
-  padding: 15px 0; /* Reduced from 20px 0 */
-  border-top: 1px solid var(--border-color);
-  position: sticky;
-  bottom: 0;
-  background: var(--card-light);
-  z-index: 5;
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25);
 }
 
 /* Detail sections enhancement for sales details */
 .sales-details-header {
   background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-  padding: 20px; /* Reduced from 25px */
-  border-radius: 8px; /* Reduced from 10px */
-  margin-bottom: 20px; /* Reduced from 30px */
+  padding: 25px;
+  border-radius: 10px;
+  margin-bottom: 30px;
   border: 2px solid var(--border-color);
   box-shadow: var(--shadow-sm);
 }
@@ -579,17 +476,17 @@ section {
 .detail-group label {
   font-weight: 700;
   color: #495057;
-  font-size: 0.85rem; /* Reduced from 0.95rem */
-  margin-bottom: 4px; /* Reduced from 5px */
+  font-size: 0.95rem;
+  margin-bottom: 5px;
 }
 
 .detail-value {
   color: var(--text-light);
-  font-size: 0.95rem; /* Reduced from 1.1rem */
+  font-size: 1.1rem;
   font-weight: 600;
-  padding: 6px 10px; /* Reduced from 8px 12px */
+  padding: 8px 12px;
   background: white;
-  border-radius: 4px; /* Reduced from 6px */
+  border-radius: 6px;
   border: 1px solid #dee2e6;
 }
 
@@ -723,14 +620,13 @@ input[type="email"],
 select,
 textarea {
     width: 100%;
-    padding: 10px 12px; /* Reduced from 12px */
+    padding: 12px;
     margin-top: 5px;
-    margin-bottom: 12px; /* Reduced from 15px */
+    margin-bottom: 15px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     box-sizing: border-box;
     transition: border-color 0.2s;
-    font-size: 0.95rem; /* Added for consistency */
 }
 input:focus, select:focus, textarea:focus {
     border-color: var(--primary-color);
@@ -740,12 +636,11 @@ input:focus, select:focus, textarea:focus {
 
 .primary-btn, .secondary-btn, .success-btn, .danger-btn, .warning-btn, .info-btn {
     border: none;
-    padding: 8px 12px; /* Reduced from 10px 15px */
+    padding: 10px 15px;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     transition: background 0.2s, transform 0.1s;
-    font-size: 0.9rem; /* Added for consistency */
 }
 .primary-btn { background: var(--primary-color); color: white; }
 .primary-btn:hover { background: #0056b3; transform: translateY(-1px); }
@@ -759,8 +654,8 @@ input:focus, select:focus, textarea:focus {
 .danger-btn { 
     background: var(--danger-color); 
     color: white; 
-    padding: 6px 10px; /* Reduced from 8px 12px */
-    font-size: 0.85rem; 
+    padding: 8px 12px; 
+    font-size: 0.9rem; 
 }
 .danger-btn:hover { background: #bd2130; transform: translateY(-1px); }
 
@@ -772,8 +667,7 @@ input:focus, select:focus, textarea:focus {
 
 .action-btn {
     margin-left: 5px;
-    padding: 5px 8px; /* Reduced from 6px 10px */
-    font-size: 0.85rem; /* Reduced from 0.9rem */
+    padding: 6px 10px;
 }
 
 /* =========================================
@@ -783,7 +677,7 @@ input:focus, select:focus, textarea:focus {
   max-width: 400px; 
   background: var(--card-light); 
   margin: 0 auto 100px auto; 
-  padding: 30px; /* Reduced from 35px */
+  padding: 35px; 
   border-radius: 10px; 
   box-shadow: var(--shadow-md); 
 }
@@ -1795,8 +1689,8 @@ input:focus, select:focus, textarea:focus {
 
 .search-product-section,
 .sales-form-section {
-  margin-bottom: 20px; /* Reduced from 25px */
-  padding: 15px; /* Reduced from 20px */
+  margin-bottom: 25px;
+  padding: 20px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: #f8f9fa;
@@ -1804,15 +1698,15 @@ input:focus, select:focus, textarea:focus {
 
 .search-input {
   width: 100%;
-  padding: 10px 12px; /* Reduced from 12px */
-  margin-bottom: 12px; /* Reduced from 15px */
+  padding: 12px;
+  margin-bottom: 15px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  font-size: 0.95rem; /* Reduced from 1rem */
+  font-size: 1rem;
 }
 
 .product-results {
-  max-height: 150px; /* Reduced from 200px */
+  max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -1820,7 +1714,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .product-result-item {
-  padding: 8px 12px; /* Reduced from 12px 15px */
+  padding: 12px 15px;
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   transition: background-color 0.2s;
@@ -1845,27 +1739,27 @@ input:focus, select:focus, textarea:focus {
 
 .product-result-item .stock {
   color: var(--secondary-color);
-  font-size: 0.85rem; /* Reduced from 0.9rem */
+  font-size: 0.9rem;
 }
 
 /* Sales Items Container */
 .sales-items-container {
-  margin: 15px 0; /* Reduced from 20px */
+  margin: 20px 0;
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 12px; /* Reduced from 15px */
+  padding: 15px;
   background: #f8f9fa;
-  max-height: 300px; /* Reduced from 400px */
+  max-height: 400px;
   overflow-y: auto;
 }
 
 .sales-item-row {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto;
-  gap: 8px; /* Reduced from 10px */
+  gap: 10px;
   align-items: end;
-  padding: 10px; /* Reduced from 12px */
-  margin-bottom: 8px; /* Reduced from 10px */
+  padding: 12px;
+  margin-bottom: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
   background: white;
@@ -1881,9 +1775,9 @@ input:focus, select:focus, textarea:focus {
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 6px 10px; /* Reduced from 8px 12px */
+  padding: 8px 12px;
   cursor: pointer;
-  font-size: 0.85rem; /* Reduced from 0.9rem */
+  font-size: 0.9rem;
 }
 
 .remove-item-btn:hover {
@@ -1891,32 +1785,32 @@ input:focus, select:focus, textarea:focus {
 }
 
 .sales-summary {
-  margin: 15px 0; /* Reduced from 20px */
-  padding: 15px; /* Reduced from 20px */
+  margin: 20px 0;
+  padding: 20px;
   border: 2px solid var(--success-color);
   border-radius: 8px;
   background: #f8fff9;
 }
 
 .total-amount-display {
-  font-size: 1.1rem; /* Reduced from 1.2rem */
+  font-size: 1.2rem;
   color: var(--success-color);
   text-align: right;
 }
 
 .form-group {
-  margin-bottom: 15px; /* Reduced from 20px */
+  margin-bottom: 20px;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px; /* Reduced from 15px */
+  gap: 15px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 6px; /* Reduced from 8px */
+  margin-bottom: 8px;
   font-weight: 600;
   color: var(--primary-color);
 }
@@ -1925,24 +1819,24 @@ input:focus, select:focus, textarea:focus {
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 10px 12px; /* Reduced from 12px */
+  padding: 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  font-size: 0.95rem; /* Reduced from 1rem */
+  font-size: 1rem;
   box-sizing: border-box;
 }
 
 .form-group textarea {
   resize: vertical;
-  min-height: 70px; /* Reduced from 80px */
+  min-height: 80px;
 }
 
 .modal-actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  margin-top: 20px; /* Reduced from 25px */
-  padding-top: 15px; /* Reduced from 20px */
+  margin-top: 25px;
+  padding-top: 20px;
   border-top: 1px solid var(--border-color);
 }
 
@@ -2053,7 +1947,7 @@ input:focus, select:focus, textarea:focus {
   
   .sales-item-row {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 10px;
   }
 }
 
