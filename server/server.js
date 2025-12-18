@@ -492,8 +492,82 @@ app.delete("/api/inventory/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    ENHANCED PDF REPORT WITH DATE RANGE - UPDATED LAYOUT
+//                    ENHANCED PDF REPORT WITH DATE RANGE - FIXED LAYOUT
 // ============================================================================
+
+// Helper functions (must be included)
+const formatDateTimeUTC8 = (date) => {
+  const d = new Date(date);
+  d.setHours(d.getHours() + 8); // Convert to UTC+8
+  return d.toLocaleString('en-MY', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+};
+
+const formatDateUTC8 = (date) => {
+  const d = new Date(date);
+  d.setHours(d.getHours() + 8); // Convert to UTC+8
+  return d.toLocaleDateString('en-MY', {
+    timeZone: 'Asia/Kuala_Lumpur',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
+const splitTextIntoLines = (text, maxChars) => {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach(word => {
+    if ((currentLine + word).length <= maxChars) {
+      currentLine += (currentLine ? ' ' : '') + word;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines;
+};
+
+const generateInvoiceNumber = (type) => {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return `${type.toUpperCase()}-${timestamp}${random}`;
+};
+
+// Company info function (must be included)
+const getCompanyInfo = async () => {
+  // This should fetch from your database
+  return {
+    name: "L&B Company Sdn. Bhd.",
+    address: "Sarawak Skills, Jalan Canna, Tabuan Jaya, 93350 Kuching, Sarawak",
+    phone: "01133127622",
+    email: "llbcompany13@gmail.com"
+  };
+};
+
+// Log activity function (must be included)
+const logActivity = async (user, action, device) => {
+  // Implementation for logging activity
+  console.log(`Activity Log: ${user} - ${action} - ${device}`);
+  // Add your database logging logic here
+};
+
+// Main PDF generation endpoint
 app.post("/api/inventory/report/pdf", async (req, res) => {
   try {
     const { startDate, endDate, reportType = 'inventory' } = req.body;
@@ -537,7 +611,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
     const company = await getCompanyInfo();
     const now = new Date();
-    const printDate = formatDateTimeUTC8(now); // Use UTC+8 formatted date/time
+    const printDate = formatDateTimeUTC8(now);
     
     const reportId = generateInvoiceNumber('inventory');
     const printedBy = req.headers["x-username"] || "System";
@@ -601,35 +675,51 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         doc.moveTo(40, 130).lineTo(800, 130).stroke();
 
-        const rowHeight = 18;
+        const rowHeight = 20;
+        const tableWidth = 720; // Fixed table width for landscape A4
         
-        // UPDATED: Simplified column layout without TOTAL COST and TOTAL PRICE
+        // FIXED: Correct column positions and widths
         const columns = [
-          { name: "NO", x: 40, width: 30 },
-          { name: "SKU", x: 70, width: 70 },
-          { name: "Product Name", x: 140, width: 120 },
-          { name: "Category", x: 260, width: 80 },
-          { name: "Quantity", x: 340, width: 50 },
-          { name: "Unit Cost", x: 390, width: 70 },
-          { name: "Unit Price", x: 460, width: 70 },
-          { name: "Date", x: 530, width: 80 },
-          { name: "Status", x: 610, width: 90 }
+          { name: "NO", x: 40, width: 40, align: "left" },
+          { name: "SKU", x: 85, width: 80, align: "left" },
+          { name: "Product Name", x: 170, width: 150, align: "left" },
+          { name: "Category", x: 325, width: 90, align: "left" },
+          { name: "Quantity", x: 420, width: 60, align: "right" },
+          { name: "Unit Cost", x: 485, width: 70, align: "right" },
+          { name: "Unit Price", x: 560, width: 70, align: "right" },
+          { name: "Date", x: 635, width: 80, align: "center" },
+          { name: "Status", x: 720, width: 80, align: "center" }
         ];
         
         let y = 150;
 
         function drawTableHeader() {
-          doc.rect(columns[0].x, y, 660, rowHeight).stroke();
+          // Draw main table border
+          doc.rect(columns[0].x, y, tableWidth, rowHeight).stroke();
           
-          for (let i = 1; i < columns.length; i++) {
-            doc.moveTo(columns[i].x, y)
-               .lineTo(columns[i].x, y + rowHeight)
-               .stroke();
-          }
+          // Draw vertical lines for each column
+          columns.forEach((col, i) => {
+            if (i > 0) { // Skip first vertical line as it's part of the rectangle
+              doc.moveTo(col.x, y)
+                 .lineTo(col.x, y + rowHeight)
+                 .stroke();
+            }
+          });
           
+          // Draw header text
           doc.font("Helvetica-Bold").fontSize(9);
           columns.forEach(col => {
-            doc.text(col.name, col.x + 3, y + 5);
+            let textX = col.x + 5;
+            if (col.align === "right") {
+              textX = col.x + col.width - 5;
+            } else if (col.align === "center") {
+              textX = col.x + (col.width / 2);
+            }
+            
+            doc.text(col.name, textX, y + 6, {
+              align: col.align,
+              width: col.width - 10
+            });
           });
           
           y += rowHeight;
@@ -642,32 +732,88 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
           
           // Determine status
           let status = '';
+          let statusColor = '#000000';
+          
           if (qty === 0) {
             status = 'Out of Stock';
+            statusColor = '#FF0000';
           } else if (qty < 10) {
             status = 'Low Stock';
+            statusColor = '#FFA500';
           } else {
             status = 'In Stock';
+            statusColor = '#008000';
           }
 
-          doc.rect(columns[0].x, y, 660, rowHeight).stroke();
+          // Draw row border
+          doc.rect(columns[0].x, y, tableWidth, rowHeight).stroke();
           
-          for (let i = 1; i < columns.length; i++) {
-            doc.moveTo(columns[i].x, y)
-               .lineTo(columns[i].x, y + rowHeight)
-               .stroke();
-          }
+          // Draw vertical lines
+          columns.forEach((col, i) => {
+            if (i > 0) {
+              doc.moveTo(col.x, y)
+                 .lineTo(col.x, y + rowHeight)
+                 .stroke();
+            }
+          });
           
+          // Draw row content
           doc.font("Helvetica").fontSize(8);
-          doc.text(String(index + 1), columns[0].x + 3, y + 5); // NO column
-          doc.text(item.sku || "", columns[1].x + 3, y + 5);
-          doc.text(item.name || "", columns[2].x + 3, y + 5);
-          doc.text(item.category || "", columns[3].x + 3, y + 5);
-          doc.text(String(qty), columns[4].x + 3, y + 5);
-          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 3, y + 5);
-          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 3, y + 5);
-          doc.text(item.createdAt ? formatDateUTC8(item.createdAt) : '', columns[7].x + 3, y + 5); // Date column
-          doc.text(status, columns[8].x + 3, y + 5); // Status column
+          
+          // NO column
+          doc.text(String(index + 1), columns[0].x + 5, y + 7, {
+            width: columns[0].width - 10
+          });
+          
+          // SKU column
+          doc.text(item.sku || "", columns[1].x + 5, y + 7, {
+            width: columns[1].width - 10
+          });
+          
+          // Product Name column (with truncation if needed)
+          const productName = item.name || "";
+          doc.text(productName, columns[2].x + 5, y + 7, {
+            width: columns[2].width - 10,
+            ellipsis: true
+          });
+          
+          // Category column
+          doc.text(item.category || "", columns[3].x + 5, y + 7, {
+            width: columns[3].width - 10
+          });
+          
+          // Quantity column (right aligned)
+          doc.text(String(qty), columns[4].x + 5, y + 7, {
+            width: columns[4].width - 10,
+            align: "right"
+          });
+          
+          // Unit Cost column (right aligned)
+          doc.text(`RM ${cost.toFixed(2)}`, columns[5].x + 5, y + 7, {
+            width: columns[5].width - 10,
+            align: "right"
+          });
+          
+          // Unit Price column (right aligned)
+          doc.text(`RM ${price.toFixed(2)}`, columns[6].x + 5, y + 7, {
+            width: columns[6].width - 10,
+            align: "right"
+          });
+          
+          // Date column (center aligned)
+          const dateText = item.createdAt ? formatDateUTC8(item.createdAt) : '';
+          doc.text(dateText, columns[7].x + 5, y + 7, {
+            width: columns[7].width - 10,
+            align: "center"
+          });
+          
+          // Status column (center aligned with color)
+          doc.fillColor(statusColor)
+             .text(status, columns[8].x + 5, y + 7, {
+               width: columns[8].width - 10,
+               align: "center"
+             })
+             .fillColor('#000000'); // Reset to black
           
           y += rowHeight;
           
@@ -683,9 +829,10 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         let subtotalQty = 0;
         let grandTotalCost = 0;
         let rowsOnPage = 0;
+        const maxRowsPerPage = 18; // Fixed maximum rows per page
 
         for (let i = 0; i < items.length; i++) {
-          if (rowsOnPage === 10) {
+          if (rowsOnPage >= maxRowsPerPage) {
             doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
             y = 40;
             rowsOnPage = 0;
@@ -705,13 +852,13 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         
         let boxY = y + 20;
         
-        // FIXED: Check if there's enough space for summary box
+        // Check if there's enough space for summary box
         if (boxY > 450) {
           doc.addPage({ size: "A4", layout: "landscape", margin: 40 });
           boxY = 40;
         }
         
-        // UPDATED: Simplified summary format
+        // Summary box
         doc.rect(500, boxY, 230, 60).stroke();
         doc.font("Helvetica-Bold").fontSize(10);
         doc.text(`Total Products: ${items.length}`, 510, boxY + 10);
@@ -720,14 +867,14 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 
         doc.flushPages();
 
+        // Add page numbers and footer to all pages
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          // FIXED: Adjusted footer position to ensure visibility
           const pageHeight = doc.page.height;
           const pageWidth = doc.page.width;
           
-          // FIXED: Adjusted footer positions with more space
+          // Footer content
           doc.fontSize(9).font("Helvetica")
              .text(`This document is not subject to Sales & Service Tax (SST).`, 
                    0, pageHeight - 95, { align: "center", width: pageWidth });
