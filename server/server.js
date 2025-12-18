@@ -723,7 +723,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
         const pages = doc.bufferedPageRange();
         for (let i = 0; i < pages.count; i++) {
           doc.switchToPage(i);
-          // FIXED: Adjust footer position to ensure visibility
+          // FIXED: Adjusted footer position to ensure visibility
           const pageHeight = doc.page.height;
           const pageWidth = doc.page.width;
           
@@ -774,7 +774,7 @@ app.post("/api/inventory/report/pdf", async (req, res) => {
 });
 
 // ============================================================================
-//                    SALES REPORT WITH DATE RANGE
+//                    SALES REPORT WITH DATE RANGE - NEW ENDPOINT
 // ============================================================================
 app.post("/api/sales/report/pdf", async (req, res) => {
   try {
