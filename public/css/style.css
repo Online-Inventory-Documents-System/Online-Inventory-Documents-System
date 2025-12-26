@@ -1,4 +1,197 @@
 /* =========================================
+   Toast Notification System
+========================================= */
+#toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 350px;
+}
+
+.toast {
+  background: white;
+  border-radius: 8px;
+  padding: 15px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: toastSlideIn 0.3s ease-out;
+  border-left: 4px solid #007bff;
+  transform: translateX(0);
+  transition: all 0.3s ease;
+}
+
+.toast.toast-hiding {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: #333;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-close:hover {
+  color: #333;
+}
+
+/* Toast Types */
+.toast-success {
+  border-left-color: #28a745;
+  background: linear-gradient(135deg, #f8fff9, #e8f5e9);
+}
+
+.toast-success .toast-icon {
+  color: #28a745;
+}
+
+.toast-error {
+  border-left-color: #dc3545;
+  background: linear-gradient(135deg, #fff5f5, #ffeaea);
+}
+
+.toast-error .toast-icon {
+  color: #dc3545;
+}
+
+.toast-warning {
+  border-left-color: #ffc107;
+  background: linear-gradient(135deg, #fffdf5, #fff8e1);
+}
+
+.toast-warning .toast-icon {
+  color: #ffc107;
+}
+
+.toast-info {
+  border-left-color: #17a2b8;
+  background: linear-gradient(135deg, #f5fdff, #e1f7fb);
+}
+
+.toast-info .toast-icon {
+  color: #17a2b8;
+}
+
+/* Dark mode for toasts */
+.dark-mode .toast {
+  background: #2c3a47;
+  border-left-color: #007bff;
+}
+
+.dark-mode .toast-message {
+  color: #f8f9fa;
+}
+
+.dark-mode .toast-close {
+  color: #adb5bd;
+}
+
+.dark-mode .toast-close:hover {
+  color: #f8f9fa;
+}
+
+.dark-mode .toast-success {
+  background: linear-gradient(135deg, #1e3a1e, #2d4a2d);
+  border-left-color: #28a745;
+}
+
+.dark-mode .toast-error {
+  background: linear-gradient(135deg, #3a1e1e, #4a2d2d);
+  border-left-color: #dc3545;
+}
+
+.dark-mode .toast-warning {
+  background: linear-gradient(135deg, #3a2e1e, #4a3d2d);
+  border-left-color: #ffc107;
+}
+
+.dark-mode .toast-info {
+  background: linear-gradient(135deg, #1e3a3a, #2d4a4a);
+  border-left-color: #17a2b8;
+}
+
+/* Responsive toast */
+@media (max-width: 768px) {
+  #toast-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .toast {
+    padding: 12px 15px;
+  }
+  
+  .toast-message {
+    font-size: 0.9rem;
+  }
+}
+
+/* =========================================
+   Confirmation Modal Styling
+========================================= */
+#confirmationModal .modal-content {
+  width: 500px;
+  max-width: 95%;
+}
+
+#confirmationModal .modal-header {
+  background: linear-gradient(135deg, #f0ad4e, #ec971f);
+}
+
+#confirmationModal .modal-body p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  white-space: pre-line;
+  margin: 0;
+}
+
+.dark-mode #confirmationModal .modal-header {
+  background: linear-gradient(135deg, #d58512, #b06c0f);
+}
+
+/* =========================================
    General Page Styling (Modern Theme)
 ========================================= */
 :root {
