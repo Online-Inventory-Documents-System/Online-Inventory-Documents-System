@@ -12,6 +12,59 @@ const showMsg = (el, text, color = 'red') => { if (!el) return; el.textContent =
 const escapeHtml = (s) => s ? String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])) : '';
 const getUsername = () => sessionStorage.getItem('adminName') || 'Guest';
 
+// Toast notification system
+let toastIdCounter = 0;
+function showToast(message, type = 'info', duration = 3000) {
+  // Create toast container if it doesn't exist
+  let toastContainer = qs('#toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
+  
+  const toastId = `toast-${++toastIdCounter}`;
+  const toast = document.createElement('div');
+  toast.id = toastId;
+  toast.className = `toast toast-${type}`;
+  
+  // Set icon based on type
+  let icon = 'ℹ️';
+  switch(type) {
+    case 'success': icon = '✅'; break;
+    case 'error': icon = '❌'; break;
+    case 'warning': icon = '⚠️'; break;
+    case 'info': icon = 'ℹ️'; break;
+  }
+  
+  toast.innerHTML = `
+    <div class="toast-icon">${icon}</div>
+    <div class="toast-message">${message}</div>
+    <button class="toast-close" onclick="removeToast('${toastId}')">×</button>
+  `;
+  
+  toastContainer.appendChild(toast);
+  
+  // Auto remove after duration
+  setTimeout(() => {
+    removeToast(toastId);
+  }, duration);
+  
+  return toastId;
+}
+
+function removeToast(toastId) {
+  const toast = qs(`#${toastId}`);
+  if (toast) {
+    toast.classList.add('toast-hiding');
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300);
+  }
+}
+
 let inventory = [];
 let activityLog = [];
 let documents = [];
@@ -92,7 +145,7 @@ function validateRequiredFields(fields) {
   });
   
   if (errors.length > 0) {
-    alert(`⚠️ Please fix the following:\n\n${errors.join('\n')}`);
+    showToast(`Please fix the following:\n\n${errors.join('\n')}`, 'warning', 5000);
     return false;
   }
   
@@ -198,7 +251,7 @@ async function updateCompanyInfo() {
   const email = qs('#companyEmail')?.value?.trim();
 
   if (!name || !address || !phone || !email) {
-    alert('⚠️ Please fill in all company information fields.');
+    showToast('Please fill in all company information fields.', 'warning');
     return;
   }
 
@@ -209,15 +262,15 @@ async function updateCompanyInfo() {
     });
 
     if (res.ok) {
-      alert('✅ Company information updated successfully!');
+      showToast('Company information updated successfully!', 'success');
       await fetchCompanyInfo();
       closeCompanyInfoModal();
     } else {
-      alert('❌ Failed to update company information.');
+      showToast('Failed to update company information.', 'error');
     }
   } catch (err) {
     console.error('Update company info error:', err);
-    alert('❌ Server error while updating company information.');
+    showToast('Server error while updating company information.', 'error');
   }
 }
 
@@ -981,7 +1034,7 @@ function applyDateRangeFilter() {
     const end = new Date(endDate);
     
     if (start > end) {
-      alert('❌ Start date cannot be after end date.');
+      showToast('Start date cannot be after end date.', 'warning');
       return;
     }
   }
@@ -1020,26 +1073,33 @@ async function confirmAndAddProduct(){
   
   // Validate required fields
   if(!sku || !name) {
-    alert('⚠️ Please enter SKU and Product Name.');
+    showToast('Please enter SKU and Product Name.', 'warning');
     return;
   }
   
   if (quantity < 0) {
-    alert('⚠️ Quantity cannot be negative.');
+    showToast('Quantity cannot be negative.', 'warning');
     return;
   }
   
   if (unitCost < 0) {
-    alert('⚠️ Unit Cost cannot be negative.');
+    showToast('Unit Cost cannot be negative.', 'warning');
     return;
   }
   
   if (unitPrice < 0) {
-    alert('⚠️ Unit Price cannot be negative.');
+    showToast('Unit Price cannot be negative.', 'warning');
     return;
   }
 
-  if(!confirm(`Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}?`)) return;
+  // Create a confirmation modal instead of alert
+  const confirmed = await showConfirmation(
+    'Add Product',
+    `Confirm Add Product: ${name} (${sku})\nQuantity: ${quantity}\nUnit Cost: RM ${unitCost.toFixed(2)}\nUnit Price: RM ${unitPrice.toFixed(2)}`,
+    'Add Product'
+  );
+  
+  if(!confirmed) return;
 
   const newItem = { sku, name, category, quantity, unitCost, unitPrice };
   try {
@@ -1051,29 +1111,105 @@ async function confirmAndAddProduct(){
       // Then refresh data
       await fetchInventory();
       if(currentPage.includes('inventory')) await fetchLogs();
-      alert('✅ Product added successfully.');
+      showToast('Product added successfully.', 'success');
     } else {
-      alert('❌ Failed to add product.');
+      showToast('Failed to add product.', 'error');
     }
   } catch(e) { 
     console.error(e); 
-    alert('❌ Server connection error while adding product.'); 
+    showToast('Server connection error while adding product.', 'error'); 
   }
 }
 
 async function confirmAndDeleteItem(id){
   const it = inventory.find(x => String(x.id) === String(id));
   if(!it) return;
-  if(!confirm(`Confirm Delete: "${it.name}"?`)) return;
+  
+  const confirmed = await showConfirmation(
+    'Delete Product',
+    `Confirm Delete: "${it.name}"?`,
+    'Delete'
+  );
+  
+  if(!confirmed) return;
+  
   try {
     const res = await apiFetch(`${API_BASE}/inventory/${id}`, { method: 'DELETE' });
     if(res.status === 204) {
       await fetchInventory();
-      alert('🗑️ Item deleted!');
+      showToast('Item deleted!', 'success');
     } else {
-      alert('❌ Failed to delete item.');
+      showToast('Failed to delete item.', 'error');
     }
-  } catch(e) { console.error(e); alert('❌ Server connection error while deleting product.'); }
+  } catch(e) { 
+    console.error(e); 
+    showToast('Server connection error while deleting product.', 'error'); 
+  }
+}
+
+// =========================================
+// Confirmation Modal System
+// =========================================
+function showConfirmation(title, message, confirmText = 'Confirm', cancelText = 'Cancel') {
+  return new Promise((resolve) => {
+    // Create modal if it doesn't exist
+    let modal = qs('#confirmationModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'confirmationModal';
+      modal.className = 'modal';
+      modal.innerHTML = `
+        <div class="modal-content small-modal">
+          <div class="modal-header">
+            <h2 id="confirmationTitle"></h2>
+            <span class="close" onclick="closeConfirmationModal()">&times;</span>
+          </div>
+          <div class="modal-body">
+            <p id="confirmationMessage"></p>
+          </div>
+          <div class="modal-actions">
+            <button class="secondary-btn" id="confirmationCancel">Cancel</button>
+            <button class="primary-btn" id="confirmationConfirm">Confirm</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      
+      // Add event listeners
+      modal.querySelector('#confirmationCancel').addEventListener('click', () => {
+        closeConfirmationModal();
+        resolve(false);
+      });
+      
+      modal.querySelector('#confirmationConfirm').addEventListener('click', () => {
+        closeConfirmationModal();
+        resolve(true);
+      });
+      
+      modal.querySelector('.close').addEventListener('click', () => {
+        closeConfirmationModal();
+        resolve(false);
+      });
+    }
+    
+    // Set content
+    qs('#confirmationTitle').textContent = title;
+    qs('#confirmationMessage').textContent = message;
+    qs('#confirmationConfirm').textContent = confirmText;
+    qs('#confirmationCancel').textContent = cancelText;
+    
+    // Show modal
+    modal.style.display = 'block';
+    document.body.classList.add('modal-open');
+  });
+}
+
+function closeConfirmationModal() {
+  const modal = qs('#confirmationModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+  }
 }
 
 // =========================================
@@ -1115,12 +1251,21 @@ async function openEditProductModal(productId) {
     }
   } catch (error) {
     console.error('Error loading product for edit:', error);
-    alert('Error loading product details: ' + (error.message || 'Unknown error'));
+    showToast('Error loading product details: ' + (error.message || 'Unknown error'), 'error');
   }
 }
 
 // Simple fallback edit function
 async function editProductSimple(productId, product) {
+  const confirmed = await showConfirmation(
+    'Edit Product',
+    'This will open simple edit fields. Continue?',
+    'Continue',
+    'Cancel'
+  );
+  
+  if (!confirmed) return;
+  
   const newName = prompt('Enter new product name:', product.name || '');
   if (newName === null) return; // User cancelled
   
@@ -1142,26 +1287,33 @@ async function editProductSimple(productId, product) {
     unitPrice: parseFloat(newUnitPrice) || 0
   };
   
-  if (confirm(`Update product?\n\nName: ${updatedProduct.name}\nQuantity: ${updatedProduct.quantity}\nUnit Cost: RM ${updatedProduct.unitCost.toFixed(2)}\nUnit Price: RM ${updatedProduct.unitPrice.toFixed(2)}`)) {
-    try {
-      const response = await apiFetch(`${API_BASE}/inventory/${productId}`, {
-        method: 'PUT',
-        body: JSON.stringify(updatedProduct)
-      });
-      
-      if (response.ok) {
-        await response.json();
-        alert('Product updated successfully!');
-        await fetchInventory(); // Refresh the inventory list
-        await loadDashboardStats(); // Refresh dashboard stats
-      } else {
-        const error = await response.json();
-        alert('Error updating product: ' + error.message);
-      }
-    } catch (error) {
-      console.error('Error updating product:', error);
-      alert('Error updating product. Please try again.');
+  const updateConfirmed = await showConfirmation(
+    'Update Product',
+    `Update product?\n\nName: ${updatedProduct.name}\nQuantity: ${updatedProduct.quantity}\nUnit Cost: RM ${updatedProduct.unitCost.toFixed(2)}\nUnit Price: RM ${updatedProduct.unitPrice.toFixed(2)}`,
+    'Update',
+    'Cancel'
+  );
+  
+  if (!updateConfirmed) return;
+  
+  try {
+    const response = await apiFetch(`${API_BASE}/inventory/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updatedProduct)
+    });
+    
+    if (response.ok) {
+      await response.json();
+      showToast('Product updated successfully!', 'success');
+      await fetchInventory(); // Refresh the inventory list
+      await loadDashboardStats(); // Refresh dashboard stats
+    } else {
+      const error = await response.json();
+      showToast('Error updating product: ' + error.message, 'error');
     }
+  } catch (error) {
+    console.error('Error updating product:', error);
+    showToast('Error updating product. Please try again.', 'error');
   }
 }
 
@@ -1169,7 +1321,7 @@ async function updateProduct() {
   const productId = qs('#edit_product_id')?.value;
   
   if (!productId) {
-    alert('Error: No product ID found');
+    showToast('Error: No product ID found', 'error');
     return;
   }
   
@@ -1184,23 +1336,28 @@ async function updateProduct() {
   
   // Validate
   if (!updatedProduct.sku || !updatedProduct.name) {
-    alert('SKU and Name are required');
+    showToast('SKU and Name are required', 'warning');
     return;
   }
   
   if (updatedProduct.quantity < 0) {
-    alert('Quantity cannot be negative');
+    showToast('Quantity cannot be negative', 'warning');
     return;
   }
   
   if (updatedProduct.unitCost < 0 || updatedProduct.unitPrice < 0) {
-    alert('Cost and Price cannot be negative');
+    showToast('Cost and Price cannot be negative', 'warning');
     return;
   }
   
-  if (!confirm(`Update product: ${updatedProduct.name}?\nQuantity: ${updatedProduct.quantity}\nUnit Cost: RM ${updatedProduct.unitCost.toFixed(2)}\nUnit Price: RM ${updatedProduct.unitPrice.toFixed(2)}`)) {
-    return;
-  }
+  const confirmed = await showConfirmation(
+    'Update Product',
+    `Update product: ${updatedProduct.name}?\nQuantity: ${updatedProduct.quantity}\nUnit Cost: RM ${updatedProduct.unitCost.toFixed(2)}\nUnit Price: RM ${updatedProduct.unitPrice.toFixed(2)}`,
+    'Update',
+    'Cancel'
+  );
+  
+  if (!confirmed) return;
   
   try {
     const response = await apiFetch(`${API_BASE}/inventory/${productId}`, {
@@ -1210,17 +1367,17 @@ async function updateProduct() {
     
     if (response.ok) {
       await response.json();
-      alert('Product updated successfully!');
+      showToast('Product updated successfully!', 'success');
       closeEditProductModal();
       await fetchInventory(); // Refresh the inventory list
       await loadDashboardStats(); // Refresh dashboard stats
     } else {
       const error = await response.json();
-      alert('Error updating product: ' + error.message);
+      showToast('Error updating product: ' + error.message, 'error');
     }
   } catch (error) {
     console.error('Error updating product:', error);
-    alert('Error updating product. Please try again.');
+    showToast('Error updating product. Please try again.', 'error');
   }
 }
 
@@ -1257,7 +1414,10 @@ async function bindProductPage(){
       const res = await apiFetch(`${API_BASE}/inventory`);
       const items = await res.json();
       const it = items.find(x => String(x.id) === String(id));
-      if(!it) { alert('Item not found'); return; }
+      if(!it) { 
+        showToast('Item not found', 'error'); 
+        return; 
+      }
       if(qs('#prod_id')) qs('#prod_id').value = it.id || it._id;
       if(qs('#prod_sku')) qs('#prod_sku').value = it.sku || '';
       if(qs('#prod_name')) qs('#prod_name').value = it.name || '';
@@ -1265,11 +1425,16 @@ async function bindProductPage(){
       if(qs('#prod_quantity')) qs('#prod_quantity').value = it.quantity || 0;
       if(qs('#prod_unitCost')) qs('#prod_unitCost').value = it.unitCost || 0;
       if(qs('#prod_unitPrice')) qs('#prod_unitPrice').value = it.unitPrice || 0;
-    } catch(e) { alert('Failed to load product details.'); return; }
+    } catch(e) { 
+      showToast('Failed to load product details.', 'error'); 
+      return; 
+    }
   }
 
   qs('#saveProductBtn')?.addEventListener('click', async ()=> {
-    if(!confirm('Confirm: Save Changes?')) return;
+    const confirmed = await showConfirmation('Save Changes', 'Confirm: Save Changes?', 'Save', 'Cancel');
+    if(!confirmed) return;
+    
     const idVal = qs('#prod_id')?.value;
     const body = {
       sku: qs('#prod_sku')?.value,
@@ -1281,9 +1446,18 @@ async function bindProductPage(){
     };
     try {
       const res = await apiFetch(`${API_BASE}/inventory/${idVal}`, { method: 'PUT', body: JSON.stringify(body) });
-      if(res.ok) { alert('✅ Item updated'); window.location.href = 'inventory.html'; }
-      else { const err = await res.json(); alert('❌ Failed to update item: ' + (err.message || 'Unknown')); }
-    } catch(e) { console.error(e); alert('❌ Server connection error during update.'); }
+      if(res.ok) { 
+        showToast('Item updated', 'success'); 
+        window.location.href = 'inventory.html'; 
+      }
+      else { 
+        const err = await res.json(); 
+        showToast('Failed to update item: ' + (err.message || 'Unknown'), 'error'); 
+      }
+    } catch(e) { 
+      console.error(e); 
+      showToast('Server connection error during update.', 'error'); 
+    }
   });
 
   qs('#cancelProductBtn')?.addEventListener('click', ()=> window.location.href = 'inventory.html');
@@ -1430,7 +1604,7 @@ function applySalesDateRangeFilter() {
     const end = new Date(endDate);
     
     if (start > end) {
-      alert('❌ Start date cannot be after end date.');
+      showToast('Start date cannot be after end date.', 'warning');
       return;
     }
   }
@@ -1470,7 +1644,7 @@ function openNewSalesModal() {
     updateSalesTotalAmount();
   } else {
     console.error('New sales modal not found');
-    alert('Sales modal not found. Please check if the HTML is loaded correctly.');
+    showToast('Sales modal not found. Please check if the HTML is loaded correctly.', 'error');
   }
 }
 
@@ -1624,7 +1798,7 @@ async function saveSalesOrder() {
   const customerContact = qs('#customerContact')?.value?.trim();
   
   if (!customerName || !customerContact) {
-    alert('⚠️ Please enter customer name and contact information.');
+    showToast('Please enter customer name and contact information.', 'warning');
     return;
   }
   
@@ -1635,7 +1809,7 @@ async function saveSalesOrder() {
   const itemRows = qsa('.sales-item-row');
   
   if (itemRows.length === 0) {
-    alert('⚠️ Please add at least one product item.');
+    showToast('Please add at least one product item.', 'warning');
     return;
   }
   
@@ -1651,23 +1825,23 @@ async function saveSalesOrder() {
     const salePrice = priceInput ? Number(priceInput.value) : 0;
     
     if (!sku || !productName || !quantity || !salePrice) {
-      alert('⚠️ Please fill in all fields for each product item.');
+      showToast('Please fill in all fields for each product item.', 'warning');
       return;
     }
     
     if (quantity <= 0) {
-      alert('⚠️ Please enter a valid quantity greater than 0.');
+      showToast('Please enter a valid quantity greater than 0.', 'warning');
       return;
     }
     
     if (salePrice <= 0) {
-      alert('⚠️ Please enter a valid sale price greater than 0.');
+      showToast('Please enter a valid sale price greater than 0.', 'warning');
       return;
     }
     
     const inventoryItem = inventory.find(item => item.sku === sku);
     if (inventoryItem && inventoryItem.quantity < quantity) {
-      alert(`❌ Insufficient stock for ${productName}. Available: ${inventoryItem.quantity}, Requested: ${quantity}`);
+      showToast(`Insufficient stock for ${productName}. Available: ${inventoryItem.quantity}, Requested: ${quantity}`, 'error');
       return;
     }
     
@@ -1693,7 +1867,9 @@ async function saveSalesOrder() {
   });
   confirmMessage += `\nTotal Amount: RM ${salesData.items.reduce((sum, item) => sum + (item.quantity * item.salePrice), 0).toFixed(2)}`;
   
-  if (!confirm(confirmMessage)) {
+  const confirmed = await showConfirmation('Sales Order Confirmation', confirmMessage, 'Confirm Order', 'Cancel');
+  
+  if (!confirmed) {
     return;
   }
   
@@ -1705,7 +1881,7 @@ async function saveSalesOrder() {
     
     if (res.ok) {
       const savedSales = await res.json();
-      alert('✅ Sales order saved successfully!');
+      showToast('Sales order saved successfully!', 'success');
       
       // Refresh data
       await fetchInventory();
@@ -1718,11 +1894,11 @@ async function saveSalesOrder() {
       
     } else {
       const error = await res.json();
-      alert(`❌ Failed to save sales order: ${error.message}`);
+      showToast(`Failed to save sales order: ${error.message}`, 'error');
     }
   } catch (e) {
     console.error('Save sales order error:', e);
-    alert('❌ Server connection error while saving sales order.');
+    showToast('Server connection error while saving sales order.', 'error');
   }
 }
 
@@ -1738,7 +1914,7 @@ async function viewSalesDetails(salesId) {
     
     if (!qs('#salesDetailsModal')) {
       console.error('Sales details modal not found');
-      alert('Sales details modal is not available. Please refresh the page.');
+      showToast('Sales details modal is not available. Please refresh the page.', 'error');
       return;
     }
     
@@ -1817,7 +1993,7 @@ async function viewSalesDetails(salesId) {
     
   } catch (e) {
     console.error('View sales details error:', e);
-    alert(`❌ Failed to load sales details: ${e.message}`);
+    showToast(`Failed to load sales details: ${e.message}`, 'error');
   }
 }
 
@@ -1834,7 +2010,14 @@ async function deleteSales(id) {
   const sale = sales.find(s => String(s.id) === String(id));
   if (!sale) return;
   
-  if (!confirm(`Confirm Delete Sales Order:\n${sale.salesId} for ${sale.customer}?\n\nThis will remove ${sale.items.length} items and revert inventory quantities.`)) return;
+  const confirmed = await showConfirmation(
+    'Delete Sales Order',
+    `Confirm Delete Sales Order:\n${sale.salesId} for ${sale.customer}?\n\nThis will remove ${sale.items.length} items and revert inventory quantities.`,
+    'Delete',
+    'Cancel'
+  );
+  
+  if (!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/sales/${id}`, { method: 'DELETE' });
@@ -1851,17 +2034,17 @@ async function deleteSales(id) {
         // Refresh inventory data in background
         fetchInventory().catch(console.error);
         
-        alert('✅ Sales order deleted successfully!');
+        showToast('Sales order deleted successfully!', 'success');
       } else {
-        alert('❌ Failed to delete sales order: ' + (result.message || 'Unknown error'));
+        showToast('Failed to delete sales order: ' + (result.message || 'Unknown error'), 'error');
       }
     } else {
       const error = await res.json();
-      alert('❌ Failed to delete sales order: ' + (error.message || 'Unknown error'));
+      showToast('Failed to delete sales order: ' + (error.message || 'Unknown error'), 'error');
     }
   } catch (e) {
     console.error('Sales delete error:', e);
-    alert('❌ Server connection error while deleting sales order.');
+    showToast('Server connection error while deleting sales order.', 'error');
   }
 }
 
@@ -1869,7 +2052,7 @@ async function printAndSaveSalesInvoice(salesId) {
   try {
     const sale = sales.find(s => String(s.id) === String(salesId));
     if (!sale) {
-      alert('❌ Sales order not found.');
+      showToast('Sales order not found.', 'error');
       return;
     }
     
@@ -1901,15 +2084,16 @@ async function printAndSaveSalesInvoice(salesId) {
       
       if (saveRes.ok) {
         console.log('✅ Invoice saved to documents');
+        showToast('Invoice saved to documents', 'success');
       }
     } catch (saveError) {
       console.error('Invoice save to documents error:', saveError);
-      // Don't alert for this error as the download was successful
+      // Don't show toast for this error as the download was successful
     }
     
   } catch (e) {
     console.error('Print and save invoice error:', e);
-    alert('❌ Failed to generate sales invoice: ' + e.message);
+    showToast('Failed to generate sales invoice: ' + e.message, 'error');
   }
 }
 
@@ -2051,7 +2235,7 @@ function applyPurchaseDateRangeFilter() {
     const end = new Date(endDate);
     
     if (start > end) {
-      alert('❌ Start date cannot be after end date.');
+      showToast('Start date cannot be after end date.', 'warning');
       return;
     }
   }
@@ -2090,7 +2274,7 @@ function openNewPurchaseModal() {
     updateTotalAmount();
   } else {
     console.error('New purchase modal not found');
-    alert('Purchase modal not found. Please check if the HTML is loaded correctly.');
+    showToast('Purchase modal not found. Please check if the HTML is loaded correctly.', 'error');
   }
 }
 
@@ -2245,7 +2429,7 @@ async function savePurchaseOrder() {
   const supplierContact = qs('#supplierContact')?.value?.trim();
   
   if (!supplierName || !supplierContact) {
-    alert('⚠️ Please enter supplier name and contact information.');
+    showToast('Please enter supplier name and contact information.', 'warning');
     return;
   }
   
@@ -2256,7 +2440,7 @@ async function savePurchaseOrder() {
   const itemRows = qsa('.purchase-item-row');
   
   if (itemRows.length === 0) {
-    alert('⚠️ Please add at least one product item.');
+    showToast('Please add at least one product item.', 'warning');
     return;
   }
   
@@ -2272,17 +2456,17 @@ async function savePurchaseOrder() {
     const purchasePrice = priceInput ? Number(priceInput.value) : 0;
     
     if (!sku || !productName || !quantity || !purchasePrice) {
-      alert('⚠️ Please fill in all fields for each product item.');
+      showToast('Please fill in all fields for each product item.', 'warning');
       return;
     }
     
     if (quantity <= 0) {
-      alert('⚠️ Please enter a valid quantity greater than 0.');
+      showToast('Please enter a valid quantity greater than 0.', 'warning');
       return;
     }
     
     if (purchasePrice <= 0) {
-      alert('⚠️ Please enter a valid purchase price greater than 0.');
+      showToast('Please enter a valid purchase price greater than 0.', 'warning');
       return;
     }
     
@@ -2308,7 +2492,9 @@ async function savePurchaseOrder() {
   });
   confirmMessage += `\nTotal Amount: RM ${purchaseData.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0).toFixed(2)}`;
   
-  if (!confirm(confirmMessage)) {
+  const confirmed = await showConfirmation('Restock Order Confirmation', confirmMessage, 'Confirm Order', 'Cancel');
+  
+  if (!confirmed) {
     return;
   }
   
@@ -2320,7 +2506,7 @@ async function savePurchaseOrder() {
     
     if (res.ok) {
       const savedPurchase = await res.json();
-      alert('✅ Restock order saved successfully!');
+      showToast('Restock order saved successfully!', 'success');
       
       await fetchInventory();
       await fetchPurchases();
@@ -2331,11 +2517,11 @@ async function savePurchaseOrder() {
       
     } else {
       const error = await res.json();
-      alert(`❌ Failed to save restock order: ${error.message}`);
+      showToast(`Failed to save restock order: ${error.message}`, 'error');
     }
   } catch (e) {
     console.error('Save purchase order error:', e);
-    alert('❌ Server connection error while saving restock order.');
+    showToast('Server connection error while saving restock order.', 'error');
   }
 }
 
@@ -2351,7 +2537,7 @@ async function viewPurchaseDetails(purchaseId) {
     
     if (!qs('#purchaseDetailsModal')) {
       console.error('Purchase details modal not found');
-      alert('Purchase details modal is not available. Please refresh the page.');
+      showToast('Purchase details modal is not available. Please refresh the page.', 'error');
       return;
     }
     
@@ -2430,7 +2616,7 @@ async function viewPurchaseDetails(purchaseId) {
     
   } catch (e) {
     console.error('View purchase details error:', e);
-    alert(`❌ Failed to load purchase details: ${e.message}`);
+    showToast(`Failed to load purchase details: ${e.message}`, 'error');
   }
 }
 
@@ -2447,7 +2633,14 @@ async function deletePurchase(id) {
   const purchase = purchases.find(p => String(p.id) === String(id));
   if (!purchase) return;
   
-  if (!confirm(`Confirm Delete Restock Order:\n${purchase.purchaseId} from ${purchase.supplier}?\n\nThis will remove ${purchase.items.length} items and revert inventory quantities.`)) return;
+  const confirmed = await showConfirmation(
+    'Delete Restock Order',
+    `Confirm Delete Restock Order:\n${purchase.purchaseId} from ${purchase.supplier}?\n\nThis will remove ${purchase.items.length} items and revert inventory quantities.`,
+    'Delete',
+    'Cancel'
+  );
+  
+  if (!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/purchases/${id}`, { method: 'DELETE' });
@@ -2464,17 +2657,17 @@ async function deletePurchase(id) {
         // Refresh inventory data in background
         fetchInventory().catch(console.error);
         
-        alert('✅ Restock order deleted successfully!');
+        showToast('Restock order deleted successfully!', 'success');
       } else {
-        alert('❌ Failed to delete restock order: ' + (result.message || 'Unknown error'));
+        showToast('Failed to delete restock order: ' + (result.message || 'Unknown error'), 'error');
       }
     } else {
       const error = await res.json();
-      alert('❌ Failed to delete restock order: ' + (error.message || 'Unknown error'));
+      showToast('Failed to delete restock order: ' + (error.message || 'Unknown error'), 'error');
     }
   } catch (e) {
     console.error('Purchase delete error:', e);
-    alert('❌ Server connection error while deleting restock order.');
+    showToast('Server connection error while deleting restock order.', 'error');
   }
 }
 
@@ -2482,7 +2675,7 @@ async function printAndSavePurchaseInvoice(purchaseId) {
   try {
     const purchase = purchases.find(p => String(p.id) === String(purchaseId));
     if (!purchase) {
-      alert('❌ Purchase order not found.');
+      showToast('Purchase order not found.', 'error');
       return;
     }
     
@@ -2511,15 +2704,16 @@ async function printAndSavePurchaseInvoice(purchaseId) {
       
       if (saveRes.ok) {
         console.log('✅ Purchase invoice saved to documents');
+        showToast('Purchase invoice saved to documents', 'success');
       }
     } catch (saveError) {
       console.error('Invoice save to documents error:', saveError);
-      // Don't alert for this error as the download was successful
+      // Don't show toast for this error as the download was successful
     }
     
   } catch (e) {
     console.error('Print and save invoice error:', e);
-    alert('❌ Failed to generate invoice: ' + e.message);
+    showToast('Failed to generate invoice: ' + e.message, 'error');
   }
 }
 
@@ -2559,12 +2753,12 @@ async function generateSelectedReport() {
   const endDate = qs('#reportEndDate').value;
   
   if (!reportType) {
-    alert('⚠️ Please select a report type.');
+    showToast('Please select a report type.', 'warning');
     return;
   }
   
   if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-    alert('❌ Start date cannot be after end date.');
+    showToast('Start date cannot be after end date.', 'warning');
     return;
   }
   
@@ -2581,7 +2775,8 @@ async function generateSelectedReport() {
 }
 
 async function generateInventoryReport(startDate, endDate) {
-  if (!confirm('Generate Inventory Report?')) return;
+  const confirmed = await showConfirmation('Generate Report', 'Generate Inventory Report?', 'Generate', 'Cancel');
+  if (!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/inventory/report/pdf`, {
@@ -2613,17 +2808,18 @@ async function generateInventoryReport(startDate, endDate) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    alert('✅ Inventory Report Generated Successfully!');
+    showToast('Inventory Report Generated Successfully!', 'success');
     
   } catch (e) {
     console.error('Inventory report error:', e);
-    alert('❌ Failed to generate inventory report.');
+    showToast('Failed to generate inventory report.', 'error');
   }
 }
 
 // NEW: Sales Report Generation
 async function generateSalesReport(startDate, endDate) {
-  if (!confirm('Generate Sales Report?')) return;
+  const confirmed = await showConfirmation('Generate Report', 'Generate Sales Report?', 'Generate', 'Cancel');
+  if (!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/sales/report/pdf`, {
@@ -2655,11 +2851,11 @@ async function generateSalesReport(startDate, endDate) {
     window.URL.revokeObjectURL(url);
     a.remove();
     
-    alert('✅ Sales Report Generated Successfully!');
+    showToast('Sales Report Generated Successfully!', 'success');
     
   } catch (e) {
     console.error('Sales report error:', e);
-    alert('❌ Failed to generate sales report.');
+    showToast('Failed to generate sales report.', 'error');
   }
 }
 
@@ -2755,14 +2951,14 @@ async function createFolder() {
     
     if (res.ok) {
       await fetchFolders();
-      alert('✅ Folder created successfully!');
+      showToast('Folder created successfully!', 'success');
     } else {
       const error = await res.json();
-      alert(`❌ Failed to create folder: ${error.message}`);
+      showToast(`Failed to create folder: ${error.message}`, 'error');
     }
   } catch (err) {
     console.error('Create folder error:', err);
-    alert('❌ Server error while creating folder.');
+    showToast('Server error while creating folder.', 'error');
   }
 }
 
@@ -2781,14 +2977,14 @@ async function renameFolder(folderId) {
     
     if (res.ok) {
       await fetchFolders();
-      alert('✅ Folder renamed successfully!');
+      showToast('Folder renamed successfully!', 'success');
     } else {
       const error = await res.json();
-      alert(`❌ Failed to rename folder: ${error.message}`);
+      showToast(`Failed to rename folder: ${error.message}`, 'error');
     }
   } catch (err) {
     console.error('Rename folder error:', err);
-    alert('❌ Server error while renaming folder.');
+    showToast('Server error while renaming folder.', 'error');
   }
 }
 
@@ -2797,7 +2993,14 @@ async function deleteFolder(folderId) {
   const folder = folders.find(f => f.id === folderId);
   if (!folder) return;
   
-  if (!confirm(`Are you sure you want to delete folder "${folder.name}"?\n\nThis will also delete all documents inside the folder.`)) return;
+  const confirmed = await showConfirmation(
+    'Delete Folder',
+    `Are you sure you want to delete folder "${folder.name}"?\n\nThis will also delete all documents inside the folder.`,
+    'Delete',
+    'Cancel'
+  );
+  
+  if (!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/folders/${folderId}`, {
@@ -2810,14 +3013,14 @@ async function deleteFolder(folderId) {
       if (currentFolder === folderId) {
         navigateToFolder('root');
       }
-      alert('✅ Folder deleted successfully!');
+      showToast('Folder deleted successfully!', 'success');
     } else {
       const error = await res.json();
-      alert(`❌ Failed to delete folder: ${error.message}`);
+      showToast(`Failed to delete folder: ${error.message}`, 'error');
     }
   } catch (err) {
     console.error('Delete folder error:', err);
-    alert('❌ Server error while deleting folder: ' + (err.message || 'Unknown error'));
+    showToast('Server error while deleting folder: ' + (err.message || 'Unknown error'), 'error');
   }
 }
 
@@ -2913,7 +3116,14 @@ async function uploadDocuments(){
     return;
   }
 
-  if(!confirm(`Confirm Upload: Upload file "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)?`)) { 
+  const confirmed = await showConfirmation(
+    'Upload File',
+    `Confirm Upload: Upload file "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)?`,
+    'Upload',
+    'Cancel'
+  );
+  
+  if (!confirmed) { 
     showMsg(msgEl, 'Upload cancelled.', 'orange'); 
     return; 
   }
@@ -2944,6 +3154,7 @@ async function uploadDocuments(){
     if(res.ok) {
       const result = await res.json();
       showMsg(msgEl, `✅ Successfully uploaded: "${file.name}" (${(file.size / (1024*1024)).toFixed(2)} MB)`, 'green');
+      showToast(`Successfully uploaded: "${file.name}"`, 'success');
       await fetchDocuments();
       
     } else {
@@ -2953,6 +3164,7 @@ async function uploadDocuments(){
   } catch(e) {
     console.error('❌ Upload error:', e);
     showMsg(msgEl, `❌ Upload failed: ${e.message}`, 'red');
+    showToast(`Upload failed: ${e.message}`, 'error');
     if(fileInput) fileInput.value = '';
     return;
   }
@@ -3022,7 +3234,9 @@ function bindDocumentEvents() {
 }
 
 async function downloadDocument(docId, fileName) {
-  if(!confirm(`Confirm Download: ${fileName}?`)) return;
+  const confirmed = await showConfirmation('Download File', `Confirm Download: ${fileName}?`, 'Download', 'Cancel');
+  
+  if(!confirmed) return;
   
   try {
     const res = await fetch(`${API_BASE}/documents/download/${docId}`);
@@ -3063,13 +3277,22 @@ async function downloadDocument(docId, fileName) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     }, 100);
+    
+    showToast(`Downloaded: ${fileName}`, 'success');
 
   } catch (error) {
     console.error('Download error:', error);
-    alert(`❌ Download Failed: ${error.message}`);
+    showToast(`Download Failed: ${error.message}`, 'error');
     
-    if (fileName.includes('Inventory_Report') && confirm('This report file appears to be corrupted. Would you like to generate a new one?')) {
-      if (fileName.endsWith('.pdf')) {
+    if (fileName.includes('Inventory_Report')) {
+      const generateNew = await showConfirmation(
+        'Corrupted File',
+        'This report file appears to be corrupted. Would you like to generate a new one?',
+        'Generate New',
+        'Cancel'
+      );
+      
+      if (generateNew && fileName.endsWith('.pdf')) {
         generateInventoryReport();
       }
     }
@@ -3079,11 +3302,13 @@ async function downloadDocument(docId, fileName) {
 async function deleteDocumentConfirm(id) {
   const doc = documents.find(d => String(d.id) === String(id));
   if(!doc) {
-    alert('Document not found in local list');
+    showToast('Document not found in local list', 'error');
     return;
   }
   
-  if(!confirm(`Delete document: ${doc.name}?`)) return;
+  const confirmed = await showConfirmation('Delete Document', `Delete document: ${doc.name}?`, 'Delete', 'Cancel');
+  
+  if(!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/documents/${id}`, { method: 'DELETE' });
@@ -3092,33 +3317,40 @@ async function deleteDocumentConfirm(id) {
       // Remove from local array and update UI
       documents = documents.filter(d => String(d.id) !== String(id));
       renderDocuments(documents);
-      alert('🗑️ Document deleted successfully!'); 
+      showToast('Document deleted successfully!', 'success'); 
     } else {
       const errorData = await res.json().catch(() => ({ message: 'Unknown error' }));
-      alert('❌ Failed to delete document: ' + errorData.message);
+      showToast('Failed to delete document: ' + errorData.message, 'error');
     }
   } catch(e) { 
     console.error('Delete error:', e); 
-    alert('❌ Server error while deleting document: ' + e.message); 
+    showToast('Server error while deleting document: ' + e.message, 'error'); 
   }
 }
 
 async function cleanupCorruptedDocuments() {
-  if (!confirm('This will remove all documents that are corrupted or have 0 bytes. Continue?')) return;
+  const confirmed = await showConfirmation(
+    'Cleanup Documents',
+    'This will remove all documents that are corrupted or have 0 bytes. Continue?',
+    'Continue',
+    'Cancel'
+  );
+  
+  if (!confirmed) return;
   
   try {
     const res = await apiFetch(`${API_BASE}/cleanup-documents`, { method: 'DELETE' });
     const data = await res.json();
     
     if (data.success) {
-      alert(`✅ Cleanup completed! Removed ${data.deletedCount} corrupted documents.`);
+      showToast(`Cleanup completed! Removed ${data.deletedCount} corrupted documents.`, 'success');
       await fetchDocuments();
     } else {
-      alert('❌ Cleanup failed: ' + data.message);
+      showToast('Cleanup failed: ' + data.message, 'error');
     }
   } catch (e) {
     console.error('Cleanup error:', e);
-    alert('Cleanup failed: ' + e.message);
+    showToast('Cleanup failed: ' + e.message, 'error');
   }
 }
 
@@ -3184,7 +3416,10 @@ async function login(){
   const pass = qs('#password')?.value?.trim();
   const msg = qs('#loginMessage');
   showMsg(msg, '');
-  if(!user || !pass) { showMsg(msg, '⚠️ Please enter username and password.', 'red'); return; }
+  if(!user || !pass) { 
+    showMsg(msg, '⚠️ Please enter username and password.', 'red'); 
+    return; 
+  }
 
   try {
     const res = await apiFetch(`${API_BASE}/login`, { method: 'POST', body: JSON.stringify({ username: user, password: pass }) });
@@ -3193,12 +3428,15 @@ async function login(){
       sessionStorage.setItem('isLoggedIn', 'true');
       sessionStorage.setItem('adminName', user);
       showMsg(msg, '✅ Login successful! Redirecting...', 'green');
+      showToast('Login successful! Redirecting...', 'success');
       setTimeout(()=> window.location.href = 'inventory.html', 700);
     } else {
       showMsg(msg, `❌ ${data.message || 'Login failed.'}`, 'red');
+      showToast(data.message || 'Login failed.', 'error');
     }
   } catch(e) {
     showMsg(msg, '❌ Server connection failed.', 'red');
+    showToast('Server connection failed.', 'error');
     console.error(e);
   }
 }
@@ -3209,18 +3447,27 @@ async function register(){
   const code = qs('#securityCode')?.value?.trim();
   const msg = qs('#registerMessage');
   showMsg(msg, '');
-  if(!user || !pass || !code) { showMsg(msg, '⚠️ Please fill in all fields.', 'red'); return; }
+  if(!user || !pass || !code) { 
+    showMsg(msg, '⚠️ Please fill in all fields.', 'red'); 
+    return; 
+  }
 
   try {
     const res = await apiFetch(`${API_BASE}/register`, { method: 'POST', body: JSON.stringify({ username: user, password: pass, securityCode: code }) });
     const data = await res.json();
     if(res.ok) {
       showMsg(msg, '✅ Registered successfully! You can now log in.', 'green');
+      showToast('Registered successfully! You can now log in.', 'success');
       setTimeout(()=> toggleForm(), 900);
     } else {
       showMsg(msg, `❌ ${data.message || 'Registration failed.'}`, 'red');
+      showToast(data.message || 'Registration failed.', 'error');
     }
-  } catch(e) { showMsg(msg, '❌ Server connection failed.', 'red'); console.error(e); }
+  } catch(e) { 
+    showMsg(msg, '❌ Server connection failed.', 'red'); 
+    showToast('Server connection failed.', 'error');
+    console.error(e); 
+  }
 }
 
 function toggleForm(){
@@ -3252,35 +3499,71 @@ function bindSettingPage(){
     const code = qs('#securityCode')?.value;
     const msgEl = qs('#passwordMessage');
     showMsg(msgEl, '');
-    if(!newPass || !confPass || !code) { return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); }
-    if(newPass !== confPass) { return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); }
-    if(!confirm('Confirm Password Change? You will be logged out after a successful update.')) return;
+    if(!newPass || !confPass || !code) { 
+      return showMsg(msgEl, '⚠️ Please fill in all fields.', 'red'); 
+    }
+    if(newPass !== confPass) { 
+      return showMsg(msgEl, '⚠️ New password and confirmation do not match.', 'red'); 
+    }
+    
+    const confirmed = await showConfirmation(
+      'Change Password',
+      'Confirm Password Change? You will be logged out after a successful update.',
+      'Change Password',
+      'Cancel'
+    );
+    
+    if (!confirmed) return;
 
     try {
       const res = await apiFetch(`${API_BASE}/account/password`, { method: 'PUT', body: JSON.stringify({ username: currentUsername, newPassword: newPass, securityCode: code }) });
       const data = await res.json();
       if(res.ok) {
         showMsg(msgEl, '✅ Password updated successfully! Please log in again.', 'green');
+        showToast('Password updated successfully! Please log in again.', 'success');
         qs('#newPassword').value = '';
         qs('#confirmPassword').value = '';
         qs('#securityCode').value = '';
         setTimeout(logout, 1500);
       } else {
         showMsg(msgEl, `❌ ${data.message || 'Failed to change password.'}`, 'red');
+        showToast(data.message || 'Failed to change password.', 'error');
       }
-    } catch(e) { showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); }
+    } catch(e) { 
+      showMsg(msgEl, '❌ Server connection failed during password change.', 'red'); 
+      showToast('Server connection failed during password change.', 'error');
+    }
   });
 
   qs('#deleteAccountBtn')?.addEventListener('click', async ()=> {
-    if(!confirm(`⚠️ WARNING: Are you absolutely sure you want to delete the account for "${currentUsername}"?`)) return;
+    const confirmed = await showConfirmation(
+      'Delete Account',
+      `WARNING: Are you absolutely sure you want to delete the account for "${currentUsername}"?`,
+      'Continue',
+      'Cancel'
+    );
+    
+    if(!confirmed) return;
+    
     const code = prompt('Enter Admin Security Code to CONFIRM account deletion:');
-    if(!code) return alert('Deletion cancelled.');
+    if(!code) {
+      showToast('Deletion cancelled.', 'info');
+      return;
+    }
+    
     try {
       const res = await apiFetch(`${API_BASE}/account`, { method: 'DELETE', body: JSON.stringify({ username: currentUsername, securityCode: code }) });
       const data = await res.json();
-      if(res.ok) { alert('🗑️ Account deleted successfully. You will now be logged out.'); logout(); }
-      else alert(`❌ ${data.message || 'Failed to delete account.'}`);
-    } catch(e) { alert('❌ Server connection failed during account deletion.'); }
+      if(res.ok) { 
+        showToast('Account deleted successfully. You will now be logged out.', 'success'); 
+        logout(); 
+      }
+      else {
+        showToast(`Failed to delete account: ${data.message}`, 'error');
+      }
+    } catch(e) { 
+      showToast('Server connection failed during account deletion.', 'error'); 
+    }
   });
 }
 
@@ -3318,6 +3601,9 @@ function bindInventoryUI(){
   if (closeEditProductModalBtn) {
     closeEditProductModalBtn.addEventListener('click', closeEditProductModal);
   }
+  
+  // Confirmation modal close button
+  qs('#closeConfirmationModal')?.addEventListener('click', closeConfirmationModal);
   
   // Other existing bindings
   qs('#reportBtn')?.addEventListener('click', openReportModal);
@@ -3370,7 +3656,7 @@ function bindInventoryUI(){
       '#addProductModal', '#editProductModal', '#purchaseHistoryModal',
       '#newPurchaseModal', '#salesHistoryModal', '#newSalesModal',
       '#reportModal', '#previewModal', '#purchaseDetailsModal',
-      '#salesDetailsModal', '#companyInfoModal'
+      '#salesDetailsModal', '#companyInfoModal', '#confirmationModal'
     ];
     
     modals.forEach(modalSelector => {
@@ -3436,7 +3722,7 @@ window.addEventListener('load', async () => {
     if(currentPage.includes('sales-edit')) bindSalesEditPage();
   } catch(e) { 
     console.error('Init error', e); 
-    alert('Error loading data. Please refresh the page.');
+    showToast('Error loading data. Please refresh the page.', 'error');
   }
 });
 
@@ -3454,7 +3740,7 @@ document.addEventListener('DOMContentLoaded', ()=> {
 });
 
 function showCardTooltip(message) {
-  // Simple alert for now
+  showToast(message, 'info');
 }
 
 // =========================================
@@ -3527,6 +3813,14 @@ window.confirmAndAddProduct = confirmAndAddProduct;
 window.openEditProductModal = openEditProductModal;
 window.closeEditProductModal = closeEditProductModal;
 window.updateProduct = updateProduct;
+
+// Toast Functions
+window.showToast = showToast;
+window.removeToast = removeToast;
+
+// Confirmation Modal Functions
+window.showConfirmation = showConfirmation;
+window.closeConfirmationModal = closeConfirmationModal;
 
 // New function to handle edit button clicks
 window.handleEditClick = async function(productId) {
