@@ -1,3 +1,5 @@
+[file name]: index.html
+[file content begin]
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -501,7 +503,7 @@
     </div>
   </div>
 
-  <!-- UPDATED: New Sales Order Modal - Large, Wide, No Scroll -->
+  <!-- UPDATED: New Sales Order Modal - Large, Wide, No Scroll WITH PAYMENT LOGIC -->
   <div id="newSalesModal" class="modal">
     <div class="modal-content x-large-modal" style="width: 1200px; height: auto; max-height: 90vh; overflow: hidden;">
       <div class="modal-header">
@@ -509,6 +511,7 @@
         <span class="close">&times;</span>
       </div>
       <div class="modal-body" style="max-height: calc(90vh - 150px); overflow-y: auto; padding: 30px;">
+        <!-- Customer Information -->
         <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
           <div class="form-group">
             <label for="customerName">Customer Name:</label>
@@ -547,14 +550,53 @@
           </div>
         </div>
 
-        <div class="sales-summary" style="margin: 25px 0; padding: 20px; border: 2px solid var(--success-color); border-radius: 8px; background: #f8fff9;">
-          <div class="total-amount-display">
-            <strong style="font-size: 1.2rem;">Total Amount: RM <span id="totalSalesAmount">0.00</span></strong>
+        <!-- Payment Section -->
+        <div class="payment-section" style="margin: 25px 0; padding: 20px; border: 2px solid var(--primary-color); border-radius: 8px; background: #f8f9fa;">
+          <h3 style="color: var(--text-light); margin-bottom: 20px;">💳 Payment Information</h3>
+          
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px;">
+            <div class="form-group">
+              <label for="paymentMethod">Payment Method:</label>
+              <select id="paymentMethod" style="font-size: 1.1rem; padding: 12px; width: 100%;">
+                <option value="cash">Cash</option>
+                <option value="online">Online Transfer/QR</option>
+                <option value="card">Credit/Debit Card</option>
+              </select>
+            </div>
+            <div class="form-group cash-payment-group">
+              <label for="amountReceived">Amount Received (RM):</label>
+              <input type="number" id="amountReceived" placeholder="0.00" step="0.01" min="0" style="font-size: 1.1rem; padding: 12px;">
+            </div>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px;">
+            <div class="form-group">
+              <label>Grand Total (RM):</label>
+              <div class="grand-total-display" style="font-size: 1.3rem; font-weight: bold; color: var(--success-color); padding: 10px; background: white; border-radius: 5px; text-align: center;">
+                RM <span id="grandTotalAmount">0.00</span>
+              </div>
+            </div>
+            <div class="form-group cash-payment-group">
+              <label>Change (RM):</label>
+              <div id="changeDisplay" style="font-size: 1.3rem; font-weight: bold; padding: 10px; background: white; border-radius: 5px; text-align: center; border: 2px solid var(--success-color); color: var(--success-color);">
+                RM <span id="changeAmount">0.00</span>
+              </div>
+              <div id="changeMessage" style="margin-top: 5px; font-size: 0.9rem; color: var(--error-color); display: none;">
+                Insufficient payment received
+              </div>
+            </div>
+          </div>
+          
+          <div class="payment-validation" style="margin-top: 15px; padding: 10px; border-radius: 5px; background: #fff3cd; display: none;" id="paymentValidationMessage">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.2rem;">⚠️</span>
+              <span id="validationText">Payment validation message</span>
+            </div>
           </div>
         </div>
 
         <div class="modal-actions" style="position: sticky; bottom: 0; background: var(--card-light); padding: 20px 0; margin-top: 30px; border-top: 1px solid var(--border-color);">
-          <button id="saveSalesBtn" class="primary-btn" style="padding: 12px 25px; font-size: 1.1rem;">💾 Save Sales Order</button>
+          <button id="saveSalesBtn" class="primary-btn" style="padding: 12px 25px; font-size: 1.1rem;" disabled>💾 Save Sales Order</button>
           <button id="closeSalesModal" class="secondary-btn" style="padding: 12px 25px; font-size: 1.1rem;">✖️ Close</button>
         </div>
       </div>
@@ -654,4 +696,4 @@
   </script>
 </body>
 </html>
-
+[file content end]
