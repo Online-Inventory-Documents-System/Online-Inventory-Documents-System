@@ -1,5 +1,3 @@
-[file name]: script.js
-[file content begin]
 // public/js/script.js
 // Complete client-side script for Online Inventory & Documents System
 // UPDATED WITH PAYMENT LOGIC
@@ -4031,3 +4029,4 @@ window.handleEditClick = async function(productId) {
   await openEditProductModal(productId);
 };
 [file content end]
+
