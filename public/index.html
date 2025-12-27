@@ -327,7 +327,7 @@
     </div>
   </div>
 
-  <!-- Sales History Modal -->
+  <!-- UPDATED: Sales History Modal with Payment System Columns -->
   <div id="salesHistoryModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -385,7 +385,7 @@
             <div class="text-search-container right-search">
               <label for="salesSearchInput">🔍 Search</label>
               <div class="search-input-group">
-                <input id="salesSearchInput" placeholder="Sales ID, customer, contact..." type="text" />
+                <input id="salesSearchInput" placeholder="Sales ID, customer, contact, payment method..." type="text" />
                 <div class="search-buttons">
                   <button id="clearSalesSearchBtn" class="secondary-btn">Clear</button>
                 </div>
@@ -405,6 +405,8 @@
                 <th>Items Count</th>
                 <th class="money">Total Amount</th>
                 <th>Date</th>
+                <th>Payment Method</th>
+                <th>Payment Status</th>
                 <th class="actions-header" style="min-width: 250px;">ACTIONS</th>
               </tr>
             </thead>
@@ -431,7 +433,7 @@
     </div>
   </div>
 
-  <!-- Sales Details Modal -->
+  <!-- UPDATED: Sales Details Modal with Payment Information -->
   <div id="salesDetailsModal" class="modal">
     <div class="modal-content x-large-modal">
       <div class="modal-header">
@@ -466,9 +468,23 @@
               <span id="detailSalesTotalAmount" class="detail-value money"></span>
             </div>
             <div class="detail-group">
-              <!-- Empty for alignment -->
+              <label>Payment Method:</label>
+              <span id="detailPaymentMethod" class="detail-value"></span>
             </div>
           </div>
+          
+          <!-- Payment Information Row -->
+          <div class="detail-row" id="detailPaymentRow" style="display: none;">
+            <div class="detail-group">
+              <label>Amount Received:</label>
+              <span id="detailAmountReceived" class="detail-value money"></span>
+            </div>
+            <div class="detail-group">
+              <label>Change:</label>
+              <span id="detailChangeAmount" class="detail-value money"></span>
+            </div>
+          </div>
+          
           <div class="detail-row" id="detailSalesNotesRow" style="display: none;">
             <div class="detail-group full-width">
               <label>Notes:</label>
