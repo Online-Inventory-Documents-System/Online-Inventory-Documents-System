@@ -1,6 +1,6 @@
 // public/js/script.js
 // Complete client-side script for Online Inventory & Documents System
-// UPDATED WITH PAYMENT LOGIC
+// UPDATED WITH PAYMENT LOGIC IN SALES HISTORY
 
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
@@ -1616,7 +1616,7 @@ async function fetchSales() {
   }
 }
 
-// UPDATED: Sales history table with adjusted action buttons on same horizontal line
+// UPDATED: Sales history table with payment method column and adjusted action buttons
 function renderSalesHistory(items) {
   const list = qs('#salesHistoryList');
   if (!list) return;
@@ -1626,6 +1626,33 @@ function renderSalesHistory(items) {
   const startNumber = ((currentSalesPage - 1) * salesItemsPerPage) + 1;
   
   paginatedItems.forEach((s, index) => {
+    // Get payment method display text
+    let paymentMethodDisplay = 'N/A';
+    if (s.paymentMethod) {
+      switch(s.paymentMethod) {
+        case 'cash': paymentMethodDisplay = '💵 Cash'; break;
+        case 'online': paymentMethodDisplay = '📱 Online/QR'; break;
+        case 'card': paymentMethodDisplay = '💳 Card'; break;
+        default: paymentMethodDisplay = s.paymentMethod;
+      }
+    }
+    
+    // Get payment status based on amount received
+    let paymentStatus = '';
+    let paymentStatusClass = '';
+    if (s.paymentMethod === 'cash' && s.amountReceived && s.totalAmount) {
+      if (s.amountReceived >= s.totalAmount) {
+        paymentStatus = '✅ Paid';
+        paymentStatusClass = 'status-paid';
+      } else {
+        paymentStatus = '⚠️ Partial';
+        paymentStatusClass = 'status-partial';
+      }
+    } else if (s.paymentMethod && s.paymentMethod !== 'cash') {
+      paymentStatus = '✅ Paid';
+      paymentStatusClass = 'status-paid';
+    }
+    
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td class="number-cell">${startNumber + index}</td>
@@ -1635,6 +1662,8 @@ function renderSalesHistory(items) {
       <td>${s.items ? s.items.length : 0} items</td>
       <td class="money">RM ${(s.totalAmount || 0).toFixed(2)}</td>
       <td>${escapeHtml(s.salesDate || 'N/A')}</td>
+      <td><span class="payment-method-badge">${paymentMethodDisplay}</span></td>
+      <td><span class="status-badge ${paymentStatusClass}">${paymentStatus}</span></td>
       <td class="actions">
         <div class="action-buttons-horizontal">
           <button class="primary-btn small-btn" onclick="viewSalesDetails('${s.id}')">👁️ View</button>
@@ -1679,7 +1708,8 @@ function searchSales() {
       (sale.salesId||'').toLowerCase().includes(textQuery) || 
       (sale.customer||'').toLowerCase().includes(textQuery) ||
       (sale.customerContact||'').toLowerCase().includes(textQuery) ||
-      (sale.notes||'').toLowerCase().includes(textQuery)
+      (sale.notes||'').toLowerCase().includes(textQuery) ||
+      (sale.paymentMethod||'').toLowerCase().includes(textQuery)
     );
   }
   
@@ -2103,6 +2133,17 @@ async function viewSalesDetails(salesId) {
       return;
     }
     
+    // Update payment method display
+    let paymentMethodDisplay = 'N/A';
+    if (sale.paymentMethod) {
+      switch(sale.paymentMethod) {
+        case 'cash': paymentMethodDisplay = '💵 Cash'; break;
+        case 'online': paymentMethodDisplay = '📱 Online Transfer/QR'; break;
+        case 'card': paymentMethodDisplay = '💳 Credit/Debit Card'; break;
+        default: paymentMethodDisplay = sale.paymentMethod;
+      }
+    }
+    
     const detailElements = {
       'detailSalesId': 'detailSalesId',
       'detailCustomer': 'detailCustomer',
@@ -2110,7 +2151,11 @@ async function viewSalesDetails(salesId) {
       'detailSalesDate': 'detailSalesDate',
       'detailSalesTotalAmount': 'detailSalesTotalAmount',
       'detailSalesNotes': 'detailSalesNotes',
-      'detailSalesNotesRow': 'detailSalesNotesRow'
+      'detailSalesNotesRow': 'detailSalesNotesRow',
+      'detailPaymentMethod': 'detailPaymentMethod',
+      'detailAmountReceived': 'detailAmountReceived',
+      'detailChangeAmount': 'detailChangeAmount',
+      'detailPaymentRow': 'detailPaymentRow'
     };
     
     Object.entries(detailElements).forEach(([key, elementId]) => {
@@ -2140,6 +2185,22 @@ async function viewSalesDetails(salesId) {
             } else {
               const notesRow = qs('#detailNotesRow');
               if (notesRow) notesRow.style.display = 'none';
+            }
+            break;
+          case 'detailPaymentMethod':
+            element.textContent = paymentMethodDisplay;
+            break;
+          case 'detailAmountReceived':
+            element.textContent = `RM ${(sale.amountReceived || 0).toFixed(2)}`;
+            break;
+          case 'detailChangeAmount':
+            element.textContent = `RM ${(sale.changeAmount || 0).toFixed(2)}`;
+            break;
+          case 'detailPaymentRow':
+            if (sale.paymentMethod) {
+              element.style.display = 'flex';
+            } else {
+              element.style.display = 'none';
             }
             break;
         }
@@ -4028,4 +4089,3 @@ window.closeConfirmationModal = closeConfirmationModal;
 window.handleEditClick = async function(productId) {
   await openEditProductModal(productId);
 };
-
