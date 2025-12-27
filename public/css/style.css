@@ -3912,3 +3912,55 @@ body[data-theme="dark"] section {
     padding: 12px;
   }
 }
+/* Payment Section Styling */
+.payment-section {
+  background: var(--card-light);
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  border: 2px solid var(--primary-color);
+}
+
+.cash-payment-group {
+  transition: all 0.3s ease;
+}
+
+.payment-validation {
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 15px;
+  font-size: 0.95rem;
+}
+
+.grand-total-display {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: var(--success-color);
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  text-align: center;
+  border: 2px solid var(--success-color);
+}
+
+#changeDisplay {
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 1.4rem;
+  font-weight: bold;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+/* Disabled button styling */
+button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Form hint styling */
+.form-hint {
+  color: var(--text-light);
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
