@@ -16,7 +16,8 @@ const SECURITY_CODE = process.env.SECRET_SECURITY_CODE || "1234";
 // ===== Counter for invoice numbers =====
 let invoiceCounter = {
   inventory: 0,
-  sales: 0
+  sales: 0,
+  purchases: 0
 };
 
 // FIXED: Initialize counters from database with proper async handling
@@ -49,15 +50,28 @@ async function initializeCounters() {
       }
     }
     
+    // Get the maximum purchaseId from existing purchases
+    const lastPurchase = await Purchase.findOne().sort({ purchaseId: -1 }).lean();
+    if (lastPurchase && lastPurchase.purchaseId) {
+      const match = lastPurchase.purchaseId.match(/PUR-(\d+)/);
+      if (match) {
+        const lastNumber = parseInt(match[1], 10);
+        invoiceCounter.purchases = lastNumber;
+        console.log(`📊 Purchase counter initialized to: ${invoiceCounter.purchases}`);
+      }
+    }
+    
     console.log('✅ Counters initialized successfully');
     console.log(`   Sales counter: ${invoiceCounter.sales}`);
     console.log(`   Inventory counter: ${invoiceCounter.inventory}`);
+    console.log(`   Purchase counter: ${invoiceCounter.purchases}`);
     
   } catch (err) {
     console.error("❌ Counter initialization error:", err);
     // Initialize with safe defaults
     invoiceCounter.sales = 0;
     invoiceCounter.inventory = 0;
+    invoiceCounter.purchases = 0;
   }
 }
 
@@ -145,7 +159,7 @@ function formatTime12Hour(date) {
 // ===== FIXED: Generate invoice numbers with proper counter management =====
 function generateInvoiceNumber(type) {
   invoiceCounter[type] = invoiceCounter[type] + 1;
-  const prefix = type === 'inventory' ? 'INVR' : 'SAL';
+  const prefix = type === 'inventory' ? 'INVR' : type === 'sales' ? 'SAL' : 'PUR';
   const number = invoiceCounter[type].toString().padStart(9, '0');
   const invoiceNumber = `${prefix}-${number}`;
   
@@ -181,7 +195,7 @@ const InventorySchema = new Schema({
 });
 const Inventory = mongoose.model("Inventory", InventorySchema);
 
-// ===== UPDATED Sales Schema with customerContact =====
+// ===== UPDATED Sales Schema with payment details =====
 const SalesItemSchema = new Schema({
   sku: String,
   productName: String,
@@ -196,13 +210,16 @@ const SalesSchema = new Schema({
   customerContact: String,
   salesDate: { type: Date, default: Date.now },
   notes: String,
+  paymentMethod: { type: String, default: 'cash' },
+  amountReceived: { type: Number, default: 0 },
+  changeAmount: { type: Number, default: 0 },
   items: [SalesItemSchema],
   totalAmount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 const Sales = mongoose.model("Sales", SalesSchema);
 
-// ===== NEW: Purchase Schema for Restocking =====
+// ===== Purchase Schema for Restocking =====
 const PurchaseItemSchema = new Schema({
   sku: String,
   productName: String,
@@ -960,7 +977,8 @@ app.get("/api/sales/enhanced", async (req, res) => {
         { salesId: searchRegex },
         { customer: searchRegex },
         { customerContact: searchRegex },
-        { 'items.productName': searchRegex }
+        { 'items.productName': searchRegex },
+        { paymentMethod: searchRegex }
       ];
     }
     
@@ -1048,7 +1066,7 @@ app.get("/api/sales/:id", async (req, res) => {
 // ===== FIXED: Sales POST endpoint with duplicate key handling =====
 app.post("/api/sales", async (req, res) => {
   try {
-    const { customer, customerContact, salesDate, notes, items } = req.body;
+    const { customer, customerContact, salesDate, notes, items, paymentMethod, amountReceived, changeAmount } = req.body;
     
     let salesId;
     let attempts = 0;
@@ -1105,6 +1123,9 @@ app.post("/api/sales", async (req, res) => {
       customerContact: customerContact || customer || 'N/A',
       salesDate: salesDate || new Date(),
       notes,
+      paymentMethod: paymentMethod || 'cash',
+      amountReceived: amountReceived || totalAmount,
+      changeAmount: changeAmount || 0,
       items: salesItems,
       totalAmount
     });
@@ -1134,7 +1155,7 @@ app.post("/api/sales", async (req, res) => {
 
 app.put("/api/sales/:id", async (req, res) => {
   try {
-    const { customer, customerContact, salesDate, notes, items } = req.body;
+    const { customer, customerContact, salesDate, notes, items, paymentMethod, amountReceived, changeAmount } = req.body;
     
     // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -1189,6 +1210,9 @@ app.put("/api/sales/:id", async (req, res) => {
         customerContact: customerContact || customer || 'N/A',
         salesDate,
         notes,
+        paymentMethod: paymentMethod || 'cash',
+        amountReceived: amountReceived || totalAmount,
+        changeAmount: changeAmount || 0,
         items: salesItems,
         totalAmount
       },
@@ -1248,7 +1272,7 @@ app.delete("/api/sales/:id", async (req, res) => {
 });
 
 // ============================================================================
-//                    UPDATED: SINGLE SALES INVOICE PDF WITH SINGLE PAGE
+//                    UPDATED: SINGLE SALES INVOICE PDF WITH PAYMENT DETAILS
 // ============================================================================
 app.get("/api/sales/invoice/:id", async (req, res) => {
   try {
@@ -1283,6 +1307,11 @@ app.get("/api/sales/invoice/:id", async (req, res) => {
           customer: {
             name: sale.customer || 'Customer',
             contact: sale.customerContact || sale.customer || 'N/A'
+          },
+          paymentInfo: {
+            method: sale.paymentMethod || 'cash',
+            amountReceived: sale.amountReceived || sale.totalAmount || 0,
+            changeAmount: sale.changeAmount || 0
           },
           items: sale.items.map((item, index) => ({
             no: index + 1, // Add sequential number
@@ -1354,6 +1383,11 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
         name: sale.customer || 'Customer',
         contact: sale.customerContact || sale.customer || 'N/A'
       },
+      paymentInfo: {
+        method: sale.paymentMethod || 'cash',
+        amountReceived: sale.amountReceived || sale.totalAmount || 0,
+        changeAmount: sale.changeAmount || 0
+      },
       items: sale.items.map((item, index) => ({
         no: index + 1, // Add sequential number
         name: item.productName || 'N/A',
@@ -1401,30 +1435,6 @@ app.post("/api/sales/save-invoice/:id", async (req, res) => {
 // ============================================================================
 //                          PURCHASE MANAGEMENT ENDPOINTS
 // ============================================================================
-// ===== FIXED: Initialize purchase counter =====
-async function initializePurchaseCounter() {
-  try {
-    const lastPurchase = await Purchase.findOne().sort({ purchaseId: -1 }).lean();
-    if (lastPurchase && lastPurchase.purchaseId) {
-      const match = lastPurchase.purchaseId.match(/PUR-(\d+)/);
-      if (match) {
-        return parseInt(match[1], 10);
-      }
-    }
-    return 0;
-  } catch (err) {
-    console.error("Purchase counter initialization error:", err);
-    return 0;
-  }
-}
-
-// Generate purchase ID
-function generatePurchaseNumber() {
-  invoiceCounter.purchases = invoiceCounter.purchases + 1;
-  const number = invoiceCounter.purchases.toString().padStart(9, '0');
-  return `PUR-${number}`;
-}
-
 // Get all purchases
 app.get("/api/purchases", async (req, res) => {
   try {
@@ -1478,7 +1488,7 @@ app.post("/api/purchases", async (req, res) => {
     
     // Generate unique purchaseId with retry logic
     while (attempts < maxAttempts) {
-      purchaseId = generatePurchaseNumber();
+      purchaseId = generateInvoiceNumber('purchases');
       
       // Check if this purchaseId already exists
       const existingPurchase = await Purchase.findOne({ purchaseId });
@@ -1689,8 +1699,18 @@ function splitTextIntoLines(text, maxLineLength) {
   return lines;
 }
 
-// ===== UPDATED: Generate SINGLE PAGE PDF buffer with all improvements =====
-function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {}, docMeta = {}, customer = {}, supplier = {}, items = [], totals = {}, extraNotes = '' }) {
+// ===== UPDATED: Generate SINGLE PAGE PDF buffer with PAYMENT DETAILS =====
+function generateSinglePageInvoicePDFBuffer({ 
+  title = 'Invoice', 
+  companyInfo = {}, 
+  docMeta = {}, 
+  customer = {}, 
+  supplier = {}, 
+  paymentInfo = {}, 
+  items = [], 
+  totals = {}, 
+  extraNotes = '' 
+}) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ 
@@ -1744,8 +1764,42 @@ function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {
         doc.text(`Contact: ${infoContact}`, 36, doc.y);
       }
 
+      // Payment information (only for sales invoices)
+      let paymentY = doc.y + 10;
+      if (title.includes('SALES') && paymentInfo && paymentInfo.method) {
+        let paymentMethodText = '';
+        switch(paymentInfo.method) {
+          case 'cash':
+            paymentMethodText = '💵 Cash';
+            break;
+          case 'online':
+            paymentMethodText = '📱 Online Transfer/QR';
+            break;
+          case 'card':
+            paymentMethodText = '💳 Credit/Debit Card';
+            break;
+          default:
+            paymentMethodText = paymentInfo.method;
+        }
+        
+        doc.fontSize(10).font('Helvetica-Bold')
+           .text('Payment:', 36, paymentY);
+        doc.font('Helvetica')
+           .text(paymentMethodText, 36, paymentY + 15);
+        
+        if (paymentInfo.amountReceived) {
+          doc.text(`Amount Received: RM ${Number(paymentInfo.amountReceived || 0).toFixed(2)}`, 36, doc.y + 5);
+        }
+        
+        if (paymentInfo.changeAmount) {
+          doc.text(`Change: RM ${Number(paymentInfo.changeAmount || 0).toFixed(2)}`, 36, doc.y + 5);
+        }
+        
+        paymentY = doc.y + 10;
+      }
+
       // Table header
-      const tableTop = infoY + 50;
+      const tableTop = paymentY + 10;
       const colX = { 
         no: 36,      // NO column
         item: 60,    // Product Name
@@ -1837,6 +1891,24 @@ function generateSinglePageInvoicePDFBuffer({ title = 'Invoice', companyInfo = {
       doc.moveTo(400, totalsY + 48).lineTo(560, totalsY + 48).stroke();
       doc.text('Total Amount', 400, totalsY + 60, { width: 90, align: 'right' });
       doc.text(`RM ${Number(grand).toFixed(2)}`, 500, totalsY + 60, { width: 70, align: 'right' });
+
+      // Payment summary (only for sales)
+      if (title.includes('SALES') && paymentInfo && paymentInfo.method) {
+        totalsY += 40;
+        
+        doc.moveTo(400, totalsY).lineTo(560, totalsY).stroke();
+        doc.text('Payment Summary', 400, totalsY + 12, { width: 90, align: 'right', font: 'Helvetica-Bold' });
+        
+        if (paymentInfo.amountReceived) {
+          doc.text('Amount Received', 400, totalsY + 30, { width: 90, align: 'right' });
+          doc.text(`RM ${Number(paymentInfo.amountReceived || 0).toFixed(2)}`, 500, totalsY + 30, { width: 70, align: 'right' });
+        }
+        
+        if (paymentInfo.changeAmount) {
+          doc.text('Change', 400, totalsY + 48, { width: 90, align: 'right' });
+          doc.text(`RM ${Number(paymentInfo.changeAmount || 0).toFixed(2)}`, 500, totalsY + 48, { width: 70, align: 'right' });
+        }
+      }
 
       // FIXED: Adjusted footer positions with more space
       const pageHeight = doc.page.height;
@@ -2372,15 +2444,29 @@ app.get("/api/logs/login-history", async (req, res) => {
 });
 
 // ============================================================================
-//                          GET ALL DATA FOR DASHBOARD - UPDATED NAMES
+//                          GET ALL DATA FOR DASHBOARD - OPTIMIZED
 // ============================================================================
 app.get("/api/dashboard/stats", async (req, res) => {
   try {
-    const inventoryCount = await Inventory.countDocuments({});
-    const salesCount = await Sales.countDocuments({});
-    const documentCount = await Doc.countDocuments({});
+    // Use Promise.all for parallel execution
+    const [
+      inventoryCount,
+      salesCount,
+      documentCount,
+      inventoryItems,
+      sales,
+      recentLogs,
+      lowStockItems
+    ] = await Promise.all([
+      Inventory.countDocuments({}),
+      Sales.countDocuments({}),
+      Doc.countDocuments({}),
+      Inventory.find({}).lean(),
+      Sales.find({}).lean(),
+      ActivityLog.find({}).sort({ time: -1 }).limit(5).lean(),
+      Inventory.find({ quantity: { $lt: 10 } }).lean()
+    ]);
     
-    const inventoryItems = await Inventory.find({}).lean();
     let totalCost = 0; // Total Inventory Cost
     let totalStock = 0; // Total Stock Quantity
     
@@ -2393,12 +2479,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
       totalStock += qty;
     });
     
-    const sales = await Sales.find({}).lean();
     const salesTotal = sales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-    
-    const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(5).lean();
-    
-    const lowStockItems = await Inventory.find({ quantity: { $lt: 10 } }).lean();
     
     res.json({
       success: true,
@@ -2431,7 +2512,7 @@ app.get("/api/dashboard/stats", async (req, res) => {
 });
 
 // ============================================================================
-//                          SEARCH ACROSS ALL DATA
+//                          SEARCH ACROSS ALL DATA - OPTIMIZED
 // ============================================================================
 app.get("/api/search", async (req, res) => {
   try {
@@ -2447,25 +2528,29 @@ app.get("/api/search", async (req, res) => {
     
     const searchTerm = q.toLowerCase().trim();
     
-    const inventoryResults = await Inventory.find({
-      $or: [
-        { sku: { $regex: searchTerm, $options: 'i' } },
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { category: { $regex: searchTerm, $options: 'i' } }
-      ]
-    }).limit(10).lean();
-    
-    const salesResults = await Sales.find({
-      $or: [
-        { salesId: { $regex: searchTerm, $options: 'i' } },
-        { customer: { $regex: searchTerm, $options: 'i' } },
-        { 'items.productName': { $regex: searchTerm, $options: 'i' } }
-      ]
-    }).limit(10).lean();
-    
-    const documentResults = await Doc.find({
-      name: { $regex: searchTerm, $options: 'i' }
-    }).select('-data').limit(10).lean();
+    // Use Promise.all for parallel search
+    const [inventoryResults, salesResults, documentResults] = await Promise.all([
+      Inventory.find({
+        $or: [
+          { sku: { $regex: searchTerm, $options: 'i' } },
+          { name: { $regex: searchTerm, $options: 'i' } },
+          { category: { $regex: searchTerm, $options: 'i' } }
+        ]
+      }).limit(10).lean(),
+      
+      Sales.find({
+        $or: [
+          { salesId: { $regex: searchTerm, $options: 'i' } },
+          { customer: { $regex: searchTerm, $options: 'i' } },
+          { 'items.productName': { $regex: searchTerm, $options: 'i' } },
+          { paymentMethod: { $regex: searchTerm, $options: 'i' } }
+        ]
+      }).limit(10).lean(),
+      
+      Doc.find({
+        name: { $regex: searchTerm, $options: 'i' }
+      }).select('-data').limit(10).lean()
+    ]);
     
     res.json({
       inventory: inventoryResults.map(i => ({ 
@@ -2498,12 +2583,21 @@ app.get("/api/system/health", async (req, res) => {
   try {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     
-    const inventoryCount = await Inventory.countDocuments({});
-    const salesCount = await Sales.countDocuments({});
-    const documentCount = await Doc.countDocuments({});
-    const userCount = await User.countDocuments({});
+    // Use Promise.all for parallel execution
+    const [
+      inventoryCount,
+      salesCount,
+      documentCount,
+      userCount,
+      recentLogs
+    ] = await Promise.all([
+      Inventory.countDocuments({}),
+      Sales.countDocuments({}),
+      Doc.countDocuments({}),
+      User.countDocuments({}),
+      ActivityLog.find({}).sort({ time: -1 }).limit(10).lean()
+    ]);
     
-    const recentLogs = await ActivityLog.find({}).sort({ time: -1 }).limit(10).lean();
     const errorLogs = recentLogs.filter(log => log.action && log.action.toLowerCase().includes('error'));
     
     res.json({
@@ -2561,10 +2655,6 @@ async function ensureDefaultAdminAndStartupLog() {
   try {
     // Initialize counters first
     await initializeCounters();
-    
-    // Initialize purchase counter
-    invoiceCounter.purchases = await initializePurchaseCounter();
-    console.log(`📊 Purchase counter initialized to: ${invoiceCounter.purchases}`);
     
     // Create default admin if needed
     const count = await User.countDocuments({}).exec();
