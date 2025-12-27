@@ -4028,5 +4028,4 @@ window.closeConfirmationModal = closeConfirmationModal;
 window.handleEditClick = async function(productId) {
   await openEditProductModal(productId);
 };
-[file content end]
 
