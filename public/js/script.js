@@ -1,5 +1,8 @@
+[file name]: script.js
+[file content begin]
 // public/js/script.js
 // Complete client-side script for Online Inventory & Documents System
+// UPDATED WITH PAYMENT LOGIC
 
 const API_BASE = window.location.hostname.includes('localhost')
   ? "http://localhost:3000/api"
@@ -161,6 +164,143 @@ function logout(){
   sessionStorage.removeItem('isLoggedIn');
   sessionStorage.removeItem('adminName');
   window.location.href = 'login.html';
+}
+
+// =========================================
+// NEW: Payment Logic Functions
+// =========================================
+
+// Function to update payment fields visibility based on payment method
+function updatePaymentFieldsVisibility() {
+  const paymentMethod = qs('#paymentMethod').value;
+  const cashPaymentGroups = qsa('.cash-payment-group');
+  const amountReceivedInput = qs('#amountReceived');
+  const changeDisplay = qs('#changeDisplay');
+  const changeMessage = qs('#changeMessage');
+  
+  if (paymentMethod === 'cash') {
+    // Show cash payment fields
+    cashPaymentGroups.forEach(group => group.style.display = 'block');
+    if (amountReceivedInput) amountReceivedInput.disabled = false;
+    if (amountReceivedInput) amountReceivedInput.value = '';
+    
+    // Reset change display
+    if (qs('#changeAmount')) qs('#changeAmount').textContent = '0.00';
+    if (changeDisplay) {
+      changeDisplay.style.borderColor = 'var(--success-color)';
+      changeDisplay.style.color = 'var(--success-color)';
+    }
+    if (changeMessage) changeMessage.style.display = 'none';
+    
+    // Recalculate change
+    calculateChange();
+  } else {
+    // Hide cash payment fields for online/credit card payments
+    cashPaymentGroups.forEach(group => group.style.display = 'none');
+    if (amountReceivedInput) amountReceivedInput.disabled = true;
+    if (amountReceivedInput) amountReceivedInput.value = '0.00';
+    
+    // Set change to 0
+    if (qs('#changeAmount')) qs('#changeAmount').textContent = '0.00';
+    if (changeDisplay) {
+      changeDisplay.style.borderColor = 'var(--success-color)';
+      changeDisplay.style.color = 'var(--success-color)';
+    }
+    if (changeMessage) changeMessage.style.display = 'none';
+    
+    // Validate payment for non-cash methods (always valid)
+    validatePayment();
+  }
+}
+
+// Function to calculate change
+function calculateChange() {
+  const grandTotal = parseFloat(qs('#grandTotalAmount').textContent) || 0;
+  const amountReceived = parseFloat(qs('#amountReceived').value) || 0;
+  const changeAmount = amountReceived - grandTotal;
+  
+  // Update change display
+  if (qs('#changeAmount')) {
+    qs('#changeAmount').textContent = changeAmount.toFixed(2);
+  }
+  
+  // Update change display style based on validation
+  const changeDisplay = qs('#changeDisplay');
+  const changeMessage = qs('#changeMessage');
+  
+  if (changeDisplay) {
+    if (changeAmount >= 0) {
+      // Sufficient payment
+      changeDisplay.style.borderColor = 'var(--success-color)';
+      changeDisplay.style.color = 'var(--success-color)';
+      if (changeMessage) changeMessage.style.display = 'none';
+    } else {
+      // Insufficient payment
+      changeDisplay.style.borderColor = 'var(--error-color)';
+      changeDisplay.style.color = 'var(--error-color)';
+      if (changeMessage) changeMessage.style.display = 'block';
+    }
+  }
+  
+  // Validate payment
+  validatePayment();
+}
+
+// Function to validate payment and enable/disable save button
+function validatePayment() {
+  const saveBtn = qs('#saveSalesBtn');
+  const paymentMethod = qs('#paymentMethod').value;
+  const grandTotal = parseFloat(qs('#grandTotalAmount').textContent) || 0;
+  const amountReceived = parseFloat(qs('#amountReceived').value) || 0;
+  const validationMessage = qs('#paymentValidationMessage');
+  const validationText = qs('#validationText');
+  
+  let isValid = true;
+  let message = '';
+  
+  if (paymentMethod === 'cash') {
+    if (amountReceived < grandTotal) {
+      isValid = false;
+      message = `Insufficient payment. Need RM ${(grandTotal - amountReceived).toFixed(2)} more.`;
+    } else if (amountReceived === 0) {
+      isValid = false;
+      message = 'Please enter amount received from customer.';
+    } else {
+      isValid = true;
+      message = `Payment valid. Change: RM ${(amountReceived - grandTotal).toFixed(2)}`;
+    }
+  } else {
+    // Online/Card payments are always valid
+    isValid = true;
+    message = `${paymentMethod === 'online' ? 'Online Transfer/QR' : 'Credit/Debit Card'} payment selected.`;
+  }
+  
+  // Update validation message
+  if (validationMessage && validationText) {
+    validationText.textContent = message;
+    if (isValid) {
+      validationMessage.style.backgroundColor = '#d4edda';
+      validationMessage.style.border = '1px solid #c3e6cb';
+      validationMessage.style.color = '#155724';
+    } else {
+      validationMessage.style.backgroundColor = '#f8d7da';
+      validationMessage.style.border = '1px solid #f5c6cb';
+      validationMessage.style.color = '#721c24';
+    }
+    validationMessage.style.display = 'block';
+  }
+  
+  // Enable/disable save button
+  if (saveBtn) {
+    saveBtn.disabled = !isValid;
+    if (isValid) {
+      saveBtn.classList.remove('disabled');
+    } else {
+      saveBtn.classList.add('disabled');
+    }
+  }
+  
+  return isValid;
 }
 
 // =========================================
@@ -1464,7 +1604,7 @@ async function bindProductPage(){
 }
 
 // =========================================
-// Sales Management Functions - FIXED DELETE
+// Sales Management Functions - UPDATED WITH PAYMENT LOGIC
 // =========================================
 async function fetchSales() {
   try {
@@ -1631,7 +1771,7 @@ function bindSalesSearchEvents() {
   });
 }
 
-// UPDATED: New Sales Modal - No Scroll
+// UPDATED: New Sales Modal - No Scroll WITH PAYMENT LOGIC
 function openNewSalesModal() {
   const modal = qs('#newSalesModal');
   if (modal) {
@@ -1639,8 +1779,20 @@ function openNewSalesModal() {
     const salesItems = qs('#salesItems');
     if (salesItems) salesItems.innerHTML = '';
     loadProductSearchForSales();
+    
+    // Set default date to today
+    if (qs('#salesDate')) {
+      const today = new Date().toISOString().split('T')[0];
+      qs('#salesDate').value = today;
+    }
+    
+    // Initialize payment method visibility
+    updatePaymentFieldsVisibility();
+    
     modal.style.display = 'block';
     document.body.classList.add('modal-open');
+    
+    // Set initial total amount
     updateSalesTotalAmount();
   } else {
     console.error('New sales modal not found');
@@ -1666,6 +1818,19 @@ function resetSalesForm() {
   if (qs('#productResultsSales')) qs('#productResultsSales').innerHTML = '';
   if (qs('#salesItems')) qs('#salesItems').innerHTML = '';
   if (qs('#totalSalesAmount')) qs('#totalSalesAmount').textContent = '0.00';
+  if (qs('#grandTotalAmount')) qs('#grandTotalAmount').textContent = '0.00';
+  if (qs('#paymentMethod')) qs('#paymentMethod').value = 'cash';
+  if (qs('#amountReceived')) qs('#amountReceived').value = '';
+  if (qs('#changeAmount')) qs('#changeAmount').textContent = '0.00';
+  if (qs('#changeMessage')) qs('#changeMessage').style.display = 'none';
+  if (qs('#paymentValidationMessage')) qs('#paymentValidationMessage').style.display = 'none';
+  
+  // Reset save button
+  const saveBtn = qs('#saveSalesBtn');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.classList.add('disabled');
+  }
 }
 
 function addSalesProductItem(product = null) {
@@ -1748,9 +1913,17 @@ function updateSalesTotalAmount() {
     }
   });
   
+  // Update both total displays
   if (qs('#totalSalesAmount')) {
     qs('#totalSalesAmount').textContent = total.toFixed(2);
   }
+  
+  if (qs('#grandTotalAmount')) {
+    qs('#grandTotalAmount').textContent = total.toFixed(2);
+  }
+  
+  // Update payment validation
+  calculateChange();
 }
 
 function loadProductSearchForSales() {
@@ -1793,6 +1966,7 @@ function loadProductSearchForSales() {
   }
 }
 
+// UPDATED: Save Sales Order with Payment Data
 async function saveSalesOrder() {
   const customerName = qs('#customerName')?.value?.trim();
   const customerContact = qs('#customerContact')?.value?.trim();
@@ -1804,6 +1978,9 @@ async function saveSalesOrder() {
   
   const salesDate = qs('#salesDate').value;
   const notes = qs('#salesNotes').value.trim();
+  const paymentMethod = qs('#paymentMethod').value;
+  const amountReceived = parseFloat(qs('#amountReceived').value) || 0;
+  const changeAmount = parseFloat(qs('#changeAmount').textContent) || 0;
   
   const items = [];
   const itemRows = qsa('.sales-item-row');
@@ -1853,19 +2030,29 @@ async function saveSalesOrder() {
     });
   }
   
+  const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.salePrice), 0);
+  
   const salesData = {
     customer: customerName,
     customerContact: customerContact,
     salesDate: salesDate || new Date().toISOString().split('T')[0],
     notes,
+    paymentMethod,
+    amountReceived: paymentMethod === 'cash' ? amountReceived : totalAmount,
+    changeAmount: paymentMethod === 'cash' ? changeAmount : 0,
     items
   };
   
-  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customerName}\nContact: ${customerContact}\nItems: ${items.length}\n\nItems:\n`;
+  let confirmMessage = `Confirm Sales Order:\n\nCustomer: ${customerName}\nContact: ${customerContact}\nPayment Method: ${paymentMethod === 'cash' ? 'Cash' : paymentMethod === 'online' ? 'Online Transfer/QR' : 'Credit/Debit Card'}\n\nItems:\n`;
   items.forEach((item, index) => {
     confirmMessage += `${index + 1}. ${item.productName} (${item.sku}) - ${item.quantity} x RM ${item.salePrice.toFixed(2)} = RM ${(item.quantity * item.salePrice).toFixed(2)}\n`;
   });
-  confirmMessage += `\nTotal Amount: RM ${salesData.items.reduce((sum, item) => sum + (item.quantity * item.salePrice), 0).toFixed(2)}`;
+  
+  if (paymentMethod === 'cash') {
+    confirmMessage += `\nAmount Received: RM ${amountReceived.toFixed(2)}\nChange: RM ${changeAmount.toFixed(2)}`;
+  }
+  
+  confirmMessage += `\n\nTotal Amount: RM ${totalAmount.toFixed(2)}`;
   
   const confirmed = await showConfirmation('Sales Order Confirmation', confirmMessage, 'Confirm Order', 'Cancel');
   
@@ -3579,7 +3766,7 @@ function bindSalesEditPage() {
 }
 
 // =========================================
-// ENHANCED UI BINDING
+// ENHANCED UI BINDING WITH PAYMENT LOGIC
 // =========================================
 function bindInventoryUI(){
   // Add Product Modal button
@@ -3618,6 +3805,18 @@ function bindInventoryUI(){
   // Sales buttons
   qs('#salesHistoryBtn')?.addEventListener('click', openSalesHistoryModal);
   qs('#newSalesBtn')?.addEventListener('click', openNewSalesModal);
+  
+  // Payment method change listener
+  const paymentMethodSelect = qs('#paymentMethod');
+  if (paymentMethodSelect) {
+    paymentMethodSelect.addEventListener('change', updatePaymentFieldsVisibility);
+  }
+  
+  // Amount received input listener
+  const amountReceivedInput = qs('#amountReceived');
+  if (amountReceivedInput) {
+    amountReceivedInput.addEventListener('input', calculateChange);
+  }
   
   // Other modal bindings
   qs('#saveSalesBtn')?.addEventListener('click', saveSalesOrder);
@@ -3814,6 +4013,11 @@ window.openEditProductModal = openEditProductModal;
 window.closeEditProductModal = closeEditProductModal;
 window.updateProduct = updateProduct;
 
+// Payment Functions
+window.updatePaymentFieldsVisibility = updatePaymentFieldsVisibility;
+window.calculateChange = calculateChange;
+window.validatePayment = validatePayment;
+
 // Toast Functions
 window.showToast = showToast;
 window.removeToast = removeToast;
@@ -3826,3 +4030,4 @@ window.closeConfirmationModal = closeConfirmationModal;
 window.handleEditClick = async function(productId) {
   await openEditProductModal(productId);
 };
+[file content end]
